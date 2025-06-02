@@ -4,7 +4,7 @@ Tools Package
 Provides drawing and editing tools for the pyTkCAD application.
 """
 
-from .base import Tool, ToolManager, ToolState, ToolCategory, ToolDefinition
+
 from .line import LineTool
 from .circle import CircleTool
 from .selector import SelectorTool
@@ -19,7 +19,7 @@ from .dimension import (
     VerticalDimensionTool,
     LinearDimensionTool
 )
-from .image import ImageTool
+
 
 # A list of all available tools for easy registration
 available_tools = [
@@ -37,6 +37,5 @@ available_tools = [
     PointTool,
     HorizontalDimensionTool,
     VerticalDimensionTool,
-    LinearDimensionTool,
-    ImageTool
+    LinearDimensionTool
 ]

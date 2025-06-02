@@ -5,9 +5,8 @@ This module implements conic section drawing tools based on the original TCL
 tools_conics.tcl implementation.
 """
 
-import tkinter as tk
 import math
-from typing import Optional, List, Tuple
+from typing import Optional, List
 
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
@@ -16,9 +15,9 @@ from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 class Conic2PointTool(Tool):
     """Tool for drawing conic sections by 2 points"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="CONIC2PT",
             name="Conic Section by 2 Points",
             category=ToolCategory.CONICS,
@@ -26,7 +25,7 @@ class Conic2PointTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Starting Point", "Ending Point"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -129,8 +128,9 @@ class Conic2PointTool(Tool):
                 line1_id, line2_id
             ])
 
-    def _draw_conic_preview(self, center: Point, rad_x: float, rad_y: float,
-                           start_angle: float, end_angle: float):
+    def _draw_conic_preview(
+            self, center: Point, rad_x: float, rad_y: float,
+            start_angle: float, end_angle: float):
         """Draw a conic section preview with the given parameters"""
         # Create points along the conic
         arc_points = []
@@ -203,8 +203,8 @@ class Conic2PointTool(Tool):
                 'center': center,           # Center point
                 'rad_x': rad_x,             # X radius
                 'rad_y': rad_y,             # Y radius
-                'start_angle': start_angle, # Start angle in degrees
-                'extent_angle': extent_angle # Extent angle in degrees
+                'start_angle': start_angle,  # Start angle in degrees
+                'extent_angle': extent_angle  # Extent angle in degrees
             }
         )
         return obj
@@ -213,9 +213,9 @@ class Conic2PointTool(Tool):
 class Conic3PointTool(Tool):
     """Tool for drawing conic sections by 3 points"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="CONIC3PT",
             name="Conic Section by 3 Points",
             category=ToolCategory.CONICS,
@@ -223,7 +223,7 @@ class Conic3PointTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Starting Point", "Ending Point", "Slope Control Point"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""

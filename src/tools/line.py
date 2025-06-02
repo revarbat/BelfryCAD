@@ -1,22 +1,22 @@
 """
 Line Drawing Tool Implementation
 
-This module implements a line drawing tool based on the TCL tool implementation.
+This module implements a line drawing tool based on the TCL
+tool implementation.
 """
 
-import tkinter as tk
-from typing import Optional
+from typing import Optional, List
 
-from src.core.cad_objects import CADObject, ObjectType, Point
+from src.core.cad_objects import CADObject, ObjectType
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
 class LineTool(Tool):
     """Tool for drawing straight lines"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="LINE",
             name="Line Tool",
             category=ToolCategory.LINES,
@@ -24,7 +24,7 @@ class LineTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Start Point", "End Point"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""

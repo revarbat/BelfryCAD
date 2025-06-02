@@ -88,22 +88,24 @@ class Tool:
         self.points: List[Point] = []
         self.temp_objects = []  # Canvas IDs of temporary preview objects
 
-        # Set up default definition - subclasses should override this
-        self.definition = self._get_definition()
+        # Set up default definitions - subclasses should override this
+        self.definitions = self._get_definition()
+        # For compatibility, keep the first definition as primary
+        self.definition = self.definitions[0] if self.definitions else None
 
         # Set up mouse event bindings
         self._setup_bindings()
 
-    def _get_definition(self) -> ToolDefinition:
-        """Return the tool definition - override in subclasses"""
-        return ToolDefinition(
+    def _get_definition(self) -> List[ToolDefinition]:
+        """Return the tool definitions - override in subclasses"""
+        return [ToolDefinition(
             token="TOOL",
             name="Base Tool",
             category=ToolCategory.SELECTOR,
             icon="default",
             cursor="crosshair",
             is_creator=True
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -205,7 +207,9 @@ class ToolManager:
     def register_tool(self, tool_class):
         """Register a tool with the manager"""
         tool = tool_class(self.canvas, self.document, self.preferences)
-        self.tools[tool.definition.token] = tool
+        # Register all definitions from this tool
+        for definition in tool.definitions:
+            self.tools[definition.token] = tool
         return tool
 
     def activate_tool(self, token: str):

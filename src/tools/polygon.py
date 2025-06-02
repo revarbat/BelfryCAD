@@ -16,9 +16,9 @@ from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 class RectangleTool(Tool):
     """Tool for drawing rectangles by two diagonal corners"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="RECTANGLE",
             name="Rectangle",
             category=ToolCategory.POLYGONS,
@@ -26,7 +26,7 @@ class RectangleTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["First Corner", "Opposite Corner"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -170,9 +170,9 @@ class RegularPolygonTool(Tool):
         if hasattr(self, 'side_control'):
             self.side_control.pack_forget()
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="REGPOLYGON",
             name="Regular Polygon",
             category=ToolCategory.POLYGONS,
@@ -180,7 +180,7 @@ class RegularPolygonTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Center Point", "Radius Point"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""

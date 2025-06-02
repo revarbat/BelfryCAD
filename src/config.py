@@ -2,10 +2,10 @@
 Application configuration and constants for PyTkCAD.
 """
 
-import os
+
 import sys
 from pathlib import Path
-from typing import Dict, Any
+
 
 class AppConfig:
     """Application configuration class."""
@@ -74,6 +74,7 @@ class AppConfig:
             "grid_color": "#cccccc",
             "selection_color": "#0080ff",
         }
+
 
 # Tool definitions (matching the original TCL tools)
 TOOL_DEFINITIONS = {

@@ -3,12 +3,11 @@ Preferences management for PyTkCAD.
 """
 
 import json
-import os
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from ..config import AppConfig
 from ..utils.logger import get_logger
+
 
 class PreferencesManager:
     """Manages application preferences."""
@@ -54,7 +53,8 @@ class PreferencesManager:
                 # Update preferences with loaded values
                 self.preferences.update(loaded_prefs)
 
-                self.logger.info(f"Loaded preferences from {self.config.prefs_file}")
+                self.logger.info(
+                    f"Loaded preferences from {self.config.prefs_file}")
             else:
                 self.logger.info("No preferences file found, using defaults")
 

@@ -5,20 +5,18 @@ This module implements the point drawing tool based on the original TCL
 tools_points.tcl implementation.
 """
 
-import tkinter as tk
-import math
-from typing import Optional, List, Tuple
+from typing import Optional, List
 
-from src.core.cad_objects import CADObject, ObjectType, Point
+from src.core.cad_objects import CADObject, ObjectType
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
 class PointTool(Tool):
     """Tool for drawing individual points"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="POINT",
             name="Point",
             category=ToolCategory.POINTS,
@@ -26,7 +24,7 @@ class PointTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Point Location"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""

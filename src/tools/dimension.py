@@ -5,9 +5,8 @@ This module implements various dimension tools based on the original TCL
 tools_dimensions.tcl implementation.
 """
 
-import tkinter as tk
 import math
-from typing import Optional, List, Tuple
+from typing import Optional, List
 
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
@@ -16,9 +15,9 @@ from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 class HorizontalDimensionTool(Tool):
     """Tool for creating horizontal dimension lines"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="DIMLINEH",
             name="Horizontal Dimension",
             category=ToolCategory.DIMENSIONS,
@@ -26,7 +25,7 @@ class HorizontalDimensionTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Start Point", "End Point", "Line Offset"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -49,7 +48,8 @@ class HorizontalDimensionTool(Tool):
             self.state = ToolState.DRAWING
         elif self.state == ToolState.DRAWING and len(self.points) == 1:
             # Second point - end of dimension line
-            # For horizontal dimension, we need to adjust the Y to match the first point
+            # For horizontal dimension, we need to adjust the Y to match
+            # the first point
             adjusted_point = Point(point.x, self.points[0].y)
             self.points.append(adjusted_point)
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
@@ -125,21 +125,25 @@ class HorizontalDimensionTool(Tool):
 
             # Left arrow
             left_arrow1_id = self.canvas.create_line(
-                start.x, offset_y, start.x + arrow_size, offset_y - arrow_size/2,
+                start.x, offset_y, start.x + arrow_size,
+                offset_y - arrow_size/2,
                 fill="blue"
             )
             left_arrow2_id = self.canvas.create_line(
-                start.x, offset_y, start.x + arrow_size, offset_y + arrow_size/2,
+                start.x, offset_y, start.x + arrow_size,
+                offset_y + arrow_size/2,
                 fill="blue"
             )
 
             # Right arrow
             right_arrow1_id = self.canvas.create_line(
-                end.x, offset_y, end.x - arrow_size, offset_y - arrow_size/2,
+                end.x, offset_y, end.x - arrow_size,
+                offset_y - arrow_size/2,
                 fill="blue"
             )
             right_arrow2_id = self.canvas.create_line(
-                end.x, offset_y, end.x - arrow_size, offset_y + arrow_size/2,
+                end.x, offset_y, end.x - arrow_size,
+                offset_y + arrow_size/2,
                 fill="blue"
             )
 
@@ -190,9 +194,9 @@ class HorizontalDimensionTool(Tool):
 class VerticalDimensionTool(Tool):
     """Tool for creating vertical dimension lines"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="DIMLINEV",
             name="Vertical Dimension",
             category=ToolCategory.DIMENSIONS,
@@ -200,7 +204,7 @@ class VerticalDimensionTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Start Point", "End Point", "Line Offset"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -223,7 +227,8 @@ class VerticalDimensionTool(Tool):
             self.state = ToolState.DRAWING
         elif self.state == ToolState.DRAWING and len(self.points) == 1:
             # Second point - end of dimension line
-            # For vertical dimension, we need to adjust the X to match the first point
+            # For vertical dimension, we need to adjust the X to match
+            # the first point
             adjusted_point = Point(self.points[0].x, point.y)
             self.points.append(adjusted_point)
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
@@ -300,21 +305,25 @@ class VerticalDimensionTool(Tool):
 
             # Top arrow
             top_arrow1_id = self.canvas.create_line(
-                offset_x, start.y, offset_x - arrow_size/2, start.y + arrow_size,
+                offset_x, start.y, offset_x - arrow_size/2,
+                start.y + arrow_size,
                 fill="blue"
             )
             top_arrow2_id = self.canvas.create_line(
-                offset_x, start.y, offset_x + arrow_size/2, start.y + arrow_size,
+                offset_x, start.y, offset_x + arrow_size/2,
+                start.y + arrow_size,
                 fill="blue"
             )
 
             # Bottom arrow
             bottom_arrow1_id = self.canvas.create_line(
-                offset_x, end.y, offset_x - arrow_size/2, end.y - arrow_size,
+                offset_x, end.y, offset_x - arrow_size/2,
+                end.y - arrow_size,
                 fill="blue"
             )
             bottom_arrow2_id = self.canvas.create_line(
-                offset_x, end.y, offset_x + arrow_size/2, end.y - arrow_size,
+                offset_x, end.y, offset_x + arrow_size/2,
+                end.y - arrow_size,
                 fill="blue"
             )
 
@@ -366,9 +375,9 @@ class VerticalDimensionTool(Tool):
 class LinearDimensionTool(Tool):
     """Tool for creating linear dimension lines at any angle"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="DIMLINE",
             name="Linear Dimension",
             category=ToolCategory.DIMENSIONS,
@@ -376,7 +385,7 @@ class LinearDimensionTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Start Point", "End Point", "Line Offset"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -468,8 +477,9 @@ class LinearDimensionTool(Tool):
             perp_dx = -dy
             perp_dy = dx
 
-            # Calculate the perpendicular distance from the offset point to the line
-            # Project the vector (offset - start) onto the perpendicular direction
+            # Calculate the perpendicular distance from the offset
+            # point to the line.  Project the vector (offset - start) onto
+            # the perpendicular direction
             offset_vec_x = offset.x - start.x
             offset_vec_y = offset.y - start.y
             perp_dist = offset_vec_x * perp_dx + offset_vec_y * perp_dy
@@ -501,18 +511,28 @@ class LinearDimensionTool(Tool):
             arrow_angle = math.radians(15)  # 15 degree arrow
 
             # For start arrow
-            angle1 = math.atan2(dim_end_y - dim_start_y, dim_end_x - dim_start_x)
-            arrow1_x1 = dim_start_x + arrow_size * math.cos(angle1 + math.pi - arrow_angle)
-            arrow1_y1 = dim_start_y + arrow_size * math.sin(angle1 + math.pi - arrow_angle)
-            arrow1_x2 = dim_start_x + arrow_size * math.cos(angle1 + math.pi + arrow_angle)
-            arrow1_y2 = dim_start_y + arrow_size * math.sin(angle1 + math.pi + arrow_angle)
+            angle1 = math.atan2(dim_end_y - dim_start_y,
+                                dim_end_x - dim_start_x)
+            arrow1_x1 = dim_start_x + arrow_size * \
+                math.cos(angle1 + math.pi - arrow_angle)
+            arrow1_y1 = dim_start_y + arrow_size * \
+                math.sin(angle1 + math.pi - arrow_angle)
+            arrow1_x2 = dim_start_x + arrow_size * \
+                math.cos(angle1 + math.pi + arrow_angle)
+            arrow1_y2 = dim_start_y + arrow_size * \
+                math.sin(angle1 + math.pi + arrow_angle)
 
             # For end arrow
-            angle2 = math.atan2(dim_start_y - dim_end_y, dim_start_x - dim_end_x)
-            arrow2_x1 = dim_end_x + arrow_size * math.cos(angle2 + math.pi - arrow_angle)
-            arrow2_y1 = dim_end_y + arrow_size * math.sin(angle2 + math.pi - arrow_angle)
-            arrow2_x2 = dim_end_x + arrow_size * math.cos(angle2 + math.pi + arrow_angle)
-            arrow2_y2 = dim_end_y + arrow_size * math.sin(angle2 + math.pi + arrow_angle)
+            angle2 = math.atan2(dim_start_y - dim_end_y,
+                                dim_start_x - dim_end_x)
+            arrow2_x1 = dim_end_x + arrow_size * \
+                math.cos(angle2 + math.pi - arrow_angle)
+            arrow2_y1 = dim_end_y + arrow_size * \
+                math.sin(angle2 + math.pi - arrow_angle)
+            arrow2_x2 = dim_end_x + arrow_size * \
+                math.cos(angle2 + math.pi + arrow_angle)
+            arrow2_y2 = dim_end_y + arrow_size * \
+                math.sin(angle2 + math.pi + arrow_angle)
 
             # Draw arrows
             start_arrow1_id = self.canvas.create_line(
@@ -537,7 +557,8 @@ class LinearDimensionTool(Tool):
             text_x = (dim_start_x + dim_end_x) / 2
             text_y = (dim_start_y + dim_end_y) / 2
 
-            # Calculate the offset for the text to place it above the dimension line
+            # Calculate the offset for the text to place it above the
+            # dimension line
             text_offset = 15
             text_offset_x = text_offset * perp_dx
             text_offset_y = text_offset * perp_dy

@@ -1,23 +1,23 @@
 """
 Circle Drawing Tool Implementation
 
-This module implements a circle drawing tool based on the TCL tool implementation.
+This module implements a circle drawing tool based on the TCL tool
+implementation.
 """
 
-import tkinter as tk
 import math
-from typing import Optional
+from typing import Optional, List
 
-from src.core.cad_objects import CADObject, ObjectType, Point
+from src.core.cad_objects import CADObject, ObjectType
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
 class CircleTool(Tool):
     """Tool for drawing circles"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="CIRCLE",
             name="Circle Tool",
             category=ToolCategory.CIRCLES,
@@ -25,7 +25,7 @@ class CircleTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Center Point", "Radius Point"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -87,8 +87,10 @@ class CircleTool(Tool):
         # Calculate radius
         center_point = self.points[0]
         radius_point = self.points[1]
-        radius = math.sqrt((radius_point.x - center_point.x)**2 +
-                          (radius_point.y - center_point.y)**2)
+        radius = math.sqrt(
+            (radius_point.x - center_point.x)**2 +
+            (radius_point.y - center_point.y)**2
+        )
 
         # Create a circle object
         obj = CADObject(

@@ -9,9 +9,8 @@ This is the main entry point for the application.
 import sys
 import os
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
 import traceback
-from pathlib import Path
 
 # Add the src directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))

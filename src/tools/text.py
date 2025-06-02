@@ -7,7 +7,7 @@ tools_text.tcl implementation.
 
 import tkinter as tk
 import math
-from typing import Optional
+from typing import Optional, List
 
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
@@ -26,9 +26,9 @@ class TextTool(Tool):
         self.font_size = 12
         self.text_angle = 0.0
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="TEXT",
             name="Text",
             category=ToolCategory.TEXT,
@@ -36,7 +36,7 @@ class TextTool(Tool):
             cursor="text",
             is_creator=True,
             node_info=["Position"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -115,12 +115,12 @@ class TextTool(Tool):
             layer=self.document.objects.current_layer,
             coords=[position],
             attributes={
-                'color': 'black',                # Default color
-                'text': self.text,               # The text string
-                'font_family': self.font_family, # Font family
-                'font_size': self.font_size,     # Font size
-                'angle': self.text_angle,        # Rotation angle in degrees
-                'anchor': 'sw'                   # Text anchor (southwest)
+                'color': 'black',                 # Default color
+                'text': self.text,                # The text string
+                'font_family': self.font_family,  # Font family
+                'font_size': self.font_size,      # Font size
+                'angle': self.text_angle,         # Rotation angle in degrees
+                'anchor': 'sw'                    # Text anchor (southwest)
             }
         )
         return obj

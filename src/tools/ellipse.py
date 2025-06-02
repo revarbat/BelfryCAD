@@ -5,9 +5,7 @@ This module implements various ellipse drawing tools based on the original TCL
 tools_ellipses.tcl implementation.
 """
 
-import tkinter as tk
-import math
-from typing import Optional, List, Tuple
+from typing import Optional, List
 
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
@@ -16,9 +14,9 @@ from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 class EllipseCenterTool(Tool):
     """Tool for drawing ellipses by center point and corner point"""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="ELLIPSECTR",
             name="Ellipse by Center",
             category=ToolCategory.ELLIPSES,
@@ -26,7 +24,7 @@ class EllipseCenterTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Center Point", "Corner Point"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -136,11 +134,11 @@ class EllipseCenterTool(Tool):
 
 
 class EllipseDiagonalTool(Tool):
-    """Tool for drawing ellipses by diagonal opposite corners of bounding box"""
+    "Tool for drawing ellipses by diagonal opposite corners of bounding box"
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="ELLIPSEDIAG",
             name="Ellipse by Diagonal",
             category=ToolCategory.ELLIPSES,
@@ -148,7 +146,7 @@ class EllipseDiagonalTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["First Corner", "Opposite Corner"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""

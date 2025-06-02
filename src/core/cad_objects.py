@@ -133,7 +133,8 @@ class LineObject(CADObject):
     """Line object - requires exactly 2 points"""
 
     def __init__(self, object_id: int, start: Point, end: Point, **kwargs):
-        super().__init__(object_id, ObjectType.LINE, coords=[start, end], **kwargs)
+        super().__init__(
+            object_id, ObjectType.LINE, coords=[start, end], **kwargs)
 
     @property
     def start(self) -> Point:
@@ -180,7 +181,8 @@ class CircleObject(CADObject):
     """Circle object - center and radius"""
 
     def __init__(self, object_id: int, center: Point, radius: float, **kwargs):
-        super().__init__(object_id, ObjectType.CIRCLE, coords=[center], **kwargs)
+        super().__init__(
+            object_id, ObjectType.CIRCLE, coords=[center], **kwargs)
         self.attributes['radius'] = radius
 
     @property
@@ -196,7 +198,8 @@ class BezierObject(CADObject):
     """Bezier curve object - control points"""
 
     def __init__(self, object_id: int, control_points: List[Point], **kwargs):
-        super().__init__(object_id, ObjectType.BEZIER, coords=control_points, **kwargs)
+        super().__init__(
+            object_id, ObjectType.BEZIER, coords=control_points, **kwargs)
 
     def evaluate_at(self, t: float) -> Point:
         """Evaluate Bezier curve at parameter t (0 to 1)"""
@@ -216,7 +219,8 @@ class PolygonObject(CADObject):
     """Polygon object - list of vertices"""
 
     def __init__(self, object_id: int, vertices: List[Point], **kwargs):
-        super().__init__(object_id, ObjectType.POLYGON, coords=vertices, **kwargs)
+        super().__init__(
+            object_id, ObjectType.POLYGON, coords=vertices, **kwargs)
 
     def is_closed(self) -> bool:
         """Check if polygon is closed (first and last points are same)"""
@@ -226,7 +230,7 @@ class PolygonObject(CADObject):
                 abs(self.coords[0].y - self.coords[-1].y) < 1e-6)
 
     def close(self):
-        """Close the polygon by adding first point at end if not already closed"""
+        "Close the polygon by adding first point at end if not already closed"
         if not self.is_closed() and len(self.coords) >= 3:
             self.coords.append(Point(self.coords[0].x, self.coords[0].y))
 
@@ -235,7 +239,8 @@ class TextObject(CADObject):
     """Text object - position and text content"""
 
     def __init__(self, object_id: int, position: Point, text: str, **kwargs):
-        super().__init__(object_id, ObjectType.TEXT, coords=[position], **kwargs)
+        super().__init__(
+            object_id, ObjectType.TEXT, coords=[position], **kwargs)
         self.attributes.update({
             'text': text,
             'font_size': kwargs.get('font_size', 12),
@@ -258,7 +263,7 @@ class DimensionObject(CADObject):
     def __init__(self, object_id: int, start: Point, end: Point,
                  text_position: Point, **kwargs):
         super().__init__(object_id, ObjectType.DIMENSION,
-                        coords=[start, end, text_position], **kwargs)
+                         coords=[start, end, text_position], **kwargs)
         self.attributes.update({
             'precision': kwargs.get('precision', 2),
             'units': kwargs.get('units', 'mm')
@@ -282,7 +287,8 @@ class DimensionObject(CADObject):
 
 class CADObjectManager:
     """
-    Manages CAD objects - replaces the global cadobjectsInfo dictionary from TCL.
+    Manages CAD objects - replaces the global cadobjectsInfo dictionary
+    from TCL.
 
     This class handles object creation, selection, drawing, and manipulation
     based on the patterns found in the original cadobjects.tcl file.
@@ -292,10 +298,14 @@ class CADObjectManager:
         self.objects: Dict[int, CADObject] = {}
         self.next_id: int = 1
         self.selected_objects: List[int] = []
-        self.layers: Dict[int, List[Any]] = {0: ["Layer 0", "black", True, False]}
+        self.layers: Dict[int, List[Any]] = {
+            0: ["Layer 0", "black", True, False]
+        }
         self.current_layer: int = 0
 
-    def create_object(self, object_type: ObjectType, *args, **kwargs) -> CADObject:
+    def create_object(
+        self, object_type: ObjectType, *args, **kwargs
+    ) -> CADObject:
         """Create a new CAD object"""
         object_id = self.next_id
         self.next_id += 1
@@ -313,9 +323,11 @@ class CADObjectManager:
 
         elif object_type == ObjectType.ARC:
             if len(args) >= 4:
-                obj = ArcObject(object_id, args[0], args[1], args[2], args[3], **kwargs)
+                obj = ArcObject(
+                    object_id, args[0], args[1], args[2], args[3], **kwargs)
             else:
-                raise ValueError("Arc requires center, radius, start_angle, end_angle")
+                raise ValueError(
+                    "Arc requires center, radius, start_angle, end_angle")
 
         elif object_type == ObjectType.CIRCLE:
             if len(args) >= 2:
@@ -343,9 +355,11 @@ class CADObjectManager:
 
         elif object_type == ObjectType.DIMENSION:
             if len(args) >= 3:
-                obj = DimensionObject(object_id, args[0], args[1], args[2], **kwargs)
+                obj = DimensionObject(
+                    object_id, args[0], args[1], args[2], **kwargs)
             else:
-                raise ValueError("Dimension requires start, end, and text position")
+                raise ValueError(
+                    "Dimension requires start, end, and text position")
 
         else:
             # Generic CAD object
@@ -392,7 +406,10 @@ class CADObjectManager:
 
     def select_object(self, object_id: int):
         """Select an object"""
-        if object_id in self.objects and object_id not in self.selected_objects:
+        if (
+            object_id in self.objects and
+            object_id not in self.selected_objects
+        ):
             self.selected_objects.append(object_id)
             self.objects[object_id].selected = True
 
@@ -457,7 +474,9 @@ class CADObjectManager:
 
         return (min_x, min_y, max_x, max_y)
 
-    def find_objects_in_area(self, x1: float, y1: float, x2: float, y2: float) -> List[int]:
+    def find_objects_in_area(
+        self, x1: float, y1: float, x2: float, y2: float
+    ) -> List[int]:
         """Find objects within a rectangular area"""
         min_x, max_x = min(x1, x2), max(x1, x2)
         min_y, max_y = min(y1, y2), max(y1, y2)
@@ -465,13 +484,17 @@ class CADObjectManager:
         result = []
         for obj_id, obj in self.objects.items():
             bounds = obj.get_bounds()
-            if (bounds[0] >= min_x and bounds[2] <= max_x and
-                bounds[1] >= min_y and bounds[3] <= max_y):
+            if (
+                bounds[0] >= min_x and bounds[2] <= max_x and
+                bounds[1] >= min_y and bounds[3] <= max_y
+            ):
                 result.append(obj_id)
 
         return result
 
-    def gather_points(self, objects: Optional[List[int]] = None) -> List[Point]:
+    def gather_points(
+        self, objects: Optional[List[int]] = None
+    ) -> List[Point]:
         """
         Gather points from objects - mirrors cadobjects_gather_points from TCL.
         This was one of the most called functions (32.5% of runtime).
@@ -488,7 +511,7 @@ class CADObjectManager:
         return points
 
     def create_layer(self, name: str, color: str = "black",
-                    visible: bool = True, locked: bool = False) -> int:
+                     visible: bool = True, locked: bool = False) -> int:
         """Create a new layer"""
         layer_id = max(self.layers.keys()) + 1 if self.layers else 0
         self.layers[layer_id] = [name, color, visible, locked]

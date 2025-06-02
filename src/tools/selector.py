@@ -4,7 +4,6 @@ Object Selection Tool Implementation
 This module implements an object selection tool based on the TCL selector tool.
 """
 
-import tkinter as tk
 from typing import Optional, List
 
 from src.core.cad_objects import CADObject
@@ -21,9 +20,9 @@ class SelectorTool(Tool):
         self.selection_rect = None
         self.selected_objects = []
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="OBJSEL",
             name="Select Objects",
             category=ToolCategory.SELECTOR,
@@ -31,7 +30,7 @@ class SelectorTool(Tool):
             cursor="arrow",
             is_creator=False,
             show_controls=True
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -125,7 +124,8 @@ class SelectorTool(Tool):
 
     def hit_test(self, x, y) -> Optional[CADObject]:
         """Test if a point hits any object"""
-        # Simple hit testing - can be improved with more sophisticated algorithms
+        # Simple hit testing - can be improved with more sophisticated
+        # algorithms
         for obj in self.document.objects.get_all_objects():
             if self._point_in_object(x, y, obj):
                 return obj

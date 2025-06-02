@@ -10,7 +10,11 @@ from typing import Optional
 # Global logger instance
 _logger: Optional[logging.Logger] = None
 
-def setup_logger(name: str = "PyTkCAD", level: int = logging.INFO) -> logging.Logger:
+
+def setup_logger(
+    name: str = "PyTkCAD",
+    level: int = logging.INFO
+) -> logging.Logger:
     """Set up the main application logger.
 
     Args:
@@ -56,6 +60,7 @@ def setup_logger(name: str = "PyTkCAD", level: int = logging.INFO) -> logging.Lo
         _logger.warning(f"Could not set up file logging: {e}")
 
     return _logger
+
 
 def get_logger(name: str = "PyTkCAD") -> logging.Logger:
     """Get a logger instance.

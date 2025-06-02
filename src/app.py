@@ -3,8 +3,7 @@ Main application class for PyTkCAD.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
-import sys
+from tkinter import messagebox, filedialog
 from typing import Optional
 
 from .config import AppConfig
@@ -12,6 +11,7 @@ from .gui.main_window import MainWindow
 from .core.preferences import PreferencesManager
 from .core.document import Document
 from .utils.logger import get_logger
+
 
 class TkCADApplication:
     """Main application class for PyTkCAD."""
@@ -57,7 +57,8 @@ class TkCADApplication:
             self.preferences.load()
 
             # Create the main window
-            self.main_window = MainWindow(self.root, self.config, self.preferences, self.document)
+            self.main_window = MainWindow(
+                self.root, self.config, self.preferences, self.document)
 
             # Show the window (it might be withdrawn initially)
             self.root.deiconify()
@@ -78,7 +79,8 @@ class TkCADApplication:
             if self.document and self.document.is_modified():
                 result = messagebox.askyesnocancel(
                     "Unsaved Changes",
-                    "You have unsaved changes. Do you want to save before closing?",
+                    "You have unsaved changes." +
+                    " Do you want to save before closing?",
                     parent=self.root
                 )
 

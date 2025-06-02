@@ -5,8 +5,6 @@ This module implements a bezier curve drawing tool based on the TCL
 tools_beziers.tcl implementation.
 """
 
-import tkinter as tk
-import math
 from typing import Optional, List
 
 from src.core.cad_objects import CADObject, ObjectType, Point
@@ -22,9 +20,9 @@ class BezierTool(Tool):
         self.segment_points = []  # List of points for current segment
         self.preview_curve = None
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="BEZIER",
             name="Bezier Curve",
             category=ToolCategory.BEZIERS,
@@ -32,7 +30,7 @@ class BezierTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Endpoint", "Control Point", "Endpoint"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""

@@ -6,7 +6,7 @@ tools_arcs.tcl implementation.
 """
 
 import math
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
@@ -15,9 +15,9 @@ from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 class ArcCenterTool(Tool):
     """Tool for drawing arcs by center point, start point, and end point."""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition."""
-        return ToolDefinition(
+        return [ToolDefinition(
             token="ARCCTR",
             name="Arc by Center",
             category=ToolCategory.ARCS,
@@ -25,7 +25,7 @@ class ArcCenterTool(Tool):
             cursor="crosshair",
             is_creator=True,
             node_info=["Center Point", "Start Point", "End Point"]
-        )
+        )]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings."""
@@ -180,17 +180,28 @@ class ArcCenterTool(Tool):
 class Arc3PointTool(Tool):
     """Tool for drawing arcs through 3 points (start, end, middle)."""
 
-    def _get_definition(self) -> ToolDefinition:
+    def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition."""
-        return ToolDefinition(
-            token="ARC3PT",
-            name="Arc by 3 Points",
-            category=ToolCategory.ARCS,
-            icon="tool-arc3pt-123",
-            cursor="crosshair",
-            is_creator=True,
-            node_info=["Start Point", "Middle Point", "End Point"]
-        )
+        return [
+            ToolDefinition(
+                token="ARC3PT",
+                name="Arc by 3 Points",
+                category=ToolCategory.ARCS,
+                icon="tool-arc3pt-123",
+                cursor="crosshair",
+                is_creator=True,
+                node_info=["Start Point", "Middle Point", "End Point"]
+            ),
+            ToolDefinition(
+                token="ARC3PT",
+                name="Arc by 3 Points, Middle Last",
+                category=ToolCategory.ARCS,
+                icon="tool-arc3pt-132",
+                cursor="crosshair",
+                is_creator=True,
+                node_info=["Start Point", "End Point", "Middle Point"]
+            )
+        ]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings."""
@@ -255,7 +266,6 @@ class Arc3PointTool(Tool):
             if center is not None:
                 # Calculate start and end angles
                 start_angle = math.atan2(p1.y - center.y, p1.x - center.x)
-                middle_angle = math.atan2(p2.y - center.y, p2.x - center.x)
                 end_angle = math.atan2(p3.y - center.y, p3.x - center.x)
 
                 # Determine arc direction using middle point
@@ -392,7 +402,6 @@ class Arc3PointTool(Tool):
 
         # Calculate start and end angles
         start_angle = math.atan2(p1.y - center.y, p1.x - center.x)
-        middle_angle = math.atan2(p2.y - center.y, p2.x - center.x)
         end_angle = math.atan2(p3.y - center.y, p3.x - center.x)
 
         # Determine arc direction using middle point
