@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="32"
+   height="32"
+   viewBox="0 0 32 32"
+   sodipodi:docname="tool-ellipsediag.svg"
+   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#111111"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="9.7770759"
+     inkscape:cx="13.040709"
+     inkscape:cy="16.569371"
+     inkscape:window-width="1088"
+     inkscape:window-height="633"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g1"
+     showgrid="false" />
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="Image"
+     id="g1">
+    <rect
+       style="fill:none;fill-opacity:0.99;stroke:#808080;stroke-width:0.955466;stroke-dasharray:0.955466, 0.955466;stroke-dashoffset:0;stroke-opacity:1"
+       id="rect1"
+       width="24.591751"
+       height="14.466024"
+       x="3.4552555"
+       y="9.0806589" />
+    <ellipse
+       style="fill:none;fill-opacity:0.99;stroke:#000000;stroke-width:0.772276;stroke-dasharray:none;stroke-opacity:1"
+       id="path3"
+       cy="16.313671"
+       cx="15.699988"
+       rx="12.33633"
+       ry="7.2223268" />
+    <ellipse
+       style="fill:#ff0000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       id="path2-2"
+       cx="27.885996"
+       cy="9.2162857"
+       rx="1.8410412"
+       ry="1.7387612" />
+    <ellipse
+       style="fill:#ff0000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       id="path2-2-9"
+       cx="3.4263811"
+       cy="23.575556"
+       rx="1.8410412"
+       ry="1.7387612" />
+  </g>
+</svg>

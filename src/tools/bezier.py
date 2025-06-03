@@ -47,7 +47,7 @@ class BezierTool(Tool):
         return [ToolDefinition(
             token="BEZIER",
             name="Bezier Curve",
-            category=ToolCategory.BEZIERS,
+            category=ToolCategory.LINES,
             icon="tool-bezier",
             cursor="crosshair",
             is_creator=True,

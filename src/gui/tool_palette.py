@@ -41,8 +41,8 @@ class ToolPalette(QFrame):
         # Create buttons for each tool in a single horizontal row
         for tool_def in self.tools:
             button = QToolButton()
-            button.setFixedSize(32, 32)
-            button.setIconSize(QSize(32, 32))  # Ensure icons are 32x32
+            button.setFixedSize(48, 48)
+            button.setIconSize(QSize(48, 48))  # Ensure icons are 48x48
             button.setToolTip(tool_def.name)
             
             # Load icon

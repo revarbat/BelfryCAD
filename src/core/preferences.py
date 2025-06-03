@@ -5,8 +5,16 @@ Preferences management for PyTkCAD.
 import json
 from typing import Any, Dict
 
-from ..config import AppConfig
-from ..utils.logger import get_logger
+try:
+    from ..config import AppConfig
+    from ..utils.logger import get_logger
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    from pathlib import Path
+    sys.path.append(str(Path(__file__).parent.parent))
+    from config import AppConfig
+    from utils.logger import get_logger
 
 
 class PreferencesManager:

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="32"
+   height="32"
+   viewBox="0 0 32 32"
+   sodipodi:docname="tool-circlectr.svg"
+   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#111111"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="9.7770759"
+     inkscape:cx="13.040709"
+     inkscape:cy="16.569371"
+     inkscape:window-width="1088"
+     inkscape:window-height="633"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g1" />
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="Image"
+     id="g1">
+    <circle
+       style="fill:none;fill-opacity:0.99;stroke:#000000;stroke-dasharray:none;stroke-opacity:1"
+       id="path3"
+       r="12.222468"
+       cy="16.927353"
+       cx="14.779469" />
+    <ellipse
+       style="fill:#ff0000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       id="path2-2"
+       cx="23.692514"
+       cy="8.7048845"
+       rx="1.8410412"
+       ry="1.7387612" />
+    <ellipse
+       style="fill:#ff0000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       id="path2-2-9"
+       cx="14.779469"
+       cy="16.927353"
+       rx="1.8410412"
+       ry="1.7387612" />
+    <text
+       xml:space="preserve"
+       style="font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       x="16.56937"
+       y="21.683369"
+       id="text2"><tspan
+         sodipodi:role="line"
+         id="tspan2"
+         x="16.56937"
+         y="21.683369">1</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       x="25.788332"
+       y="8.2124729"
+       id="text2-7"><tspan
+         id="tspan2-0"
+         x="25.788332"
+         y="8.2124729"
+         sodipodi:role="line">2</tspan></text>
+  </g>
+</svg>

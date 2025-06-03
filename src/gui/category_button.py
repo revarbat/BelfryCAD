@@ -6,8 +6,8 @@ to show the currently selected tool in that category.
 """
 
 from PySide6.QtWidgets import QToolButton
-from PySide6.QtCore import Qt, Signal, QPoint, QSize
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt, Signal, QSize, QTimer
+from PySide6.QtGui import QMouseEvent
 from typing import List, Optional
 from src.tools.base import ToolDefinition, ToolCategory
 from .tool_palette import ToolPalette
@@ -29,22 +29,29 @@ class CategoryToolButton(QToolButton):
             cls._current_visible_palette.hide()
             cls._current_visible_palette = None
     
-    def __init__(self, category: ToolCategory, tools: List[ToolDefinition], 
+    def __init__(self, category: ToolCategory, tools: List[ToolDefinition],
                  icon_loader, parent=None):
         super().__init__(parent)
         self.category = category
         self.tools = tools
         self.icon_loader = icon_loader
-        self.current_tool = tools[0] if tools else None  # Default to first tool
+        # Default to first tool
+        self.current_tool = tools[0] if tools else None
         self.palette = None
-        self.is_active = False  # Track if this category's tool is currently active
-        
+        # Track if this category's tool is currently active
+        self.is_active = False
+
+        # Timer for press-and-hold detection
+        self.hold_timer = QTimer()
+        self.hold_timer.setSingleShot(True)
+        # Connection will be made dynamically in mousePressEvent
+
         self._setup_ui()
         
     def _setup_ui(self):
         """Set up the button UI"""
-        self.setFixedSize(32, 32)
-        self.setIconSize(QSize(32, 32))  # Ensure icons are 32x32
+        self.setFixedSize(48, 48)
+        self.setIconSize(QSize(48, 48))  # Ensure icons are 48x48
         
         # Update tooltip based on whether category has one or multiple tools
         if len(self.tools) == 1:
@@ -55,13 +62,8 @@ class CategoryToolButton(QToolButton):
         # Set initial icon (first tool in category)
         self._update_icon()
         
-        # Connect click to appropriate action
-        if len(self.tools) == 1:
-            # Single tool - directly activate it
-            self.clicked.connect(self._activate_single_tool)
-        else:
-            # Multiple tools - show palette
-            self.clicked.connect(self._show_palette)
+        # All categories now use press-and-hold behavior
+        # handled by mouse events instead of clicked signal
         
         # Style the button
         self._update_stylesheet()
@@ -110,7 +112,10 @@ class CategoryToolButton(QToolButton):
                 if len(self.tools) == 1:
                     self.setToolTip(f"{self.current_tool.name}")
                 else:
-                    self.setToolTip(f"{self.category.value}: {self.current_tool.name}")
+                    category_name = self.category.value
+                    tool_name = self.current_tool.name
+                    tooltip = f"{category_name}: {tool_name}"
+                    self.setToolTip(tooltip)
             else:
                 self.setText(self.current_tool.name[:2])
 
@@ -175,3 +180,42 @@ class CategoryToolButton(QToolButton):
     def get_current_tool_token(self) -> Optional[str]:
         """Get the token of the currently selected tool in this category"""
         return self.current_tool.token if self.current_tool else None
+
+    def mousePressEvent(self, event: QMouseEvent):
+        """Handle mouse press events for press-and-hold behavior"""
+        if event.button() == Qt.LeftButton:
+            # Start timer for press-and-hold behavior (500ms = 0.5 seconds)
+            # This applies to both single and multi-tool categories
+            if len(self.tools) == 1:
+                self.hold_timer.timeout.disconnect()
+                self.hold_timer.timeout.connect(self._activate_single_tool)
+            else:
+                self.hold_timer.timeout.disconnect()
+                self.hold_timer.timeout.connect(self._show_palette)
+            self.hold_timer.start(500)
+        
+        # Call parent implementation to maintain normal button behavior
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        """Handle mouse release events"""
+        if event.button() == Qt.LeftButton:
+            # Stop the hold timer for both single and multi-tool categories
+            self.hold_timer.stop()
+            
+            if len(self.tools) == 1:
+                # Single tool: activate immediately on quick click
+                if self.current_tool:
+                    self._dismiss_current_palette()
+                    self.tool_selected.emit(self.current_tool.token)
+            else:
+                # Multi-tool: activate current tool on quick click
+                # if palette not visible
+                palette_not_visible = (not self.palette or
+                                       not self.palette.isVisible())
+                if palette_not_visible and self.current_tool:
+                    self._dismiss_current_palette()
+                    self.tool_selected.emit(self.current_tool.token)
+        
+        # Call parent implementation
+        super().mouseReleaseEvent(event)
