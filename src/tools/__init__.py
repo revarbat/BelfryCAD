@@ -24,6 +24,20 @@ from .dimension import (
     LinearDimensionTool
 )
 from .arc_dimension import ArcDimensionTool
+from .transforms import (
+    NodeAddTool,
+    NodeDeleteTool,
+    ReorientTool,
+    ConnectTool,
+    TranslateTool,
+    RotateTool,
+    ScaleTool,
+    FlipTool,
+    ShearTool,
+    BendTool,
+    WrapTool,
+    UnwrapTool
+)
 
 
 # A list of all available tools for easy registration
@@ -50,5 +64,18 @@ available_tools = [
     HorizontalDimensionTool,
     VerticalDimensionTool,
     LinearDimensionTool,
-    ArcDimensionTool
+    ArcDimensionTool,
+    # Transform tools
+    NodeAddTool,
+    NodeDeleteTool,
+    ReorientTool,
+    ConnectTool,
+    TranslateTool,
+    RotateTool,
+    ScaleTool,
+    FlipTool,
+    ShearTool,
+    BendTool,
+    WrapTool,
+    UnwrapTool
 ]
