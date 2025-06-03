@@ -6,7 +6,9 @@ tools.tcl. It provides a foundation for all drawing and editing tools
 in the pyTkCAD application.
 """
 
-import tkinter as tk
+from PySide6.QtWidgets import QGraphicsScene
+from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtGui import QCursor
 from typing import Dict, List, Optional, Callable
 from enum import Enum
 from dataclasses import dataclass, field
@@ -76,17 +78,21 @@ class ToolDefinition:
     node_info: List[str] = field(default_factory=list)  # Info about nodes
 
 
-class Tool:
+class Tool(QObject):
     """Base class for all drawing and editing tools"""
+    
+    # Signal emitted when an object is created
+    object_created = Signal(CADObject)
 
-    def __init__(self, canvas: tk.Canvas, document, preferences):
+    def __init__(self, scene: QGraphicsScene, document, preferences):
         """Initialize the tool"""
-        self.canvas = canvas
+        super().__init__()
+        self.scene = scene
         self.document = document
         self.preferences = preferences
         self.state = ToolState.INIT
         self.points: List[Point] = []
-        self.temp_objects = []  # Canvas IDs of temporary preview objects
+        self.temp_objects = []  # QGraphicsItems for temporary preview objects
 
         # Set up default definitions - subclasses should override this
         self.definitions = self._get_definition()
@@ -115,18 +121,24 @@ class Tool:
         """Called when the tool is activated"""
         self.state = ToolState.ACTIVE
         self.points = []
-        self.canvas.config(cursor=self.definition.cursor)
+        # Set cursor on the view(s) that use this scene
+        for view in self.scene.views():
+            cursor_name = self.definition.cursor
+            cursor_shape = getattr(Qt, f'{cursor_name}Cursor', Qt.CrossCursor)
+            view.setCursor(QCursor(cursor_shape))
 
     def deactivate(self):
         """Called when the tool is deactivated"""
         self.clear_temp_objects()
         self.state = ToolState.INIT
-        self.canvas.config(cursor="")
+        # Reset cursor on the view(s) that use this scene
+        for view in self.scene.views():
+            view.setCursor(QCursor(Qt.ArrowCursor))
 
     def clear_temp_objects(self):
         """Clear any temporary preview objects"""
-        for obj_id in self.temp_objects:
-            self.canvas.delete(obj_id)
+        for graphics_item in self.temp_objects:
+            self.scene.removeItem(graphics_item)
         self.temp_objects = []
 
     def handle_mouse_down(self, event):
@@ -170,21 +182,19 @@ class Tool:
         pass
 
     def complete(self):
-        """Complete the current tool operation"""
-        self.state = ToolState.COMPLETE
-        self.clear_temp_objects()
-
-        # If this is a creator tool, create the object
-        if self.definition.is_creator and len(self.points) > 0:
+        """Complete the current tool operation and create the object"""
+        if self.state == ToolState.DRAWING:
             obj = self.create_object()
             if obj:
-                # Add to document
                 self.document.objects.add_object(obj)
                 self.document.mark_modified()
-
-        # Reset for next operation
-        self.points = []
-        self.state = ToolState.ACTIVE
+                # Emit signal to notify the main window to redraw
+                self.object_created.emit(obj)
+            
+            # Reset for next operation
+            self.points = []
+            self.clear_temp_objects()
+            self.state = ToolState.ACTIVE
 
     def cancel(self):
         """Cancel the current tool operation"""
@@ -196,8 +206,8 @@ class Tool:
 class ToolManager:
     """Manages the creation, registration and activation of tools"""
 
-    def __init__(self, canvas: tk.Canvas, document, preferences):
-        self.canvas = canvas
+    def __init__(self, scene: QGraphicsScene, document, preferences):
+        self.scene = scene
         self.document = document
         self.preferences = preferences
         self.tools: Dict[str, Tool] = {}
@@ -206,7 +216,7 @@ class ToolManager:
 
     def register_tool(self, tool_class):
         """Register a tool with the manager"""
-        tool = tool_class(self.canvas, self.document, self.preferences)
+        tool = tool_class(self.scene, self.document, self.preferences)
         # Register all definitions from this tool
         for definition in tool.definitions:
             self.tools[definition.token] = tool

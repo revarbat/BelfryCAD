@@ -5,17 +5,39 @@ This module implements a bezier curve drawing tool based on the TCL
 tools_beziers.tcl implementation.
 """
 
+import math
 from typing import Optional, List
 
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
+class BezierObject(CADObject):
+    """Bezier curve object - control points"""
+
+    def __init__(self, object_id: int, control_points: List[Point], **kwargs):
+        super().__init__(
+            object_id, ObjectType.BEZIER, coords=control_points, **kwargs)
+
+    def evaluate_at(self, t: float) -> Point:
+        """Evaluate Bezier curve at parameter t (0 to 1)"""
+        n = len(self.coords) - 1
+        result = Point(0, 0)
+
+        for i, point in enumerate(self.coords):
+            # Binomial coefficient
+            coeff = math.comb(n, i) * ((1 - t) ** (n - i)) * (t ** i)
+            result.x += coeff * point.x
+            result.y += coeff * point.y
+
+        return result
+
+
 class BezierTool(Tool):
     """Tool for drawing bezier curves"""
 
-    def __init__(self, canvas, document, preferences):
-        super().__init__(canvas, document, preferences)
+    def __init__(self, scene, document, preferences):
+        super().__init__(scene, document, preferences)
         self.is_quadratic = True  # If True, draw quadratic, else cubic beziers
         self.segment_points = []  # List of points for current segment
         self.preview_curve = None
@@ -34,10 +56,10 @@ class BezierTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
-        self.canvas.bind("<Double-Button-1>", self.handle_double_click)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -93,30 +115,44 @@ class BezierTool(Tool):
             preview_points = self.segment_points.copy()
             preview_points.append(point)
 
-            # Draw control lines
+            # Draw control lines using QGraphicsLineItem
+            from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsRectItem, QGraphicsEllipseItem
+            from PySide6.QtCore import QRectF, Qt
+            from PySide6.QtGui import QPen, QBrush
+            
             for i in range(len(preview_points) - 1):
-                line_id = self.canvas.create_line(
+                line_item = QGraphicsLineItem(
                     preview_points[i].x, preview_points[i].y,
-                    preview_points[i+1].x, preview_points[i+1].y,
-                    fill="gray", dash=(2, 2)
+                    preview_points[i+1].x, preview_points[i+1].y
                 )
-                self.temp_objects.append(line_id)
+                pen = QPen()
+                pen.setColor("gray")
+                pen.setStyle(Qt.DashLine)
+                line_item.setPen(pen)
+                self.scene.addItem(line_item)
+                self.temp_objects.append(line_item)
 
-            # Draw temporary bezier curve
+            # Draw temporary bezier curve using QGraphicsPathItem
             if self.is_quadratic and len(preview_points) >= 3:
                 # For quadratic bezier, we need at least 3 points
                 curve_points = self._get_quadratic_bezier_points(
                     preview_points[0], preview_points[1], preview_points[2])
 
                 if curve_points:
-                    # Convert to flat list for create_line
-                    flat_points = []
-                    for p in curve_points:
-                        flat_points.extend([p.x, p.y])
-
-                    self.preview_curve = self.canvas.create_line(
-                        *flat_points, fill="blue", smooth=True)
-                    self.temp_objects.append(self.preview_curve)
+                    from PySide6.QtWidgets import QGraphicsPathItem
+                    from PySide6.QtGui import QPainterPath
+                    
+                    path = QPainterPath()
+                    if curve_points:
+                        path.moveTo(curve_points[0].x, curve_points[0].y)
+                        for p in curve_points[1:]:
+                            path.lineTo(p.x, p.y)
+                    
+                    path_item = QGraphicsPathItem(path)
+                    path_item.setPen(QPen("blue"))
+                    self.scene.addItem(path_item)
+                    self.preview_curve = path_item
+                    self.temp_objects.append(path_item)
 
             elif not self.is_quadratic and len(preview_points) >= 4:
                 # For cubic bezier, we need at least 4 points
@@ -125,30 +161,37 @@ class BezierTool(Tool):
                     preview_points[2], preview_points[3])
 
                 if curve_points:
-                    # Convert to flat list for create_line
-                    flat_points = []
-                    for p in curve_points:
-                        flat_points.extend([p.x, p.y])
+                    from PySide6.QtWidgets import QGraphicsPathItem
+                    from PySide6.QtGui import QPainterPath
+                    
+                    path = QPainterPath()
+                    if curve_points:
+                        path.moveTo(curve_points[0].x, curve_points[0].y)
+                        for p in curve_points[1:]:
+                            path.lineTo(p.x, p.y)
+                    
+                    path_item = QGraphicsPathItem(path)
+                    path_item.setPen(QPen("blue"))
+                    self.scene.addItem(path_item)
+                    self.preview_curve = path_item
+                    self.temp_objects.append(path_item)
 
-                    self.preview_curve = self.canvas.create_line(
-                        *flat_points, fill="blue", smooth=True)
-                    self.temp_objects.append(self.preview_curve)
-
-            # Draw control points
+            # Draw control points using Qt graphics items
             for i, p in enumerate(preview_points):
                 if i == 0 or i == len(preview_points) - 1:
-                    # Endpoint
-                    marker_id = self.canvas.create_rectangle(
-                        p.x - 3, p.y - 3, p.x + 3, p.y + 3,
-                        outline="blue", fill="white"
-                    )
+                    # Endpoint - use rectangle
+                    marker_item = QGraphicsRectItem(QRectF(p.x - 3, p.y - 3, 6, 6))
+                    marker_item.setPen(QPen("blue"))
+                    marker_item.setBrush(QBrush("white"))
+                    self.scene.addItem(marker_item)
+                    self.temp_objects.append(marker_item)
                 else:
-                    # Control point
-                    marker_id = self.canvas.create_oval(
-                        p.x - 3, p.y - 3, p.x + 3, p.y + 3,
-                        outline="blue", fill="white"
-                    )
-                self.temp_objects.append(marker_id)
+                    # Control point - use circle
+                    marker_item = QGraphicsEllipseItem(QRectF(p.x - 3, p.y - 3, 6, 6))
+                    marker_item.setPen(QPen("blue"))
+                    marker_item.setBrush(QBrush("white"))
+                    self.scene.addItem(marker_item)
+                    self.temp_objects.append(marker_item)
 
     def _get_quadratic_bezier_points(
             self, p0: Point, p1: Point, p2: Point) -> List[Point]:

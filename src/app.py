@@ -2,8 +2,8 @@
 Main application class for PyTkCAD.
 """
 
-import tkinter as tk
-from tkinter import messagebox, filedialog
+from PySide6.QtWidgets import QApplication, QMessageBox, QFileDialog
+from PySide6.QtCore import Qt
 from typing import Optional
 
 from .config import AppConfig
@@ -30,25 +30,18 @@ class TkCADApplication:
         self.document = Document()
         self.main_window: Optional[MainWindow] = None
 
-        # Create the root window
-        self.root = tk.Tk()
-        self.setup_root_window()
+        # Create the QApplication
+        self.app = QApplication.instance()
+        if self.app is None:
+            self.app = QApplication([])
+        
+        self.setup_application()
 
-    def setup_root_window(self):
-        """Set up the root window properties."""
-        self.root.title(f"{self.config.APP_NAME} v{self.config.VERSION}")
-
-        # Load window geometry from preferences
-        geometry = self.preferences.get("window_geometry", "1200x800+100+100")
-        self.root.geometry(geometry)
-
-        # Set up window close protocol
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-
-        # Platform-specific configurations
-        if self.config.windowing_system == "aqua":
-            # macOS specific settings
-            self.root.createcommand('::tk::mac::Quit', self.on_closing)
+    def setup_application(self):
+        """Set up the application properties."""
+        self.app.setApplicationName(self.config.APP_NAME)
+        self.app.setApplicationVersion(self.config.VERSION)
+        self.app.setOrganizationName("PyTkCAD")
 
     def run(self):
         """Run the main application."""
@@ -58,15 +51,15 @@ class TkCADApplication:
 
             # Create the main window
             self.main_window = MainWindow(
-                self.root, self.config, self.preferences, self.document)
+                self.config, self.preferences, self.document)
 
-            # Show the window (it might be withdrawn initially)
-            self.root.deiconify()
+            # Show the window
+            self.main_window.show()
 
             self.logger.info("Application started successfully")
 
             # Start the main event loop
-            self.root.mainloop()
+            return self.app.exec()
 
         except Exception as e:
             self.logger.error(f"Error in main application loop: {e}")
@@ -77,34 +70,39 @@ class TkCADApplication:
         try:
             # Check if document has unsaved changes
             if self.document and self.document.is_modified():
-                result = messagebox.askyesnocancel(
-                    "Unsaved Changes",
-                    "You have unsaved changes." +
-                    " Do you want to save before closing?",
-                    parent=self.root
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Question)
+                msg.setWindowTitle("Unsaved Changes")
+                msg.setText("You have unsaved changes. Do you want to save before closing?")
+                msg.setStandardButtons(
+                    QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
                 )
+                msg.setDefaultButton(QMessageBox.Yes)
+                
+                result = msg.exec()
 
-                if result is None:  # Cancel
-                    return
-                elif result:  # Yes, save
+                if result == QMessageBox.Cancel:
+                    return False
+                elif result == QMessageBox.Yes:
                     if not self.save_document():
-                        return  # Save was cancelled or failed
+                        return False  # Save was cancelled or failed
 
             # Save preferences
             if self.main_window:
                 # Update window geometry in preferences
-                self.preferences.set("window_geometry", self.root.geometry())
+                geometry = self.main_window.geometry()
+                self.preferences.set("window_geometry",
+                                     f"{geometry.width()}x{geometry.height()}+"
+                                     f"{geometry.x()}+{geometry.y()}")
 
             self.preferences.save()
 
             self.logger.info("Application closing normally")
+            return True
 
         except Exception as e:
             self.logger.error(f"Error during application shutdown: {e}")
-
-        finally:
-            # Destroy the root window
-            self.root.destroy()
+            return True
 
     def save_document(self) -> bool:
         """Save the current document.
@@ -115,16 +113,12 @@ class TkCADApplication:
         try:
             if not self.document.filename:
                 # No filename set, show save dialog
-                filename = filedialog.asksaveasfilename(
-                    parent=self.root,
-                    title="Save Document",
-                    defaultextension=".tkcad",
-                    filetypes=[
-                        ("TkCAD files", "*.tkcad"),
-                        ("SVG files", "*.svg"),
-                        ("DXF files", "*.dxf"),
-                        ("All files", "*.*")
-                    ]
+                filename, _ = QFileDialog.getSaveFileName(
+                    self.main_window,
+                    "Save Document",
+                    "",
+                    "TkCAD files (*.tkcad);;SVG files (*.svg);;"
+                    "DXF files (*.dxf);;All files (*.*)"
                 )
 
                 if not filename:
@@ -142,9 +136,10 @@ class TkCADApplication:
 
         except Exception as e:
             self.logger.error(f"Error saving document: {e}")
-            messagebox.showerror(
-                "Save Error",
-                f"Failed to save document:\n{str(e)}",
-                parent=self.root
-            )
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("Save Error")
+            msg.setText(f"Failed to save document:\n{str(e)}")
+            msg.setParent(self.main_window)
+            msg.exec()
             return False

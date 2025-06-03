@@ -5,6 +5,8 @@ This module implements an object selection tool based on the TCL selector tool.
 """
 
 from typing import Optional, List
+from PySide6.QtCore import QRectF, QPointF
+from PySide6.QtGui import QPen, QColor
 
 from src.core.cad_objects import CADObject
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
@@ -13,8 +15,8 @@ from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 class SelectorTool(Tool):
     """Tool for selecting CAD objects"""
 
-    def __init__(self, canvas, document, preferences):
-        super().__init__(canvas, document, preferences)
+    def __init__(self, scene, document, preferences):
+        super().__init__(scene, document, preferences)
         self.start_x = 0
         self.start_y = 0
         self.selection_rect = None
@@ -34,10 +36,9 @@ class SelectorTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<B1-Motion>", self.handle_drag)
-        self.canvas.bind("<ButtonRelease-1>", self.handle_mouse_up)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -46,11 +47,17 @@ class SelectorTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
-        self.start_x = event.x
-        self.start_y = event.y
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+        
+        self.start_x = scene_pos.x()
+        self.start_y = scene_pos.y()
 
         # Check if clicking on an object directly
-        hit_object = self.hit_test(event.x, event.y)
+        hit_object = self.hit_test(self.start_x, self.start_y)
 
         # Handle selection
         if not hit_object:
@@ -68,21 +75,66 @@ class SelectorTool(Tool):
                 self.select_object(hit_object)
                 self.state = ToolState.EDITING
 
+    def handle_mouse_up(self, event):
+        """Handle mouse button release event"""
+        if self.state == ToolState.SELECTING:
+            # Finish selection rectangle
+            if self.selection_rect:
+                if hasattr(event, 'scenePos'):
+                    scene_pos = event.scenePos()
+                else:
+                    scene_pos = QPointF(event.x, event.y)
+                
+                # Get bounds of selection rectangle
+                x1 = min(self.start_x, scene_pos.x())
+                y1 = min(self.start_y, scene_pos.y())
+                x2 = max(self.start_x, scene_pos.x())
+                y2 = max(self.start_y, scene_pos.y())
+
+                # Select objects in the rectangle
+                self.select_objects_in_rect(x1, y1, x2, y2)
+
+                # Remove selection rectangle
+                self.scene.removeItem(self.selection_rect)
+                if self.selection_rect in self.temp_objects:
+                    self.temp_objects.remove(self.selection_rect)
+                self.selection_rect = None
+
+        # Reset state
+        self.state = ToolState.ACTIVE
+
     def handle_drag(self, event):
         """Handle mouse drag event"""
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+            
+        current_x, current_y = scene_pos.x(), scene_pos.y()
+        
         if self.state == ToolState.SELECTING:
             # Drawing selection rectangle
             if self.selection_rect:
-                self.canvas.delete(self.selection_rect)
+                self.scene.removeItem(self.selection_rect)
+                if self.selection_rect in self.temp_objects:
+                    self.temp_objects.remove(self.selection_rect)
 
-            self.selection_rect = self.canvas.create_rectangle(
-                self.start_x, self.start_y, event.x, event.y,
-                outline="blue", dash=(2, 2)
+            # Create selection rectangle
+            rect = QRectF(
+                min(self.start_x, current_x),
+                min(self.start_y, current_y),
+                abs(current_x - self.start_x),
+                abs(current_y - self.start_y)
             )
+            pen = QPen(QColor("blue"))
+            pen.setDashPattern([2, 2])  # Dash pattern
+            self.selection_rect = self.scene.addRect(rect, pen)
+            self.temp_objects.append(self.selection_rect)
+            
         elif self.state == ToolState.EDITING:
             # Moving selected objects
-            dx = event.x - self.start_x
-            dy = event.y - self.start_y
+            dx = current_x - self.start_x
+            dy = current_y - self.start_y
 
             if abs(dx) > 5 or abs(dy) > 5:  # Threshold to start moving
                 # Move selected objects
@@ -91,41 +143,14 @@ class SelectorTool(Tool):
 
                 # Update display
                 self.document.mark_modified()
-                self.canvas.delete("all")
-                # TODO: This should call the main window's draw_objects method
-                # but for now we'll just use a simple redraw
-                for obj in self.document.objects.get_all_objects():
-                    self._draw_object(obj)
+                # TODO: Trigger main window redraw
 
                 # Update start position for next move
-                self.start_x = event.x
-                self.start_y = event.y
-
-    def handle_mouse_up(self, event):
-        """Handle mouse button release event"""
-        if self.state == ToolState.SELECTING:
-            # Finish selection rectangle
-            if self.selection_rect:
-                # Get bounds of selection rectangle
-                x1 = min(self.start_x, event.x)
-                y1 = min(self.start_y, event.y)
-                x2 = max(self.start_x, event.x)
-                y2 = max(self.start_y, event.y)
-
-                # Select objects in the rectangle
-                self.select_objects_in_rect(x1, y1, x2, y2)
-
-                # Remove selection rectangle
-                self.canvas.delete(self.selection_rect)
-                self.selection_rect = None
-
-        # Reset state
-        self.state = ToolState.ACTIVE
+                self.start_x = current_x
+                self.start_y = current_y
 
     def hit_test(self, x, y) -> Optional[CADObject]:
         """Test if a point hits any object"""
-        # Simple hit testing - can be improved with more sophisticated
-        # algorithms
         for obj in self.document.objects.get_all_objects():
             if self._point_in_object(x, y, obj):
                 return obj
@@ -135,84 +160,34 @@ class SelectorTool(Tool):
         """Test if a point is within or close to an object"""
         # Get object bounds with some padding for easier selection
         padding = 5
-        bounds = obj.get_bounds()
-
-        # Expand bounds by padding
-        x1, y1, x2, y2 = bounds
-        x1 -= padding
-        y1 -= padding
-        x2 += padding
-        y2 += padding
-
-        # Check if point is within expanded bounds
-        if x >= x1 and x <= x2 and y >= y1 and y <= y2:
-            # For more complex objects, additional testing would be needed here
-            return True
-
-        return False
+        try:
+            bounds = obj.get_bounds()
+            x1, y1, x2, y2 = bounds
+            x1 -= padding
+            y1 -= padding
+            x2 += padding
+            y2 += padding
+            return x >= x1 and x <= x2 and y >= y1 and y <= y2
+        except (AttributeError, TypeError):
+            return False
 
     def select_object(self, obj):
         """Select a single object"""
         obj.selected = True
         self.selected_objects.append(obj)
-        self._draw_object(obj)  # Redraw to show selection
 
     def select_objects_in_rect(self, x1, y1, x2, y2):
         """Select all objects that intersect with the given rectangle"""
         for obj in self.document.objects.get_all_objects():
-            # Get object bounds
-            ox1, oy1, ox2, oy2 = obj.get_bounds()
-
-            # Check for intersection with selection rectangle
-            if not (ox2 < x1 or ox1 > x2 or oy2 < y1 or oy1 > y2):
-                self.select_object(obj)
+            try:
+                ox1, oy1, ox2, oy2 = obj.get_bounds()
+                if not (ox2 < x1 or ox1 > x2 or oy2 < y1 or oy1 > y2):
+                    self.select_object(obj)
+            except (AttributeError, TypeError):
+                continue
 
     def clear_selection(self):
         """Clear the current selection"""
         for obj in self.selected_objects:
             obj.selected = False
         self.selected_objects = []
-        # Redraw to update display
-        self.canvas.delete("all")
-        for obj in self.document.objects.get_all_objects():
-            self._draw_object(obj)
-
-    def _draw_object(self, obj):
-        """Draw a single object with selection highlighting if needed"""
-        t = getattr(obj, 'object_type', None)
-        if t is None:
-            return
-
-        tname = t.value if hasattr(t, 'value') else str(t)
-        color = obj.attributes.get('color', 'black')
-
-        # If selected, use a different color
-        if obj.selected:
-            color = "red"
-
-        if tname == "line":
-            pts = obj.coords
-            if len(pts) == 2:
-                self.canvas.create_line(
-                    pts[0].x, pts[0].y, pts[1].x, pts[1].y,
-                    fill=color,
-                    width=obj.attributes.get('linewidth', 1)
-                )
-        elif tname == "circle":
-            pts = obj.coords
-            r = obj.attributes.get('radius', 0)
-            if pts and r:
-                x, y = pts[0].x, pts[0].y
-                self.canvas.create_oval(
-                    x - r, y - r, x + r, y + r,
-                    outline=color,
-                    width=obj.attributes.get('linewidth', 1)
-                )
-        elif tname == "point":
-            pts = obj.coords
-            if pts:
-                x, y = pts[0].x, pts[0].y
-                self.canvas.create_oval(
-                    x-2, y-2, x+2, y+2,
-                    fill=color
-                )

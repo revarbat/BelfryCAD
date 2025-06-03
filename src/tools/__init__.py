@@ -4,12 +4,12 @@ Tools Package
 Provides drawing and editing tools for the pyTkCAD application.
 """
 
-
+from .base import ToolManager
 from .line import LineTool
 from .circle import CircleTool
 from .selector import SelectorTool
 from .bezier import BezierTool
-from .arc import ArcCenterTool, Arc3PointTool
+from .arcs import ArcCenterTool, Arc3PointTool
 from .ellipse import EllipseCenterTool, EllipseDiagonalTool
 from .polygon import RectangleTool, RegularPolygonTool
 from .text import TextTool

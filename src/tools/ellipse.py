@@ -28,9 +28,10 @@ class EllipseCenterTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -72,38 +73,55 @@ class EllipseCenterTool(Tool):
             rad_x = abs(point.x - center.x)
             rad_y = abs(point.y - center.y)
 
-            # Draw temporary ellipse
-            ellipse_id = self.canvas.create_oval(
-                center.x - rad_x, center.y - rad_y,
-                center.x + rad_x, center.y + rad_y,
-                outline="blue", dash=(4, 4)
+            # Draw temporary ellipse using QGraphicsEllipseItem
+            from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsTextItem
+            from PySide6.QtCore import QRectF, Qt
+            from PySide6.QtGui import QPen
+            
+            ellipse_item = QGraphicsEllipseItem(
+                QRectF(center.x - rad_x, center.y - rad_y,
+                       2 * rad_x, 2 * rad_y)
             )
-            self.temp_objects.append(ellipse_id)
+            pen = QPen()
+            pen.setColor("blue")
+            pen.setStyle(Qt.DashLine)
+            ellipse_item.setPen(pen)
+            self.scene.addItem(ellipse_item)
+            self.temp_objects.append(ellipse_item)
 
             # Draw major and minor axis lines
-            line_h_id = self.canvas.create_line(
+            line_h_item = QGraphicsLineItem(
                 center.x - rad_x, center.y,
-                center.x + rad_x, center.y,
-                fill="blue", dash=(2, 2)
+                center.x + rad_x, center.y
             )
-            line_v_id = self.canvas.create_line(
+            pen_line = QPen()
+            pen_line.setColor("blue")
+            pen_line.setStyle(Qt.DashLine)
+            line_h_item.setPen(pen_line)
+            self.scene.addItem(line_h_item)
+            self.temp_objects.append(line_h_item)
+            
+            line_v_item = QGraphicsLineItem(
                 center.x, center.y - rad_y,
-                center.x, center.y + rad_y,
-                fill="blue", dash=(2, 2)
+                center.x, center.y + rad_y
             )
-            self.temp_objects.extend([line_h_id, line_v_id])
+            line_v_item.setPen(pen_line)
+            self.scene.addItem(line_v_item)
+            self.temp_objects.append(line_v_item)
 
             # Add dimensions text
             if rad_x > 5 and rad_y > 5:  # Only show if large enough
-                dim_x_id = self.canvas.create_text(
-                    center.x, center.y + rad_y + 15,
-                    text=f"Width: {rad_x*2:.1f}", fill="blue"
-                )
-                dim_y_id = self.canvas.create_text(
-                    center.x + rad_x + 15, center.y,
-                    text=f"Height: {rad_y*2:.1f}", fill="blue"
-                )
-                self.temp_objects.extend([dim_x_id, dim_y_id])
+                dim_x_item = QGraphicsTextItem(f"Width: {rad_x*2:.1f}")
+                dim_x_item.setPos(center.x, center.y + rad_y + 15)
+                dim_x_item.setDefaultTextColor("blue")
+                self.scene.addItem(dim_x_item)
+                self.temp_objects.append(dim_x_item)
+                
+                dim_y_item = QGraphicsTextItem(f"Height: {rad_y*2:.1f}")
+                dim_y_item.setPos(center.x + rad_x + 15, center.y)
+                dim_y_item.setDefaultTextColor("blue")
+                self.scene.addItem(dim_y_item)
+                self.temp_objects.append(dim_y_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create an ellipse object from the collected points"""
@@ -150,9 +168,10 @@ class EllipseDiagonalTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -201,52 +220,65 @@ class EllipseDiagonalTool(Tool):
             rad_x = (x2 - x1) / 2
             rad_y = (y2 - y1) / 2
 
-            # Draw temporary ellipse
-            ellipse_id = self.canvas.create_oval(
-                x1, y1, x2, y2,
-                outline="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(ellipse_id)
+            # Draw temporary ellipse using QGraphicsEllipseItem
+            from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem, QGraphicsTextItem, QGraphicsRectItem
+            from PySide6.QtCore import QRectF, Qt
+            from PySide6.QtGui import QPen, QBrush
+            
+            ellipse_item = QGraphicsEllipseItem(QRectF(x1, y1, x2 - x1, y2 - y1))
+            pen = QPen()
+            pen.setColor("blue")
+            pen.setStyle(Qt.DashLine)
+            ellipse_item.setPen(pen)
+            self.scene.addItem(ellipse_item)
+            self.temp_objects.append(ellipse_item)
 
             # Draw bounding box
-            box_id = self.canvas.create_rectangle(
-                x1, y1, x2, y2,
-                outline="gray", dash=(2, 2)
-            )
-            self.temp_objects.append(box_id)
+            box_item = QGraphicsRectItem(QRectF(x1, y1, x2 - x1, y2 - y1))
+            pen_gray = QPen()
+            pen_gray.setColor("gray")
+            pen_gray.setStyle(Qt.DashLine)
+            box_item.setPen(pen_gray)
+            self.scene.addItem(box_item)
+            self.temp_objects.append(box_item)
 
             # Draw center point
-            center_id = self.canvas.create_oval(
-                center_x - 3, center_y - 3,
-                center_x + 3, center_y + 3,
-                outline="gray", fill="gray"
-            )
-            self.temp_objects.append(center_id)
+            center_item = QGraphicsEllipseItem(QRectF(center_x - 3, center_y - 3, 6, 6))
+            center_item.setPen(QPen("gray"))
+            center_item.setBrush(QBrush("gray"))
+            self.scene.addItem(center_item)
+            self.temp_objects.append(center_item)
 
             # Draw major and minor axis lines
-            line_h_id = self.canvas.create_line(
+            line_h_item = QGraphicsLineItem(
                 center_x - rad_x, center_y,
-                center_x + rad_x, center_y,
-                fill="blue", dash=(2, 2)
+                center_x + rad_x, center_y
             )
-            line_v_id = self.canvas.create_line(
+            line_h_item.setPen(QPen("blue"))
+            self.scene.addItem(line_h_item)
+            self.temp_objects.append(line_h_item)
+            
+            line_v_item = QGraphicsLineItem(
                 center_x, center_y - rad_y,
-                center_x, center_y + rad_y,
-                fill="blue", dash=(2, 2)
+                center_x, center_y + rad_y
             )
-            self.temp_objects.extend([line_h_id, line_v_id])
+            line_v_item.setPen(QPen("blue"))
+            self.scene.addItem(line_v_item)
+            self.temp_objects.append(line_v_item)
 
             # Add dimensions text
             if rad_x > 5 and rad_y > 5:  # Only show if large enough
-                dim_x_id = self.canvas.create_text(
-                    center_x, center_y + rad_y + 15,
-                    text=f"Width: {rad_x*2:.1f}", fill="blue"
-                )
-                dim_y_id = self.canvas.create_text(
-                    center_x + rad_x + 15, center_y,
-                    text=f"Height: {rad_y*2:.1f}", fill="blue"
-                )
-                self.temp_objects.extend([dim_x_id, dim_y_id])
+                dim_x_item = QGraphicsTextItem(f"Width: {rad_x*2:.1f}")
+                dim_x_item.setPos(center_x, center_y + rad_y + 15)
+                dim_x_item.setDefaultTextColor("blue")
+                self.scene.addItem(dim_x_item)
+                self.temp_objects.append(dim_x_item)
+                
+                dim_y_item = QGraphicsTextItem(f"Height: {rad_y*2:.1f}")
+                dim_y_item.setPos(center_x + rad_x + 15, center_y)
+                dim_y_item.setDefaultTextColor("blue")
+                self.scene.addItem(dim_y_item)
+                self.temp_objects.append(dim_y_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create an ellipse object from the collected points"""

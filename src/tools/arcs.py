@@ -8,8 +8,42 @@ tools_arcs.tcl implementation.
 import math
 from typing import Optional, Tuple, List
 
+from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsTextItem,
+                               QGraphicsPathItem, QGraphicsEllipseItem)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
+
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+
+
+class ArcObject(CADObject):
+    """Arc object - center, start angle, end angle, radius"""
+
+    def __init__(self, object_id: int, center: Point, radius: float,
+                 start_angle: float, end_angle: float, **kwargs):
+        super().__init__(object_id, ObjectType.ARC, coords=[center], **kwargs)
+        self.attributes.update({
+            'radius': radius,
+            'start_angle': start_angle,
+            'end_angle': end_angle
+        })
+
+    @property
+    def center(self) -> Point:
+        return self.coords[0]
+
+    @property
+    def radius(self) -> float:
+        return self.attributes['radius']
+
+    @property
+    def start_angle(self) -> float:
+        return self.attributes['start_angle']
+
+    @property
+    def end_angle(self) -> float:
+        return self.attributes['end_angle']
 
 
 class ArcCenterTool(Tool):
@@ -28,10 +62,11 @@ class ArcCenterTool(Tool):
         )]
 
     def _setup_bindings(self):
+        """Set up mouse and keyboard event bindings"""
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
         """Set up mouse and keyboard event bindings."""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation."""
@@ -72,21 +107,23 @@ class ArcCenterTool(Tool):
             center = self.points[0]
 
             # Draw temporary line from center to current point
-            line_id = self.canvas.create_line(
-                center.x, center.y, point.x, point.y,
-                fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(line_id)
+            line_item = QGraphicsLineItem(center.x, center.y, point.x, point.y)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            line_item.setPen(pen)
+            self.scene.addItem(line_item)
+            self.temp_objects.append(line_item)
 
             # Draw radius indicator
             radius = math.sqrt(
                 (point.x - center.x)**2 + (point.y - center.y)**2
             )
-            r_text_id = self.canvas.create_text(
-                (center.x + point.x) / 2, (center.y + point.y) / 2,
-                text=f"R={radius:.1f}", fill="blue"
-            )
-            self.temp_objects.append(r_text_id)
+            text_item = QGraphicsTextItem(f"R={radius:.1f}")
+            text_item.setDefaultTextColor(QColor("blue"))
+            text_item.setPos((center.x + point.x) / 2,
+                             (center.y + point.y) / 2)
+            self.scene.addItem(text_item)
+            self.temp_objects.append(text_item)
 
         elif len(self.points) == 2:
             # Drawing from center to end point
@@ -104,15 +141,19 @@ class ArcCenterTool(Tool):
             self._draw_arc_preview(center, radius, start_angle, end_angle)
 
             # Draw control lines
-            line1_id = self.canvas.create_line(
-                center.x, center.y, start.x, start.y,
-                fill="blue", dash=(4, 4)
-            )
-            line2_id = self.canvas.create_line(
-                center.x, center.y, point.x, point.y,
-                fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.extend([line1_id, line2_id])
+            line1_item = QGraphicsLineItem(center.x, center.y, start.x, start.y)
+            pen1 = QPen(QColor("blue"))
+            pen1.setStyle(Qt.DashLine)
+            line1_item.setPen(pen1)
+            self.scene.addItem(line1_item)
+
+            line2_item = QGraphicsLineItem(center.x, center.y, point.x, point.y)
+            pen2 = QPen(QColor("blue"))
+            pen2.setStyle(Qt.DashLine)
+            line2_item.setPen(pen2)
+            self.scene.addItem(line2_item)
+
+            self.temp_objects.extend([line1_item, line2_item])
 
     def _draw_arc_preview(self, center: Point, radius: float,
                           start_angle: float, end_angle: float):
@@ -133,10 +174,18 @@ class ArcCenterTool(Tool):
             arc_points.extend([x, y])
 
         if len(arc_points) >= 4:  # Need at least 2 points (4 coordinates)
-            arc_id = self.canvas.create_line(
-                *arc_points, fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(arc_id)
+            # Create a path for the arc
+            path = QPainterPath()
+            path.moveTo(arc_points[0], arc_points[1])
+            for i in range(2, len(arc_points), 2):
+                path.lineTo(arc_points[i], arc_points[i + 1])
+
+            path_item = QGraphicsPathItem(path)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            path_item.setPen(pen)
+            self.scene.addItem(path_item)
+            self.temp_objects.append(path_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create an arc object from the collected points."""
@@ -204,10 +253,11 @@ class Arc3PointTool(Tool):
         ]
 
     def _setup_bindings(self):
+        """Set up mouse and keyboard event bindings"""
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
         """Set up mouse and keyboard event bindings."""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation."""
@@ -248,11 +298,16 @@ class Arc3PointTool(Tool):
             # Only have start point, draw line to current point
             start = self.points[0]
 
-            line_id = self.canvas.create_line(
-                start.x, start.y, point.x, point.y,
-                fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(line_id)
+            from PySide6.QtWidgets import QGraphicsLineItem
+            from PySide6.QtCore import Qt
+            from PySide6.QtGui import QPen, QColor
+
+            line_item = QGraphicsLineItem(start.x, start.y, point.x, point.y)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            line_item.setPen(pen)
+            self.scene.addItem(line_item)
+            self.temp_objects.append(line_item)
 
         elif len(self.points) == 2:
             # Have start and middle points, draw arc through these and current
@@ -280,20 +335,26 @@ class Arc3PointTool(Tool):
                 self._draw_arc_preview(center, radius, start_angle, end_angle)
 
                 # Draw center point and radius lines for reference
-                center_id = self.canvas.create_oval(
-                    center.x - 3, center.y - 3,
-                    center.x + 3, center.y + 3,
-                    outline="gray", fill="gray"
+                center_item = QGraphicsEllipseItem(
+                    center.x - 3, center.y - 3, 6, 6
                 )
-                line1_id = self.canvas.create_line(
-                    center.x, center.y, p1.x, p1.y,
-                    fill="gray", dash=(2, 2)
-                )
-                line2_id = self.canvas.create_line(
-                    center.x, center.y, p3.x, p3.y,
-                    fill="gray", dash=(2, 2)
-                )
-                self.temp_objects.extend([center_id, line1_id, line2_id])
+                center_item.setPen(QPen(QColor("gray")))
+                center_item.setBrush(QBrush(QColor("gray")))
+                self.scene.addItem(center_item)
+
+                line1_item = QGraphicsLineItem(center.x, center.y, p1.x, p1.y)
+                pen1 = QPen(QColor("gray"))
+                pen1.setStyle(Qt.DashLine)
+                line1_item.setPen(pen1)
+                self.scene.addItem(line1_item)
+
+                line2_item = QGraphicsLineItem(center.x, center.y, p3.x, p3.y)
+                pen2 = QPen(QColor("gray"))
+                pen2.setStyle(Qt.DashLine)
+                line2_item.setPen(pen2)
+                self.scene.addItem(line2_item)
+
+                self.temp_objects.extend([center_item, line1_item, line2_item])
 
     def _calculate_arc_center_radius(
             self, p1: Point, p2: Point, p3: Point
@@ -380,10 +441,18 @@ class Arc3PointTool(Tool):
             arc_points.extend([x, y])
 
         if len(arc_points) >= 4:  # Need at least 2 points (4 coordinates)
-            arc_id = self.canvas.create_line(
-                *arc_points, fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(arc_id)
+            # Create a path for the arc
+            path = QPainterPath()
+            path.moveTo(arc_points[0], arc_points[1])
+            for i in range(2, len(arc_points), 2):
+                path.lineTo(arc_points[i], arc_points[i + 1])
+
+            path_item = QGraphicsPathItem(path)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            path_item.setPen(pen)
+            self.scene.addItem(path_item)
+            self.temp_objects.append(path_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create an arc object from the collected points."""

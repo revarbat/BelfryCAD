@@ -8,8 +8,25 @@ implementation.
 import math
 from typing import Optional, List
 
-from src.core.cad_objects import CADObject, ObjectType
+from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+
+
+class CircleObject(CADObject):
+    """Circle object - center and radius"""
+
+    def __init__(self, object_id: int, center: Point, radius: float, **kwargs):
+        super().__init__(
+            object_id, ObjectType.CIRCLE, coords=[center], **kwargs)
+        self.attributes['radius'] = radius
+
+    @property
+    def center(self) -> Point:
+        return self.coords[0]
+
+    @property
+    def radius(self) -> float:
+        return self.attributes['radius']
 
 
 class CircleTool(Tool):
@@ -29,9 +46,13 @@ class CircleTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -71,13 +92,22 @@ class CircleTool(Tool):
             radius = math.sqrt((point.x - center_point.x)**2 +
                                (point.y - center_point.y)**2)
 
-            # Draw temporary circle
-            preview_id = self.canvas.create_oval(
-                center_point.x - radius, center_point.y - radius,
-                center_point.x + radius, center_point.y + radius,
-                outline="blue", dash=(4, 4)  # Dashed line for preview
+            # Draw temporary circle using QGraphicsEllipseItem
+            from PySide6.QtWidgets import QGraphicsEllipseItem
+            from PySide6.QtCore import QRectF, Qt
+            from PySide6.QtGui import QPen
+            
+            ellipse_item = QGraphicsEllipseItem(
+                QRectF(center_point.x - radius, center_point.y - radius,
+                       2 * radius, 2 * radius)
             )
-            self.temp_objects.append(preview_id)
+            pen = QPen()
+            pen.setColor("blue")
+            pen.setStyle(Qt.DashLine)
+            ellipse_item.setPen(pen)
+            
+            self.scene.addItem(ellipse_item)
+            self.temp_objects.append(ellipse_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create a circle object from the collected points"""

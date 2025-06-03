@@ -28,9 +28,10 @@ class PointTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -62,37 +63,40 @@ class PointTool(Tool):
         # Get the snapped point based on current snap settings
         point = self.get_snap_point(current_x, current_y)
 
-        # Draw temporary point marker (cross)
+        # Draw temporary point marker (cross) using Qt graphics items
         x, y = point.x, point.y
         size = 3  # Size of the cross
 
+        from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsTextItem
+        from PySide6.QtCore import QRectF, Qt
+        from PySide6.QtGui import QPen
+
         # Draw horizontal line
-        h_line_id = self.canvas.create_line(
-            x - size, y, x + size, y,
-            fill="blue", dash=(2, 2)
-        )
+        h_line_item = QGraphicsLineItem(x - size, y, x + size, y)
+        pen = QPen()
+        pen.setColor("blue")
+        pen.setStyle(Qt.DashLine)
+        h_line_item.setPen(pen)
+        self.scene.addItem(h_line_item)
 
         # Draw vertical line
-        v_line_id = self.canvas.create_line(
-            x, y - size, x, y + size,
-            fill="blue", dash=(2, 2)
-        )
+        v_line_item = QGraphicsLineItem(x, y - size, x, y + size)
+        v_line_item.setPen(pen)
+        self.scene.addItem(v_line_item)
 
         # Draw small circle around the point
-        circle_id = self.canvas.create_oval(
-            x - size, y - size, x + size, y + size,
-            outline="blue", dash=(2, 2)
-        )
+        circle_item = QGraphicsEllipseItem(QRectF(x - size, y - size, 2 * size, 2 * size))
+        circle_item.setPen(pen)
+        self.scene.addItem(circle_item)
 
-        self.temp_objects.extend([h_line_id, v_line_id, circle_id])
+        self.temp_objects.extend([h_line_item, v_line_item, circle_item])
 
         # Add coordinates text
-        text_id = self.canvas.create_text(
-            x, y + 15,
-            text=f"({x:.1f}, {y:.1f})",
-            fill="blue"
-        )
-        self.temp_objects.append(text_id)
+        text_item = QGraphicsTextItem(f"({x:.1f}, {y:.1f})")
+        text_item.setPos(x, y + 15)
+        text_item.setDefaultTextColor("blue")
+        self.scene.addItem(text_item)
+        self.temp_objects.append(text_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create a point object from the collected point"""

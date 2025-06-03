@@ -8,8 +8,40 @@ tools_dimensions.tcl implementation.
 import math
 from typing import Optional, List
 
+from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsTextItem)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPen, QColor, QTransform
+
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+
+
+class DimensionObject(CADObject):
+    """Dimension object - measurement between two points"""
+
+    def __init__(self, object_id: int, start: Point, end: Point,
+                 text_position: Point, **kwargs):
+        super().__init__(object_id, ObjectType.DIMENSION,
+                         coords=[start, end, text_position], **kwargs)
+        self.attributes.update({
+            'precision': kwargs.get('precision', 2),
+            'units': kwargs.get('units', 'mm')
+        })
+
+    @property
+    def start(self) -> Point:
+        return self.coords[0]
+
+    @property
+    def end(self) -> Point:
+        return self.coords[1]
+
+    @property
+    def text_position(self) -> Point:
+        return self.coords[2]
+
+    def measured_distance(self) -> float:
+        return self.start.distance_to(self.end)
 
 
 class HorizontalDimensionTool(Tool):
@@ -29,9 +61,10 @@ class HorizontalDimensionTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -81,20 +114,20 @@ class HorizontalDimensionTool(Tool):
             end = Point(point.x, start.y)
 
             # Draw temporary line
-            line_id = self.canvas.create_line(
-                start.x, start.y, end.x, end.y,
-                fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(line_id)
+            line_item = QGraphicsLineItem(start.x, start.y, end.x, end.y)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            line_item.setPen(pen)
+            self.scene.addItem(line_item)
+            self.temp_objects.append(line_item)
 
             # Draw dimension text
             length = abs(end.x - start.x)
-            text_id = self.canvas.create_text(
-                (start.x + end.x) / 2, start.y - 15,
-                text=f"{length:.2f}",
-                fill="blue"
-            )
-            self.temp_objects.append(text_id)
+            text_item = QGraphicsTextItem(f"{length:.2f}")
+            text_item.setDefaultTextColor(QColor("blue"))
+            text_item.setPos((start.x + end.x) / 2 - 20, start.y - 30)
+            self.scene.addItem(text_item)
+            self.temp_objects.append(text_item)
 
         elif len(self.points) == 2:
             # Drawing offset position
@@ -105,61 +138,70 @@ class HorizontalDimensionTool(Tool):
             offset_y = point.y
 
             # Extension lines
-            ext1_id = self.canvas.create_line(
-                start.x, start.y, start.x, offset_y,
-                fill="blue", dash=(2, 2)
-            )
-            ext2_id = self.canvas.create_line(
-                end.x, end.y, end.x, offset_y,
-                fill="blue", dash=(2, 2)
-            )
+            ext1_item = QGraphicsLineItem(start.x, start.y, start.x, offset_y)
+            pen1 = QPen(QColor("blue"))
+            pen1.setStyle(Qt.DashLine)
+            ext1_item.setPen(pen1)
+            self.scene.addItem(ext1_item)
+
+            ext2_item = QGraphicsLineItem(end.x, end.y, end.x, offset_y)
+            pen2 = QPen(QColor("blue"))
+            pen2.setStyle(Qt.DashLine)
+            ext2_item.setPen(pen2)
+            self.scene.addItem(ext2_item)
 
             # Dimension line
-            dim_id = self.canvas.create_line(
-                start.x, offset_y, end.x, offset_y,
-                fill="blue", dash=(4, 4)
-            )
+            dim_item = QGraphicsLineItem(start.x, offset_y, end.x, offset_y)
+            pen3 = QPen(QColor("blue"))
+            pen3.setStyle(Qt.DashLine)
+            dim_item.setPen(pen3)
+            self.scene.addItem(dim_item)
 
             # Arrow heads
             arrow_size = 10
 
             # Left arrow
-            left_arrow1_id = self.canvas.create_line(
+            left_arrow1_item = QGraphicsLineItem(
                 start.x, offset_y, start.x + arrow_size,
-                offset_y - arrow_size/2,
-                fill="blue"
+                offset_y - arrow_size/2
             )
-            left_arrow2_id = self.canvas.create_line(
+            left_arrow1_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(left_arrow1_item)
+
+            left_arrow2_item = QGraphicsLineItem(
                 start.x, offset_y, start.x + arrow_size,
-                offset_y + arrow_size/2,
-                fill="blue"
+                offset_y + arrow_size/2
             )
+            left_arrow2_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(left_arrow2_item)
 
             # Right arrow
-            right_arrow1_id = self.canvas.create_line(
+            right_arrow1_item = QGraphicsLineItem(
                 end.x, offset_y, end.x - arrow_size,
-                offset_y - arrow_size/2,
-                fill="blue"
+                offset_y - arrow_size/2
             )
-            right_arrow2_id = self.canvas.create_line(
+            right_arrow1_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(right_arrow1_item)
+
+            right_arrow2_item = QGraphicsLineItem(
                 end.x, offset_y, end.x - arrow_size,
-                offset_y + arrow_size/2,
-                fill="blue"
+                offset_y + arrow_size/2
             )
+            right_arrow2_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(right_arrow2_item)
 
             # Dimension text
             length = abs(end.x - start.x)
-            text_id = self.canvas.create_text(
-                (start.x + end.x) / 2, offset_y - 15,
-                text=f"{length:.2f}",
-                fill="blue"
-            )
+            text_item = QGraphicsTextItem(f"{length:.2f}")
+            text_item.setDefaultTextColor(QColor("blue"))
+            text_item.setPos((start.x + end.x) / 2 - 20, offset_y - 30)
+            self.scene.addItem(text_item)
 
             self.temp_objects.extend([
-                ext1_id, ext2_id, dim_id,
-                left_arrow1_id, left_arrow2_id,
-                right_arrow1_id, right_arrow2_id,
-                text_id
+                ext1_item, ext2_item, dim_item,
+                left_arrow1_item, left_arrow2_item,
+                right_arrow1_item, right_arrow2_item,
+                text_item
             ])
 
     def create_object(self) -> Optional[CADObject]:
@@ -208,9 +250,10 @@ class VerticalDimensionTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -260,21 +303,24 @@ class VerticalDimensionTool(Tool):
             end = Point(start.x, point.y)
 
             # Draw temporary line
-            line_id = self.canvas.create_line(
-                start.x, start.y, end.x, end.y,
-                fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(line_id)
+            line_item = QGraphicsLineItem(start.x, start.y, end.x, end.y)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            line_item.setPen(pen)
+            self.scene.addItem(line_item)
+            self.temp_objects.append(line_item)
 
             # Draw dimension text
             length = abs(end.y - start.y)
-            text_id = self.canvas.create_text(
-                start.x - 15, (start.y + end.y) / 2,
-                text=f"{length:.2f}",
-                fill="blue",
-                angle=90
-            )
-            self.temp_objects.append(text_id)
+            text_item = QGraphicsTextItem(f"{length:.2f}")
+            text_item.setDefaultTextColor(QColor("blue"))
+            # Create rotation transform for vertical text
+            transform = QTransform()
+            transform.rotate(90)
+            text_item.setTransform(transform)
+            text_item.setPos(start.x - 45, (start.y + end.y) / 2 - 10)
+            self.scene.addItem(text_item)
+            self.temp_objects.append(text_item)
 
         elif len(self.points) == 2:
             # Drawing offset position
@@ -285,62 +331,74 @@ class VerticalDimensionTool(Tool):
             offset_x = point.x
 
             # Extension lines
-            ext1_id = self.canvas.create_line(
-                start.x, start.y, offset_x, start.y,
-                fill="blue", dash=(2, 2)
-            )
-            ext2_id = self.canvas.create_line(
-                end.x, end.y, offset_x, end.y,
-                fill="blue", dash=(2, 2)
-            )
+            ext1_item = QGraphicsLineItem(start.x, start.y, offset_x, start.y)
+            pen1 = QPen(QColor("blue"))
+            pen1.setStyle(Qt.DashLine)
+            ext1_item.setPen(pen1)
+            self.scene.addItem(ext1_item)
+
+            ext2_item = QGraphicsLineItem(end.x, end.y, offset_x, end.y)
+            pen2 = QPen(QColor("blue"))
+            pen2.setStyle(Qt.DashLine)
+            ext2_item.setPen(pen2)
+            self.scene.addItem(ext2_item)
 
             # Dimension line
-            dim_id = self.canvas.create_line(
-                offset_x, start.y, offset_x, end.y,
-                fill="blue", dash=(4, 4)
-            )
+            dim_item = QGraphicsLineItem(offset_x, start.y, offset_x, end.y)
+            pen3 = QPen(QColor("blue"))
+            pen3.setStyle(Qt.DashLine)
+            dim_item.setPen(pen3)
+            self.scene.addItem(dim_item)
 
             # Arrow heads
             arrow_size = 10
 
             # Top arrow
-            top_arrow1_id = self.canvas.create_line(
+            top_arrow1_item = QGraphicsLineItem(
                 offset_x, start.y, offset_x - arrow_size/2,
-                start.y + arrow_size,
-                fill="blue"
+                start.y + arrow_size
             )
-            top_arrow2_id = self.canvas.create_line(
+            top_arrow1_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(top_arrow1_item)
+
+            top_arrow2_item = QGraphicsLineItem(
                 offset_x, start.y, offset_x + arrow_size/2,
-                start.y + arrow_size,
-                fill="blue"
+                start.y + arrow_size
             )
+            top_arrow2_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(top_arrow2_item)
 
             # Bottom arrow
-            bottom_arrow1_id = self.canvas.create_line(
+            bottom_arrow1_item = QGraphicsLineItem(
                 offset_x, end.y, offset_x - arrow_size/2,
-                end.y - arrow_size,
-                fill="blue"
+                end.y - arrow_size
             )
-            bottom_arrow2_id = self.canvas.create_line(
+            bottom_arrow1_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(bottom_arrow1_item)
+
+            bottom_arrow2_item = QGraphicsLineItem(
                 offset_x, end.y, offset_x + arrow_size/2,
-                end.y - arrow_size,
-                fill="blue"
+                end.y - arrow_size
             )
+            bottom_arrow2_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(bottom_arrow2_item)
 
             # Dimension text
             length = abs(end.y - start.y)
-            text_id = self.canvas.create_text(
-                offset_x - 15, (start.y + end.y) / 2,
-                text=f"{length:.2f}",
-                fill="blue",
-                angle=90
-            )
+            text_item = QGraphicsTextItem(f"{length:.2f}")
+            text_item.setDefaultTextColor(QColor("blue"))
+            # Create rotation transform for vertical text
+            transform = QTransform()
+            transform.rotate(90)
+            text_item.setTransform(transform)
+            text_item.setPos(offset_x - 45, (start.y + end.y) / 2 - 10)
+            self.scene.addItem(text_item)
 
             self.temp_objects.extend([
-                ext1_id, ext2_id, dim_id,
-                top_arrow1_id, top_arrow2_id,
-                bottom_arrow1_id, bottom_arrow2_id,
-                text_id
+                ext1_item, ext2_item, dim_item,
+                top_arrow1_item, top_arrow2_item,
+                bottom_arrow1_item, bottom_arrow2_item,
+                text_item
             ])
 
     def create_object(self) -> Optional[CADObject]:
@@ -389,9 +447,10 @@ class LinearDimensionTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -434,11 +493,12 @@ class LinearDimensionTool(Tool):
             end = point
 
             # Draw temporary line
-            line_id = self.canvas.create_line(
-                start.x, start.y, end.x, end.y,
-                fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(line_id)
+            line_item = QGraphicsLineItem(start.x, start.y, end.x, end.y)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            line_item.setPen(pen)
+            self.scene.addItem(line_item)
+            self.temp_objects.append(line_item)
 
             # Draw dimension text
             length = math.sqrt((end.x - start.x)**2 + (end.y - start.y)**2)
@@ -448,12 +508,13 @@ class LinearDimensionTool(Tool):
             if angle < 0:
                 angle += 360
 
-            text_id = self.canvas.create_text(
-                (start.x + end.x) / 2, (start.y + end.y) / 2 - 15,
-                text=f"{length:.2f}",
-                fill="blue"
+            text_item = QGraphicsTextItem(f"{length:.2f}")
+            text_item.setDefaultTextColor(QColor("blue"))
+            text_item.setPos(
+                (start.x + end.x) / 2 - 20, (start.y + end.y) / 2 - 30
             )
-            self.temp_objects.append(text_id)
+            self.scene.addItem(text_item)
+            self.temp_objects.append(text_item)
 
         elif len(self.points) == 2:
             # Drawing offset position
@@ -491,20 +552,30 @@ class LinearDimensionTool(Tool):
             dim_end_y = end.y + perp_dy * perp_dist
 
             # Extension lines
-            ext1_id = self.canvas.create_line(
-                start.x, start.y, dim_start_x, dim_start_y,
-                fill="blue", dash=(2, 2)
+            ext1_item = QGraphicsLineItem(
+                start.x, start.y, dim_start_x, dim_start_y
             )
-            ext2_id = self.canvas.create_line(
-                end.x, end.y, dim_end_x, dim_end_y,
-                fill="blue", dash=(2, 2)
+            pen1 = QPen(QColor("blue"))
+            pen1.setStyle(Qt.DashLine)
+            ext1_item.setPen(pen1)
+            self.scene.addItem(ext1_item)
+
+            ext2_item = QGraphicsLineItem(
+                end.x, end.y, dim_end_x, dim_end_y
             )
+            pen2 = QPen(QColor("blue"))
+            pen2.setStyle(Qt.DashLine)
+            ext2_item.setPen(pen2)
+            self.scene.addItem(ext2_item)
 
             # Dimension line
-            dim_id = self.canvas.create_line(
-                dim_start_x, dim_start_y, dim_end_x, dim_end_y,
-                fill="blue", dash=(4, 4)
+            dim_item = QGraphicsLineItem(
+                dim_start_x, dim_start_y, dim_end_x, dim_end_y
             )
+            pen3 = QPen(QColor("blue"))
+            pen3.setStyle(Qt.DashLine)
+            dim_item.setPen(pen3)
+            self.scene.addItem(dim_item)
 
             # Arrow heads - calculate the arrow points
             arrow_size = 10
@@ -535,23 +606,29 @@ class LinearDimensionTool(Tool):
                 math.sin(angle2 + math.pi + arrow_angle)
 
             # Draw arrows
-            start_arrow1_id = self.canvas.create_line(
-                dim_start_x, dim_start_y, arrow1_x1, arrow1_y1,
-                fill="blue"
+            start_arrow1_item = QGraphicsLineItem(
+                dim_start_x, dim_start_y, arrow1_x1, arrow1_y1
             )
-            start_arrow2_id = self.canvas.create_line(
-                dim_start_x, dim_start_y, arrow1_x2, arrow1_y2,
-                fill="blue"
-            )
+            start_arrow1_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(start_arrow1_item)
 
-            end_arrow1_id = self.canvas.create_line(
-                dim_end_x, dim_end_y, arrow2_x1, arrow2_y1,
-                fill="blue"
+            start_arrow2_item = QGraphicsLineItem(
+                dim_start_x, dim_start_y, arrow1_x2, arrow1_y2
             )
-            end_arrow2_id = self.canvas.create_line(
-                dim_end_x, dim_end_y, arrow2_x2, arrow2_y2,
-                fill="blue"
+            start_arrow2_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(start_arrow2_item)
+
+            end_arrow1_item = QGraphicsLineItem(
+                dim_end_x, dim_end_y, arrow2_x1, arrow2_y1
             )
+            end_arrow1_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(end_arrow1_item)
+
+            end_arrow2_item = QGraphicsLineItem(
+                dim_end_x, dim_end_y, arrow2_x2, arrow2_y2
+            )
+            end_arrow2_item.setPen(QPen(QColor("blue")))
+            self.scene.addItem(end_arrow2_item)
 
             # Dimension text
             text_x = (dim_start_x + dim_end_x) / 2
@@ -568,18 +645,22 @@ class LinearDimensionTool(Tool):
             if text_angle < -90 or text_angle > 90:
                 text_angle += 180  # Flip text if it would be upside-down
 
-            text_id = self.canvas.create_text(
-                text_x - text_offset_x, text_y - text_offset_y,
-                text=f"{length:.2f}",
-                fill="blue",
-                angle=text_angle
+            text_item = QGraphicsTextItem(f"{length:.2f}")
+            text_item.setDefaultTextColor(QColor("blue"))
+            # Create rotation transform for angled text
+            transform = QTransform()
+            transform.rotate(text_angle)
+            text_item.setTransform(transform)
+            text_item.setPos(
+                text_x - text_offset_x - 20, text_y - text_offset_y - 15
             )
+            self.scene.addItem(text_item)
 
             self.temp_objects.extend([
-                ext1_id, ext2_id, dim_id,
-                start_arrow1_id, start_arrow2_id,
-                end_arrow1_id, end_arrow2_id,
-                text_id
+                ext1_item, ext2_item, dim_item,
+                start_arrow1_item, start_arrow2_item,
+                end_arrow1_item, end_arrow2_item,
+                text_item
             ])
 
     def create_object(self) -> Optional[CADObject]:

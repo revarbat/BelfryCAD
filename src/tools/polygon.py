@@ -5,12 +5,31 @@ This module implements various polygon drawing tools based on the original TCL
 tools_polygons.tcl implementation, including rectangles and regular polygons.
 """
 
-import tkinter as tk
 import math
 from typing import Optional, List
 
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+
+
+class PolygonObject(CADObject):
+    """Polygon object - list of vertices"""
+
+    def __init__(self, object_id: int, vertices: List[Point], **kwargs):
+        super().__init__(
+            object_id, ObjectType.POLYGON, coords=vertices, **kwargs)
+
+    def is_closed(self) -> bool:
+        """Check if polygon is closed (first and last points are same)"""
+        if len(self.coords) < 3:
+            return False
+        return (abs(self.coords[0].x - self.coords[-1].x) < 1e-6 and
+                abs(self.coords[0].y - self.coords[-1].y) < 1e-6)
+
+    def close(self):
+        """Close the polygon by adding first point at end if not closed"""
+        if not self.is_closed() and len(self.coords) >= 3:
+            self.coords.append(Point(self.coords[0].x, self.coords[0].y))
 
 
 class RectangleTool(Tool):
@@ -30,9 +49,10 @@ class RectangleTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -75,27 +95,35 @@ class RectangleTool(Tool):
             x1, y1 = min(p1.x, p2.x), min(p1.y, p2.y)
             x2, y2 = max(p1.x, p2.x), max(p1.y, p2.y)
 
-            # Draw temporary rectangle
-            rect_id = self.canvas.create_rectangle(
-                x1, y1, x2, y2,
-                outline="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(rect_id)
+            # Draw temporary rectangle using QGraphicsRectItem
+            from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
+            from PySide6.QtCore import QRectF, Qt
+            from PySide6.QtGui import QPen
+            
+            rect_item = QGraphicsRectItem(QRectF(x1, y1, x2 - x1, y2 - y1))
+            pen = QPen()
+            pen.setColor("blue")
+            pen.setStyle(Qt.DashLine)
+            rect_item.setPen(pen)
+            self.scene.addItem(rect_item)
+            self.temp_objects.append(rect_item)
 
             # Add dimensions text
             width = x2 - x1
             height = y2 - y1
 
             if width > 10 and height > 10:  # Only show if large enough
-                dim_x_id = self.canvas.create_text(
-                    (x1 + x2) / 2, y2 + 15,
-                    text=f"Width: {width:.1f}", fill="blue"
-                )
-                dim_y_id = self.canvas.create_text(
-                    x2 + 15, (y1 + y2) / 2,
-                    text=f"Height: {height:.1f}", fill="blue"
-                )
-                self.temp_objects.extend([dim_x_id, dim_y_id])
+                dim_x_item = QGraphicsTextItem(f"Width: {width:.1f}")
+                dim_x_item.setPos((x1 + x2) / 2, y2 + 15)
+                dim_x_item.setDefaultTextColor("blue")
+                self.scene.addItem(dim_x_item)
+                self.temp_objects.append(dim_x_item)
+                
+                dim_y_item = QGraphicsTextItem(f"Height: {height:.1f}")
+                dim_y_item.setPos(x2 + 15, (y1 + y2) / 2)
+                dim_y_item.setDefaultTextColor("blue")
+                self.scene.addItem(dim_y_item)
+                self.temp_objects.append(dim_y_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create a rectangle object from the collected points"""
@@ -161,14 +189,16 @@ class RegularPolygonTool(Tool):
     def activate(self):
         """Activate the tool and show any custom controls"""
         super().activate()
-        if hasattr(self, 'side_control'):
-            self.side_control.pack(side=tk.LEFT, padx=5)
+        # TODO: Implement Qt-based side control panel
+        # if hasattr(self, 'side_control'):
+        #     self.side_control.pack(side=tk.LEFT, padx=5)
 
     def deactivate(self):
         """Deactivate the tool and hide any custom controls"""
         super().deactivate()
-        if hasattr(self, 'side_control'):
-            self.side_control.pack_forget()
+        # TODO: Implement Qt-based side control panel
+        # if hasattr(self, 'side_control'):
+        #     self.side_control.pack_forget()
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -184,9 +214,10 @@ class RegularPolygonTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -242,35 +273,45 @@ class RegularPolygonTool(Tool):
             vertices = self._calculate_polygon_vertices(
                 center, radius, self.num_sides)
 
-            # Draw temporary polygon
+            # Draw temporary polygon using QGraphicsPolygonItem
             if vertices:
-                # Flatten the list of points for the create_polygon method
-                flat_points = []
+                from PySide6.QtWidgets import QGraphicsPolygonItem, QGraphicsLineItem, QGraphicsTextItem
+                from PySide6.QtGui import QPolygonF, QPointF, QPen
+                from PySide6.QtCore import Qt
+                
+                # Create Qt polygon from vertices
+                qt_polygon = QPolygonF()
                 for p in vertices:
-                    flat_points.extend([p.x, p.y])
+                    qt_polygon.append(QPointF(p.x, p.y))
 
-                poly_id = self.canvas.create_polygon(
-                    *flat_points, outline="blue", fill="", dash=(4, 4)
-                )
-                self.temp_objects.append(poly_id)
+                poly_item = QGraphicsPolygonItem(qt_polygon)
+                pen = QPen()
+                pen.setColor("blue")
+                pen.setStyle(Qt.DashLine)
+                poly_item.setPen(pen)
+                self.scene.addItem(poly_item)
+                self.temp_objects.append(poly_item)
 
                 # Draw radius line
-                radius_line_id = self.canvas.create_line(
-                    center.x, center.y, point.x, point.y,
-                    fill="blue", dash=(2, 2)
+                radius_line_item = QGraphicsLineItem(
+                    center.x, center.y, point.x, point.y
                 )
-                self.temp_objects.append(radius_line_id)
+                radius_line_item.setPen(QPen("blue"))
+                self.scene.addItem(radius_line_item)
+                self.temp_objects.append(radius_line_item)
 
                 # Add side count and radius text
-                radius_text_id = self.canvas.create_text(
-                    (center.x + point.x) / 2, (center.y + point.y) / 2,
-                    text=f"R={radius:.1f}", fill="blue"
-                )
-                sides_text_id = self.canvas.create_text(
-                    center.x, center.y - radius - 15,
-                    text=f"Sides: {self.num_sides}", fill="blue"
-                )
-                self.temp_objects.extend([radius_text_id, sides_text_id])
+                radius_text_item = QGraphicsTextItem(f"R={radius:.1f}")
+                radius_text_item.setPos((center.x + point.x) / 2, (center.y + point.y) / 2)
+                radius_text_item.setDefaultTextColor("blue")
+                self.scene.addItem(radius_text_item)
+                self.temp_objects.append(radius_text_item)
+                
+                sides_text_item = QGraphicsTextItem(f"Sides: {self.num_sides}")
+                sides_text_item.setPos(center.x, center.y - radius - 15)
+                sides_text_item.setDefaultTextColor("blue")
+                self.scene.addItem(sides_text_item)
+                self.temp_objects.append(sides_text_item)
 
     def _calculate_polygon_vertices(self, center: Point, radius: float,
                                     num_sides: int) -> List[Point]:

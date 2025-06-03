@@ -1,87 +1,233 @@
 # filepath: /Users/gminette/dev/git-repos/pyTkCAD/src/gui/main_window.py
 """Main window for the PyTkCAD application."""
-import math
-import tkinter as tk
-import tkinter.filedialog as filedialog
-import tkinter.messagebox as messagebox
+import os
+from PySide6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QFileDialog, QMessageBox, QGraphicsView,
+    QGraphicsScene
+)
+from PySide6.QtCore import QPointF
+from PySide6.QtGui import (
+    QPainter, QPen, QBrush, QColor, QAction, QIcon, QPixmap
+)
 
 try:
-    from PIL import Image, ImageTk
+    from PIL import Image
     import io
 except ImportError:
     Image = None
-    ImageTk = None
     io = None
 
 from src.tools import available_tools, ToolManager
 
 
-class MainWindow:
-    def __init__(self, root, config, preferences, document):
-        self.root = root
+class CADGraphicsView(QGraphicsView):
+    """Custom graphics view for CAD drawing operations."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setRenderHint(QPainter.Antialiasing)
+        self.setDragMode(QGraphicsView.NoDrag)  # We'll handle dragging ourselves
+        self.tool_manager = None  # Will be set by the main window
+
+    def set_tool_manager(self, tool_manager):
+        """Set the tool manager for handling events"""
+        self.tool_manager = tool_manager
+
+    def mousePressEvent(self, event):
+        """Handle mouse press events and forward to active tool"""
+        if self.tool_manager and self.tool_manager.get_active_tool():
+            # Convert to scene coordinates
+            scene_pos = self.mapToScene(event.pos())
+            # Create a simple event object with scene coordinates and x/y attrs
+            class SceneEvent:
+                def __init__(self, scene_pos):
+                    self._scene_pos = scene_pos
+                    self.x = scene_pos.x()
+                    self.y = scene_pos.y()
+                def scenePos(self):
+                    return self._scene_pos
+
+            scene_event = SceneEvent(scene_pos)
+            self.tool_manager.get_active_tool().handle_mouse_down(scene_event)
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Handle mouse move events and forward to active tool"""
+        if self.tool_manager and self.tool_manager.get_active_tool():
+            scene_pos = self.mapToScene(event.pos())
+            class SceneEvent:
+                def __init__(self, scene_pos):
+                    self._scene_pos = scene_pos
+                    self.x = scene_pos.x()
+                    self.y = scene_pos.y()
+                def scenePos(self):
+                    return self._scene_pos
+
+            scene_event = SceneEvent(scene_pos)
+            self.tool_manager.get_active_tool().handle_mouse_move(scene_event)
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """Handle mouse release events and forward to active tool"""
+        if self.tool_manager and self.tool_manager.get_active_tool():
+            scene_pos = self.mapToScene(event.pos())
+            class SceneEvent:
+                def __init__(self, scene_pos):
+                    self._scene_pos = scene_pos
+                    self.x = scene_pos.x()
+                    self.y = scene_pos.y()
+                def scenePos(self):
+                    return self._scene_pos
+
+            scene_event = SceneEvent(scene_pos)
+            # Check if tool has handle_mouse_up method (selector tool has it)
+            active_tool = self.tool_manager.get_active_tool()
+            if hasattr(active_tool, 'handle_mouse_up'):
+                active_tool.handle_mouse_up(scene_event)
+            elif hasattr(active_tool, 'handle_drag'):
+                active_tool.handle_drag(scene_event)
+        else:
+            super().mouseReleaseEvent(event)
+
+
+class MainWindow(QMainWindow):
+    def __init__(self, config, preferences, document):
+        super().__init__()
         self.config = config
         self.preferences = preferences
         self.document = document
         self._setup_ui()
 
     def _setup_ui(self):
-        self.root.title(self.config.APP_NAME)
+        self.setWindowTitle(self.config.APP_NAME)
         self._create_menu()
         self._create_toolbar()
         self._create_canvas()
         self._setup_tools()
 
     def _create_menu(self):
-        menubar = tk.Menu(self.root)
+        menubar = self.menuBar()
 
         # File menu
-        filemenu = tk.Menu(menubar, tearoff=0)
-        filemenu.add_command(label="New", command=self.new_file)
-        filemenu.add_command(label="Open...", command=self.open_file)
-        filemenu.add_command(label="Save", command=self.save_file)
-        filemenu.add_separator()
-        filemenu.add_command(label="Exit", command=self.root.quit)
-        menubar.add_cascade(label="File", menu=filemenu)
+        file_menu = menubar.addMenu("File")
+
+        new_action = QAction("New", self)
+        new_action.triggered.connect(self.new_file)
+        file_menu.addAction(new_action)
+
+        open_action = QAction("Open...", self)
+        open_action.triggered.connect(self.open_file)
+        file_menu.addAction(open_action)
+
+        save_action = QAction("Save", self)
+        save_action.triggered.connect(self.save_file)
+        file_menu.addAction(save_action)
+
+        file_menu.addSeparator()
+
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
 
         # Tools menu
-        self.toolsmenu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Tools", menu=self.toolsmenu)
-
-        self.root.config(menu=menubar)
+        self.tools_menu = menubar.addMenu("Tools")
 
     def _create_toolbar(self):
         """Create a toolbar with drawing tools"""
-        self.toolbar_frame = tk.Frame(self.root, bd=1, relief=tk.RAISED)
-        self.toolbar_frame.pack(side=tk.TOP, fill=tk.X)
-
+        from PySide6.QtCore import Qt, QSize
+        self.toolbar = self.addToolBar("Tools")
+        self.addToolBar(Qt.LeftToolBarArea, self.toolbar)
+        # Set the icon size to 32x32 for better visibility
+        self.toolbar.setIconSize(QSize(32, 32))
+        # Reduce spacing between toolbar buttons to zero
+        self.toolbar.layout().setSpacing(0)
+        self.toolbar.setContentsMargins(0, 0, 0, 0)
+        # Make toolbar more compact
+        self.toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        # Apply custom stylesheet for zero spacing with 32x32 icons
+        self.toolbar.setStyleSheet("""
+            QToolBar {
+                spacing: 0px;
+                border: none;
+            }
+            QToolButton {
+                margin: 0px;
+                padding: 0px;
+                border: none;
+            }
+        """)
         # We'll populate this with tool buttons in _setup_tools()
 
     def _create_canvas(self):
-        self.canvas = tk.Canvas(self.root, bg="#ffffff")
-        self.canvas.pack(fill=tk.BOTH, expand=True)
+        # Create central widget and layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+        
+        # Remove all spacing around the canvas
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Create graphics view and scene
+        self.scene = QGraphicsScene()
+        self.canvas = CADGraphicsView()
+        self.canvas.setScene(self.scene)
+        
+        # Remove any default margins/padding from the graphics view
+        self.canvas.setContentsMargins(0, 0, 0, 0)
+        self.canvas.setStyleSheet("""
+            QGraphicsView {
+                border: none;
+                margin: 0px;
+                padding: 0px;
+            }
+        """)
+
+        layout.addWidget(self.canvas)
 
     def _setup_tools(self):
         """Set up the tool system and register tools"""
         # Initialize tool manager
         self.tool_manager = ToolManager(
-            self.canvas, self.document, self.preferences)
+            self.scene, self.document, self.preferences)
+
+        # Connect tool manager to graphics view
+        self.canvas.set_tool_manager(self.tool_manager)
+
         # Register all available tools
         self.tools = {}
         for tool_class in available_tools:
             tool = self.tool_manager.register_tool(tool_class)
             self.tools[tool.definition.token] = tool
+            # Connect tool signals to redraw
+            tool.object_created.connect(self.on_object_created)
+
+            # Create icon for the tool
+            icon = self._load_tool_icon(tool.definition.icon)
+
             # Add tool to tools menu
-            self.toolsmenu.add_command(
-                label=tool.definition.name,
-                command=lambda t=tool.definition.token: self.activate_tool(t)
+            menu_action = QAction(tool.definition.name, self)
+            if icon:
+                menu_action.setIcon(icon)
+            menu_action.triggered.connect(
+                lambda checked, t=tool.definition.token: self.activate_tool(t)
             )
-            # Add tool button to toolbar
-            btn = tk.Button(
-                self.toolbar_frame,
-                text=tool.definition.name,
-                command=lambda t=tool.definition.token: self.activate_tool(t)
+            self.tools_menu.addAction(menu_action)
+
+            # Add tool button to toolbar with icon
+            toolbar_action = QAction(self)
+            if icon:
+                toolbar_action.setIcon(icon)
+                toolbar_action.setToolTip(tool.definition.name)
+            else:
+                toolbar_action.setText(tool.definition.name)
+            toolbar_action.triggered.connect(
+                lambda checked, t=tool.definition.token: self.activate_tool(t)
             )
-            btn.pack(side=tk.LEFT)
+            self.toolbar.addAction(toolbar_action)
+
         # Activate the selector tool by default
         if "OBJSEL" in self.tools:
             self.activate_tool("OBJSEL")
@@ -96,7 +242,7 @@ class MainWindow:
             title += f" - {self.document.filename}"
         if self.document.is_modified():
             title += " *"
-        self.root.title(title)
+        self.setWindowTitle(title)
 
     def new_file(self):
         if self.document.is_modified():
@@ -104,48 +250,41 @@ class MainWindow:
                 return
         self.document.new()
         self.update_title()
-        self.canvas.delete("all")
+        self.scene.clear()
         self.draw_objects()
 
     def open_file(self):
         if self.document.is_modified():
             if not self._confirm_discard_changes():
                 return
-        filename = filedialog.askopenfilename(
-            parent=self.root,
-            title="Open Document",
-            defaultextension=".tkcad",
-            filetypes=[
-                ("TkCAD files", "*.tkcad"),
-                ("SVG files", "*.svg"),
-                ("DXF files", "*.dxf"),
-                ("All files", "*.*")
-            ]
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Document",
+            "",
+            "TkCAD files (*.tkcad);;SVG files (*.svg);;"
+            "DXF files (*.dxf);;All files (*.*)"
         )
         if filename:
             try:
                 self.document.load(filename)
                 self.update_title()
-                self.canvas.delete("all")
+                self.scene.clear()
                 self.draw_objects()
             except Exception as e:
-                messagebox.showerror(
-                    "Open Error",
-                    f"Failed to open file:\n{e}"
-                )
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setWindowTitle("Open Error")
+                msg.setText(f"Failed to open file:\n{e}")
+                msg.exec()
 
     def save_file(self):
         if not self.document.filename:
-            filename = filedialog.asksaveasfilename(
-                parent=self.root,
-                title="Save Document",
-                defaultextension=".tkcad",
-                filetypes=[
-                    ("TkCAD files", "*.tkcad"),
-                    ("SVG files", "*.svg"),
-                    ("DXF files", "*.dxf"),
-                    ("All files", "*.*")
-                ]
+            filename, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Document",
+                "",
+                "TkCAD files (*.tkcad);;SVG files (*.svg);;"
+                "DXF files (*.dxf);;All files (*.*)"
             )
             if not filename:
                 return
@@ -154,294 +293,101 @@ class MainWindow:
             self.document.save()
             self.update_title()
         except Exception as e:
-            messagebox.showerror("Save Error", f"Failed to save file:\n{e}")
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("Save Error")
+            msg.setText(f"Failed to save file:\n{e}")
+            msg.exec()
 
     def _confirm_discard_changes(self):
-        result = messagebox.askyesno(
-            "Unsaved Changes",
-            "You have unsaved changes. Discard them?",
-            parent=self.root
-        )
-        return result
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Question)
+        msg.setWindowTitle("Unsaved Changes")
+        msg.setText("You have unsaved changes. Discard them?")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setDefaultButton(QMessageBox.No)
+        result = msg.exec()
+        return result == QMessageBox.Yes
 
     def draw_objects(self):
-        self.canvas.delete("all")
+        self.scene.clear()
         for obj in self.document.objects.get_all_objects():
             t = getattr(obj, 'object_type', None)
             if t is None:
                 continue
             tname = t.value if hasattr(t, 'value') else str(t)
+
+            color = QColor(obj.attributes.get('color', 'black'))
+            pen = QPen(color)
+            pen.setWidth(obj.attributes.get('linewidth', 1))
+
             if tname == "line":
                 pts = obj.coords
                 if len(pts) == 2:
-                    self.canvas.create_line(
-                        pts[0].x, pts[0].y, pts[1].x, pts[1].y,
-                        fill=obj.attributes.get('color', 'black')
+                    self.scene.addLine(
+                        pts[0].x, pts[0].y, pts[1].x, pts[1].y, pen
                     )
             elif tname == "circle":
                 pts = obj.coords
                 r = obj.attributes.get('radius', 0)
                 if pts and r:
                     x, y = pts[0].x, pts[0].y
-                    self.canvas.create_oval(
-                        x - r, y - r, x + r, y + r,
-                        outline=obj.attributes.get('color', 'black')
+                    self.scene.addEllipse(
+                        x - r, y - r, 2*r, 2*r, pen
                     )
             elif tname == "point":
                 pts = obj.coords
                 if pts:
                     x, y = pts[0].x, pts[0].y
-                    self.canvas.create_oval(
-                        x-2, y-2, x+2, y+2,
-                        fill=obj.attributes.get('color', 'black')
+                    brush = QBrush(color)
+                    self.scene.addEllipse(
+                        x-2, y-2, 4, 4, pen, brush
                     )
-            elif tname == "arc":
-                # Draw an arc
+            elif tname == "polygon":
                 pts = obj.coords
                 if len(pts) >= 3:
-                    center = pts[0]
-                    radius = obj.attributes.get('radius', 0)
-                    start_angle = obj.attributes.get('start_angle', 0)
-                    end_angle = obj.attributes.get('end_angle', 0)
-
-                    # Create points along the arc
-                    arc_points = []
-                    steps = 36  # Number of segments for the arc
-
-                    # Ensure proper arc direction
-                    if end_angle < start_angle:
-                        end_angle += 2 * math.pi
-
-                    angle_step = (end_angle - start_angle) / steps
-
-                    for i in range(steps + 1):
-                        angle = start_angle + i * angle_step
-                        x = center.x + radius * math.cos(angle)
-                        y = center.y + radius * math.sin(angle)
-                        arc_points.extend([x, y])
-
-                    if len(arc_points) >= 4:  # Need at least 2 points
-                        self.canvas.create_line(
-                            *arc_points,
-                            fill=obj.attributes.get('color', 'black'),
-                            width=obj.attributes.get('linewidth', 1)
-                        )
-
-                    # If selected, draw control points
-                    if obj.selected:
-                        # Draw center point
-                        self.canvas.create_rectangle(
-                            center.x - 3, center.y - 3,
-                            center.x + 3, center.y + 3,
-                            outline="red", fill="white"
-                        )
-
-                        # Draw start and end points
-                        for pt in pts[1:3]:
-                            self.canvas.create_rectangle(
-                                pt.x - 3, pt.y - 3,
-                                pt.x + 3, pt.y + 3,
-                                outline="red", fill="white"
-                            )
-
-                        # Draw radius lines
-                        self.canvas.create_line(
-                            center.x, center.y, pts[1].x, pts[1].y,
-                            fill="red", dash=(2, 2)
-                        )
-                        self.canvas.create_line(
-                            center.x, center.y, pts[2].x, pts[2].y,
-                            fill="red", dash=(2, 2)
-                        )
-            elif tname == "bezier":
-                pts = obj.coords
-                is_quadratic = obj.attributes.get('is_quadratic', True)
-
-                # Draw the bezier curve
-                if is_quadratic:
-                    # Quadratic bezier - every set of 3 points forms a segment
-                    for i in range(0, len(pts) - 2, 2):
-                        p0 = pts[i]
-                        p1 = pts[i+1]
-                        p2 = pts[i+2]
-
-                        # Calculate points along the curve
-                        curve_points = []
-                        steps = 20
-                        for step in range(steps + 1):
-                            t = step / steps
-                            # Quadratic bezier formula
-                            x = ((1-t)**2 * p0.x + 2*(1-t)*t * p1.x +
-                                 t**2 * p2.x)
-                            y = ((1-t)**2 * p0.y + 2*(1-t)*t * p1.y +
-                                 t**2 * p2.y)
-                            curve_points.extend([x, y])
-
-                        # Draw the curve
-                        self.canvas.create_line(
-                            *curve_points,
-                            fill=obj.attributes.get('color', 'black'),
-                            width=obj.attributes.get('linewidth', 1),
-                            smooth=True
-                        )
-                else:
-                    # Cubic bezier - every set of 4 points forms a segment
-                    for i in range(0, len(pts) - 3, 3):
-                        p0 = pts[i]
-                        p1 = pts[i+1]
-                        p2 = pts[i+2]
-                        p3 = pts[i+3]
-
-                        # Calculate points along the curve
-                        curve_points = []
-                        steps = 20
-                        for step in range(steps + 1):
-                            t = step / steps
-                            # Cubic bezier formula
-                            x = ((1-t)**3 * p0.x + 3*(1-t)**2*t * p1.x +
-                                 3*(1-t)*t**2 * p2.x + t**3 * p3.x)
-                            y = ((1-t)**3 * p0.y + 3*(1-t)**2*t * p1.y +
-                                 3*(1-t)*t**2 * p2.y + t**3 * p3.y)
-                            curve_points.extend([x, y])
-
-                        # Draw the curve
-                        self.canvas.create_line(
-                            *curve_points,
-                            fill=obj.attributes.get('color', 'black'),
-                            width=obj.attributes.get('linewidth', 1),
-                            smooth=True
-                        )
-
-                # If object is selected, draw its control points
-                if obj.selected:
-                    for i, p in enumerate(pts):
-                        # Endpoints are rectangles, control points are ovals
-                        if (is_quadratic and (i % 2 == 0)) or \
-                           (not is_quadratic and (i % 3 == 0)):
-                            # Endpoint
-                            self.canvas.create_rectangle(
-                                p.x - 3, p.y - 3, p.x + 3, p.y + 3,
-                                outline="red", fill="white"
-                            )
-                        else:
-                            # Control point
-                            self.canvas.create_oval(
-                                p.x - 3, p.y - 3, p.x + 3, p.y + 3,
-                                outline="red", fill="white"
-                            )
-            elif tname == "image":
-                # Draw image objects
-                self._draw_image_object(obj)
-        # ...extend for more object types as needed...
+                    from PySide6.QtGui import QPolygonF
+                    polygon = QPolygonF()
+                    for pt in pts:
+                        polygon.append(QPointF(pt.x, pt.y))
+                    self.scene.addPolygon(polygon, pen)
+            # Add more object types as needed...
 
     def _draw_image_object(self, obj):
-        """Draw an image object on the canvas."""
-        if not Image or not ImageTk:
-            # PIL/Pillow not available, show placeholder
-            self._draw_image_placeholder(obj)
-            return
-
-        # Get image data and geometry from object
-        geometry = getattr(obj, 'geometry', {})
-        if not geometry:
-            return
-
-        image_data = geometry.get('image_data')
-        if not image_data:
-            return
-
-        try:
-            x = geometry.get('x', 0)
-            y = geometry.get('y', 0)
-            width = geometry.get('width', 100)
-            height = geometry.get('height', 100)
-            rotation = geometry.get('rotation', 0.0)
-
-            # Create PIL image from stored data
-            img = Image.open(io.BytesIO(image_data))
-
-            # Resize image to display dimensions
-            if width > 0 and height > 0:
-                img = img.resize(
-                    (int(width), int(height)),
-                    Image.Resampling.LANCZOS
-                )
-
-            # Apply rotation if needed
-            if rotation != 0.0:
-                img = img.rotate(rotation, expand=True)
-
-            # Convert to PhotoImage for tkinter
-            photo = ImageTk.PhotoImage(img)
-
-            # Create canvas image
-            self.canvas.create_image(x, y, image=photo, anchor='nw')
-
-            # Store reference to prevent garbage collection
-            if not hasattr(self.canvas, 'image_refs'):
-                self.canvas.image_refs = []
-            self.canvas.image_refs.append(photo)
-
-            # If object is selected, draw selection frame
-            if getattr(obj, 'selected', False):
-                self._draw_image_selection_frame(x, y, width, height)
-
-        except Exception as e:
-            print(f"Error drawing image: {e}")
-            # Fall back to placeholder
-            self._draw_image_placeholder(obj)
+        """Draw an image object on the scene."""
+        # TODO: Implement image drawing with QGraphicsPixmapItem
+        pass
 
     def _draw_image_placeholder(self, obj):
-        """Draw a placeholder rectangle for images when PIL is unavailable."""
-        geometry = getattr(obj, 'geometry', {})
-        if not geometry:
-            return
+        """Draw a placeholder rectangle for images."""
+        # TODO: Implement placeholder drawing
+        pass
 
-        x = geometry.get('x', 0)
-        y = geometry.get('y', 0)
-        width = geometry.get('width', 100)
-        height = geometry.get('height', 100)
+    def on_object_created(self, obj):
+        """Handle when a tool creates a new object"""
+        self.draw_objects()
+        self.update_title()
 
-        # Draw placeholder rectangle
-        self.canvas.create_rectangle(
-            x, y, x + width, y + height,
-            outline='gray', dash=(5, 5), fill='lightgray'
-        )
+    def _load_tool_icon(self, icon_name):
+        """Load an icon for a tool from the images directory"""
+        if not icon_name:
+            return None
 
-        # Add "IMAGE" text in center
-        center_x = x + width / 2
-        center_y = y + height / 2
-        self.canvas.create_text(
-            center_x, center_y,
-            text="IMAGE",
-            fill='black',
-            font=('Arial', 10)
-        )
+        # Construct the path to the icon file
+        images_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images')
+        icon_path = os.path.join(images_dir, f"{icon_name}.gif")
 
-        # If object is selected, draw selection frame
-        if getattr(obj, 'selected', False):
-            self._draw_image_selection_frame(x, y, width, height)
+        # Check if the icon file exists
+        if not os.path.exists(icon_path):
+            return None
 
-    def _draw_image_selection_frame(self, x, y, width, height):
-        """Draw selection frame around an image."""
-        # Draw selection rectangle
-        self.canvas.create_rectangle(
-            x - 2, y - 2, x + width + 2, y + height + 2,
-            outline='red', width=2, dash=(3, 3)
-        )
+        try:
+            # Load the image and convert to QIcon at native 32x32 size
+            pixmap = QPixmap(icon_path)
+            if not pixmap.isNull():
+                # Use the native 32x32 size of the icon files
+                return QIcon(pixmap)
+        except Exception as e:
+            print(f"Failed to load icon {icon_path}: {e}")
 
-        # Draw corner handles
-        handle_size = 6
-        corners = [
-            (x, y),                          # Top-left
-            (x + width, y),                  # Top-right
-            (x + width, y + height),         # Bottom-right
-            (x, y + height)                  # Bottom-left
-        ]
-
-        for corner_x, corner_y in corners:
-            self.canvas.create_rectangle(
-                corner_x - handle_size//2, corner_y - handle_size//2,
-                corner_x + handle_size//2, corner_y + handle_size//2,
-                outline='red', fill='white', width=2
-            )
+        return None

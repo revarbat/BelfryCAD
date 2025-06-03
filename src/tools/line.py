@@ -6,9 +6,31 @@ tool implementation.
 """
 
 from typing import Optional, List
+from PySide6.QtCore import QPointF
+from PySide6.QtGui import QPen, QColor
+from PySide6.QtWidgets import QGraphicsLineItem
 
-from src.core.cad_objects import CADObject, ObjectType
+from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+
+
+class LineObject(CADObject):
+    """Line object - requires exactly 2 points"""
+
+    def __init__(self, object_id: int, start: Point, end: Point, **kwargs):
+        super().__init__(
+            object_id, ObjectType.LINE, coords=[start, end], **kwargs)
+
+    @property
+    def start(self) -> Point:
+        return self.coords[0]
+
+    @property
+    def end(self) -> Point:
+        return self.coords[1]
+
+    def length(self) -> float:
+        return self.start.distance_to(self.end)
 
 
 class LineTool(Tool):
@@ -28,9 +50,9 @@ class LineTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -38,8 +60,14 @@ class LineTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+        
         # Get the snapped point based on current snap settings
-        point = self.get_snap_point(event.x, event.y)
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.ACTIVE:
             # First point - start drawing
@@ -54,7 +82,11 @@ class LineTool(Tool):
         """Handle mouse movement event"""
         if self.state == ToolState.DRAWING and len(self.points) == 1:
             # Draw preview line
-            self.draw_preview(event.x, event.y)
+            if hasattr(event, 'scenePos'):
+                scene_pos = event.scenePos()
+            else:
+                scene_pos = QPointF(event.x, event.y)
+            self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the line being created"""
@@ -67,12 +99,15 @@ class LineTool(Tool):
 
             # Draw temporary line
             start_point = self.points[0]
-            preview_id = self.canvas.create_line(
+            pen = QPen(QColor("blue"))
+            pen.setDashPattern([4, 4])  # Dashed line for preview
+            
+            preview_line = self.scene.addLine(
                 start_point.x, start_point.y,
                 point.x, point.y,
-                fill="blue", dash=(4, 4)  # Dashed line for preview
+                pen
             )
-            self.temp_objects.append(preview_id)
+            self.temp_objects.append(preview_line)
 
     def create_object(self) -> Optional[CADObject]:
         """Create a line object from the collected points"""

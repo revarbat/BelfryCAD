@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PyTkCAD - A CAD application using Python and tkinter
+PyTkCAD - A CAD application using Python and PySide6
 Translated from TCL TkCAD codebase
 
 This is the main entry point for the application.
@@ -8,8 +8,7 @@ This is the main entry point for the application.
 
 import sys
 import os
-import tkinter as tk
-from tkinter import messagebox
+from PySide6.QtWidgets import QApplication, QMessageBox
 import traceback
 
 # Add the src directory to Python path
@@ -36,14 +35,17 @@ def main():
 
     except Exception as e:
         # Show error dialog if application fails to start
-        error_msg = f"Failed to start PyTkCAD:\n\n{str(e)}\n\n{traceback.format_exc()}"
+        error_msg = (f"Failed to start PyTkCAD:\n\n{str(e)}\n\n"
+                     f"{traceback.format_exc()}")
         try:
-            # Try to show tkinter message box
-            root = tk.Tk()
-            root.withdraw()  # Hide the root window
-            messagebox.showerror("PyTkCAD Error", error_msg)
-            root.destroy()
-        except:
+            # Try to show PySide6 message box
+            app = QApplication(sys.argv)
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setWindowTitle("PyTkCAD Error")
+            msg.setText(error_msg)
+            msg.exec()
+        except Exception:
             # Fall back to console output
             print(f"ERROR: {error_msg}", file=sys.stderr)
 

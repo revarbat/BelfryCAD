@@ -8,6 +8,11 @@ tools_conics.tcl implementation.
 import math
 from typing import Optional, List
 
+from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsEllipseItem,
+                               QGraphicsPathItem)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
+
 from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 
@@ -29,9 +34,10 @@ class Conic2PointTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -100,32 +106,43 @@ class Conic2PointTool(Tool):
             )
 
             # Draw control points and lines
-            start_point_id = self.canvas.create_oval(
-                start.x - 3, start.y - 3, start.x + 3, start.y + 3,
-                outline="blue", fill="blue"
+            start_point_item = QGraphicsEllipseItem(
+                start.x - 3, start.y - 3, 6, 6
             )
-            end_point_id = self.canvas.create_oval(
-                end.x - 3, end.y - 3, end.x + 3, end.y + 3,
-                outline="blue", fill="blue"
+            start_point_item.setPen(QPen(QColor("blue")))
+            start_point_item.setBrush(QBrush(QColor("blue")))
+            self.scene.addItem(start_point_item)
+
+            end_point_item = QGraphicsEllipseItem(
+                end.x - 3, end.y - 3, 6, 6
             )
-            center_point_id = self.canvas.create_oval(
-                cx - 3, cy - 3, cx + 3, cy + 3,
-                outline="gray", fill="gray"
+            end_point_item.setPen(QPen(QColor("blue")))
+            end_point_item.setBrush(QBrush(QColor("blue")))
+            self.scene.addItem(end_point_item)
+
+            center_point_item = QGraphicsEllipseItem(
+                cx - 3, cy - 3, 6, 6
             )
+            center_point_item.setPen(QPen(QColor("gray")))
+            center_point_item.setBrush(QBrush(QColor("gray")))
+            self.scene.addItem(center_point_item)
 
             # Radius lines
-            line1_id = self.canvas.create_line(
-                cx, cy, start.x, start.y,
-                fill="gray", dash=(2, 2)
-            )
-            line2_id = self.canvas.create_line(
-                cx, cy, end.x, end.y,
-                fill="gray", dash=(2, 2)
-            )
+            line1_item = QGraphicsLineItem(cx, cy, start.x, start.y)
+            pen1 = QPen(QColor("gray"))
+            pen1.setStyle(Qt.DashLine)
+            line1_item.setPen(pen1)
+            self.scene.addItem(line1_item)
+
+            line2_item = QGraphicsLineItem(cx, cy, end.x, end.y)
+            pen2 = QPen(QColor("gray"))
+            pen2.setStyle(Qt.DashLine)
+            line2_item.setPen(pen2)
+            self.scene.addItem(line2_item)
 
             self.temp_objects.extend([
-                start_point_id, end_point_id, center_point_id,
-                line1_id, line2_id
+                start_point_item, end_point_item, center_point_item,
+                line1_item, line2_item
             ])
 
     def _draw_conic_preview(
@@ -156,10 +173,19 @@ class Conic2PointTool(Tool):
             arc_points.extend([x, y])
 
         if len(arc_points) >= 4:  # Need at least 2 points (4 coordinates)
-            conic_id = self.canvas.create_line(
-                *arc_points, fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(conic_id)
+            # Create path for smooth conic curve
+            path = QPainterPath()
+            path.moveTo(arc_points[0], arc_points[1])
+            
+            for i in range(2, len(arc_points), 2):
+                path.lineTo(arc_points[i], arc_points[i+1])
+            
+            path_item = QGraphicsPathItem(path)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            path_item.setPen(pen)
+            self.scene.addItem(path_item)
+            self.temp_objects.append(path_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create a conic object from the collected points"""
@@ -227,9 +253,10 @@ class Conic3PointTool(Tool):
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
-        self.canvas.bind("<Button-1>", self.handle_mouse_down)
-        self.canvas.bind("<Motion>", self.handle_mouse_move)
-        self.canvas.bind("<Escape>", self.handle_escape)
+        # In Qt, event handling is done differently - these will be connected
+        # in the main window or graphics view
+        pass
+        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -270,11 +297,12 @@ class Conic3PointTool(Tool):
             # Only have start point, draw line to current point
             start = self.points[0]
 
-            line_id = self.canvas.create_line(
-                start.x, start.y, point.x, point.y,
-                fill="blue", dash=(4, 4)
-            )
-            self.temp_objects.append(line_id)
+            line_item = QGraphicsLineItem(start.x, start.y, point.x, point.y)
+            pen = QPen(QColor("blue"))
+            pen.setStyle(Qt.DashLine)
+            line_item.setPen(pen)
+            self.scene.addItem(line_item)
+            self.temp_objects.append(line_item)
 
         elif len(self.points) == 2:
             # Have start and end points, use current point as control
@@ -305,38 +333,62 @@ class Conic3PointTool(Tool):
             curve_points = self._bezier_to_points(bezier_points)
 
             if len(curve_points) >= 4:  # Need at least 2 points
-                curve_id = self.canvas.create_line(
-                    *curve_points, fill="blue", dash=(4, 4)
-                )
-                self.temp_objects.append(curve_id)
+                # Create path for smooth bezier curve
+                path = QPainterPath()
+                path.moveTo(curve_points[0], curve_points[1])
+                
+                for i in range(2, len(curve_points), 2):
+                    path.lineTo(curve_points[i], curve_points[i+1])
+                
+                path_item = QGraphicsPathItem(path)
+                pen = QPen(QColor("blue"))
+                pen.setStyle(Qt.DashLine)
+                path_item.setPen(pen)
+                self.scene.addItem(path_item)
+                self.temp_objects.append(path_item)
 
             # Draw control points and control lines
-            start_point_id = self.canvas.create_oval(
-                start.x - 3, start.y - 3, start.x + 3, start.y + 3,
-                outline="blue", fill="blue"
+            start_point_item = QGraphicsEllipseItem(
+                start.x - 3, start.y - 3, 6, 6
             )
-            end_point_id = self.canvas.create_oval(
-                end.x - 3, end.y - 3, end.x + 3, end.y + 3,
-                outline="blue", fill="blue"
+            start_point_item.setPen(QPen(QColor("blue")))
+            start_point_item.setBrush(QBrush(QColor("blue")))
+            self.scene.addItem(start_point_item)
+
+            end_point_item = QGraphicsEllipseItem(
+                end.x - 3, end.y - 3, 6, 6
             )
-            control_point_id = self.canvas.create_oval(
-                control.x - 3, control.y - 3, control.x + 3, control.y + 3,
-                outline="gray", fill="gray"
+            end_point_item.setPen(QPen(QColor("blue")))
+            end_point_item.setBrush(QBrush(QColor("blue")))
+            self.scene.addItem(end_point_item)
+
+            control_point_item = QGraphicsEllipseItem(
+                control.x - 3, control.y - 3, 6, 6
             )
+            control_point_item.setPen(QPen(QColor("gray")))
+            control_point_item.setBrush(QBrush(QColor("gray")))
+            self.scene.addItem(control_point_item)
 
             # Control lines
-            line1_id = self.canvas.create_line(
-                start.x, start.y, control.x, control.y,
-                fill="gray", dash=(2, 2)
+            line1_item = QGraphicsLineItem(
+                start.x, start.y, control.x, control.y
             )
-            line2_id = self.canvas.create_line(
-                end.x, end.y, control.x, control.y,
-                fill="gray", dash=(2, 2)
+            pen1 = QPen(QColor("gray"))
+            pen1.setStyle(Qt.DashLine)
+            line1_item.setPen(pen1)
+            self.scene.addItem(line1_item)
+
+            line2_item = QGraphicsLineItem(
+                end.x, end.y, control.x, control.y
             )
+            pen2 = QPen(QColor("gray"))
+            pen2.setStyle(Qt.DashLine)
+            line2_item.setPen(pen2)
+            self.scene.addItem(line2_item)
 
             self.temp_objects.extend([
-                start_point_id, end_point_id, control_point_id,
-                line1_id, line2_id
+                start_point_item, end_point_item, control_point_item,
+                line1_item, line2_item
             ])
 
     def _bezier_to_points(self, bezier_points: List[float]) -> List[float]:
