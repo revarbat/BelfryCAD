@@ -18,6 +18,8 @@ except ImportError:
     io = None
 
 from src.tools import available_tools, ToolManager
+from src.gui.category_button import CategoryToolButton
+from src.tools.base import ToolCategory
 
 
 class CADGraphicsView(QGraphicsView):
@@ -39,11 +41,14 @@ class CADGraphicsView(QGraphicsView):
             # Convert to scene coordinates
             scene_pos = self.mapToScene(event.pos())
             # Create a simple event object with scene coordinates and x/y attrs
+
             class SceneEvent:
+
                 def __init__(self, scene_pos):
                     self._scene_pos = scene_pos
                     self.x = scene_pos.x()
                     self.y = scene_pos.y()
+
                 def scenePos(self):
                     return self._scene_pos
 
@@ -56,11 +61,14 @@ class CADGraphicsView(QGraphicsView):
         """Handle mouse move events and forward to active tool"""
         if self.tool_manager and self.tool_manager.get_active_tool():
             scene_pos = self.mapToScene(event.pos())
+
             class SceneEvent:
+
                 def __init__(self, scene_pos):
                     self._scene_pos = scene_pos
                     self.x = scene_pos.x()
                     self.y = scene_pos.y()
+
                 def scenePos(self):
                     return self._scene_pos
 
@@ -73,11 +81,14 @@ class CADGraphicsView(QGraphicsView):
         """Handle mouse release events and forward to active tool"""
         if self.tool_manager and self.tool_manager.get_active_tool():
             scene_pos = self.mapToScene(event.pos())
+
             class SceneEvent:
+
                 def __init__(self, scene_pos):
                     self._scene_pos = scene_pos
                     self.x = scene_pos.x()
                     self.y = scene_pos.y()
+
                 def scenePos(self):
                     return self._scene_pos
 
@@ -158,7 +169,10 @@ class MainWindow(QMainWindow):
                 border: none;
             }
         """)
-        # We'll populate this with tool buttons in _setup_tools()
+        # We'll populate this with category buttons in _setup_tools()
+        
+        # Store category buttons for reference
+        self.category_buttons = {}
 
     def _create_canvas(self):
         # Create central widget and layout
@@ -196,19 +210,25 @@ class MainWindow(QMainWindow):
         # Connect tool manager to graphics view
         self.canvas.set_tool_manager(self.tool_manager)
 
-        # Register all available tools
+        # Register all available tools and group by category
         self.tools = {}
+        tools_by_category = {}
+        
         for tool_class in available_tools:
             tool = self.tool_manager.register_tool(tool_class)
             self.tools[tool.definition.token] = tool
             # Connect tool signals to redraw
             tool.object_created.connect(self.on_object_created)
 
-            # Create icon for the tool
-            icon = self._load_tool_icon(tool.definition.icon)
+            # Group tools by category
+            category = tool.definition.category
+            if category not in tools_by_category:
+                tools_by_category[category] = []
+            tools_by_category[category].append(tool)
 
             # Add tool to tools menu
             menu_action = QAction(tool.definition.name, self)
+            icon = self._load_tool_icon(tool.definition.icon)
             if icon:
                 menu_action.setIcon(icon)
             menu_action.triggered.connect(
@@ -216,17 +236,28 @@ class MainWindow(QMainWindow):
             )
             self.tools_menu.addAction(menu_action)
 
-            # Add tool button to toolbar with icon
-            toolbar_action = QAction(self)
-            if icon:
-                toolbar_action.setIcon(icon)
-                toolbar_action.setToolTip(tool.definition.name)
-            else:
-                toolbar_action.setText(tool.definition.name)
-            toolbar_action.triggered.connect(
-                lambda checked, t=tool.definition.token: self.activate_tool(t)
+        # Create category buttons for toolbar
+        for category, category_tools in tools_by_category.items():
+            if not category_tools:
+                continue
+                
+            # Extract tool definitions from tool instances
+            tool_definitions = [tool.definition for tool in category_tools]
+            
+            # Create category button
+            category_button = CategoryToolButton(
+                category,
+                tool_definitions,
+                self._load_tool_icon,
+                parent=self.toolbar
             )
-            self.toolbar.addAction(toolbar_action)
+            
+            # Connect category button to tool activation
+            category_button.tool_selected.connect(self.activate_tool)
+            
+            # Add to toolbar
+            self.toolbar.addWidget(category_button)
+            self.category_buttons[category] = category_button
 
         # Activate the selector tool by default
         if "OBJSEL" in self.tools:
@@ -235,6 +266,19 @@ class MainWindow(QMainWindow):
     def activate_tool(self, tool_token):
         """Activate a tool by its token"""
         self.tool_manager.activate_tool(tool_token)
+        
+        # Clear active state from all category buttons first
+        for category_button in self.category_buttons.values():
+            category_button.set_active(False)
+        
+        # Update the appropriate category button to show the active tool
+        if tool_token in self.tools:
+            active_tool = self.tools[tool_token]
+            category = active_tool.definition.category
+            if category in self.category_buttons:
+                category_button = self.category_buttons[category]
+                category_button.set_current_tool(tool_token)
+                category_button.set_active(True)
 
     def update_title(self):
         title = self.config.APP_NAME
@@ -375,7 +419,7 @@ class MainWindow(QMainWindow):
 
         # Construct the path to the icon file
         images_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'images')
-        icon_path = os.path.join(images_dir, f"{icon_name}.gif")
+        icon_path = os.path.join(images_dir, f"{icon_name}.png")
 
         # Check if the icon file exists
         if not os.path.exists(icon_path):

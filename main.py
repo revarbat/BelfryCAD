@@ -7,17 +7,14 @@ This is the main entry point for the application.
 """
 
 import sys
-import os
 from PySide6.QtWidgets import QApplication, QMessageBox
 import traceback
-
-# Add the src directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 # Import main application modules
 from src.app import TkCADApplication
 from src.config import AppConfig
 from src.utils.logger import setup_logger
+
 
 def main():
     """Main entry point for PyTkCAD application."""
@@ -50,6 +47,7 @@ def main():
             print(f"ERROR: {error_msg}", file=sys.stderr)
 
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
