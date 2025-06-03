@@ -7,7 +7,7 @@
    width="32"
    height="32"
    viewBox="0 0 32 32"
-   sodipodi:docname="tool-bezier.svg"
+   sodipodi:docname="tool-bezierquad.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -25,7 +25,7 @@
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="9.7770759"
-     inkscape:cx="13.040709"
+     inkscape:cx="13.142989"
      inkscape:cy="16.569371"
      inkscape:window-width="1200"
      inkscape:window-height="633"
@@ -39,44 +39,38 @@
      id="g1">
     <path
        style="fill:none;fill-opacity:0.99;stroke:#808080;stroke-dasharray:1, 1;stroke-dashoffset:0;stroke-opacity:1"
-       d="M 5.9889228,21.080772 9.261885,7.4775223 9.159605,7.6820825"
-       id="path6" />
+       d="M 4.6592819,23.535493 15.296409,8.3980429"
+       id="path6"
+       sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-opacity:0.99;stroke:#808080;stroke-dasharray:1, 1;stroke-dashoffset:0;stroke-opacity:1"
-       d="M 23.478815,21.285332 19.387612,9.0117237"
+       d="M 24.603896,21.592172 15.50097,8.3980433"
        id="path7"
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;fill-opacity:0.99;stroke:#000000;stroke-dasharray:none;stroke-opacity:1"
-       d="M 5.7843626,21.080772 C 9.261885,7.8866426 19.387611,8.8071635 23.581095,21.387612"
+       d="M 4.6592819,23.433213 C 10.386966,15.455367 20.001292,15.046247 24.706176,21.694452"
        id="path5"
        sodipodi:nodetypes="cc" />
     <ellipse
        style="fill:#ff0000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
        id="path2-2"
-       cx="9.2254276"
-       cy="7.8977227"
+       cx="15.362232"
+       cy="8.2045631"
        rx="1.8410412"
        ry="1.7387612" />
     <ellipse
        style="fill:#ff0000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
        id="path2-2-4"
-       cx="23.727047"
-       cy="21.442997"
-       rx="1.8410412"
-       ry="1.7387612" />
-    <ellipse
-       style="fill:#ff0000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
-       id="path2-2-2-5"
-       cx="19.454721"
-       cy="8.8736277"
+       cx="24.852127"
+       cy="21.749838"
        rx="1.8410412"
        ry="1.7387612" />
     <ellipse
        style="fill:#ff0000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
        id="path2-2-9-7"
-       cx="6.0456009"
-       cy="21.227362"
+       cx="4.6136799"
+       cy="23.477524"
        rx="1.8410412"
        ry="1.7387612" />
   </g>
