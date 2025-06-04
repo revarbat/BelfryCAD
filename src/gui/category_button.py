@@ -187,10 +187,16 @@ class CategoryToolButton(QToolButton):
             # Start timer for press-and-hold behavior (500ms = 0.5 seconds)
             # This applies to both single and multi-tool categories
             if len(self.tools) == 1:
-                self.hold_timer.timeout.disconnect()
+                try:
+                    self.hold_timer.timeout.disconnect()
+                except (TypeError, RuntimeError):
+                    pass  # No connections to disconnect
                 self.hold_timer.timeout.connect(self._activate_single_tool)
             else:
-                self.hold_timer.timeout.disconnect()
+                try:
+                    self.hold_timer.timeout.disconnect()
+                except (TypeError, RuntimeError):
+                    pass  # No connections to disconnect
                 self.hold_timer.timeout.connect(self._show_palette)
             self.hold_timer.start(500)
         

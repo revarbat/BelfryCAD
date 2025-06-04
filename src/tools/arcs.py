@@ -141,13 +141,17 @@ class ArcCenterTool(Tool):
             self._draw_arc_preview(center, radius, start_angle, end_angle)
 
             # Draw control lines
-            line1_item = QGraphicsLineItem(center.x, center.y, start.x, start.y)
+            line1_item = QGraphicsLineItem(
+                center.x, center.y, start.x, start.y
+            )
             pen1 = QPen(QColor("blue"))
             pen1.setStyle(Qt.DashLine)
             line1_item.setPen(pen1)
             self.scene.addItem(line1_item)
 
-            line2_item = QGraphicsLineItem(center.x, center.y, point.x, point.y)
+            line2_item = QGraphicsLineItem(
+                center.x, center.y, point.x, point.y
+            )
             pen2 = QPen(QColor("blue"))
             pen2.setStyle(Qt.DashLine)
             line2_item.setPen(pen2)

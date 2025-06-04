@@ -10,8 +10,11 @@ from .linemp import LineMPTool
 from .polyline import PolylineTool
 from .circle import CircleTool, Circle2PTTool, Circle3PTTool
 from .selector import SelectorTool
-from .bezier import BezierTool
+from .nodeselect import NodeSelectTool
+from .bezier import BezierTool, BezierQuadTool
 from .arcs import ArcCenterTool, Arc3PointTool
+from .arc_tangent import ArcTangentTool
+from .conic import Conic2PointTool, Conic3PointTool
 from .ellipse import (EllipseCenterTool, EllipseDiagonalTool,
                       Ellipse3CornerTool, EllipseCenterTangentTool,
                       EllipseOppositeTangentTool)
@@ -38,38 +41,24 @@ from .transforms import (
     WrapTool,
     UnwrapTool
 )
+from .duplicators import (
+    GridCopyTool,
+    LinearCopyTool,
+    RadialCopyTool,
+    OffsetCopyTool
+)
 
 
 # A list of all available tools for easy registration
 available_tools = [
     SelectorTool,  # Always list selector first as it's the default tool
-    LineTool,
-    LineMPTool,
-    PolylineTool,
-    CircleTool,
-    Circle2PTTool,
-    Circle3PTTool,
-    BezierTool,
-    ArcCenterTool,
-    Arc3PointTool,
-    EllipseCenterTool,
-    EllipseDiagonalTool,
-    Ellipse3CornerTool,
-    EllipseCenterTangentTool,
-    EllipseOppositeTangentTool,
-    RectangleTool,
-    RegularPolygonTool,
-    TextTool,
-    PointTool,
-    HorizontalDimensionTool,
-    VerticalDimensionTool,
-    LinearDimensionTool,
-    ArcDimensionTool,
-    # Transform tools
+    NodeSelectTool,  # Add node selector as second tool in Nodes category
+    # Node tools
     NodeAddTool,
     NodeDeleteTool,
     ReorientTool,
     ConnectTool,
+    # Transform tools
     TranslateTool,
     RotateTool,
     ScaleTool,
@@ -77,5 +66,43 @@ available_tools = [
     ShearTool,
     BendTool,
     WrapTool,
-    UnwrapTool
+    UnwrapTool,
+    # Line & Bezier tools
+    LineTool,
+    LineMPTool,
+    PolylineTool,
+    BezierTool,
+    BezierQuadTool,
+    # Arc tools
+    ArcCenterTool,
+    Arc3PointTool,
+    ArcTangentTool,
+    # Conic tools
+    Conic2PointTool,
+    Conic3PointTool,
+    # Circle tools
+    CircleTool,
+    Circle2PTTool,
+    Circle3PTTool,
+    # Ellipse tools
+    EllipseCenterTool,
+    EllipseDiagonalTool,
+    Ellipse3CornerTool,
+    EllipseCenterTangentTool,
+    EllipseOppositeTangentTool,
+    # Polygon tools
+    RectangleTool,
+    RegularPolygonTool,
+    TextTool,
+    PointTool,
+    # Dimension tools
+    HorizontalDimensionTool,
+    VerticalDimensionTool,
+    LinearDimensionTool,
+    ArcDimensionTool,
+    # Duplicator tools
+    LinearCopyTool,
+    RadialCopyTool,
+    GridCopyTool,
+    OffsetCopyTool,
 ]

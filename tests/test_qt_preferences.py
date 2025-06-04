@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget
 from src.config import AppConfig
-from src.gui.preferences_dialog_qt import PreferencesDialog
+from gui.preferences_dialog import PreferencesDialog
 
 
 class TestMainWindow(QMainWindow):

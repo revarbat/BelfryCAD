@@ -1,12 +1,11 @@
 # filepath: /Users/gminette/dev/git-repos/pyTkCAD/src/gui/main_window.py
 """Main window for the PyTkCAD application."""
-import os
 import math
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QGridLayout, QFileDialog,
     QMessageBox, QGraphicsView, QGraphicsScene
 )
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import (
     QPainter, QPen, QBrush, QColor, QAction, QIcon, QPixmap
 )
@@ -21,7 +20,8 @@ except ImportError:
 from src.tools import available_tools, ToolManager
 from src.gui.category_button import CategoryToolButton
 from src.gui.rulers import RulerManager
-from src.gui.preferences_dialog_qt import PreferencesDialog
+from src.gui.preferences_dialog import PreferencesDialog
+from src.gui.mainmenu import MainMenuBar
 
 
 class CADGraphicsView(QGraphicsView):
@@ -196,38 +196,90 @@ class MainWindow(QMainWindow):
         self._setup_tools()
 
     def _create_menu(self):
-        menubar = self.menuBar()
-
-        # File menu
-        file_menu = menubar.addMenu("File")
-
-        new_action = QAction("New", self)
-        new_action.triggered.connect(self.new_file)
-        file_menu.addAction(new_action)
-
-        open_action = QAction("Open...", self)
-        open_action.triggered.connect(self.open_file)
-        file_menu.addAction(open_action)
-
-        save_action = QAction("Save", self)
-        save_action.triggered.connect(self.save_file)
-        file_menu.addAction(save_action)
-
-        file_menu.addSeparator()
-
-        exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
-
-        # Edit menu
-        edit_menu = menubar.addMenu("Edit")
+        """Create the comprehensive main menu system."""
+        # Initialize the main menu bar
+        self.main_menu = MainMenuBar(self, self.preferences)
         
-        preferences_action = QAction("Preferences...", self)
-        preferences_action.triggered.connect(self.show_preferences)
-        edit_menu.addAction(preferences_action)
-
-        # Tools menu
-        self.tools_menu = menubar.addMenu("Tools")
+        # Connect menu signals to handlers
+        self._connect_menu_signals()
+    
+    def _connect_menu_signals(self):
+        """Connect menu signals to their corresponding handlers."""
+        # File menu connections
+        self.main_menu.new_triggered.connect(self.new_file)
+        self.main_menu.open_triggered.connect(self.open_file)
+        self.main_menu.save_triggered.connect(self.save_file)
+        self.main_menu.save_as_triggered.connect(self.save_as_file)
+        self.main_menu.close_triggered.connect(self.close_file)
+        self.main_menu.import_triggered.connect(self.import_file)
+        self.main_menu.export_triggered.connect(self.export_file)
+        self.main_menu.page_setup_triggered.connect(self.page_setup)
+        self.main_menu.print_triggered.connect(self.print_file)
+        
+        # Edit menu connections
+        self.main_menu.undo_triggered.connect(self.undo)
+        self.main_menu.redo_triggered.connect(self.redo)
+        self.main_menu.cut_triggered.connect(self.cut)
+        self.main_menu.copy_triggered.connect(self.copy)
+        self.main_menu.paste_triggered.connect(self.paste)
+        self.main_menu.clear_triggered.connect(self.clear)
+        self.main_menu.select_all_triggered.connect(self.select_all)
+        self.main_menu.select_similar_triggered.connect(self.select_similar)
+        self.main_menu.deselect_all_triggered.connect(self.deselect_all)
+        self.main_menu.group_triggered.connect(self.group_selection)
+        self.main_menu.ungroup_triggered.connect(self.ungroup_selection)
+        
+        # Arrange submenu connections
+        self.main_menu.raise_to_top_triggered.connect(self.raise_to_top)
+        self.main_menu.raise_triggered.connect(self.raise_selection)
+        self.main_menu.lower_triggered.connect(self.lower_selection)
+        self.main_menu.lower_to_bottom_triggered.connect(self.lower_to_bottom)
+        
+        # Transform connections
+        self.main_menu.rotate_90_ccw_triggered.connect(
+            lambda: self.rotate_selection(-90)
+        )
+        self.main_menu.rotate_90_cw_triggered.connect(
+            lambda: self.rotate_selection(90)
+        )
+        self.main_menu.rotate_180_triggered.connect(
+            lambda: self.rotate_selection(180)
+        )
+        
+        # Conversion connections
+        self.main_menu.convert_to_lines_triggered.connect(self.convert_to_lines)
+        self.main_menu.convert_to_curves_triggered.connect(self.convert_to_curves)
+        self.main_menu.simplify_curves_triggered.connect(self.simplify_curves)
+        self.main_menu.smooth_curves_triggered.connect(self.smooth_curves)
+        self.main_menu.join_curves_triggered.connect(self.join_curves)
+        self.main_menu.vectorize_bitmap_triggered.connect(self.vectorize_bitmap)
+        
+        # Boolean operations connections
+        self.main_menu.union_polygons_triggered.connect(self.union_polygons)
+        self.main_menu.difference_polygons_triggered.connect(self.difference_polygons)
+        self.main_menu.intersection_polygons_triggered.connect(self.intersection_polygons)
+        
+        # View menu connections
+        self.main_menu.redraw_triggered.connect(self.redraw)
+        self.main_menu.actual_size_triggered.connect(self.actual_size)
+        self.main_menu.zoom_to_fit_triggered.connect(self.zoom_to_fit)
+        self.main_menu.zoom_in_triggered.connect(self.zoom_in)
+        self.main_menu.zoom_out_triggered.connect(self.zoom_out)
+        self.main_menu.show_origin_toggled.connect(self.toggle_show_origin)
+        self.main_menu.show_grid_toggled.connect(self.toggle_show_grid)
+        
+        # CAM menu connections
+        self.main_menu.configure_mill_triggered.connect(self.configure_mill)
+        self.main_menu.speeds_feeds_wizard_triggered.connect(self.speeds_feeds_wizard)
+        self.main_menu.generate_gcode_triggered.connect(self.generate_gcode)
+        self.main_menu.backtrace_gcode_triggered.connect(self.backtrace_gcode)
+        self.main_menu.make_worm_triggered.connect(self.make_worm)
+        self.main_menu.make_worm_gear_triggered.connect(self.make_worm_gear)
+        self.main_menu.make_gear_triggered.connect(self.make_gear)
+        
+        # Window menu connections
+        self.main_menu.minimize_triggered.connect(self.showMinimized)
+        self.main_menu.cycle_windows_triggered.connect(self.cycle_windows)
 
     def _create_toolbar(self):
         """Create a toolbar with drawing tools"""
@@ -346,14 +398,15 @@ class MainWindow(QMainWindow):
             tools_by_category[category].append(tool)
 
             # Add tool to tools menu
-            menu_action = QAction(tool.definition.name, self)
-            icon = self._load_tool_icon(tool.definition.icon)
-            if icon:
-                menu_action.setIcon(icon)
-            menu_action.triggered.connect(
-                lambda checked, t=tool.definition.token: self.activate_tool(t)
-            )
-            self.tools_menu.addAction(menu_action)
+            # (Removed since we now use comprehensive menu system)
+            # menu_action = QAction(tool.definition.name, self)
+            # icon = self._load_tool_icon(tool.definition.icon)
+            # if icon:
+            #     menu_action.setIcon(icon)
+            # menu_action.triggered.connect(
+            #     lambda checked, t=tool.definition.token: self.activate_tool(t)
+            # )
+            # self.tools_menu.addAction(menu_action)
 
         # Create category buttons for toolbar
         for category, category_tools in tools_by_category.items():
@@ -464,159 +517,450 @@ class MainWindow(QMainWindow):
             msg.setText(f"Failed to save file:\n{e}")
             msg.exec()
 
-    def show_preferences(self):
-        """Show the preferences dialog."""
-        dialog = PreferencesDialog(self)
-        dialog.exec()
+    def save_as_file(self):
+        """Handle Save As menu action."""
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Document As",
+            "",
+            "TkCAD files (*.tkcad);;SVG files (*.svg);;"
+            "DXF files (*.dxf);;All files (*.*)"
+        )
+        if filename:
+            try:
+                self.document.filename = filename
+                self.document.save()
+                self.main_menu.add_recent_file(filename)
+                self.update_title()
+            except Exception as e:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setWindowTitle("Save Error")
+                msg.setText(f"Failed to save file:\n{e}")
+                msg.exec()
 
-    def _confirm_discard_changes(self):
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Question)
-        msg.setWindowTitle("Unsaved Changes")
-        msg.setText("You have unsaved changes. Discard them?")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.setDefaultButton(QMessageBox.No)
-        result = msg.exec()
-        return result == QMessageBox.Yes
-
-    def draw_objects(self):
-        # Clear the scene but keep axis lines and grid lines
-        axis_items = []
-        for item in self.scene.items():
-            if hasattr(item, 'zValue') and item.zValue() <= -999:
-                axis_items.append(item)
-
+    def close_file(self):
+        """Handle Close menu action."""
+        if self.document.is_modified():
+            if not self._confirm_discard_changes():
+                return
+        self.document.new()  # Reset to new document
         self.scene.clear()
-        
-        # Re-add axis lines and grid lines
         self._add_axis_lines()
         self._add_grid_lines()
-
-        # Draw all document objects
-        for obj in self.document.objects.get_all_objects():
-            t = getattr(obj, 'object_type', None)
-            if t is None:
-                continue
-            tname = t.value if hasattr(t, 'value') else str(t)
-
-            color = QColor(obj.attributes.get('color', 'black'))
-            pen = QPen(color)
-            pen.setWidth(obj.attributes.get('linewidth', 1))
-
-            if tname == "line":
-                pts = obj.coords
-                if len(pts) == 2:
-                    self.scene.addLine(
-                        pts[0].x, pts[0].y, pts[1].x, pts[1].y, pen
-                    )
-            elif tname == "circle":
-                pts = obj.coords
-                r = obj.attributes.get('radius', 0)
-                if pts and r:
-                    x, y = pts[0].x, pts[0].y
-                    self.scene.addEllipse(
-                        x - r, y - r, 2*r, 2*r, pen
-                    )
-            elif tname == "point":
-                pts = obj.coords
-                if pts:
-                    x, y = pts[0].x, pts[0].y
-                    brush = QBrush(color)
-                    self.scene.addEllipse(
-                        x-2, y-2, 4, 4, pen, brush
-                    )
-            elif tname == "polygon":
-                pts = obj.coords
-                if len(pts) >= 3:
-                    from PySide6.QtGui import QPolygonF
-                    polygon = QPolygonF()
-                    for pt in pts:
-                        polygon.append(QPointF(pt.x, pt.y))
-                    self.scene.addPolygon(polygon, pen)
-            # Add more object types as needed...
-
-    def _draw_image_object(self, obj):
-        """Draw an image object on the scene."""
-        # TODO: Implement image drawing with QGraphicsPixmapItem
-        pass
-
-    def _draw_image_placeholder(self, obj):
-        """Draw a placeholder rectangle for images."""
-        # TODO: Implement placeholder drawing
-        pass
-
-    def on_object_created(self, obj):
-        """Handle when a tool creates a new object"""
         self.draw_objects()
         self.update_title()
 
-    def _load_tool_icon(self, icon_name):
-        """Load an icon for a tool, preferring SVG over PNG"""
-        if not icon_name:
-            return None
-
-        # Construct the path to the images directory
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        images_dir = os.path.join(base_dir, 'images')
-
-        # Try SVG first (from main images directory), then fall back to PNG
-        svg_path = os.path.join(images_dir, f"{icon_name}.svg")
-        png_path = os.path.join(images_dir, f"{icon_name}.png")
-
-        # Prefer SVG if available
-        if os.path.exists(svg_path):
+    def import_file(self):
+        """Handle Import menu action."""
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import File",
+            "",
+            "SVG files (*.svg);;DXF files (*.dxf);;All files (*.*)"
+        )
+        if filename:
             try:
-                # Load SVG icon
-                icon = QIcon(svg_path)
-                if not icon.isNull():
-                    return icon
+                # TODO: Implement import functionality
+                QMessageBox.information(
+                    self, "Import", 
+                    f"Import functionality not yet implemented for {filename}"
+                )
             except Exception as e:
-                print(f"Failed to load SVG icon {svg_path}: {e}")
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setWindowTitle("Import Error")
+                msg.setText(f"Failed to import file:\n{e}")
+                msg.exec()
 
-        # Fall back to PNG if SVG not available or failed to load
-        if os.path.exists(png_path):
+    def export_file(self):
+        """Handle Export menu action."""
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export File",
+            "",
+            "SVG files (*.svg);;DXF files (*.dxf);;PDF files (*.pdf);;All files (*.*)"
+        )
+        if filename:
             try:
-                # Load PNG and scale to 150% size (48x48 from original 32x32)
-                pixmap = QPixmap(png_path)
-                if not pixmap.isNull():
-                    # Scale PNG icons to 150% for better visibility
-                    scaled_pixmap = pixmap.scaled(
-                        48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation
-                    )
-                    return QIcon(scaled_pixmap)
+                # TODO: Implement export functionality
+                QMessageBox.information(
+                    self, "Export", 
+                    f"Export functionality not yet implemented for {filename}"
+                )
             except Exception as e:
-                print(f"Failed to load PNG icon {png_path}: {e}")
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setWindowTitle("Export Error")
+                msg.setText(f"Failed to export file:\n{e}")
+                msg.exec()
 
-        return None
+    def page_setup(self):
+        """Handle Page Setup menu action."""
+        QMessageBox.information(
+            self, "Page Setup", 
+            "Page setup functionality not yet implemented"
+        )
 
+    def print_file(self):
+        """Handle Print menu action."""
+        QMessageBox.information(
+            self, "Print", 
+            "Print functionality not yet implemented"
+        )
+
+    # Edit menu handlers
+    def undo(self):
+        """Handle Undo menu action."""
+        # TODO: Implement undo functionality
+        QMessageBox.information(
+            self, "Undo", 
+            "Undo functionality not yet implemented"
+        )
+
+    def redo(self):
+        """Handle Redo menu action."""
+        # TODO: Implement redo functionality
+        QMessageBox.information(
+            self, "Redo", 
+            "Redo functionality not yet implemented"
+        )
+
+    def cut(self):
+        """Handle Cut menu action."""
+        # TODO: Implement cut functionality
+        QMessageBox.information(
+            self, "Cut", 
+            "Cut functionality not yet implemented"
+        )
+
+    def copy(self):
+        """Handle Copy menu action."""
+        # TODO: Implement copy functionality
+        QMessageBox.information(
+            self, "Copy", 
+            "Copy functionality not yet implemented"
+        )
+
+    def paste(self):
+        """Handle Paste menu action."""
+        # TODO: Implement paste functionality
+        QMessageBox.information(
+            self, "Paste", 
+            "Paste functionality not yet implemented"
+        )
+
+    def clear(self):
+        """Handle Clear menu action."""
+        # TODO: Implement clear functionality
+        QMessageBox.information(
+            self, "Clear", 
+            "Clear functionality not yet implemented"
+        )
+
+    def select_all(self):
+        """Handle Select All menu action."""
+        # TODO: Implement select all functionality
+        QMessageBox.information(
+            self, "Select All", 
+            "Select All functionality not yet implemented"
+        )
+
+    def select_similar(self):
+        """Handle Select Similar menu action."""
+        # TODO: Implement select similar functionality
+        QMessageBox.information(
+            self, "Select Similar", 
+            "Select Similar functionality not yet implemented"
+        )
+
+    def deselect_all(self):
+        """Handle Deselect All menu action."""
+        # TODO: Implement deselect all functionality
+        QMessageBox.information(
+            self, "Deselect All", 
+            "Deselect All functionality not yet implemented"
+        )
+
+    def group_selection(self):
+        """Handle Group menu action."""
+        # TODO: Implement group functionality
+        QMessageBox.information(
+            self, "Group", 
+            "Group functionality not yet implemented"
+        )
+
+    def ungroup_selection(self):
+        """Handle Ungroup menu action."""
+        # TODO: Implement ungroup functionality
+        QMessageBox.information(
+            self, "Ungroup", 
+            "Ungroup functionality not yet implemented"
+        )
+
+    # Arrange submenu handlers
+    def raise_to_top(self):
+        """Handle Raise to Top menu action."""
+        # TODO: Implement raise to top functionality
+        QMessageBox.information(
+            self, "Raise to Top", 
+            "Raise to Top functionality not yet implemented"
+        )
+
+    def raise_selection(self):
+        """Handle Raise menu action."""
+        # TODO: Implement raise functionality
+        QMessageBox.information(
+            self, "Raise", 
+            "Raise functionality not yet implemented"
+        )
+
+    def lower_selection(self):
+        """Handle Lower menu action."""
+        # TODO: Implement lower functionality
+        QMessageBox.information(
+            self, "Lower", 
+            "Lower functionality not yet implemented"
+        )
+
+    def lower_to_bottom(self):
+        """Handle Lower to Bottom menu action."""
+        # TODO: Implement lower to bottom functionality
+        QMessageBox.information(
+            self, "Lower to Bottom", 
+            "Lower to Bottom functionality not yet implemented"
+        )
+
+    # Transform handlers
+    def rotate_selection(self, angle):
+        """Handle rotation menu actions."""
+        # TODO: Implement rotation functionality
+        QMessageBox.information(
+            self, "Rotate", 
+            f"Rotate {angle}° functionality not yet implemented"
+        )
+
+    # Conversion handlers
+    def convert_to_lines(self):
+        """Handle Convert to Lines menu action."""
+        # TODO: Implement convert to lines functionality
+        QMessageBox.information(
+            self, "Convert to Lines", 
+            "Convert to Lines functionality not yet implemented"
+        )
+
+    def convert_to_curves(self):
+        """Handle Convert to Curves menu action."""
+        # TODO: Implement convert to curves functionality
+        QMessageBox.information(
+            self, "Convert to Curves", 
+            "Convert to Curves functionality not yet implemented"
+        )
+
+    def simplify_curves(self):
+        """Handle Simplify Curves menu action."""
+        # TODO: Implement simplify curves functionality
+        QMessageBox.information(
+            self, "Simplify Curves", 
+            "Simplify Curves functionality not yet implemented"
+        )
+
+    def smooth_curves(self):
+        """Handle Smooth Curves menu action."""
+        # TODO: Implement smooth curves functionality
+        QMessageBox.information(
+            self, "Smooth Curves", 
+            "Smooth Curves functionality not yet implemented"
+        )
+
+    def join_curves(self):
+        """Handle Join Curves menu action."""
+        # TODO: Implement join curves functionality
+        QMessageBox.information(
+            self, "Join Curves", 
+            "Join Curves functionality not yet implemented"
+        )
+
+    def vectorize_bitmap(self):
+        """Handle Vectorize Bitmap menu action."""
+        # TODO: Implement vectorize bitmap functionality
+        QMessageBox.information(
+            self, "Vectorize Bitmap", 
+            "Vectorize Bitmap functionality not yet implemented"
+        )
+
+    # Boolean operations handlers
+    def union_polygons(self):
+        """Handle Union of Polygons menu action."""
+        # TODO: Implement union functionality
+        QMessageBox.information(
+            self, "Union of Polygons", 
+            "Union of Polygons functionality not yet implemented"
+        )
+
+    def difference_polygons(self):
+        """Handle Difference of Polygons menu action."""
+        # TODO: Implement difference functionality
+        QMessageBox.information(
+            self, "Difference of Polygons", 
+            "Difference of Polygons functionality not yet implemented"
+        )
+
+    def intersection_polygons(self):
+        """Handle Intersection of Polygons menu action."""
+        # TODO: Implement intersection functionality
+        QMessageBox.information(
+            self, "Intersection of Polygons", 
+            "Intersection of Polygons functionality not yet implemented"
+        )
+
+    # View menu handlers
+    def redraw(self):
+        """Handle Redraw menu action."""
+        self.draw_objects()
+        self._update_rulers_and_grid()
+
+    def actual_size(self):
+        """Handle Actual Size menu action."""
+        # TODO: Implement actual size functionality
+        QMessageBox.information(
+            self, "Actual Size", 
+            "Actual Size functionality not yet implemented"
+        )
+
+    def zoom_to_fit(self):
+        """Handle Zoom to Fit menu action."""
+        # TODO: Implement zoom to fit functionality
+        QMessageBox.information(
+            self, "Zoom to Fit", 
+            "Zoom to Fit functionality not yet implemented"
+        )
+
+    def zoom_in(self):
+        """Handle Zoom In menu action."""
+        # TODO: Implement zoom in functionality
+        QMessageBox.information(
+            self, "Zoom In", 
+            "Zoom In functionality not yet implemented"
+        )
+
+    def zoom_out(self):
+        """Handle Zoom Out menu action."""
+        # TODO: Implement zoom out functionality
+        QMessageBox.information(
+            self, "Zoom Out", 
+            "Zoom Out functionality not yet implemented"
+        )
+
+    def toggle_show_origin(self, show):
+        """Handle Show Origin toggle."""
+        self.preferences.set("show_origin", show)
+        # TODO: Actually toggle origin display
+        self.redraw()
+
+    def toggle_show_grid(self, show):
+        """Handle Show Grid toggle."""
+        self.preferences.set("show_grid", show)
+        # TODO: Actually toggle grid display
+        self.redraw()
+
+    # CAM menu handlers
+    def configure_mill(self):
+        """Handle Configure Mill menu action."""
+        # TODO: Implement mill configuration
+        QMessageBox.information(
+            self, "Configure Mill", 
+            "Mill configuration functionality not yet implemented"
+        )
+
+    def speeds_feeds_wizard(self):
+        """Handle Speeds & Feeds Wizard menu action."""
+        # TODO: Implement speeds & feeds wizard
+        QMessageBox.information(
+            self, "Speeds & Feeds Wizard", 
+            "Speeds & Feeds Wizard functionality not yet implemented"
+        )
+
+    def generate_gcode(self):
+        """Handle Generate G-Code menu action."""
+        # TODO: Implement G-code generation
+        QMessageBox.information(
+            self, "Generate G-Code", 
+            "G-Code generation functionality not yet implemented"
+        )
+
+    def backtrace_gcode(self):
+        """Handle Backtrace G-Code menu action."""
+        # TODO: Implement G-code backtracing
+        QMessageBox.information(
+            self, "Backtrace G-Code", 
+            "G-Code backtracing functionality not yet implemented"
+        )
+
+    def make_worm(self):
+        """Handle Make a Worm menu action."""
+        # TODO: Implement worm creation wizard
+        QMessageBox.information(
+            self, "Make a Worm", 
+            "Worm creation functionality not yet implemented"
+        )
+
+    def make_worm_gear(self):
+        """Handle Make a WormGear menu action."""
+        # TODO: Implement worm gear creation wizard
+        QMessageBox.information(
+            self, "Make a WormGear", 
+            "WormGear creation functionality not yet implemented"
+        )
+
+    def make_gear(self):
+        """Handle Make a Gear menu action."""
+        # TODO: Implement gear creation wizard
+        QMessageBox.information(
+            self, "Make a Gear", 
+            "Gear creation functionality not yet implemented"
+        )
+
+    # Window menu handlers
+    def cycle_windows(self):
+        """Handle Cycle Windows menu action."""
+        # TODO: Implement window cycling
+        QMessageBox.information(
+            self, "Cycle Windows", 
+            "Window cycling functionality not yet implemented"
+        )
+
+    # Helper methods for canvas setup and drawing
     def _add_axis_lines(self):
-        """Add axis lines at X=0 and Y=0 for reference"""
-        # Create a distinctive pen for axis lines
-        axis_pen = QPen(QColor(128, 128, 128))  # Gray color
-        axis_pen.setWidth(1)
-        # axis_pen.setStyle(Qt.DashLine)  # Dashed line style
-
-        # Add horizontal axis line (Y=0) across the scene width
+        """Add X=0 and Y=0 axis lines to the scene."""
+        from PySide6.QtGui import QPen, QColor
+        from PySide6.QtCore import Qt
+        
+        # Get scene rectangle for full extent lines
         scene_rect = self.scene.sceneRect()
-        h_axis_line = self.scene.addLine(
-            scene_rect.left(), 0,
-            scene_rect.right(), 0,
-            axis_pen
+        
+        # Create axis line pen (thin, dark gray)
+        axis_pen = QPen(QColor(64, 64, 64), 1)
+        axis_pen.setStyle(Qt.DashLine)
+        
+        # Add X-axis (horizontal line at Y=0)
+        x_line = self.scene.addLine(
+            scene_rect.left(), 0, scene_rect.right(), 0, axis_pen
         )
-
-        # Add vertical axis line (X=0) across the scene height
-        v_axis_line = self.scene.addLine(
-            0, scene_rect.top(),
-            0, scene_rect.bottom(),
-            axis_pen
+        x_line.setZValue(-100)  # Behind other objects
+        
+        # Add Y-axis (vertical line at X=0)
+        y_line = self.scene.addLine(
+            0, scene_rect.top(), 0, scene_rect.bottom(), axis_pen
         )
-
-        # Set the axis lines and origin marker to be behind other objects
-        h_axis_line.setZValue(-1000)
-        v_axis_line.setZValue(-1000)
+        y_line.setZValue(-100)  # Behind other objects
 
     def _add_grid_lines(self):
         """Add dotted grid lines that align with ruler major tickmarks"""
+        # Skip if grid is not enabled
+        if not self.preferences.get("show_grid", True):
+            return
+            
         # Get grid information from the ruler system
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
         grid_info = horizontal_ruler.get_grid_info()
@@ -711,20 +1055,173 @@ class MainWindow(QMainWindow):
 
     def _update_rulers_and_grid(self):
         """Update both rulers and grid when the view changes."""
-        self.ruler_manager.update_rulers()
+        if hasattr(self, 'ruler_manager') and self.ruler_manager:
+            self.ruler_manager.update_rulers()
         # Redraw grid lines to match new view
         self._redraw_grid()
 
     def _redraw_grid(self):
         """Remove existing grid lines and redraw them."""
-        # Remove existing grid lines (z-value -1001)
+        # Check if scene is still valid
+        if not self.scene or not hasattr(self.scene, 'items'):
+            return
+            
+        try:
+            # Remove existing grid lines (z-value -1001)
+            items_to_remove = []
+            for item in self.scene.items():
+                if hasattr(item, 'zValue') and item.zValue() == -1001:
+                    items_to_remove.append(item)
+
+            for item in items_to_remove:
+                self.scene.removeItem(item)
+
+            # Add new grid lines
+            self._add_grid_lines()
+            if hasattr(self, 'ruler_manager'):
+                self.ruler_manager.update_rulers()
+        except (RuntimeError, AttributeError):
+            # Scene has been deleted or is invalid
+            return
+
+    def draw_objects(self):
+        """Draw all objects from the document to the scene."""
+        # Clear existing drawing objects (but keep grid and axes)
         items_to_remove = []
         for item in self.scene.items():
-            if hasattr(item, 'zValue') and item.zValue() == -1001:
+            # Keep axis lines and grid lines (they have negative Z values)
+            if item.zValue() >= 0:
                 items_to_remove.append(item)
-
+        
         for item in items_to_remove:
             self.scene.removeItem(item)
+        
+        # Draw objects from document
+        if hasattr(self.document, 'objects'):
+            for obj in self.document.objects:
+                self._draw_object(obj)
 
-        # Add new grid lines
-        self._add_grid_lines()
+    def _draw_object(self, obj):
+        """Draw a single object to the scene."""
+        from PySide6.QtGui import QPen, QBrush, QColor
+        from PySide6.QtCore import Qt
+        
+        # Default drawing style
+        pen = QPen(QColor(0, 0, 255), 2)  # Blue, 2px width
+        brush = QBrush(Qt.NoBrush)  # No fill
+        
+        # Draw based on object type
+        obj_type = getattr(obj, 'type', 'unknown')
+        
+        if obj_type == 'line':
+            # Draw line object
+            if hasattr(obj, 'start') and hasattr(obj, 'end'):
+                line = self.scene.addLine(
+                    obj.start.x, obj.start.y, obj.end.x, obj.end.y, pen
+                )
+                line.setZValue(1)
+                
+        elif obj_type == 'circle':
+            # Draw circle object
+            if hasattr(obj, 'center') and hasattr(obj, 'radius'):
+                ellipse = self.scene.addEllipse(
+                    obj.center.x - obj.radius, obj.center.y - obj.radius,
+                    obj.radius * 2, obj.radius * 2, pen, brush
+                )
+                ellipse.setZValue(1)
+                
+        elif obj_type == 'rectangle':
+            # Draw rectangle object
+            if hasattr(obj, 'x') and hasattr(obj, 'y') and hasattr(obj, 'width') and hasattr(obj, 'height'):
+                rect = self.scene.addRect(obj.x, obj.y, obj.width, obj.height, pen, brush)
+                rect.setZValue(1)
+        
+        # Add more object types as needed
+
+    def on_object_created(self, obj):
+        """Handle when a new object is created by a tool."""
+        # Draw the new object
+        self._draw_object(obj)
+        
+        # Mark document as modified
+        if hasattr(self.document, 'set_modified'):
+            self.document.set_modified(True)
+        
+        # Update window title
+        self.update_title()
+
+    def _confirm_discard_changes(self):
+        """Show dialog to confirm discarding unsaved changes."""
+        from PySide6.QtWidgets import QMessageBox
+        
+        reply = QMessageBox.question(
+            self, "Unsaved Changes",
+            "The document has been modified. Do you want to save your changes?",
+            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+            QMessageBox.Save
+        )
+        
+        if reply == QMessageBox.Save:
+            self.save_file()
+            return True
+        elif reply == QMessageBox.Discard:
+            return True
+        else:  # Cancel
+            return False
+
+    def _load_tool_icon(self, icon_name):
+        """Load an icon for a tool, preferring SVG over PNG"""
+        if not icon_name:
+            return None
+
+        # Construct the path to the images directory
+        import os
+        from PySide6.QtGui import QIcon, QPixmap
+        from PySide6.QtCore import Qt
+        
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        images_dir = os.path.join(base_dir, 'images')
+
+        # Try SVG first (from main images directory), then fall back to PNG
+        svg_path = os.path.join(images_dir, f"{icon_name}.svg")
+        png_path = os.path.join(images_dir, f"{icon_name}.png")
+
+        # Prefer SVG if available
+        if os.path.exists(svg_path):
+            try:
+                # Load SVG icon
+                icon = QIcon(svg_path)
+                if not icon.isNull():
+                    return icon
+            except Exception as e:
+                print(f"Failed to load SVG icon {svg_path}: {e}")
+
+        # Fall back to PNG if SVG not available or failed to load
+        if os.path.exists(png_path):
+            try:
+                # Load PNG and scale to 150% size (48x48 from original 32x32)
+                pixmap = QPixmap(png_path)
+                if not pixmap.isNull():
+                    # Scale PNG icons to 150% for better visibility
+                    scaled_pixmap = pixmap.scaled(
+                        48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                    )
+                    return QIcon(scaled_pixmap)
+            except Exception as e:
+                print(f"Failed to load PNG icon {png_path}: {e}")
+
+        return None
+
+    def closeEvent(self, event):
+        """Handle window close event."""
+        if self.document.is_modified():
+            if not self._confirm_discard_changes():
+                event.ignore()
+                return
+        
+        # Save window geometry to preferences
+        geometry = self.geometry()
+        geometry_str = f"{geometry.width()}x{geometry.height()}+{geometry.x()}+{geometry.y()}"
+        self.preferences.set("window_geometry", geometry_str)
+        
+        event.accept()

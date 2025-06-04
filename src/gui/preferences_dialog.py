@@ -1,15 +1,20 @@
 """
-Preferences Dialog for PyTkCAD.
+Qt-based Preferences Dialog for PyTkCAD.
 
-This module provides a GUI dialog for managing application preferences,
-translating the functionality from the original prefs.tcl file.
+This module provides a PySide6/Qt GUI dialog for managing application
+preferences, compatible with the main Qt-based application framework.
 """
 
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog, colorchooser
-from typing import Dict, Any
-import os
-import platform
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
+    QWidget, QLabel, QLineEdit, QPushButton, QCheckBox, QSpinBox,
+    QDoubleSpinBox, QComboBox, QColorDialog, QFileDialog, QDialogButtonBox,
+    QMessageBox, QApplication, QScrollArea
+)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor
+
+from typing import Dict, Any, Optional
 
 try:
     from ..core.preferences import PreferencesManager
@@ -23,17 +28,62 @@ except ImportError:
     from config import AppConfig
 
 
-class PreferenceWidget:
+class ColorButton(QPushButton):
+    """Custom button for color selection."""
+
+    colorChanged = Signal(str)
+
+    def __init__(self, color="#ffffff", parent=None):
+        super().__init__(parent)
+        self._color = color
+        self.setFixedSize(50, 30)
+        self.clicked.connect(self._choose_color)
+        self._update_color()
+
+    def _update_color(self):
+        """Update button appearance to show current color."""
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self._color};
+                border: 2px solid #888;
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                border: 2px solid #555;
+            }}
+        """)
+
+    def _choose_color(self):
+        """Open color dialog to choose new color."""
+        color = QColorDialog.getColor(
+            QColor(self._color), self, "Choose Color"
+        )
+        if color.isValid():
+            self.set_color(color.name())
+
+    def set_color(self, color: str):
+        """Set the current color."""
+        self._color = color
+        self._update_color()
+        self.colorChanged.emit(color)
+
+    def get_color(self) -> str:
+        """Get the current color."""
+        return self._color
+
+
+class PreferenceWidget(QWidget):
     """Base class for preference widgets."""
 
-    def __init__(self, parent, pref_name: str, pref_data: Dict[str, Any]):
-        self.parent = parent
+    valueChanged = Signal()
+
+    def __init__(self, pref_name: str, pref_data: Dict[str, Any], parent=None):
+        super().__init__(parent)
         self.pref_name = pref_name
         self.pref_data = pref_data
-        self.widget = None
-        self.var = None
+        self._create_widget()
 
-    def create_widget(self):
+    def _create_widget(self):
         """Create the widget. Must be implemented by subclasses."""
         raise NotImplementedError
 
@@ -46,201 +96,183 @@ class PreferenceWidget:
         raise NotImplementedError
 
 
-class BoolWidget(PreferenceWidget):
+class BoolPreferenceWidget(PreferenceWidget):
     """Checkbox widget for boolean preferences."""
 
-    def create_widget(self):
-        self.var = tk.BooleanVar()
-        self.widget = ttk.Checkbutton(
-            self.parent,
-            text=self.pref_data.get('desc', self.pref_name),
-            variable=self.var
-        )
-        return self.widget
+    def _create_widget(self):
+        layout = QHBoxLayout(self)
 
-    def get_value(self):
-        return self.var.get()
+        self.checkbox = QCheckBox(self.pref_data.get('desc', self.pref_name))
+        self.checkbox.stateChanged.connect(self.valueChanged.emit)
 
-    def set_value(self, value):
-        self.var.set(bool(value))
+        layout.addWidget(self.checkbox)
+        layout.addStretch()
+
+    def get_value(self) -> bool:
+        return self.checkbox.isChecked()
+
+    def set_value(self, value: bool):
+        self.checkbox.setChecked(bool(value))
 
 
-class IntWidget(PreferenceWidget):
+class IntPreferenceWidget(PreferenceWidget):
     """Spinbox widget for integer preferences."""
 
-    def create_widget(self):
-        frame = ttk.Frame(self.parent)
+    def _create_widget(self):
+        layout = QHBoxLayout(self)
 
-        label_text = self.pref_data.get('desc', self.pref_name)
-        ttk.Label(frame, text=label_text).pack(side=tk.LEFT)
+        label = QLabel(self.pref_data.get('desc', self.pref_name) + ":")
+        layout.addWidget(label)
 
-        self.var = tk.IntVar()
-        self.widget = ttk.Spinbox(
-            frame,
-            from_=self.pref_data.get('min', 0),
-            to=self.pref_data.get('max', 100),
-            textvariable=self.var,
-            width=10
-        )
-        self.widget.pack(side=tk.RIGHT)
+        self.spinbox = QSpinBox()
+        self.spinbox.setMinimum(self.pref_data.get('min', 0))
+        self.spinbox.setMaximum(self.pref_data.get('max', 1000))
+        self.spinbox.valueChanged.connect(self.valueChanged.emit)
 
-        return frame
+        layout.addWidget(self.spinbox)
+        layout.addStretch()
 
-    def get_value(self):
-        return self.var.get()
+    def get_value(self) -> int:
+        return self.spinbox.value()
 
-    def set_value(self, value):
-        self.var.set(int(value))
+    def set_value(self, value: int):
+        self.spinbox.setValue(int(value))
 
 
-class FloatWidget(PreferenceWidget):
-    """Entry widget for float preferences."""
+class FloatPreferenceWidget(PreferenceWidget):
+    """Double spinbox widget for float preferences."""
 
-    def create_widget(self):
-        frame = ttk.Frame(self.parent)
+    def _create_widget(self):
+        layout = QHBoxLayout(self)
 
-        label_text = self.pref_data.get('desc', self.pref_name)
-        ttk.Label(frame, text=label_text).pack(side=tk.LEFT)
+        label = QLabel(self.pref_data.get('desc', self.pref_name) + ":")
+        layout.addWidget(label)
 
-        self.var = tk.DoubleVar()
-        self.widget = ttk.Entry(frame, textvariable=self.var, width=10)
-        self.widget.pack(side=tk.RIGHT)
+        self.spinbox = QDoubleSpinBox()
+        self.spinbox.setMinimum(self.pref_data.get('min', 0.0))
+        self.spinbox.setMaximum(self.pref_data.get('max', 1000.0))
+        self.spinbox.setDecimals(self.pref_data.get('decimals', 2))
+        self.spinbox.valueChanged.connect(self.valueChanged.emit)
 
-        return frame
+        layout.addWidget(self.spinbox)
+        layout.addStretch()
 
-    def get_value(self):
-        return self.var.get()
+    def get_value(self) -> float:
+        return self.spinbox.value()
 
-    def set_value(self, value):
-        self.var.set(float(value))
-
-
-class StringWidget(PreferenceWidget):
-    """Entry widget for string preferences."""
-
-    def create_widget(self):
-        frame = ttk.Frame(self.parent)
-
-        label_text = self.pref_data.get('desc', self.pref_name)
-        ttk.Label(frame, text=label_text).pack(side=tk.LEFT)
-
-        self.var = tk.StringVar()
-        self.widget = ttk.Entry(frame, textvariable=self.var, width=30)
-        self.widget.pack(side=tk.RIGHT)
-
-        return frame
-
-    def get_value(self):
-        return self.var.get()
-
-    def set_value(self, value):
-        self.var.set(str(value))
+    def set_value(self, value: float):
+        self.spinbox.setValue(float(value))
 
 
-class ComboWidget(PreferenceWidget):
+class StringPreferenceWidget(PreferenceWidget):
+    """Line edit widget for string preferences."""
+
+    def _create_widget(self):
+        layout = QHBoxLayout(self)
+
+        label = QLabel(self.pref_data.get('desc', self.pref_name) + ":")
+        layout.addWidget(label)
+
+        self.lineedit = QLineEdit()
+        self.lineedit.textChanged.connect(self.valueChanged.emit)
+
+        layout.addWidget(self.lineedit)
+
+    def get_value(self) -> str:
+        return self.lineedit.text()
+
+    def set_value(self, value: str):
+        self.lineedit.setText(str(value))
+
+
+class ComboPreferenceWidget(PreferenceWidget):
     """Combobox widget for choice preferences."""
 
-    def create_widget(self):
-        frame = ttk.Frame(self.parent)
+    def _create_widget(self):
+        layout = QHBoxLayout(self)
 
-        label_text = self.pref_data.get('desc', self.pref_name)
-        ttk.Label(frame, text=label_text).pack(side=tk.LEFT)
+        label = QLabel(self.pref_data.get('desc', self.pref_name) + ":")
+        layout.addWidget(label)
 
-        self.var = tk.StringVar()
+        self.combobox = QComboBox()
         values = self.pref_data.get('values', [])
-        self.widget = ttk.Combobox(
-            frame,
-            textvariable=self.var,
-            values=values,
-            state='readonly',
-            width=20
-        )
-        self.widget.pack(side=tk.RIGHT)
+        self.combobox.addItems(values)
+        self.combobox.currentTextChanged.connect(self.valueChanged.emit)
 
-        return frame
+        layout.addWidget(self.combobox)
+        layout.addStretch()
 
-    def get_value(self):
-        return self.var.get()
+    def get_value(self) -> str:
+        return self.combobox.currentText()
 
-    def set_value(self, value):
-        self.var.set(str(value))
+    def set_value(self, value: str):
+        index = self.combobox.findText(str(value))
+        if index >= 0:
+            self.combobox.setCurrentIndex(index)
 
 
-class FileWidget(PreferenceWidget):
-    """File/directory chooser widget."""
+class ColorPreferenceWidget(PreferenceWidget):
+    """Color picker widget for color preferences."""
 
-    def create_widget(self):
-        frame = ttk.Frame(self.parent)
+    def _create_widget(self):
+        layout = QHBoxLayout(self)
 
-        label_text = self.pref_data.get('desc', self.pref_name)
-        ttk.Label(frame, text=label_text).pack(side=tk.LEFT)
+        label = QLabel(self.pref_data.get('desc', self.pref_name) + ":")
+        layout.addWidget(label)
 
-        self.var = tk.StringVar()
-        self.widget = ttk.Entry(frame, textvariable=self.var, width=25)
-        self.widget.pack(side=tk.LEFT, padx=(5, 0))
+        self.color_button = ColorButton()
+        self.color_button.colorChanged.connect(self.valueChanged.emit)
 
-        button = ttk.Button(frame, text="Browse...", command=self._browse)
-        button.pack(side=tk.RIGHT)
+        layout.addWidget(self.color_button)
+        layout.addStretch()
 
-        return frame
+    def get_value(self) -> str:
+        return self.color_button.get_color()
+
+    def set_value(self, value: str):
+        self.color_button.set_color(str(value))
+
+
+class FilePreferenceWidget(PreferenceWidget):
+    """File/directory picker widget for file preferences."""
+
+    def _create_widget(self):
+        layout = QHBoxLayout(self)
+
+        label = QLabel(self.pref_data.get('desc', self.pref_name) + ":")
+        layout.addWidget(label)
+
+        self.lineedit = QLineEdit()
+        self.lineedit.textChanged.connect(self.valueChanged.emit)
+
+        browse_button = QPushButton("Browse...")
+        browse_button.clicked.connect(self._browse)
+
+        layout.addWidget(self.lineedit)
+        layout.addWidget(browse_button)
 
     def _browse(self):
+        """Open file/directory dialog."""
         if self.pref_data.get('type') == 'directory':
-            path = filedialog.askdirectory(initialdir=self.var.get())
-        else:
-            default_filetypes = [('All Files', '*.*')]
-            filetypes = self.pref_data.get('filetypes', default_filetypes)
-            path = filedialog.askopenfilename(
-                initialdir=os.path.dirname(self.var.get() or ''),
-                filetypes=filetypes
+            path = QFileDialog.getExistingDirectory(
+                self, "Select Directory", self.lineedit.text()
             )
+        else:
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Select File", self.lineedit.text()
+            )
+
         if path:
-            self.var.set(path)
+            self.lineedit.setText(path)
 
-    def get_value(self):
-        return self.var.get()
+    def get_value(self) -> str:
+        return self.lineedit.text()
 
-    def set_value(self, value):
-        self.var.set(str(value))
-
-
-class ColorWidget(PreferenceWidget):
-    """Color chooser widget."""
-
-    def create_widget(self):
-        frame = ttk.Frame(self.parent)
-
-        label_text = self.pref_data.get('desc', self.pref_name)
-        ttk.Label(frame, text=label_text).pack(side=tk.LEFT)
-
-        self.var = tk.StringVar()
-        self.widget = ttk.Entry(frame, textvariable=self.var, width=10)
-        self.widget.pack(side=tk.LEFT, padx=(5, 0))
-
-        self.color_button = tk.Button(frame, width=3,
-                                      command=self._choose_color)
-        self.color_button.pack(side=tk.RIGHT)
-
-        return frame
-
-    def _choose_color(self):
-        color = colorchooser.askcolor(color=self.var.get())[1]
-        if color:
-            self.var.set(color)
-            self.color_button.configure(bg=color)
-
-    def get_value(self):
-        return self.var.get()
-
-    def set_value(self, value):
-        self.var.set(str(value))
-        try:
-            self.color_button.configure(bg=value)
-        except tk.TclError:
-            pass
+    def set_value(self, value: str):
+        self.lineedit.setText(str(value))
 
 
-class PreferencesDialog:
+class PreferencesDialog(QDialog):
     """Main preferences dialog window."""
 
     # Preference definitions matching AppConfig.default_prefs
@@ -321,7 +353,9 @@ class PreferencesDialog:
     }
 
     def __init__(self, parent=None):
-        self.parent = parent
+        super().__init__(parent)
+
+        # Get preferences manager
         try:
             # Try to get config from parent if it has one
             if hasattr(parent, 'config'):
@@ -330,184 +364,146 @@ class PreferencesDialog:
                 config = AppConfig()
         except Exception:
             config = AppConfig()
-        
+
         self.prefs_manager = PreferencesManager(config)
-        self.dialog = None
-        self.notebook = None
         self.widgets = {}
         self.original_values = {}
         self.has_changes = False
 
-    def show(self):
-        """Show the preferences dialog."""
-        if self.dialog:
-            self.dialog.lift()
-            return
-
-        self._create_dialog()
+        self._setup_ui()
         self._load_preferences()
 
-    def _create_dialog(self):
-        """Create the main dialog window."""
-        self.dialog = tk.Toplevel(self.parent)
-        self.dialog.title("Preferences")
-        self.dialog.geometry("600x500")
-        self.dialog.resizable(True, True)
+    def _setup_ui(self):
+        """Set up the user interface."""
+        self.setWindowTitle("Preferences")
+        self.setMinimumSize(600, 500)
+        self.resize(700, 600)
 
         # Make dialog modal
-        self.dialog.transient(self.parent)
-        self.dialog.grab_set()
+        self.setModal(True)
 
-        # Center the dialog
-        self.dialog.update_idletasks()
-        x = (self.dialog.winfo_screenwidth() // 2) - (600 // 2)
-        y = (self.dialog.winfo_screenheight() // 2) - (500 // 2)
-        self.dialog.geometry(f"600x500+{x}+{y}")
+        # Main layout
+        layout = QVBoxLayout(self)
 
-        # Create main frame
-        main_frame = ttk.Frame(self.dialog)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
-
-        # Create notebook for tabs
-        self.notebook = ttk.Notebook(main_frame)
-        self.notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        # Create tab widget
+        self.tab_widget = QTabWidget()
+        layout.addWidget(self.tab_widget)
 
         # Create tabs
         self._create_tabs()
 
-        # Create button frame
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X)
-
-        # Create buttons
-        self.ok_button = ttk.Button(
-            button_frame,
-            text="OK",
-            command=self._ok_clicked,
-            width=10
+        # Create button box
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel |
+            QDialogButtonBox.Apply
         )
-        self.ok_button.pack(side=tk.RIGHT, padx=(5, 0))
+        self.button_box.accepted.connect(self._ok_clicked)
+        self.button_box.rejected.connect(self._cancel_clicked)
+        apply_btn = self.button_box.button(QDialogButtonBox.Apply)
+        apply_btn.clicked.connect(self._apply_clicked)
 
-        self.cancel_button = ttk.Button(
-            button_frame,
-            text="Cancel",
-            command=self._cancel_clicked,
-            width=10
-        )
-        self.cancel_button.pack(side=tk.RIGHT)
+        # Initially disable Apply button
+        self.button_box.button(QDialogButtonBox.Apply).setEnabled(False)
 
-        self.apply_button = ttk.Button(
-            button_frame,
-            text="Apply",
-            command=self._apply_clicked,
-            width=10,
-            state=tk.DISABLED
-        )
-        self.apply_button.pack(side=tk.RIGHT, padx=(0, 5))
+        layout.addWidget(self.button_box)
 
-        # Bind events
-        self.dialog.bind('<Return>', lambda e: self._ok_clicked())
-        self.dialog.bind('<Escape>', lambda e: self._cancel_clicked())
-        self.dialog.protocol("WM_DELETE_WINDOW", self._cancel_clicked)
-
-        # Focus on OK button
-        self.ok_button.focus_set()
+        # Center dialog on parent or screen
+        if self.parent():
+            # Center on parent
+            parent_geom = self.parent().geometry()
+            x = parent_geom.x() + (parent_geom.width() - self.width()) // 2
+            y = parent_geom.y() + (parent_geom.height() - self.height()) // 2
+            self.move(x, y)
 
     def _create_tabs(self):
         """Create preference tabs."""
         for tab_name, prefs in self.PREFERENCE_DEFINITIONS.items():
-            # Create tab frame
-            tab_frame = ttk.Frame(self.notebook)
-            self.notebook.add(tab_frame, text=tab_name)
+            # Create tab widget
+            tab_widget = QWidget()
+            self.tab_widget.addTab(tab_widget, tab_name)
 
-            # Create scrollable frame
-            canvas = tk.Canvas(tab_frame)
-            scrollbar = ttk.Scrollbar(tab_frame, orient=tk.VERTICAL,
-                                      command=canvas.yview)
-            scrollable_frame = ttk.Frame(canvas)
+            # Create scroll area for the tab
+            scroll_area = QScrollArea()
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
-            scrollable_frame.bind(
-                "<Configure>",
-                lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-            )
-
-            canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-            canvas.configure(yscrollcommand=scrollbar.set)
-
-            canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            # Create content widget
+            content_widget = QWidget()
+            content_layout = QVBoxLayout(content_widget)
+            content_layout.setAlignment(Qt.AlignTop)
 
             # Create preference widgets
-            self._create_preference_widgets(scrollable_frame, tab_name, prefs)
+            self._create_preference_widgets(content_widget, tab_name, prefs)
 
-            # Bind mousewheel to canvas
-            def _on_mousewheel(event, canvas=canvas):
-                delta = int(-1 * (event.delta / 120))
-                canvas.yview_scroll(delta, "units")
-            canvas.bind("<MouseWheel>", _on_mousewheel)
+            # Set up scroll area
+            scroll_area.setWidget(content_widget)
 
-    def _create_preference_widgets(self, parent, tab_name: str,
+            # Set up tab layout
+            tab_layout = QVBoxLayout(tab_widget)
+            tab_layout.addWidget(scroll_area)
+
+    def _create_preference_widgets(self, parent: QWidget, tab_name: str,
                                    prefs: Dict[str, Any]):
         """Create widgets for preferences in a tab."""
         if tab_name not in self.widgets:
             self.widgets[tab_name] = {}
+
+        layout = parent.layout()
 
         for pref_name, pref_data in prefs.items():
             # Create widget based on type
             widget_type = pref_data.get('type', 'str')
 
             if widget_type == 'bool':
-                widget = BoolWidget(parent, pref_name, pref_data)
+                widget = BoolPreferenceWidget(pref_name, pref_data)
             elif widget_type == 'int':
-                widget = IntWidget(parent, pref_name, pref_data)
+                widget = IntPreferenceWidget(pref_name, pref_data)
             elif widget_type == 'float':
-                widget = FloatWidget(parent, pref_name, pref_data)
+                widget = FloatPreferenceWidget(pref_name, pref_data)
             elif widget_type == 'combo':
-                widget = ComboWidget(parent, pref_name, pref_data)
+                widget = ComboPreferenceWidget(pref_name, pref_data)
             elif widget_type in ('file', 'directory'):
-                widget = FileWidget(parent, pref_name, pref_data)
+                widget = FilePreferenceWidget(pref_name, pref_data)
             elif widget_type == 'color':
-                widget = ColorWidget(parent, pref_name, pref_data)
+                widget = ColorPreferenceWidget(pref_name, pref_data)
             else:
-                widget = StringWidget(parent, pref_name, pref_data)
+                widget = StringPreferenceWidget(pref_name, pref_data)
 
-            # Create and pack the widget
-            widget_frame = widget.create_widget()
-            widget_frame.pack(fill=tk.X, padx=10, pady=5)
+            # Connect change signal
+            widget.valueChanged.connect(self._on_value_changed)
+
+            # Add to layout
+            layout.addWidget(widget)
 
             # Store widget reference
             self.widgets[tab_name][pref_name] = widget
 
-            # Bind change events
-            self._bind_change_events(widget)
-
-    def _bind_change_events(self, widget):
-        """Bind change events to enable/disable Apply button."""
-        def on_change(*args):
-            self.has_changes = True
-            self.apply_button.configure(state=tk.NORMAL)
-
-        if hasattr(widget, 'var') and widget.var:
-            widget.var.trace('w', on_change)
+    def _on_value_changed(self):
+        """Handle value changes in preference widgets."""
+        self.has_changes = True
+        self.button_box.button(QDialogButtonBox.Apply).setEnabled(True)
 
     def _load_preferences(self):
         """Load current preferences into widgets."""
         # Load preferences from file
         self.prefs_manager.load()
-        
+
         for tab_name, tab_widgets in self.widgets.items():
             for pref_name, widget in tab_widgets.items():
                 # Get current value or default
                 pref_def = self.PREFERENCE_DEFINITIONS[tab_name][pref_name]
-                value = self.prefs_manager.get(pref_name, pref_def.get('default'))
-                
+                value = self.prefs_manager.get(
+                    pref_name, pref_def.get('default')
+                )
+
                 # Store original value
                 self.original_values[pref_name] = value
-                
+
                 # Set widget value
                 widget.set_value(value)
 
-    def _apply_changes(self):
+    def _apply_changes(self) -> bool:
         """Apply preference changes."""
         try:
             # Collect all values from widgets
@@ -526,64 +522,71 @@ class PreferencesDialog:
 
             # Disable Apply button
             self.has_changes = False
-            self.apply_button.configure(state=tk.DISABLED)
+            self.button_box.button(QDialogButtonBox.Apply).setEnabled(False)
 
             return True
 
         except Exception as e:
-            error_msg = f"Failed to save preferences:\n{str(e)}"
-            messagebox.showerror("Error", error_msg)
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to save preferences:\n{str(e)}"
+            )
             return False
 
     def _ok_clicked(self):
         """Handle OK button click."""
         if self.has_changes:
             if self._apply_changes():
-                self._close_dialog()
+                self.accept()
         else:
-            self._close_dialog()
+            self.accept()
 
     def _cancel_clicked(self):
         """Handle Cancel button click."""
         if self.has_changes:
-            result = messagebox.askyesnocancel(
+            reply = QMessageBox.question(
+                self,
                 "Unsaved Changes",
-                "You have unsaved changes. Do you want to save them?"
+                "You have unsaved changes. Do you want to save them?",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
             )
-            if result is True:  # Yes - save and close
+
+            if reply == QMessageBox.Yes:
                 if self._apply_changes():
-                    self._close_dialog()
-            elif result is False:  # No - close without saving
-                self._close_dialog()
-            # None - cancel, don't close
+                    self.reject()
+            elif reply == QMessageBox.No:
+                self.reject()
+            # Cancel - do nothing, stay open
         else:
-            self._close_dialog()
+            self.reject()
 
     def _apply_clicked(self):
         """Handle Apply button click."""
         self._apply_changes()
 
-    def _close_dialog(self):
-        """Close the dialog."""
-        if self.dialog:
-            self.dialog.grab_release()
-            self.dialog.destroy()
-            self.dialog = None
 
-
-def show_preferences(parent=None):
+def show_preferences_dialog(parent=None) -> Optional[PreferencesDialog]:
     """Convenience function to show preferences dialog."""
     dialog = PreferencesDialog(parent)
-    dialog.show()
+    dialog.exec()
+    return dialog
 
 
-# Platform-specific integration
-if platform.system() == "Darwin":
-    # macOS-specific preferences integration
-    def setup_macos_preferences_menu(app):
-        """Set up macOS preferences menu integration."""
-        try:
-            cmd = 'tk::mac::ShowPreferences'
-            app.createcommand(cmd, lambda: show_preferences(app))
-        except Exception:
-            pass
+# Test/demo code
+if __name__ == "__main__":
+    import sys
+
+    app = QApplication(sys.argv)
+
+    # Test the preferences dialog
+    dialog = PreferencesDialog()
+    result = dialog.exec()
+
+    print(f"Dialog result: {result}")
+    if result == QDialog.Accepted:
+        print("Preferences were saved")
+    else:
+        print("Preferences were cancelled")
+
+    sys.exit()

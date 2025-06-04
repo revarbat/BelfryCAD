@@ -25,6 +25,7 @@ class ObjectType(Enum):
     ARC = "arc"
     CIRCLE = "circle"
     BEZIER = "bezier"
+    BEZIERQUAD = "bezierquad"
     POLYGON = "polygon"
     TEXT = "text"
     DIMENSION = "dimension"
@@ -76,6 +77,11 @@ class CADObject:
     visible: bool = True
     locked: bool = False
 
+    @property
+    def id(self) -> str:
+        """Get object ID as string for compatibility"""
+        return str(self.object_id)
+
     def __post_init__(self):
         """Initialize object after creation"""
         if 'color' not in self.attributes:
@@ -91,6 +97,10 @@ class CADObject:
         x_coords = [p.x for p in self.coords]
         y_coords = [p.y for p in self.coords]
         return (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
+
+    def get_control_points(self) -> List[Point]:
+        """Get list of control points for node selection"""
+        return self.coords.copy()
 
     def move(self, dx: float, dy: float):
         """Move object by delta x, y"""
@@ -164,46 +174,58 @@ class CADObjectManager:
         # Create appropriate object type
         if object_type == ObjectType.LINE:
             if len(args) >= 2:
-                obj = LineObject(object_id, args[0], args[1], **kwargs)
+                obj = CADObject(
+                    object_id, object_type, [args[0], args[1]], **kwargs)
             else:
                 raise ValueError("Line requires start and end points")
 
         elif object_type == ObjectType.ARC:
             if len(args) >= 4:
-                obj = ArcObject(
-                    object_id, args[0], args[1], args[2], args[3], **kwargs)
+                obj = CADObject(
+                    object_id, object_type,
+                    [args[0], args[1], args[2], args[3]], **kwargs)
             else:
                 raise ValueError(
                     "Arc requires center, radius, start_angle, end_angle")
 
         elif object_type == ObjectType.CIRCLE:
             if len(args) >= 2:
-                obj = CircleObject(object_id, args[0], args[1], **kwargs)
+                obj = CADObject(
+                    object_id, object_type, [args[0], args[1]], **kwargs)
             else:
                 raise ValueError("Circle requires center and radius")
 
         elif object_type == ObjectType.BEZIER:
             if len(args) >= 1 and isinstance(args[0], list):
-                obj = BezierObject(object_id, args[0], **kwargs)
+                obj = CADObject(object_id, object_type, args[0], **kwargs)
             else:
                 raise ValueError("Bezier requires list of control points")
 
+        elif object_type == ObjectType.BEZIERQUAD:
+            if len(args) >= 1 and isinstance(args[0], list):
+                obj = CADObject(object_id, object_type, args[0], **kwargs)
+            else:
+                raise ValueError(
+                    "Quadratic Bezier requires list of control points")
+
         elif object_type == ObjectType.POLYGON:
             if len(args) >= 1 and isinstance(args[0], list):
-                obj = PolygonObject(object_id, args[0], **kwargs)
+                obj = CADObject(object_id, object_type, args[0], **kwargs)
             else:
                 raise ValueError("Polygon requires list of vertices")
 
         elif object_type == ObjectType.TEXT:
             if len(args) >= 2:
-                obj = TextObject(object_id, args[0], args[1], **kwargs)
+                obj = CADObject(
+                    object_id, object_type, [args[0], args[1]], **kwargs)
             else:
                 raise ValueError("Text requires position and text content")
 
         elif object_type == ObjectType.DIMENSION:
             if len(args) >= 3:
-                obj = DimensionObject(
-                    object_id, args[0], args[1], args[2], **kwargs)
+                obj = CADObject(
+                    object_id, object_type,
+                    [args[0], args[1], args[2]], **kwargs)
             else:
                 raise ValueError(
                     "Dimension requires start, end, and text position")

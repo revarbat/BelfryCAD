@@ -37,7 +37,7 @@ class CircleTool(Tool):
         return [ToolDefinition(
             token="CIRCLE",
             name="Circle Tool",
-            category=ToolCategory.CIRCLES,
+            category=ToolCategory.ELLIPSES,
             icon="tool-circlectr",
             cursor="crosshair",
             is_creator=True,
@@ -258,7 +258,7 @@ class Circle2PTTool(Tool):
         return [ToolDefinition(
             token="CIRCLE2PT",
             name="Circle by 2 Points",
-            category=ToolCategory.CIRCLES,
+            category=ToolCategory.ELLIPSES,
             icon="tool-circle2pt",
             cursor="crosshair",
             is_creator=True,
@@ -349,7 +349,7 @@ class Circle3PTTool(Tool):
         return [ToolDefinition(
             token="CIRCLE3PT",
             name="Circle by 3 Points",
-            category=ToolCategory.CIRCLES,
+            category=ToolCategory.ELLIPSES,
             icon="tool-circle3pt",
             cursor="crosshair",
             is_creator=True,

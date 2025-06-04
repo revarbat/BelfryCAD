@@ -48,18 +48,26 @@ class TkCADApplication:
         try:
             # Load preferences
             self.preferences.load()
+            self.logger.info("Preferences loaded")
 
             # Create the main window
+            self.logger.info("Creating main window...")
             self.main_window = MainWindow(
                 self.config, self.preferences, self.document)
+            self.logger.info("Main window created")
 
             # Show the window
+            self.logger.info("Showing main window...")
             self.main_window.show()
+            self.logger.info("Main window shown")
 
             self.logger.info("Application started successfully")
 
             # Start the main event loop
-            return self.app.exec()
+            self.logger.info("Starting Qt event loop...")
+            result = self.app.exec()
+            self.logger.info(f"Qt event loop exited with code: {result}")
+            return result
 
         except Exception as e:
             self.logger.error(f"Error in main application loop: {e}")

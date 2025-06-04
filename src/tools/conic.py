@@ -25,7 +25,7 @@ class Conic2PointTool(Tool):
         return [ToolDefinition(
             token="CONIC2PT",
             name="Conic Section by 2 Points",
-            category=ToolCategory.CONICS,
+            category=ToolCategory.ARCS,
             icon="tool-conic2pt",
             cursor="crosshair",
             is_creator=True,
@@ -244,7 +244,7 @@ class Conic3PointTool(Tool):
         return [ToolDefinition(
             token="CONIC3PT",
             name="Conic Section by 3 Points",
-            category=ToolCategory.CONICS,
+            category=ToolCategory.ARCS,
             icon="tool-conic3pt",
             cursor="crosshair",
             is_creator=True,

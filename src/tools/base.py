@@ -27,15 +27,12 @@ class ToolState(Enum):
 
 
 class ToolCategory(Enum):
-    """Categories of tools based on the original TCL toolgroups"""
+    """Categories of tools"""
     SELECTOR = "Selector"
     NODES = "Nodes"
     LINES = "Lines"
-    CIRCLES = "Circles"
     ARCS = "Arcs"
-    BEZIERS = "Beziers"
     ELLIPSES = "Ellipses"
-    CONICS = "Conics"
     POLYGONS = "Polygons"
     TEXT = "Text"
     IMAGES = "Images"
