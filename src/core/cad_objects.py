@@ -168,21 +168,20 @@ class CADObjectManager:
         self.next_id += 1
 
         # Set current layer if not specified
-        if 'layer' not in kwargs:
-            kwargs['layer'] = self.current_layer
+        layer = kwargs.pop('layer', self.current_layer)
 
         # Create appropriate object type
         if object_type == ObjectType.LINE:
             if len(args) >= 2:
                 obj = CADObject(
-                    object_id, object_type, [args[0], args[1]], **kwargs)
+                    object_id, object_type, layer, [args[0], args[1]], **kwargs)
             else:
                 raise ValueError("Line requires start and end points")
 
         elif object_type == ObjectType.ARC:
             if len(args) >= 4:
                 obj = CADObject(
-                    object_id, object_type,
+                    object_id, object_type, layer,
                     [args[0], args[1], args[2], args[3]], **kwargs)
             else:
                 raise ValueError(
@@ -191,40 +190,45 @@ class CADObjectManager:
         elif object_type == ObjectType.CIRCLE:
             if len(args) >= 2:
                 obj = CADObject(
-                    object_id, object_type, [args[0], args[1]], **kwargs)
+                    object_id, object_type, layer,
+                    [args[0], args[1]], **kwargs)
             else:
                 raise ValueError("Circle requires center and radius")
 
         elif object_type == ObjectType.BEZIER:
             if len(args) >= 1 and isinstance(args[0], list):
-                obj = CADObject(object_id, object_type, args[0], **kwargs)
+                obj = CADObject(
+                    object_id, object_type, layer, args[0], **kwargs)
             else:
                 raise ValueError("Bezier requires list of control points")
 
         elif object_type == ObjectType.BEZIERQUAD:
             if len(args) >= 1 and isinstance(args[0], list):
-                obj = CADObject(object_id, object_type, args[0], **kwargs)
+                obj = CADObject(
+                    object_id, object_type, layer, args[0], **kwargs)
             else:
                 raise ValueError(
                     "Quadratic Bezier requires list of control points")
 
         elif object_type == ObjectType.POLYGON:
             if len(args) >= 1 and isinstance(args[0], list):
-                obj = CADObject(object_id, object_type, args[0], **kwargs)
+                obj = CADObject(
+                    object_id, object_type, layer, args[0], **kwargs)
             else:
                 raise ValueError("Polygon requires list of vertices")
 
         elif object_type == ObjectType.TEXT:
             if len(args) >= 2:
                 obj = CADObject(
-                    object_id, object_type, [args[0], args[1]], **kwargs)
+                    object_id, object_type, layer,
+                    [args[0], args[1]], **kwargs)
             else:
                 raise ValueError("Text requires position and text content")
 
         elif object_type == ObjectType.DIMENSION:
             if len(args) >= 3:
                 obj = CADObject(
-                    object_id, object_type,
+                    object_id, object_type, layer,
                     [args[0], args[1], args[2]], **kwargs)
             else:
                 raise ValueError(
@@ -232,7 +236,7 @@ class CADObjectManager:
 
         else:
             # Generic CAD object
-            obj = CADObject(object_id, object_type, **kwargs)
+            obj = CADObject(object_id, object_type, layer, **kwargs)
 
         self.objects[object_id] = obj
         logger.debug(f"Created {object_type.value} object with ID {object_id}")

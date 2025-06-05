@@ -2,14 +2,11 @@
 """Main window for the PyTkCAD application."""
 import math
 from PySide6.QtWidgets import (
-    QMainWindow, QVBoxLayout, QWidget, QToolBar, QMenuBar, QMenu, QApplication,
-    QFileDialog, QMessageBox, QGridLayout, QGraphicsScene,
-    QGraphicsView, QGraphicsItem
+    QMainWindow, QWidget, QFileDialog, QMessageBox, QGridLayout,
+    QGraphicsScene, QGraphicsView
 )
-from PySide6.QtCore import Qt, QSize, QTimer
-from PySide6.QtGui import (
-    QAction, QIcon, QFont, QKeySequence, QPixmap, QPainter, QPen, QColor
-)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPainter, QPen, QColor
 
 try:
     from PIL import Image
@@ -22,9 +19,8 @@ from src.tools import available_tools, ToolManager
 from src.gui.category_button import CategoryToolButton
 from src.gui.rulers import RulerManager
 from src.gui.mainmenu import MainMenuBar
-from .palette_system import (
-    PaletteManager, create_default_palettes, PaletteType
-)
+from src.gui.drawing_manager import DrawingManager, DrawingContext
+from .palette_system import create_default_palettes
 
 
 class CADGraphicsView(QGraphicsView):
@@ -162,6 +158,10 @@ class MainWindow(QMainWindow):
         self.config = config
         self.preferences = preferences
         self.document = document
+        
+        # Track graphics items by object ID for updates/deletion
+        self.graphics_items = {}  # object_id -> list of graphics items
+        
         self._setup_ui()
 
     def _setup_ui(self):
@@ -350,8 +350,9 @@ class MainWindow(QMainWindow):
         # Palette visibility connections
         self.main_menu.show_info_panel_toggled.connect(self.toggle_info_panel)
         self.main_menu.show_properties_toggled.connect(self.toggle_properties)
+        self.main_menu.show_snap_settings_toggled.connect(
+            self.toggle_snap_settings)
         self.main_menu.show_layers_toggled.connect(self.toggle_layers)
-        self.main_menu.show_snap_settings_toggled.connect(self.toggle_snap_settings)
 
         # CAM menu connections
         self.main_menu.configure_mill_triggered.connect(
@@ -419,6 +420,16 @@ class MainWindow(QMainWindow):
 
         self.canvas = CADGraphicsView()
         self.canvas.setScene(self.scene)
+
+        # Initialize DrawingManager for object drawing
+        drawing_context = DrawingContext(
+            scene=self.scene,
+            dpi=72.0,
+            scale_factor=1.0,
+            show_grid=True,
+            show_origin=True
+        )
+        self.drawing_manager = DrawingManager(drawing_context)
 
         # Create ruler manager and get ruler widgets
         self.ruler_manager = RulerManager(self.canvas, central_widget)
@@ -1229,47 +1240,37 @@ class MainWindow(QMainWindow):
 
         # Draw objects from document
         if hasattr(self.document, 'objects'):
-            for obj in self.document.objects:
+            # CADObjectManager stores objects in a dictionary
+            for obj_id, obj in self.document.objects.objects.items():
                 self._draw_object(obj)
 
     def _draw_object(self, obj):
-        """Draw a single object to the scene."""
-        from PySide6.QtGui import QPen, QBrush, QColor
-        from PySide6.QtCore import Qt
-
-        # Default drawing style
-        pen = QPen(QColor(0, 0, 255), 2)  # Blue, 2px width
-        brush = QBrush(Qt.NoBrush)  # No fill
-
-        # Draw based on object type
-        obj_type = getattr(obj, 'type', 'unknown')
-
-        if obj_type == 'line':
-            # Draw line object
-            if hasattr(obj, 'start') and hasattr(obj, 'end'):
-                line = self.scene.addLine(
-                    obj.start.x, obj.start.y, obj.end.x, obj.end.y, pen
-                )
-                line.setZValue(1)
-
-        elif obj_type == 'circle':
-            # Draw circle object
-            if hasattr(obj, 'center') and hasattr(obj, 'radius'):
-                ellipse = self.scene.addEllipse(
-                    obj.center.x - obj.radius, obj.center.y - obj.radius,
-                    obj.radius * 2, obj.radius * 2, pen, brush
-                )
-                ellipse.setZValue(1)
-
-        elif obj_type == 'rectangle':
-            # Draw rectangle object
-            if (hasattr(obj, 'x') and hasattr(obj, 'y') and
-                    hasattr(obj, 'width') and hasattr(obj, 'height')):
-                rect = self.scene.addRect(
-                    obj.x, obj.y, obj.width, obj.height, pen, brush)
-                rect.setZValue(1)
-
-        # Add more object types as needed
+        """Draw a single object to the scene using DrawingManager."""
+        # Get object ID for tracking
+        obj_id = getattr(obj, 'id', None) or id(obj)
+        
+        # Remove any existing graphics items for this object
+        if obj_id in self.graphics_items:
+            for item in self.graphics_items[obj_id]:
+                if item.scene() == self.scene:
+                    self.scene.removeItem(item)
+            del self.graphics_items[obj_id]
+        
+        graphics_items = []
+        
+        # Use the DrawingManager to draw objects with proper TCL translation
+        if hasattr(self, 'drawing_manager'):
+            graphics_items = self.drawing_manager.object_draw(obj)
+            # Store graphics items for this object if any were returned
+            if graphics_items:
+                self.graphics_items[obj_id] = graphics_items
+        else:
+            # Fallback to simple drawing if DrawingManager is not available
+            graphics_items = self._draw_object_simple(obj)
+            if graphics_items:
+                self.graphics_items[obj_id] = graphics_items
+        
+        return graphics_items
 
     def on_object_created(self, obj):
         """Handle when a new object is created by a tool."""
@@ -1404,3 +1405,70 @@ class MainWindow(QMainWindow):
         
         # Sync the menu checkboxes with the new state
         self._sync_palette_menu_states()
+
+    def _draw_object_simple(self, obj):
+        """Fallback method for drawing objects without DrawingManager."""
+        from PySide6.QtGui import QPen, QBrush, QColor
+        from PySide6.QtCore import Qt
+        from src.core.cad_objects import ObjectType
+
+        # Skip invisible objects
+        if not getattr(obj, 'visible', True):
+            return []
+            
+        # Get color from attributes, default to black
+        color_name = obj.attributes.get('color', 'black')
+        if color_name == 'black':
+            color = QColor(0, 0, 0)
+        elif color_name == 'blue':
+            color = QColor(0, 0, 255)
+        elif color_name == 'red':
+            color = QColor(255, 0, 0)
+        elif color_name == 'green':
+            color = QColor(0, 255, 0)
+        else:
+            color = QColor(0, 0, 0)
+            
+        # Get line width from attributes
+        line_width = obj.attributes.get('linewidth', 2)
+        pen = QPen(color, line_width)
+        brush = QBrush(Qt.NoBrush)
+
+        graphics_items = []
+
+        # Draw based on object type
+        if obj.object_type == ObjectType.LINE:
+            if len(obj.coords) >= 2:
+                start = obj.coords[0]
+                end = obj.coords[1]
+                line = self.scene.addLine(start.x, start.y, end.x, end.y, pen)
+                line.setZValue(1)
+                graphics_items.append(line)
+
+        elif obj.object_type == ObjectType.CIRCLE:
+            if len(obj.coords) >= 1 and 'radius' in obj.attributes:
+                center = obj.coords[0]
+                radius = obj.attributes['radius']
+                ellipse = self.scene.addEllipse(
+                    center.x - radius, center.y - radius,
+                    radius * 2, radius * 2, pen, brush
+                )
+                ellipse.setZValue(1)
+                graphics_items.append(ellipse)
+
+        elif obj.object_type == ObjectType.POINT:
+            if len(obj.coords) >= 1:
+                point = obj.coords[0]
+                size = 3
+                h_line = self.scene.addLine(
+                    point.x - size, point.y, point.x + size, point.y, pen
+                )
+                h_line.setZValue(1)
+                graphics_items.append(h_line)
+                v_line = self.scene.addLine(
+                    point.x, point.y - size, point.x, point.y + size, pen
+                )
+                v_line.setZValue(1)
+                graphics_items.append(v_line)
+
+        return graphics_items
