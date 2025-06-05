@@ -12,8 +12,7 @@ from .circle import CircleTool, Circle2PTTool, Circle3PTTool
 from .selector import SelectorTool
 from .nodeselect import NodeSelectTool
 from .bezier import BezierTool, BezierQuadTool
-from .arcs import ArcCenterTool, Arc3PointTool
-from .arc_tangent import ArcTangentTool
+from .arcs import ArcCenterTool, Arc3PointTool, ArcTangentTool
 from .conic import Conic2PointTool, Conic3PointTool
 from .ellipse import (EllipseCenterTool, EllipseDiagonalTool,
                       Ellipse3CornerTool, EllipseCenterTangentTool,
@@ -24,9 +23,9 @@ from .point import PointTool
 from .dimension import (
     HorizontalDimensionTool,
     VerticalDimensionTool,
-    LinearDimensionTool
+    LinearDimensionTool,
+    ArcDimensionTool
 )
-from .arc_dimension import ArcDimensionTool
 from .transforms import (
     NodeAddTool,
     NodeDeleteTool,
