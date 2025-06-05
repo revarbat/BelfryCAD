@@ -147,6 +147,18 @@ class MainMenuBar(QObject):
     show_origin_toggled = Signal(bool)
     show_grid_toggled = Signal(bool)
     
+    # Palette visibility signals
+    show_info_panel_toggled = Signal(bool)
+    show_properties_toggled = Signal(bool)
+    show_layers_toggled = Signal(bool)
+    show_snap_settings_toggled = Signal(bool)
+    
+    # Palette visibility signals
+    show_info_panel_toggled = Signal(bool)
+    show_properties_toggled = Signal(bool)
+    show_layers_toggled = Signal(bool)
+    show_snap_settings_toggled = Signal(bool)
+    
     # CAM menu signals
     configure_mill_triggered = Signal()
     speeds_feeds_wizard_triggered = Signal()
@@ -173,6 +185,12 @@ class MainMenuBar(QObject):
         # Store references to checkable actions
         self.show_origin_action = None
         self.show_grid_action = None
+        
+        # Store references to palette actions
+        self.show_info_panel_action = None
+        self.show_properties_action = None
+        self.show_layers_action = None
+        self.show_snap_settings_action = None
         
         # Create all menus
         self._create_file_menu()
@@ -474,7 +492,46 @@ class MainMenuBar(QObject):
         
         view_menu.addSeparator()
         
-        # Placeholder for subwindows menu items (to be added later)
+        # Palette visibility controls
+        self.show_info_panel_action = QAction("Show &Info Panel", self.parent_window)
+        self.show_info_panel_action.setCheckable(True)
+        self.show_info_panel_action.setChecked(
+            self.preferences.get("show_info_panel", True)
+        )
+        self.show_info_panel_action.triggered.connect(
+            lambda checked: self.show_info_panel_toggled.emit(checked)
+        )
+        view_menu.addAction(self.show_info_panel_action)
+        
+        self.show_properties_action = QAction("Show &Properties", self.parent_window)
+        self.show_properties_action.setCheckable(True)
+        self.show_properties_action.setChecked(
+            self.preferences.get("show_properties", True)
+        )
+        self.show_properties_action.triggered.connect(
+            lambda checked: self.show_properties_toggled.emit(checked)
+        )
+        view_menu.addAction(self.show_properties_action)
+        
+        self.show_layers_action = QAction("Show &Layers", self.parent_window)
+        self.show_layers_action.setCheckable(True)
+        self.show_layers_action.setChecked(
+            self.preferences.get("show_layers", True)
+        )
+        self.show_layers_action.triggered.connect(
+            lambda checked: self.show_layers_toggled.emit(checked)
+        )
+        view_menu.addAction(self.show_layers_action)
+        
+        self.show_snap_settings_action = QAction("Show &Snap Settings", self.parent_window)
+        self.show_snap_settings_action.setCheckable(True)
+        self.show_snap_settings_action.setChecked(
+            self.preferences.get("show_snap_settings", False)
+        )
+        self.show_snap_settings_action.triggered.connect(
+            lambda checked: self.show_snap_settings_toggled.emit(checked)
+        )
+        view_menu.addAction(self.show_snap_settings_action)
     
     def _create_cam_menu(self):
         """Create the CAM menu."""
@@ -565,6 +622,43 @@ class MainMenuBar(QObject):
             self.show_grid_action.setChecked(
                 self.preferences.get("show_grid", True)
             )
+    
+    def update_palette_preferences(self):
+        """Update palette menu checkboxes based on current preferences."""
+        if self.show_info_panel_action:
+            self.show_info_panel_action.setChecked(
+                self.preferences.get("show_info_panel", True)
+            )
+        if self.show_properties_action:
+            self.show_properties_action.setChecked(
+                self.preferences.get("show_properties", True)
+            )
+        if self.show_layers_action:
+            self.show_layers_action.setChecked(
+                self.preferences.get("show_layers", True)
+            )
+        if self.show_snap_settings_action:
+            self.show_snap_settings_action.setChecked(
+                self.preferences.get("show_snap_settings", False)
+            )
+    
+    def sync_palette_menu_states(self, palette_manager):
+        """Sync palette menu checkboxes with actual palette visibility."""
+        if self.show_info_panel_action:
+            visible = palette_manager.is_palette_visible("info_pane")
+            self.show_info_panel_action.setChecked(visible)
+        
+        if self.show_properties_action:
+            visible = palette_manager.is_palette_visible("config_pane")
+            self.show_properties_action.setChecked(visible)
+        
+        if self.show_layers_action:
+            visible = palette_manager.is_palette_visible("layer_window")
+            self.show_layers_action.setChecked(visible)
+        
+        if self.show_snap_settings_action:
+            visible = palette_manager.is_palette_visible("snap_window")
+            self.show_snap_settings_action.setChecked(visible)
     
     def set_document_state(self, has_document: bool, is_modified: bool = False):
         """Update menu item states based on document availability."""
