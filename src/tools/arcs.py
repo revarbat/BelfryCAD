@@ -248,13 +248,13 @@ class Arc3PointTool(Tool):
                 node_info=["Start Point", "Middle Point", "End Point"]
             ),
             ToolDefinition(
-                token="ARC3PT",
+                token="ARC3PTLAST",
                 name="Arc by 3 Points, Middle Last",
                 category=ToolCategory.ARCS,
                 icon="tool-arc3pt-132",
                 cursor="crosshair",
                 is_creator=True,
-                secondary_key="3",
+                secondary_key="M",
                 node_info=["Start Point", "End Point", "Middle Point"]
             )
         ]

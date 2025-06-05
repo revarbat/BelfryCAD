@@ -31,20 +31,51 @@ class ToolPalette(QFrame):
         self._setup_ui()
 
     def _create_secondary_key_mappings(self) -> Dict[str, str]:
-        """Create secondary key mappings for tools within this category"""
+        """Create secondary key mappings for tools within this category
+
+        Raises:
+            ValueError: If multiple tools in the same category have the same
+                       secondary key
+        """
         mappings = {}
+        key_conflicts = {}  # Track which tools use each key
 
         # Map the tools from this palette to their secondary keys
         for tool_def in self.tools:
-            # Special case for ellipses 
-            if (self.category == ToolCategory.ELLIPSES and 
+            # Special case for ellipses
+            if (self.category == ToolCategory.ELLIPSES and
                     tool_def.token == "ELLIPSEOPTAN"):
-                mappings["O"] = "ELLIPSEOPTAN"
-            elif (self.category == ToolCategory.ELLIPSES and 
-                    tool_def.token == "ELLIPSE3CRN"):
-                mappings["O"] = "ELLIPSE3CRN"
+                key = "O"
+                if key in mappings:
+                    # Record the conflict for error reporting
+                    if key not in key_conflicts:
+                        key_conflicts[key] = [mappings[key]]
+                    key_conflicts[key].append(tool_def.token)
+                else:
+                    mappings[key] = tool_def.token
             elif tool_def.secondary_key:
-                mappings[tool_def.secondary_key] = tool_def.token
+                key = tool_def.secondary_key
+                if key in mappings:
+                    # Record the conflict for error reporting
+                    if key not in key_conflicts:
+                        key_conflicts[key] = [mappings[key]]
+                    key_conflicts[key].append(tool_def.token)
+                else:
+                    mappings[key] = tool_def.token
+
+        # Check for conflicts and throw error
+        if key_conflicts:
+            conflict_details = []
+            for key, tools in key_conflicts.items():
+                conflict_details.append(f"Key '{key}': {', '.join(tools)}")
+
+            error_msg = (
+                f"Duplicate secondary shortcut keys found in "
+                f"{self.category.value} category:\n"
+                + "\n".join(conflict_details) +
+                "\n\nEach tool in a category must have a unique secondary key."
+            )
+            raise ValueError(error_msg)
 
         return mappings
 
@@ -114,10 +145,6 @@ class ToolPalette(QFrame):
 
     def _get_secondary_key_for_tool(self, tool_token: str) -> str:
         """Get the secondary key for a specific tool token"""
-        # Special case for ELLIPSE3CRN
-        if tool_token == "ELLIPSE3CRN":
-            return "O"
-        
         for key, token in self.secondary_key_mappings.items():
             if token == tool_token:
                 return key

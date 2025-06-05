@@ -340,7 +340,7 @@ class Ellipse3CornerTool(Tool):
             icon="tool-ellipse3crn",
             cursor="crosshair",
             is_creator=True,
-            secondary_key="O",
+            secondary_key="R",
             node_info=["First Corner", "Second Corner", "Third Corner"]
         )]
 

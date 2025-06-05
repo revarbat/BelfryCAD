@@ -103,6 +103,7 @@ Secondary shortcuts are implemented in `ToolPalette` class and provide letter-ba
 #### Arc Tools (A + secondary key)
 - C - Arc by Center (ARCCTR)
 - 3 - Arc by 3 Points (ARC3PT)
+- M - Arc by 3 Points, Middle Last (ARC3PTLAST)
 - T - Arc by Tangent (ARCTAN)
 - 2 - Conic 2 Point (CONIC2PT)
 - I - Conic 3 Point (CONIC3PT)

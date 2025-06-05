@@ -248,7 +248,7 @@ class Conic3PointTool(Tool):
             icon="tool-conic3pt",
             cursor="crosshair",
             is_creator=True,
-            secondary_key="3",
+            secondary_key="I",
             node_info=["Starting Point", "Ending Point", "Slope Control Point"]
         )]
 
