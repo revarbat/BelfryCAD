@@ -2,32 +2,13 @@
 """
 Ellipse Drawing Tool Implementation
 
-This module implements various ellipse drawing t    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
-            token="ELLIPSEDIAG",
-            name="Ellipse by Diagonal",
-            category=ToolCategory.ELLIPSES,
-            icon="tool-ellipsediag",
-            cursor="crosshair",
-            is_creator=True,
-            secondary_key="D",
-            node_info=["First Corner", "Second Corner"]
-        )]on the original TCL
-tools_ellipses.tcl implementation.
+This module implements various ellipse drawing tools.
 """
 
 import math
-from typing import Optional, List        return [ToolDefinition(
-            token="ELLIPSEOPTAN",
-            name="Ellipse Opposite Tangent",
-            category=ToolCategory.ELLIPSES,
-            icon="tool-ellipseoptan",
-            cursor="crosshair",
-            is_creator=True,
-            secondary_key="O",
-            node_info=["First Point", "Tangent Line Point", "Opposite Point"]
-        )].core.cad_objects import CADObject, ObjectType, Point
+from typing import Optional, List
+
+from src.core.cad_objects import CADObject, ObjectType, Point
 from src.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
@@ -184,6 +165,7 @@ class EllipseDiagonalTool(Tool):
             category=ToolCategory.ELLIPSES,
             icon="tool-ellipsediag",
             cursor="crosshair",
+            secondary_key="D",
             is_creator=True,
             node_info=["First Corner", "Opposite Corner"]
         )]
@@ -358,7 +340,7 @@ class Ellipse3CornerTool(Tool):
             icon="tool-ellipse3crn",
             cursor="crosshair",
             is_creator=True,
-            secondary_key="3",
+            secondary_key="O",
             node_info=["First Corner", "Second Corner", "Third Corner"]
         )]
 

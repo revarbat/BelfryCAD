@@ -40,6 +40,9 @@ class ToolPalette(QFrame):
             if (self.category == ToolCategory.ELLIPSES and 
                     tool_def.token == "ELLIPSEOPTAN"):
                 mappings["O"] = "ELLIPSEOPTAN"
+            elif (self.category == ToolCategory.ELLIPSES and 
+                    tool_def.token == "ELLIPSE3CRN"):
+                mappings["O"] = "ELLIPSE3CRN"
             elif tool_def.secondary_key:
                 mappings[tool_def.secondary_key] = tool_def.token
 
@@ -111,6 +114,10 @@ class ToolPalette(QFrame):
 
     def _get_secondary_key_for_tool(self, tool_token: str) -> str:
         """Get the secondary key for a specific tool token"""
+        # Special case for ELLIPSE3CRN
+        if tool_token == "ELLIPSE3CRN":
+            return "O"
+        
         for key, token in self.secondary_key_mappings.items():
             if token == tool_token:
                 return key

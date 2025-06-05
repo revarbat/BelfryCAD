@@ -29,6 +29,7 @@ class Conic2PointTool(Tool):
             icon="tool-conic2pt",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="2",
             node_info=["Starting Point", "Ending Point"]
         )]
 
@@ -37,7 +38,6 @@ class Conic2PointTool(Tool):
         # In Qt, event handling is done differently - these will be connected
         # in the main window or graphics view
         pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -176,10 +176,10 @@ class Conic2PointTool(Tool):
             # Create path for smooth conic curve
             path = QPainterPath()
             path.moveTo(arc_points[0], arc_points[1])
-            
+
             for i in range(2, len(arc_points), 2):
                 path.lineTo(arc_points[i], arc_points[i+1])
-            
+
             path_item = QGraphicsPathItem(path)
             pen = QPen(QColor("blue"))
             pen.setStyle(Qt.DashLine)
@@ -248,6 +248,7 @@ class Conic3PointTool(Tool):
             icon="tool-conic3pt",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="3",
             node_info=["Starting Point", "Ending Point", "Slope Control Point"]
         )]
 
@@ -256,7 +257,6 @@ class Conic3PointTool(Tool):
         # In Qt, event handling is done differently - these will be connected
         # in the main window or graphics view
         pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -336,10 +336,10 @@ class Conic3PointTool(Tool):
                 # Create path for smooth bezier curve
                 path = QPainterPath()
                 path.moveTo(curve_points[0], curve_points[1])
-                
+
                 for i in range(2, len(curve_points), 2):
                     path.lineTo(curve_points[i], curve_points[i+1])
-                
+
                 path_item = QGraphicsPathItem(path)
                 pen = QPen(QColor("blue"))
                 pen.setStyle(Qt.DashLine)
