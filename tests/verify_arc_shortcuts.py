@@ -4,12 +4,19 @@ Simple verification test for Arc tool shortcuts.
 Tests that ARC3PT='3' and ARCTAN='T' in tool_palette.py
 """
 
+import os
+import sys
+# Adjust import path to work from the tests directory
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 def test_arc_shortcuts_in_file():
     """Test Arc shortcuts by reading the actual file content."""
     print("Verifying Arc tool shortcuts in tool_palette.py...")
     
     try:
-        with open('src/gui/tool_palette.py', 'r') as f:
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'src', 'gui', 'tool_palette.py')
+        with open(file_path, 'r') as f:
             content = f.read()
         
         # Check for the expected Arc tool mappings
@@ -71,11 +78,9 @@ def test_arc_shortcuts_in_file():
 
 
 if __name__ == "__main__":
-    import sys
-    import os
-    
-    # Change to the correct directory
-    os.chdir('/Users/gminette/dev/git-repos/pyTkCAD')
+    # Change to the project root directory
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    os.chdir(project_root)
     
     success = test_arc_shortcuts_in_file()
     sys.exit(0 if success else 1)

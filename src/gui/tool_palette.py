@@ -34,89 +34,14 @@ class ToolPalette(QFrame):
         """Create secondary key mappings for tools within this category"""
         mappings = {}
 
-        # Define secondary shortcuts based on category and tool names
-        if self.category == ToolCategory.NODES:
-            # N is the primary key, secondary keys use mnemonic letters
-            tool_map = {
-                'NODESEL': 'S',      # Select nodes
-                'NODEADD': 'A',      # Add node
-                'NODEDEL': 'D',      # Delete node
-                'REORIENT': 'R',     # Reorient
-                'CONNECT': 'C',      # Connect
-            }
-        elif self.category == ToolCategory.LINES:
-            # L is primary, secondary keys use mnemonic letters
-            tool_map = {
-                'LINE': 'L',         # Line Tool (L for Line)
-                'LINEMP': 'M',       # Multi-Point Line (M for Multi-point)
-                'POLYLINE': 'P',     # Polyline (P for Polyline)
-                'BEZIER': 'B',       # Bezier (B for Bezier)
-                'BEZIERQUAD': 'Q',   # Bezier Quad (Q for Quad)
-            }
-        elif self.category == ToolCategory.ARCS:
-            # A is primary, secondary keys use letters and digits
-            tool_map = {
-                'ARCCTR': 'C',       # Arc by Center (C for Center)
-                'ARC3PT': '3',       # Arc by 3 Points (3 for 3 points)
-                'ARCTAN': 'T',       # Arc by Tangent (T for Tangent)
-                'CONIC2PT': '2',     # Conic 2 Point (2 for 2 points)
-                'CONIC3PT': 'I',     # Conic 3 Point (I for conIc 3pt)
-            }
-        elif self.category == ToolCategory.ELLIPSES:
-            # E is primary, secondary keys use mnemonic letters and digits
-            tool_map = {
-                'CIRCLE': 'C',       # Circle Tool (C for Circle)
-                'CIRCLE2PT': '2',    # Circle by 2 Points (2 for 2 points)
-                'CIRCLE3PT': '3',    # Circle by 3 Points (3 for 3 points)
-                'ELLIPSECTR': 'E',   # Ellipse Center (E for Ellipse)
-                'ELLIPSEDIAG': 'D',  # Ellipse Diagonal (D for Diagonal)
-                'ELLIPSE3COR': 'O',  # Ellipse 3 Corner (O for cOrner)
-                'ELLIPSECTAN': 'T',  # Ellipse Center Tangent (T for Tangent)
-                'ELLIPSEOPTAN': 'G',  # Ellipse Opposite Tangent (G tanGent)
-            }
-        elif self.category == ToolCategory.POLYGONS:
-            # P is primary, secondary keys use mnemonic letters
-            tool_map = {
-                'RECTANGLE': 'R',    # Rectangle (R for Rectangle)
-                'REGPOLYGON': 'G',   # Regular Polygon (G for reGular polygon)
-            }
-        elif self.category == ToolCategory.DIMENSIONS:
-            # D is primary, secondary keys use mnemonic letters
-            tool_map = {
-                'DIMLINEH': 'H',     # Horizontal Dimension (H for Horizontal)
-                'DIMLINEV': 'V',     # Vertical Dimension (V for Vertical)
-                'DIMLINE': 'L',      # Linear Dimension (L for Linear)
-                'DIMARC': 'A',       # Arc Dimension (A for Arc)
-            }
-        elif self.category == ToolCategory.TRANSFORMS:
-            # F is primary, secondary keys use mnemonic letters
-            tool_map = {
-                'TRANSLATE': 'T',    # Translate (T for Translate)
-                'ROTATE': 'R',       # Rotate (R for Rotate)
-                'SCALE': 'S',        # Scale (S for Scale)
-                'FLIP': 'F',         # Flip (F for Flip)
-                'SHEAR': 'H',        # Shear (H for sHear)
-                'BEND': 'B',         # Bend (B for Bend)
-                'WRAP': 'W',         # Wrap (W for Wrap)
-                'UNWRAP': 'U',       # Un-wrap (U for Unwrap)
-            }
-        elif self.category == ToolCategory.DUPLICATORS:
-            # U is primary, secondary keys use mnemonic letters
-            tool_map = {
-                'LINEARCOPY': 'L',   # Linear Copy (L for Linear)
-                'RADIALCOPY': 'R',   # Radial Copy (R for Radial)
-                'GRIDCOPY': 'G',     # Grid Copy (G for Grid)
-                'OFFSETCOPY': 'O',   # Offset Copy (O for Offset)
-            }
-        else:
-            # For single-tool categories or categories without
-            # specific mappings
-            tool_map = {}
-
         # Map the tools from this palette to their secondary keys
         for tool_def in self.tools:
-            if tool_def.token in tool_map:
-                mappings[tool_map[tool_def.token]] = tool_def.token
+            # Special case for ellipses 
+            if (self.category == ToolCategory.ELLIPSES and 
+                    tool_def.token == "ELLIPSEOPTAN"):
+                mappings["O"] = "ELLIPSEOPTAN"
+            elif tool_def.secondary_key:
+                mappings[tool_def.secondary_key] = tool_def.token
 
         return mappings
 

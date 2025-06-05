@@ -72,12 +72,13 @@ class ToolDefinition:
     is_creator: bool = True        # Whether the tool creates objects
     show_controls: bool = False    # Whether to show control points
     keyboard_shortcut: str = ""    # Optional keyboard shortcut
+    secondary_key: str = ""        # Secondary key for palette selection
     node_info: List[str] = field(default_factory=list)  # Info about nodes
 
 
 class Tool(QObject):
     """Base class for all drawing and editing tools"""
-    
+
     # Signal emitted when an object is created
     object_created = Signal(CADObject)
 
@@ -187,7 +188,7 @@ class Tool(QObject):
                 self.document.mark_modified()
                 # Emit signal to notify the main window to redraw
                 self.object_created.emit(obj)
-            
+
             # Reset for next operation
             self.points = []
             self.clear_temp_objects()

@@ -43,6 +43,7 @@ class GridCopyTool(Tool):
             icon="tool-gridcopy",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="G",
             show_controls=True
         )]
 
@@ -134,6 +135,7 @@ class LinearCopyTool(Tool):
             icon="tool-linearcopy",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="L",
             show_controls=True
         )]
 
@@ -241,6 +243,7 @@ class RadialCopyTool(Tool):
             icon="tool-radialcopy",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="R",
             show_controls=True
         )]
 
@@ -347,6 +350,7 @@ class OffsetCopyTool(Tool):
             icon="tool-offsetcopy",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="O",
             show_controls=True
         )]
 

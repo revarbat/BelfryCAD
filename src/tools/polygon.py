@@ -44,6 +44,7 @@ class RectangleTool(Tool):
             icon="tool-rectangle",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="R",
             node_info=["First Corner", "Opposite Corner"]
         )]
 
@@ -520,6 +521,7 @@ class RegularPolygonTool(Tool):
             icon="tool-regpolygon",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="G",
             node_info=["Center Point", "Radius Point"]
         )]
 

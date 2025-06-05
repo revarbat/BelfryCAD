@@ -56,6 +56,7 @@ class HorizontalDimensionTool(Tool):
             icon="tool-dimlineh",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="H",
             node_info=["Start Point", "End Point", "Line Offset"]
         )]
 
@@ -245,6 +246,7 @@ class VerticalDimensionTool(Tool):
             icon="tool-dimlinev",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="V",
             node_info=["Start Point", "End Point", "Line Offset"]
         )]
 
@@ -442,6 +444,7 @@ class LinearDimensionTool(Tool):
             icon="tool-dimline",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="L",
             node_info=["Start Point", "End Point", "Line Offset"]
         )]
 
@@ -762,6 +765,7 @@ class ArcDimensionTool(Tool):
             icon="tool-dimarc",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="A",
             node_info=["Center Point", "Start Point", "End Point",
                        "Arc Offset"]
         )]

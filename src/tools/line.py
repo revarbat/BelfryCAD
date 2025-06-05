@@ -45,6 +45,7 @@ class LineTool(Tool):
             icon="tool-line",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="L",
             node_info=["Start Point", "End Point"]
         )]
 

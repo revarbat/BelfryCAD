@@ -30,6 +30,7 @@ class BezierTool(Tool):
             icon="tool-bezier",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="B",
             node_info=["First Point", "Next Point", "..."]
         )]
 
@@ -172,6 +173,7 @@ class BezierQuadTool(Tool):
             icon="tool-bezierquad",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="Q",
             node_info=["First Point", "Control Point", "Next Point", "..."]
         )]
 

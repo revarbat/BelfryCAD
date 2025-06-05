@@ -110,6 +110,7 @@ class LineMPTool(Tool):
                 icon="tool-linemp",
                 cursor="crosshair",
                 is_creator=True,
+                secondary_key="M",
                 node_info=["Midpoint", "Endpoint"]
             ),
             ToolDefinition(

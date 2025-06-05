@@ -1,11 +1,11 @@
-#!/usr/bin/env python3
 """
 Test to verify the ARCCTR secondary key fix works correctly.
 """
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+# Adjust import path to work from the tests directory
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QLabel
 from PySide6.QtCore import Qt

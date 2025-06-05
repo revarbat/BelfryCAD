@@ -41,6 +41,7 @@ class CircleTool(Tool):
             icon="tool-circlectr",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="C",
             node_info=["Center Point", "Radius Point"]
         )]
 
@@ -262,6 +263,7 @@ class Circle2PTTool(Tool):
             icon="tool-circle2pt",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="2",
             node_info=["First Point", "Second Point"]
         )]
 
@@ -353,6 +355,7 @@ class Circle3PTTool(Tool):
             icon="tool-circle3pt",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="3",
             node_info=["First Point", "Second Point", "Third Point"]
         )]
 

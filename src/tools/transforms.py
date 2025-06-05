@@ -40,6 +40,7 @@ class NodeAddTool(Tool):
             icon="tool-nodeadd",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="A",
             show_controls=True,
             node_info=["Node Add Position"]
         )]
@@ -91,6 +92,7 @@ class NodeDeleteTool(Tool):
             icon="tool-nodedel",
             cursor="top_left_arrow",
             is_creator=False,
+            secondary_key="D",
             show_controls=True,
             node_info=["Node to Delete"]
         )]
@@ -152,6 +154,7 @@ class ReorientTool(Tool):
             icon="tool-reorient",
             cursor="top_left_arrow",
             is_creator=False,
+            secondary_key="R",
             show_controls=True,
             node_info=["Node to Reorient Endpoints To"]
         )]
@@ -202,6 +205,7 @@ class ConnectTool(Tool):
             icon="tool-connect",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="C",
             node_info=["Start Point", "End Point"]
         )]
 
@@ -283,6 +287,7 @@ class TranslateTool(Tool):
             icon="tool-translate",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="T",
             node_info=["Reference Point", "Move To"]
         )]
 
@@ -430,6 +435,7 @@ class RotateTool(Tool):
             icon="tool-rotate",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="R",
             node_info=["Center of Rotation", "Reference Point", "Rotate To"]
         )]
 
@@ -583,6 +589,7 @@ class ScaleTool(Tool):
             icon="tool-scale",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="S",
             node_info=["Center of Scaling", "Reference Point", "Scale To"]
         )]
 
@@ -752,6 +759,7 @@ class FlipTool(Tool):
             icon="tool-flip",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="F",
             node_info=["Start of Line to Flip Across", "End of Line to Flip Across"]
         )]
 
@@ -898,6 +906,7 @@ class ShearTool(Tool):
             icon="tool-shear",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="H",
             node_info=["Center of Shear", "Reference Point", "Shear To"]
         )]
 
@@ -1069,6 +1078,7 @@ class BendTool(Tool):
             icon="tool-bend",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="B",
             node_info=["First Endpoint", "Second Endpoint", "Control Point"]
         )]
 
@@ -1184,6 +1194,7 @@ class WrapTool(Tool):
             icon="tool-wrap",
             cursor="crosshair",
             is_creator=False,
+            secondary_key="W",
             node_info=["Center Point", "Reference Point", "Tangent Point"]
         )]
 
@@ -1287,6 +1298,7 @@ class UnwrapTool(Tool):
             category=ToolCategory.TRANSFORMS,
             icon="tool-unwrap",
             cursor="crosshair",
+            secondary_key="U",
             is_creator=False,
             node_info=["Center Point", "Reference Point", "Tangent Point"]
         )]

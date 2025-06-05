@@ -42,6 +42,7 @@ class PolylineTool(Tool):
             icon="tool-lines",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="P",
             node_info=[
                 "Click points for polyline segments",
                 "Escape to finish"

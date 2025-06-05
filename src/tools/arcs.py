@@ -58,6 +58,7 @@ class ArcCenterTool(Tool):
             icon="tool-arcctr",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="C",
             node_info=["Center Point", "Start Point", "End Point"]
         )]
 
@@ -243,6 +244,7 @@ class Arc3PointTool(Tool):
                 icon="tool-arc3pt-123",
                 cursor="crosshair",
                 is_creator=True,
+                secondary_key="3",
                 node_info=["Start Point", "Middle Point", "End Point"]
             ),
             ToolDefinition(
@@ -252,6 +254,7 @@ class Arc3PointTool(Tool):
                 icon="tool-arc3pt-132",
                 cursor="crosshair",
                 is_creator=True,
+                secondary_key="3",
                 node_info=["Start Point", "End Point", "Middle Point"]
             )
         ]
@@ -515,6 +518,7 @@ class ArcTangentTool(Tool):
             icon="tool-arctan",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="T",
             node_info=["Starting Point", "Tangent Line Point", "Ending Point"]
         )]
 

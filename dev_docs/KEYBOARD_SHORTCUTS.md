@@ -115,7 +115,7 @@ Secondary shortcuts are implemented in `ToolPalette` class and provide letter-ba
 - D - Ellipse Diagonal (ELLIPSEDIAG)
 - O - Ellipse 3 Corner (ELLIPSE3COR)
 - T - Ellipse Center Tangent (ELLIPSECTAN)
-- G - Ellipse Opposite Tangent (ELLIPSEOPTAN)
+- O - Ellipse Opposite Tangent (ELLIPSEOPTAN)
 
 #### Polygon Tools (P + secondary key)
 - R - Rectangle (RECTANGLE)
@@ -197,10 +197,11 @@ def keyPressEvent(self, event: QKeyEvent):
 
 ## Technical Features
 
-### Error Handling
-- Graceful handling of missing UI components during initialization
-- Safe disconnection of timer signals to prevent crashes
-- Proper event propagation to parent widgets
+### Special Case Handling
+
+Some tool categories have multiple tools that use the same secondary shortcut letter. These are handled with special case logic:
+
+- **Ellipse Tools**: Both "Ellipse 3 Corner" and "Ellipse Opposite Tangent" use the "O" shortcut, with a special case in the code to handle this correctly.
 
 ### Performance
 - Lazy palette creation (created only when first needed)
@@ -214,14 +215,14 @@ def keyPressEvent(self, event: QKeyEvent):
 
 ## Testing
 
-The implementation includes comprehensive tests:
+The implementation includes comprehensive tests in the tests directory:
 
 ```bash
 # Run primary and secondary shortcut tests
-python test_complete_keyboard_shortcuts.py
+python -m tests.test_complete_keyboard_shortcuts
 
 # Run original shortcut tests  
-python tests/test_keyboard_shortcuts.py
+python -m tests.test_keyboard_shortcuts
 
 # Run the application to test interactively
 python main.py
@@ -253,7 +254,7 @@ To verify the implementation is working:
 
 ```bash
 # Simple validation test
-python validate_keyboard_shortcuts.py
+python -m tests.validate_keyboard_shortcuts
 
 # Full application test
 python main.py
