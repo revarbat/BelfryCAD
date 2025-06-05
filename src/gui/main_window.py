@@ -5,10 +5,8 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QGridLayout, QFileDialog,
     QMessageBox, QGraphicsView, QGraphicsScene
 )
-from PySide6.QtCore import Qt, QPointF
-from PySide6.QtGui import (
-    QPainter, QPen, QBrush, QColor, QAction, QIcon, QPixmap
-)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPainter, QPen, QColor
 
 try:
     from PIL import Image
@@ -20,7 +18,6 @@ except ImportError:
 from src.tools import available_tools, ToolManager
 from src.gui.category_button import CategoryToolButton
 from src.gui.rulers import RulerManager
-from src.gui.preferences_dialog import PreferencesDialog
 from src.gui.mainmenu import MainMenuBar
 
 
@@ -194,15 +191,81 @@ class MainWindow(QMainWindow):
         self._create_toolbar()
         self._create_canvas()
         self._setup_tools()
+        self._setup_category_shortcuts()
+        self._update_shortcut_tooltips()
+
+    def _setup_category_shortcuts(self):
+        """Set up keyboard shortcuts for tool category activation"""
+        from PySide6.QtGui import QShortcut, QKeySequence
+        from src.tools.base import ToolCategory
+
+        # Define key mappings for tool categories
+        self.category_key_mappings = {
+            'Space': ToolCategory.SELECTOR,  # Spacebar for Selector
+            'N': ToolCategory.NODES,         # N for Nodes
+            'L': ToolCategory.LINES,         # L for Lines
+            'A': ToolCategory.ARCS,          # A for Arcs
+            'E': ToolCategory.ELLIPSES,      # E for Ellipses
+            'P': ToolCategory.POLYGONS,      # P for Polygons
+            'T': ToolCategory.TEXT,          # T for Text
+            'I': ToolCategory.IMAGES,        # I for Images
+            'D': ToolCategory.DIMENSIONS,    # D for Dimensions
+            'F': ToolCategory.TRANSFORMS,    # F for transForm
+            'Y': ToolCategory.LAYOUT,        # LaYout
+            'U': ToolCategory.DUPLICATORS,   # dUplicators
+            'O': ToolCategory.POINTS,        # pOints
+            'H': ToolCategory.SCREWHOLES,    # H for screw Holes
+        }
+
+        # Create shortcuts for each category
+        self.category_shortcuts = {}
+        for key, category in self.category_key_mappings.items():
+            shortcut = QShortcut(QKeySequence(key), self)
+            shortcut.activated.connect(
+                lambda cat=category: self._activate_category_shortcut(cat)
+            )
+            self.category_shortcuts[category] = shortcut
+
+    def _update_shortcut_tooltips(self):
+        """Update category button tooltips to show keyboard shortcuts"""
+        if not hasattr(self, 'category_key_mappings'):
+            return
+
+        for key, category in self.category_key_mappings.items():
+            if (hasattr(self, 'category_buttons') and
+                    category in self.category_buttons):
+                button = self.category_buttons[category]
+                current_tooltip = button.toolTip()
+                # Only add shortcut hint if not already present
+                if f"({key})" not in current_tooltip:
+                    new_tooltip = f"{current_tooltip} ({key})"
+                    button.setToolTip(new_tooltip)
+
+    def _activate_category_shortcut(self, category):
+        """Handle keyboard shortcut activation for a tool category"""
+        if (not hasattr(self, 'category_buttons') or
+                category not in self.category_buttons):
+            return
+
+        category_button = self.category_buttons[category]
+
+        # Check if this category has only one tool
+        if len(category_button.tools) == 1:
+            # Single tool: activate it directly
+            if category_button.current_tool:
+                self.activate_tool(category_button.current_tool.token)
+        else:
+            # Multiple tools: show the palette
+            category_button._show_palette()
 
     def _create_menu(self):
         """Create the comprehensive main menu system."""
         # Initialize the main menu bar
         self.main_menu = MainMenuBar(self, self.preferences)
-        
+
         # Connect menu signals to handlers
         self._connect_menu_signals()
-    
+
     def _connect_menu_signals(self):
         """Connect menu signals to their corresponding handlers."""
         # File menu connections
@@ -215,7 +278,7 @@ class MainWindow(QMainWindow):
         self.main_menu.export_triggered.connect(self.export_file)
         self.main_menu.page_setup_triggered.connect(self.page_setup)
         self.main_menu.print_triggered.connect(self.print_file)
-        
+
         # Edit menu connections
         self.main_menu.undo_triggered.connect(self.undo)
         self.main_menu.redo_triggered.connect(self.redo)
@@ -228,13 +291,13 @@ class MainWindow(QMainWindow):
         self.main_menu.deselect_all_triggered.connect(self.deselect_all)
         self.main_menu.group_triggered.connect(self.group_selection)
         self.main_menu.ungroup_triggered.connect(self.ungroup_selection)
-        
+
         # Arrange submenu connections
         self.main_menu.raise_to_top_triggered.connect(self.raise_to_top)
         self.main_menu.raise_triggered.connect(self.raise_selection)
         self.main_menu.lower_triggered.connect(self.lower_selection)
         self.main_menu.lower_to_bottom_triggered.connect(self.lower_to_bottom)
-        
+
         # Transform connections
         self.main_menu.rotate_90_ccw_triggered.connect(
             lambda: self.rotate_selection(-90)
@@ -245,20 +308,29 @@ class MainWindow(QMainWindow):
         self.main_menu.rotate_180_triggered.connect(
             lambda: self.rotate_selection(180)
         )
-        
+
         # Conversion connections
-        self.main_menu.convert_to_lines_triggered.connect(self.convert_to_lines)
-        self.main_menu.convert_to_curves_triggered.connect(self.convert_to_curves)
-        self.main_menu.simplify_curves_triggered.connect(self.simplify_curves)
-        self.main_menu.smooth_curves_triggered.connect(self.smooth_curves)
-        self.main_menu.join_curves_triggered.connect(self.join_curves)
-        self.main_menu.vectorize_bitmap_triggered.connect(self.vectorize_bitmap)
-        
+        self.main_menu.convert_to_lines_triggered.connect(
+            self.convert_to_lines)
+        self.main_menu.convert_to_curves_triggered.connect(
+            self.convert_to_curves)
+        self.main_menu.simplify_curves_triggered.connect(
+            self.simplify_curves)
+        self.main_menu.smooth_curves_triggered.connect(
+            self.smooth_curves)
+        self.main_menu.join_curves_triggered.connect(
+            self.join_curves)
+        self.main_menu.vectorize_bitmap_triggered.connect(
+            self.vectorize_bitmap)
+
         # Boolean operations connections
-        self.main_menu.union_polygons_triggered.connect(self.union_polygons)
-        self.main_menu.difference_polygons_triggered.connect(self.difference_polygons)
-        self.main_menu.intersection_polygons_triggered.connect(self.intersection_polygons)
-        
+        self.main_menu.union_polygons_triggered.connect(
+            self.union_polygons)
+        self.main_menu.difference_polygons_triggered.connect(
+            self.difference_polygons)
+        self.main_menu.intersection_polygons_triggered.connect(
+            self.intersection_polygons)
+
         # View menu connections
         self.main_menu.redraw_triggered.connect(self.redraw)
         self.main_menu.actual_size_triggered.connect(self.actual_size)
@@ -267,19 +339,25 @@ class MainWindow(QMainWindow):
         self.main_menu.zoom_out_triggered.connect(self.zoom_out)
         self.main_menu.show_origin_toggled.connect(self.toggle_show_origin)
         self.main_menu.show_grid_toggled.connect(self.toggle_show_grid)
-        
+
         # CAM menu connections
-        self.main_menu.configure_mill_triggered.connect(self.configure_mill)
-        self.main_menu.speeds_feeds_wizard_triggered.connect(self.speeds_feeds_wizard)
-        self.main_menu.generate_gcode_triggered.connect(self.generate_gcode)
-        self.main_menu.backtrace_gcode_triggered.connect(self.backtrace_gcode)
+        self.main_menu.configure_mill_triggered.connect(
+            self.configure_mill)
+        self.main_menu.speeds_feeds_wizard_triggered.connect(
+            self.speeds_feeds_wizard)
+        self.main_menu.generate_gcode_triggered.connect(
+            self.generate_gcode)
+        self.main_menu.backtrace_gcode_triggered.connect(
+            self.backtrace_gcode)
         self.main_menu.make_worm_triggered.connect(self.make_worm)
-        self.main_menu.make_worm_gear_triggered.connect(self.make_worm_gear)
+        self.main_menu.make_worm_gear_triggered.connect(
+            self.make_worm_gear)
         self.main_menu.make_gear_triggered.connect(self.make_gear)
-        
+
         # Window menu connections
         self.main_menu.minimize_triggered.connect(self.showMinimized)
-        self.main_menu.cycle_windows_triggered.connect(self.cycle_windows)
+        self.main_menu.cycle_windows_triggered.connect(
+            self.cycle_windows)
 
     def _create_toolbar(self):
         """Create a toolbar with drawing tools"""
@@ -355,7 +433,7 @@ class MainWindow(QMainWindow):
 
         # Add axis lines at X=0 and Y=0
         self._add_axis_lines()
-        
+
         # Add grid lines that align with ruler major tickmarks
         self._add_grid_lines()
 
@@ -398,13 +476,14 @@ class MainWindow(QMainWindow):
             tools_by_category[category].append(tool)
 
             # Add tool to tools menu
-            # (Removed since we now use comprehensive menu system)
+            # Create tool menu action
             # menu_action = QAction(tool.definition.name, self)
             # icon = self._load_tool_icon(tool.definition.icon)
             # if icon:
             #     menu_action.setIcon(icon)
             # menu_action.triggered.connect(
-            #     lambda checked, t=tool.definition.token: self.activate_tool(t)
+            #     lambda checked, t=tool.definition.token:
+            #         self.activate_tool(t)
             # )
             # self.tools_menu.addAction(menu_action)
 
@@ -563,7 +642,7 @@ class MainWindow(QMainWindow):
             try:
                 # TODO: Implement import functionality
                 QMessageBox.information(
-                    self, "Import", 
+                    self, "Import",
                     f"Import functionality not yet implemented for {filename}"
                 )
             except Exception as e:
@@ -579,13 +658,14 @@ class MainWindow(QMainWindow):
             self,
             "Export File",
             "",
-            "SVG files (*.svg);;DXF files (*.dxf);;PDF files (*.pdf);;All files (*.*)"
+            "SVG files (*.svg);;DXF files (*.dxf);;"
+            "PDF files (*.pdf);;All files (*.*)"
         )
         if filename:
             try:
                 # TODO: Implement export functionality
                 QMessageBox.information(
-                    self, "Export", 
+                    self, "Export",
                     f"Export functionality not yet implemented for {filename}"
                 )
             except Exception as e:
@@ -598,14 +678,14 @@ class MainWindow(QMainWindow):
     def page_setup(self):
         """Handle Page Setup menu action."""
         QMessageBox.information(
-            self, "Page Setup", 
+            self, "Page Setup",
             "Page setup functionality not yet implemented"
         )
 
     def print_file(self):
         """Handle Print menu action."""
         QMessageBox.information(
-            self, "Print", 
+            self, "Print",
             "Print functionality not yet implemented"
         )
 
@@ -614,7 +694,7 @@ class MainWindow(QMainWindow):
         """Handle Undo menu action."""
         # TODO: Implement undo functionality
         QMessageBox.information(
-            self, "Undo", 
+            self, "Undo",
             "Undo functionality not yet implemented"
         )
 
@@ -622,7 +702,7 @@ class MainWindow(QMainWindow):
         """Handle Redo menu action."""
         # TODO: Implement redo functionality
         QMessageBox.information(
-            self, "Redo", 
+            self, "Redo",
             "Redo functionality not yet implemented"
         )
 
@@ -630,7 +710,7 @@ class MainWindow(QMainWindow):
         """Handle Cut menu action."""
         # TODO: Implement cut functionality
         QMessageBox.information(
-            self, "Cut", 
+            self, "Cut",
             "Cut functionality not yet implemented"
         )
 
@@ -638,7 +718,7 @@ class MainWindow(QMainWindow):
         """Handle Copy menu action."""
         # TODO: Implement copy functionality
         QMessageBox.information(
-            self, "Copy", 
+            self, "Copy",
             "Copy functionality not yet implemented"
         )
 
@@ -646,7 +726,7 @@ class MainWindow(QMainWindow):
         """Handle Paste menu action."""
         # TODO: Implement paste functionality
         QMessageBox.information(
-            self, "Paste", 
+            self, "Paste",
             "Paste functionality not yet implemented"
         )
 
@@ -654,7 +734,7 @@ class MainWindow(QMainWindow):
         """Handle Clear menu action."""
         # TODO: Implement clear functionality
         QMessageBox.information(
-            self, "Clear", 
+            self, "Clear",
             "Clear functionality not yet implemented"
         )
 
@@ -662,7 +742,7 @@ class MainWindow(QMainWindow):
         """Handle Select All menu action."""
         # TODO: Implement select all functionality
         QMessageBox.information(
-            self, "Select All", 
+            self, "Select All",
             "Select All functionality not yet implemented"
         )
 
@@ -670,7 +750,7 @@ class MainWindow(QMainWindow):
         """Handle Select Similar menu action."""
         # TODO: Implement select similar functionality
         QMessageBox.information(
-            self, "Select Similar", 
+            self, "Select Similar",
             "Select Similar functionality not yet implemented"
         )
 
@@ -678,7 +758,7 @@ class MainWindow(QMainWindow):
         """Handle Deselect All menu action."""
         # TODO: Implement deselect all functionality
         QMessageBox.information(
-            self, "Deselect All", 
+            self, "Deselect All",
             "Deselect All functionality not yet implemented"
         )
 
@@ -686,7 +766,7 @@ class MainWindow(QMainWindow):
         """Handle Group menu action."""
         # TODO: Implement group functionality
         QMessageBox.information(
-            self, "Group", 
+            self, "Group",
             "Group functionality not yet implemented"
         )
 
@@ -694,7 +774,7 @@ class MainWindow(QMainWindow):
         """Handle Ungroup menu action."""
         # TODO: Implement ungroup functionality
         QMessageBox.information(
-            self, "Ungroup", 
+            self, "Ungroup",
             "Ungroup functionality not yet implemented"
         )
 
@@ -703,7 +783,7 @@ class MainWindow(QMainWindow):
         """Handle Raise to Top menu action."""
         # TODO: Implement raise to top functionality
         QMessageBox.information(
-            self, "Raise to Top", 
+            self, "Raise to Top",
             "Raise to Top functionality not yet implemented"
         )
 
@@ -711,7 +791,7 @@ class MainWindow(QMainWindow):
         """Handle Raise menu action."""
         # TODO: Implement raise functionality
         QMessageBox.information(
-            self, "Raise", 
+            self, "Raise",
             "Raise functionality not yet implemented"
         )
 
@@ -719,7 +799,7 @@ class MainWindow(QMainWindow):
         """Handle Lower menu action."""
         # TODO: Implement lower functionality
         QMessageBox.information(
-            self, "Lower", 
+            self, "Lower",
             "Lower functionality not yet implemented"
         )
 
@@ -727,7 +807,7 @@ class MainWindow(QMainWindow):
         """Handle Lower to Bottom menu action."""
         # TODO: Implement lower to bottom functionality
         QMessageBox.information(
-            self, "Lower to Bottom", 
+            self, "Lower to Bottom",
             "Lower to Bottom functionality not yet implemented"
         )
 
@@ -736,7 +816,7 @@ class MainWindow(QMainWindow):
         """Handle rotation menu actions."""
         # TODO: Implement rotation functionality
         QMessageBox.information(
-            self, "Rotate", 
+            self, "Rotate",
             f"Rotate {angle}° functionality not yet implemented"
         )
 
@@ -745,7 +825,7 @@ class MainWindow(QMainWindow):
         """Handle Convert to Lines menu action."""
         # TODO: Implement convert to lines functionality
         QMessageBox.information(
-            self, "Convert to Lines", 
+            self, "Convert to Lines",
             "Convert to Lines functionality not yet implemented"
         )
 
@@ -753,7 +833,7 @@ class MainWindow(QMainWindow):
         """Handle Convert to Curves menu action."""
         # TODO: Implement convert to curves functionality
         QMessageBox.information(
-            self, "Convert to Curves", 
+            self, "Convert to Curves",
             "Convert to Curves functionality not yet implemented"
         )
 
@@ -761,7 +841,7 @@ class MainWindow(QMainWindow):
         """Handle Simplify Curves menu action."""
         # TODO: Implement simplify curves functionality
         QMessageBox.information(
-            self, "Simplify Curves", 
+            self, "Simplify Curves",
             "Simplify Curves functionality not yet implemented"
         )
 
@@ -769,7 +849,7 @@ class MainWindow(QMainWindow):
         """Handle Smooth Curves menu action."""
         # TODO: Implement smooth curves functionality
         QMessageBox.information(
-            self, "Smooth Curves", 
+            self, "Smooth Curves",
             "Smooth Curves functionality not yet implemented"
         )
 
@@ -777,7 +857,7 @@ class MainWindow(QMainWindow):
         """Handle Join Curves menu action."""
         # TODO: Implement join curves functionality
         QMessageBox.information(
-            self, "Join Curves", 
+            self, "Join Curves",
             "Join Curves functionality not yet implemented"
         )
 
@@ -785,7 +865,7 @@ class MainWindow(QMainWindow):
         """Handle Vectorize Bitmap menu action."""
         # TODO: Implement vectorize bitmap functionality
         QMessageBox.information(
-            self, "Vectorize Bitmap", 
+            self, "Vectorize Bitmap",
             "Vectorize Bitmap functionality not yet implemented"
         )
 
@@ -794,7 +874,7 @@ class MainWindow(QMainWindow):
         """Handle Union of Polygons menu action."""
         # TODO: Implement union functionality
         QMessageBox.information(
-            self, "Union of Polygons", 
+            self, "Union of Polygons",
             "Union of Polygons functionality not yet implemented"
         )
 
@@ -802,7 +882,7 @@ class MainWindow(QMainWindow):
         """Handle Difference of Polygons menu action."""
         # TODO: Implement difference functionality
         QMessageBox.information(
-            self, "Difference of Polygons", 
+            self, "Difference of Polygons",
             "Difference of Polygons functionality not yet implemented"
         )
 
@@ -810,7 +890,7 @@ class MainWindow(QMainWindow):
         """Handle Intersection of Polygons menu action."""
         # TODO: Implement intersection functionality
         QMessageBox.information(
-            self, "Intersection of Polygons", 
+            self, "Intersection of Polygons",
             "Intersection of Polygons functionality not yet implemented"
         )
 
@@ -824,7 +904,7 @@ class MainWindow(QMainWindow):
         """Handle Actual Size menu action."""
         # TODO: Implement actual size functionality
         QMessageBox.information(
-            self, "Actual Size", 
+            self, "Actual Size",
             "Actual Size functionality not yet implemented"
         )
 
@@ -832,7 +912,7 @@ class MainWindow(QMainWindow):
         """Handle Zoom to Fit menu action."""
         # TODO: Implement zoom to fit functionality
         QMessageBox.information(
-            self, "Zoom to Fit", 
+            self, "Zoom to Fit",
             "Zoom to Fit functionality not yet implemented"
         )
 
@@ -840,7 +920,7 @@ class MainWindow(QMainWindow):
         """Handle Zoom In menu action."""
         # TODO: Implement zoom in functionality
         QMessageBox.information(
-            self, "Zoom In", 
+            self, "Zoom In",
             "Zoom In functionality not yet implemented"
         )
 
@@ -848,7 +928,7 @@ class MainWindow(QMainWindow):
         """Handle Zoom Out menu action."""
         # TODO: Implement zoom out functionality
         QMessageBox.information(
-            self, "Zoom Out", 
+            self, "Zoom Out",
             "Zoom Out functionality not yet implemented"
         )
 
@@ -869,7 +949,7 @@ class MainWindow(QMainWindow):
         """Handle Configure Mill menu action."""
         # TODO: Implement mill configuration
         QMessageBox.information(
-            self, "Configure Mill", 
+            self, "Configure Mill",
             "Mill configuration functionality not yet implemented"
         )
 
@@ -877,7 +957,7 @@ class MainWindow(QMainWindow):
         """Handle Speeds & Feeds Wizard menu action."""
         # TODO: Implement speeds & feeds wizard
         QMessageBox.information(
-            self, "Speeds & Feeds Wizard", 
+            self, "Speeds & Feeds Wizard",
             "Speeds & Feeds Wizard functionality not yet implemented"
         )
 
@@ -885,7 +965,7 @@ class MainWindow(QMainWindow):
         """Handle Generate G-Code menu action."""
         # TODO: Implement G-code generation
         QMessageBox.information(
-            self, "Generate G-Code", 
+            self, "Generate G-Code",
             "G-Code generation functionality not yet implemented"
         )
 
@@ -893,7 +973,7 @@ class MainWindow(QMainWindow):
         """Handle Backtrace G-Code menu action."""
         # TODO: Implement G-code backtracing
         QMessageBox.information(
-            self, "Backtrace G-Code", 
+            self, "Backtrace G-Code",
             "G-Code backtracing functionality not yet implemented"
         )
 
@@ -901,7 +981,7 @@ class MainWindow(QMainWindow):
         """Handle Make a Worm menu action."""
         # TODO: Implement worm creation wizard
         QMessageBox.information(
-            self, "Make a Worm", 
+            self, "Make a Worm",
             "Worm creation functionality not yet implemented"
         )
 
@@ -909,7 +989,7 @@ class MainWindow(QMainWindow):
         """Handle Make a WormGear menu action."""
         # TODO: Implement worm gear creation wizard
         QMessageBox.information(
-            self, "Make a WormGear", 
+            self, "Make a WormGear",
             "WormGear creation functionality not yet implemented"
         )
 
@@ -917,7 +997,7 @@ class MainWindow(QMainWindow):
         """Handle Make a Gear menu action."""
         # TODO: Implement gear creation wizard
         QMessageBox.information(
-            self, "Make a Gear", 
+            self, "Make a Gear",
             "Gear creation functionality not yet implemented"
         )
 
@@ -926,7 +1006,7 @@ class MainWindow(QMainWindow):
         """Handle Cycle Windows menu action."""
         # TODO: Implement window cycling
         QMessageBox.information(
-            self, "Cycle Windows", 
+            self, "Cycle Windows",
             "Window cycling functionality not yet implemented"
         )
 
@@ -935,20 +1015,20 @@ class MainWindow(QMainWindow):
         """Add X=0 and Y=0 axis lines to the scene."""
         from PySide6.QtGui import QPen, QColor
         from PySide6.QtCore import Qt
-        
+
         # Get scene rectangle for full extent lines
         scene_rect = self.scene.sceneRect()
-        
+
         # Create axis line pen (thin, dark gray)
         axis_pen = QPen(QColor(64, 64, 64), 1)
         axis_pen.setStyle(Qt.DashLine)
-        
+
         # Add X-axis (horizontal line at Y=0)
         x_line = self.scene.addLine(
             scene_rect.left(), 0, scene_rect.right(), 0, axis_pen
         )
         x_line.setZValue(-100)  # Behind other objects
-        
+
         # Add Y-axis (vertical line at X=0)
         y_line = self.scene.addLine(
             0, scene_rect.top(), 0, scene_rect.bottom(), axis_pen
@@ -960,7 +1040,7 @@ class MainWindow(QMainWindow):
         # Skip if grid is not enabled
         if not self.preferences.get("show_grid", True):
             return
-            
+
         # Get grid information from the ruler system
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
         grid_info = horizontal_ruler.get_grid_info()
@@ -1065,7 +1145,7 @@ class MainWindow(QMainWindow):
         # Check if scene is still valid
         if not self.scene or not hasattr(self.scene, 'items'):
             return
-            
+
         try:
             # Remove existing grid lines (z-value -1001)
             items_to_remove = []
@@ -1092,10 +1172,10 @@ class MainWindow(QMainWindow):
             # Keep axis lines and grid lines (they have negative Z values)
             if item.zValue() >= 0:
                 items_to_remove.append(item)
-        
+
         for item in items_to_remove:
             self.scene.removeItem(item)
-        
+
         # Draw objects from document
         if hasattr(self.document, 'objects'):
             for obj in self.document.objects:
@@ -1105,14 +1185,14 @@ class MainWindow(QMainWindow):
         """Draw a single object to the scene."""
         from PySide6.QtGui import QPen, QBrush, QColor
         from PySide6.QtCore import Qt
-        
+
         # Default drawing style
         pen = QPen(QColor(0, 0, 255), 2)  # Blue, 2px width
         brush = QBrush(Qt.NoBrush)  # No fill
-        
+
         # Draw based on object type
         obj_type = getattr(obj, 'type', 'unknown')
-        
+
         if obj_type == 'line':
             # Draw line object
             if hasattr(obj, 'start') and hasattr(obj, 'end'):
@@ -1120,7 +1200,7 @@ class MainWindow(QMainWindow):
                     obj.start.x, obj.start.y, obj.end.x, obj.end.y, pen
                 )
                 line.setZValue(1)
-                
+
         elif obj_type == 'circle':
             # Draw circle object
             if hasattr(obj, 'center') and hasattr(obj, 'radius'):
@@ -1129,38 +1209,41 @@ class MainWindow(QMainWindow):
                     obj.radius * 2, obj.radius * 2, pen, brush
                 )
                 ellipse.setZValue(1)
-                
+
         elif obj_type == 'rectangle':
             # Draw rectangle object
-            if hasattr(obj, 'x') and hasattr(obj, 'y') and hasattr(obj, 'width') and hasattr(obj, 'height'):
-                rect = self.scene.addRect(obj.x, obj.y, obj.width, obj.height, pen, brush)
+            if (hasattr(obj, 'x') and hasattr(obj, 'y') and
+                    hasattr(obj, 'width') and hasattr(obj, 'height')):
+                rect = self.scene.addRect(
+                    obj.x, obj.y, obj.width, obj.height, pen, brush)
                 rect.setZValue(1)
-        
+
         # Add more object types as needed
 
     def on_object_created(self, obj):
         """Handle when a new object is created by a tool."""
         # Draw the new object
         self._draw_object(obj)
-        
+
         # Mark document as modified
         if hasattr(self.document, 'set_modified'):
             self.document.set_modified(True)
-        
+
         # Update window title
         self.update_title()
 
     def _confirm_discard_changes(self):
         """Show dialog to confirm discarding unsaved changes."""
         from PySide6.QtWidgets import QMessageBox
-        
+
         reply = QMessageBox.question(
             self, "Unsaved Changes",
-            "The document has been modified. Do you want to save your changes?",
+            "The document has been modified. "
+            "Do you want to save your changes?",
             QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
             QMessageBox.Save
         )
-        
+
         if reply == QMessageBox.Save:
             self.save_file()
             return True
@@ -1178,7 +1261,7 @@ class MainWindow(QMainWindow):
         import os
         from PySide6.QtGui import QIcon, QPixmap
         from PySide6.QtCore import Qt
-        
+
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         images_dir = os.path.join(base_dir, 'images')
 
@@ -1218,10 +1301,11 @@ class MainWindow(QMainWindow):
             if not self._confirm_discard_changes():
                 event.ignore()
                 return
-        
+
         # Save window geometry to preferences
         geometry = self.geometry()
-        geometry_str = f"{geometry.width()}x{geometry.height()}+{geometry.x()}+{geometry.y()}"
+        geometry_str = (f"{geometry.width()}x{geometry.height()}+"
+                        f"{geometry.x()}+{geometry.y()}")
         self.preferences.set("window_geometry", geometry_str)
-        
+
         event.accept()
