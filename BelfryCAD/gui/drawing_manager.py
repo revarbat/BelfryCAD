@@ -89,6 +89,43 @@ class DrawingManager:
         # Tagging system for graphics items
         self._tagged_items: Dict[str, List[QGraphicsItem]] = {}
         self._item_tags: Dict[QGraphicsItem, List[str]] = {}
+        
+        # Layer management - will be set by main window
+        self.layer_manager = None
+
+    def set_layer_manager(self, layer_manager):
+        """Set the layer manager for accessing layer data"""
+        self.layer_manager = layer_manager
+
+    def get_layer_color(self, layer_id: int) -> Optional[str]:
+        """Get the color of a layer by layer ID"""
+        if not self.layer_manager:
+            return None
+            
+        layer_data = self.layer_manager.get_layer_data(layer_id)
+        if layer_data:
+            return layer_data.get('color')
+        return None
+
+    def get_layer_visibility(self, layer_id: int) -> bool:
+        """Get the visibility status of a layer"""
+        if not self.layer_manager:
+            return True  # Default to visible if no layer manager
+            
+        layer_data = self.layer_manager.get_layer_data(layer_id)
+        if layer_data:
+            return layer_data.get('visible', True)
+        return True
+
+    def get_layer_locked(self, layer_id: int) -> bool:
+        """Get the lock status of a layer"""
+        if not self.layer_manager:
+            return False  # Default to unlocked if no layer manager
+            
+        layer_data = self.layer_manager.get_layer_data(layer_id)
+        if layer_data:
+            return layer_data.get('locked', False)
+        return False
 
     def add_item_tag(self, item: QGraphicsItem, tag: str):
         """Add a tag to a graphics item"""
@@ -273,8 +310,12 @@ class DrawingManager:
         color_name = obj.attributes.get('color', '')
 
         if not color_name or color_name == "none":
-            # TODO: Get layer color
-            color_name = default_color
+            # Get layer color if object has no explicit color
+            layer_color = self.get_layer_color(obj.layer)
+            if layer_color:
+                color_name = layer_color
+            else:
+                color_name = default_color
 
         return self._parse_color(color_name)
 
@@ -332,6 +373,11 @@ class DrawingManager:
 
         if not obj.visible:
             return items
+
+        # Check layer visibility - skip drawing if layer is hidden
+        if hasattr(obj, 'layer') and obj.layer:
+            if not self.get_layer_visibility(obj.layer):
+                return items
 
         # Handle GROUP type objects
         if obj.object_type.value == "group":
@@ -534,9 +580,7 @@ class DrawingManager:
     def _draw_rectangle(self, data: List[float], pen: QPen, fill: QBrush,
                         obj: CADObject):
         """Draw rectangle primitive"""
-        x0, y0, x1, y1 = data
-        scaled_coords = self.scale_coords([x0, y0, x1, y1])
-        x0, y0, x1, y1 = scaled_coords
+        x0, y0, x1, y1 = self.scale_coords(data)
 
         rect = self.context.scene.addRect(x0, y0, x1 - x0, y1 - y0, pen, fill)
         rect.setZValue(1)
@@ -581,9 +625,7 @@ class DrawingManager:
         # Process control points in groups of 6 (3 points = x1,y1,x2,y2,x3,y3)
         for i in range(2, len(scaled_coords), 6):
             if i + 5 < len(scaled_coords):
-                x1, y1 = scaled_coords[i], scaled_coords[i + 1]
-                x2, y2 = scaled_coords[i + 2], scaled_coords[i + 3]
-                x3, y3 = scaled_coords[i + 4], scaled_coords[i + 5]
+                x1, y1, x2, y2, x3, y3 = scaled_coords[i:i + 6]
                 path.cubicTo(x1, y1, x2, y2, x3, y3)
 
         path_item = self.context.scene.addPath(path, pen, fill)
@@ -794,8 +836,29 @@ class DrawingManager:
 
     def _delete_control_graphics(self, obj: CADObject):
         """Remove existing control graphics for an object"""
-        # TODO: Track and remove control graphics items by object ID
-        pass
+        # Remove control points and control lines for this object
+        cp_items = self.get_items_by_tag("CP")
+        cl_items = self.get_items_by_tag("CL")
+        
+        items_to_remove = []
+        
+        # Check control points
+        for item in cp_items:
+            if item.data(0) == obj.object_id:  # Check object ID stored in item
+                items_to_remove.append(item)
+        
+        # Check control lines
+        for item in cl_items:
+            if item.data(0) == obj.object_id:  # Check object ID stored in item
+                items_to_remove.append(item)
+        
+        # Remove items from scene and clean up tags
+        for item in items_to_remove:
+            # Remove all tags from this item
+            for tag in self.get_item_tags(item):
+                self.remove_item_tag(item, tag)
+            # Remove from scene
+            self.context.scene.removeItem(item)
 
     def _draw_object_controls(self, obj: CADObject, color: str):
         """Draw object-specific control points and lines"""
@@ -1076,7 +1139,7 @@ class DrawingManager:
     def object_redraw_construction_points(self):
         """Redraw all construction points"""
         # Clear existing construction points
-        # TODO: Track and remove existing construction point graphics
+        self.remove_items_by_tag(DrawingTags.CONSTRUCTION_PT.value)
 
         for point in self.construction_points:
             scaled_coords = self.scale_coords([point.x, point.y])
@@ -1090,3 +1153,11 @@ class DrawingManager:
                 x - size/2, y - size/2, size, size, pen, brush
             )
             cp_item.setZValue(2)
+
+            # Set tags for tracking and management
+            dummy_obj = ConstructionCADObject(
+                f"construction_pt_{id(cp_item)}", ObjectType.POINT
+            )
+            self._set_item_tags(
+                cp_item, dummy_obj, [DrawingTags.CONSTRUCTION_PT]
+            )

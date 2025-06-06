@@ -471,6 +471,10 @@ class MainWindow(QMainWindow):
             show_origin=True
         )
         self.drawing_manager = DrawingManager(drawing_context)
+        
+        # Connect DrawingManager to Document's LayerManager
+        if hasattr(self.document, 'layers'):
+            self.drawing_manager.set_layer_manager(self.document.layers)
 
         # Create ruler manager and get ruler widgets
         self.ruler_manager = RulerManager(self.canvas, central_widget)
@@ -548,10 +552,106 @@ class MainWindow(QMainWindow):
             pass
 
         # Connect layer window to document layer management
-        layer_window = self.palette_manager.get_palette_content("layer_window")
-        if layer_window and hasattr(self, 'document'):
-            # TODO: Connect document layer changes to layer window
-            pass
+        layer_window = self.palette_manager.get_palette_content(
+            "layer_window")
+        if (layer_window and hasattr(self, 'document') and
+                hasattr(self.document, 'layers')):
+            self._connect_layer_window(layer_window)
+
+    def _connect_layer_window(self, layer_window):
+        """Connect the layer window to the document's layer manager."""
+        # Connect layer window signals to document layer manager
+        layer_window.layer_created.connect(self._on_layer_created)
+        layer_window.layer_deleted.connect(self._on_layer_deleted)
+        layer_window.layer_selected.connect(self._on_layer_selected)
+        layer_window.layer_renamed.connect(self._on_layer_renamed)
+        layer_window.layer_visibility_changed.connect(
+            self._on_layer_visibility_changed)
+        layer_window.layer_lock_changed.connect(self._on_layer_lock_changed)
+        layer_window.layer_color_changed.connect(self._on_layer_color_changed)
+        layer_window.layer_cam_changed.connect(self._on_layer_cam_changed)
+        layer_window.layer_reordered.connect(self._on_layer_reordered)
+        
+        # Initialize layer window with current layer data
+        self._refresh_layer_window()
+    
+    def _refresh_layer_window(self):
+        """Refresh the layer window with current layer data."""
+        layer_window = self.palette_manager.get_palette_content(
+            "layer_window")
+        if not layer_window or not hasattr(self.document, 'layers'):
+            return
+            
+        # Get all layer data from the layer manager
+        layers_data = self.document.layers.get_all_layers_data()
+        current_layer_id = str(self.document.layers.get_current_layer())
+        
+        # Update the layer window
+        layer_window.refresh_layers(layers_data, current_layer_id)
+    
+    def _on_layer_created(self):
+        """Handle layer creation request from layer window."""
+        if hasattr(self.document, 'layers'):
+            new_layer_id = self.document.layers.create_layer()
+            self.document.layers.set_current_layer(new_layer_id)
+            self._refresh_layer_window()
+            self.draw_objects()  # Redraw to update layer visibility
+    
+    def _on_layer_deleted(self, layer_id_str):
+        """Handle layer deletion request from layer window."""
+        if hasattr(self.document, 'layers'):
+            layer_id = int(layer_id_str)
+            if self.document.layers.delete_layer(layer_id):
+                self._refresh_layer_window()
+                self.draw_objects()  # Redraw to update layer visibility
+    
+    def _on_layer_selected(self, layer_id_str):
+        """Handle layer selection from layer window."""
+        if hasattr(self.document, 'layers'):
+            layer_id = int(layer_id_str)
+            self.document.layers.set_current_layer(layer_id)
+            self._refresh_layer_window()
+    
+    def _on_layer_renamed(self, layer_id_str, new_name):
+        """Handle layer rename from layer window."""
+        if hasattr(self.document, 'layers'):
+            layer_id = int(layer_id_str)
+            self.document.layers.set_layer_name(layer_id, new_name)
+            self._refresh_layer_window()
+    
+    def _on_layer_visibility_changed(self, layer_id_str, visible):
+        """Handle layer visibility change from layer window."""
+        if hasattr(self.document, 'layers'):
+            layer_id = int(layer_id_str)
+            self.document.layers.set_layer_visible(layer_id, visible)
+            self.draw_objects()  # Redraw to update layer visibility
+    
+    def _on_layer_lock_changed(self, layer_id_str, locked):
+        """Handle layer lock change from layer window."""
+        if hasattr(self.document, 'layers'):
+            layer_id = int(layer_id_str)
+            self.document.layers.set_layer_locked(layer_id, locked)
+    
+    def _on_layer_color_changed(self, layer_id_str, color):
+        """Handle layer color change from layer window."""
+        if hasattr(self.document, 'layers'):
+            layer_id = int(layer_id_str)
+            self.document.layers.set_layer_color(layer_id, color)
+            self.draw_objects()  # Redraw with new color
+    
+    def _on_layer_cam_changed(self, layer_id_str, cut_bit, cut_depth):
+        """Handle layer CAM settings change from layer window."""
+        if hasattr(self.document, 'layers'):
+            layer_id = int(layer_id_str)
+            self.document.layers.set_layer_cut_bit(layer_id, cut_bit)
+            self.document.layers.set_layer_cut_depth(layer_id, cut_depth)
+    
+    def _on_layer_reordered(self, layer_id_str, new_position):
+        """Handle layer reorder from layer window."""
+        if hasattr(self.document, 'layers'):
+            layer_id = int(layer_id_str)
+            self.document.layers.reorder_layer(layer_id, new_position)
+            self._refresh_layer_window()
 
     def _setup_tools(self):
         """Set up the tool system and register tools"""
@@ -1288,14 +1388,14 @@ class MainWindow(QMainWindow):
                 # Item may have already been removed
                 pass
 
-                # Draw objects from document
-                if (
-                    hasattr(self.document, 'objects') and
-                    hasattr(self.document.objects, 'objects')
-                ):
-                    # CADObjectManager stores objects in a dictionary
-                    for obj_id, obj in self.document.objects.objects.items():
-                        self._draw_object(obj)
+        # Draw objects from document
+        if (
+            hasattr(self.document, 'objects') and
+            hasattr(self.document.objects, 'objects')
+        ):
+            # CADObjectManager stores objects in a dictionary
+            for obj_id, obj in self.document.objects.objects.items():
+                self._draw_object(obj)
 
     def _draw_object(self, obj):
         """Draw a single object to the scene."""

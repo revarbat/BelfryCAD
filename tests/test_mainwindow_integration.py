@@ -168,7 +168,7 @@ def test_main_window_integration():
     main_window.setWindowTitle("DrawingManager Integration Test - All Objects Drawn")
     main_window.resize(800, 600)
 
-    print(f"\nMainWindow displayed with all test drawings.")
+    print("\nMainWindow displayed with all test drawings.")
     print("Close the window to exit the test.")
 
     # Run the application

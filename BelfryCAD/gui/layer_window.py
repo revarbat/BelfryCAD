@@ -428,7 +428,6 @@ class LayerWindow(QWidget):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll_area.setFixedWidth(220)
 
         # Container widget for layer items
         self.layer_container = QWidget()
@@ -830,7 +829,8 @@ if __name__ == "__main__":
         lambda layer_id, name: print(f"Layer {layer_id} renamed to: {name}")
     )
     layer_window.layer_visibility_changed.connect(
-        lambda layer_id, visible: print(f"Layer {layer_id} visibility: {visible}")
+        lambda layer_id, visible:
+            print(f"Layer {layer_id} visibility: {visible}")
     )
     layer_window.layer_lock_changed.connect(
         lambda layer_id, locked: print(f"Layer {layer_id} locked: {locked}")
@@ -839,7 +839,8 @@ if __name__ == "__main__":
         lambda layer_id, color: print(f"Layer {layer_id} color: {color}")
     )
     layer_window.layer_cam_changed.connect(
-        lambda layer_id, bit, depth: print(f"Layer {layer_id} CAM: bit={bit}, depth={depth}")
+        lambda layer_id, bit, depth:
+            print(f"Layer {layer_id} CAM: bit={bit}, depth={depth}")
     )
     layer_window.layer_created.connect(
         lambda: print("New layer requested")
@@ -848,7 +849,8 @@ if __name__ == "__main__":
         lambda layer_id: print(f"Delete layer requested: {layer_id}")
     )
     layer_window.layer_reordered.connect(
-        lambda layer_id, pos: print(f"Layer {layer_id} moved to position {pos}")
+        lambda layer_id, pos:
+            print(f"Layer {layer_id} moved to position {pos}")
     )
 
     print("Layer window test started. Try interacting with the layers!")

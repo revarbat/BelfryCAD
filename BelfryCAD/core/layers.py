@@ -536,3 +536,42 @@ class LayerManager:
     def get_all_layers(self) -> Dict[int, Layer]:
         """Get all layers as a dictionary."""
         return self._layers.copy()
+
+    def get_layer_data(self, layer_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get layer data in a format compatible with the drawing system.
+
+        Args:
+            layer_id: Layer ID to get data for
+
+        Returns:
+            Dictionary with layer data or None if layer doesn't exist
+        """
+        if layer_id not in self._layers:
+            return None
+
+        layer = self._layers[layer_id]
+        return {
+            'id': str(layer_id),  # Convert to string for UI compatibility
+            'name': layer.name,
+            'color': layer.color,
+            'visible': layer.visible,
+            'locked': layer.locked,
+            'cut_bit': layer.cut_bit,
+            'cut_depth': layer.cut_depth,
+            'object_count': len(layer.objects)
+        }
+
+    def get_all_layers_data(self) -> List[Dict[str, Any]]:
+        """
+        Get data for all layers in order, formatted for the layer window.
+
+        Returns:
+            List of layer data dictionaries
+        """
+        layers_data = []
+        for layer_id in self._layer_order:
+            layer_data = self.get_layer_data(layer_id)
+            if layer_data:
+                layers_data.append(layer_data)
+        return layers_data
