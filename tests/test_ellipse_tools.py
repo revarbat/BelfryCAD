@@ -14,7 +14,7 @@ def test_ellipse_tools():
     print("Testing ellipse tools...")
     
     try:
-        from src.tools.ellipse import (
+        from BelfryCAD.tools.ellipse import (
             EllipseCenterTool,
             EllipseDiagonalTool,
             Ellipse3CornerTool,
@@ -57,7 +57,7 @@ def test_tool_registration():
     print("\nTesting tool registration...")
     
     try:
-        from src.tools import available_tools
+        from BelfryCAD.tools import available_tools
         
         # Get tool class names
         tool_names = [tool.__name__ for tool in available_tools]

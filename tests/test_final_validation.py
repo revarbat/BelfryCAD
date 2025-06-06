@@ -6,14 +6,14 @@ import sys
 import os
 
 # Add the src directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 
 def test_final_validation():
     """Test that the validation system works and conflicts are resolved"""
     try:
-        from src.gui.tool_palette import ToolPalette
-        from src.tools.base import ToolCategory, ToolDefinition
+        from BelfryCAD.gui.tool_palette import ToolPalette
+        from BelfryCAD.tools.base import ToolCategory, ToolDefinition
         
         print("Final Validation Test")
         print("=" * 50)
@@ -50,14 +50,14 @@ def test_final_validation():
         
         # Test 2: Verify that no conflicts exist in ELLIPSES category now
         print("\nTest 2: ELLIPSES category has no conflicts")
-        from src.tools.ellipse import (
+        from BelfryCAD.tools.ellipse import (
             EllipseCenterTool,
             EllipseDiagonalTool,
             Ellipse3CornerTool,
             EllipseCenterTangentTool,
             EllipseOppositeTangentTool
         )
-        from src.tools.circle import CircleTool, Circle2PTTool, Circle3PTTool
+        from BelfryCAD.tools.circle import CircleTool, Circle2PTTool, Circle3PTTool
         
         all_ellipse_tools = [
             CircleTool, Circle2PTTool, Circle3PTTool,

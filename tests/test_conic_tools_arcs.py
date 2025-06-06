@@ -10,7 +10,7 @@ import os
 src_path = os.path.join(os.path.dirname(__file__), 'src')
 sys.path.insert(0, src_path)
 
-from src.tools.base import ToolCategory
+from BelfryCAD.tools.base import ToolCategory
 
 def test_conic_tools_in_arcs():
     """Test that CONIC2PT and CONIC3PT tools are in ARCS category"""

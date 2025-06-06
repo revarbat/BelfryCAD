@@ -11,10 +11,10 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, Q
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 
-from src.gui.main_window import MainWindow
-from src.config import AppConfig
-from src.core.preferences import PreferencesManager
-from src.core.document import Document
+from BelfryCAD.gui.main_window import MainWindow
+from BelfryCAD.config import AppConfig
+from BelfryCAD.core.preferences import PreferencesManager
+from BelfryCAD.core.document import Document
 
 def create_verification_window():
     """Create a window showing before/after comparison of PNG icons"""

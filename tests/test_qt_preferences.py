@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget
-from src.config import AppConfig
+from BelfryCAD.config import AppConfig
 from gui.preferences_dialog import PreferencesDialog
 
 

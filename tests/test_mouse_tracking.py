@@ -11,10 +11,10 @@ sys.path.insert(0, os.path.abspath('.'))
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
-from src.gui.main_window import MainWindow
-from src.config import AppConfig
-from src.core.preferences import PreferencesManager
-from src.core.document import Document
+from BelfryCAD.gui.main_window import MainWindow
+from BelfryCAD.config import AppConfig
+from BelfryCAD.core.preferences import PreferencesManager
+from BelfryCAD.core.document import Document
 
 def test_mouse_tracking():
     """Test if mouse tracking is working correctly."""

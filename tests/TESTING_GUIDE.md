@@ -56,7 +56,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import necessary modules
-from src.module import Class
+from BelfryCAD.module import Class
 
 def test_function():
     """Test specific functionality."""
@@ -102,7 +102,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 ```python
 def test_arc_tool_shortcut():
     """Test that the Arc tool uses the 'A' shortcut."""
-    from src.tools.arcs import ArcCenterTool
+    from BelfryCAD.tools.arcs import ArcCenterTool
     
     tool = ArcCenterTool(None, None, None)
     definition = tool.definitions[0]

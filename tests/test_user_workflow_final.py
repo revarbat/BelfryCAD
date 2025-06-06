@@ -13,9 +13,9 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, Q
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
 
-from src.tools.base import ToolCategory
-from src.gui.tool_palette import ToolPalette
-from src.tools import available_tools
+from BelfryCAD.tools.base import ToolCategory
+from BelfryCAD.gui.tool_palette import ToolPalette
+from BelfryCAD.tools import available_tools
 
 
 class UserWorkflowTest(QMainWindow):

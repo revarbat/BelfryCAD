@@ -11,8 +11,8 @@ project_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, project_root)
 
 from PySide6.QtWidgets import QApplication
-from src.gui.tool_palette import ToolPalette
-from src.tools.base import ToolCategory, ToolDefinition
+from BelfryCAD.gui.tool_palette import ToolPalette
+from BelfryCAD.tools.base import ToolCategory, ToolDefinition
 
 
 def test_arc_shortcuts():

@@ -5,32 +5,32 @@ import sys
 import os
 
 # Add the project root to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 try:
     print("Testing palette system imports...")
     
     # Test individual component imports
-    from src.gui.info_pane_window import InfoPaneWindow
+    from BelfryCAD.gui.info_pane_window import InfoPaneWindow
     print("✓ InfoPaneWindow imported successfully")
     
-    from src.gui.config_pane import ConfigPane
+    from BelfryCAD.gui.config_pane import ConfigPane
     print("✓ ConfigPane imported successfully")
     
-    from src.gui.snap_window import SnapWindow
+    from BelfryCAD.gui.snap_window import SnapWindow
     print("✓ SnapWindow imported successfully")
     
-    from src.gui.layer_window import LayerWindow
+    from BelfryCAD.gui.layer_window import LayerWindow
     print("✓ LayerWindow imported successfully")
     
     # Test palette system imports
-    from src.gui.palette_system import (
+    from BelfryCAD.gui.palette_system import (
         PaletteManager, create_default_palettes, PaletteType, DockablePalette
     )
     print("✓ Palette system components imported successfully")
     
     # Test main menu imports
-    from src.gui.mainmenu import MainMenuBar
+    from BelfryCAD.gui.mainmenu import MainMenuBar
     print("✓ MainMenuBar imported successfully")
     
     print("\n🎉 All palette system components imported successfully!")

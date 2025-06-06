@@ -11,9 +11,9 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 import traceback
 
 # Import main application modules
-from src.app import TkCADApplication
-from src.config import AppConfig
-from src.utils.logger import setup_logger
+from BelfryCAD.app import TkCADApplication
+from BelfryCAD.config import AppConfig
+from BelfryCAD.utils.logger import setup_logger
 
 
 def main():

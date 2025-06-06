@@ -6,20 +6,20 @@ import sys
 import os
 
 # Add the src directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 def test_real_ellipse_conflict():
     try:
-        from src.gui.tool_palette import ToolPalette
-        from src.tools.base import ToolCategory
-        from src.tools.ellipse import (
+        from BelfryCAD.gui.tool_palette import ToolPalette
+        from BelfryCAD.tools.base import ToolCategory
+        from BelfryCAD.tools.ellipse import (
             EllipseCenterTool,
             EllipseDiagonalTool, 
             Ellipse3CornerTool,
             EllipseCenterTangentTool,
             EllipseOppositeTangentTool
         )
-        from src.tools.circle import CircleTool, Circle2PTTool, Circle3PTTool
+        from BelfryCAD.tools.circle import CircleTool, Circle2PTTool, Circle3PTTool
 
         print("Testing Real Ellipse Tools Conflict Resolution")
         print("=" * 50)

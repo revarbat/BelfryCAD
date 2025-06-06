@@ -5,7 +5,7 @@ import sys
 import os
 
 # Add the project root to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QTextEdit
 from PySide6.QtCore import QObject, Signal
@@ -68,7 +68,7 @@ class TestMainWindow(QMainWindow):
         
     def _setup_palettes(self):
         """Setup the palette system."""
-        from src.gui.palette_system import create_default_palettes
+        from BelfryCAD.gui.palette_system import create_default_palettes
         
         # Create palette manager
         self.palette_manager = create_default_palettes(self)

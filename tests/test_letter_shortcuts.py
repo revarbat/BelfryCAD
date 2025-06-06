@@ -11,12 +11,12 @@ project_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, project_root)
 
 from PySide6.QtWidgets import QApplication
-from src.config import AppConfig
-from src.core.document import Document
-from src.core.preferences import PreferencesManager
-from src.gui.main_window import MainWindow
-from src.gui.tool_palette import ToolPalette
-from src.tools.base import ToolCategory, ToolDefinition
+from BelfryCAD.config import AppConfig
+from BelfryCAD.core.document import Document
+from BelfryCAD.core.preferences import PreferencesManager
+from BelfryCAD.gui.main_window import MainWindow
+from BelfryCAD.gui.tool_palette import ToolPalette
+from BelfryCAD.tools.base import ToolCategory, ToolDefinition
 
 
 def test_letter_shortcuts():

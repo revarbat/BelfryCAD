@@ -10,9 +10,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from PySide6.QtWidgets import QApplication
 
-from src.tools.base import ToolCategory
-from src.gui.tool_palette import ToolPalette
-from src.tools import available_tools
+from BelfryCAD.tools.base import ToolCategory
+from BelfryCAD.gui.tool_palette import ToolPalette
+from BelfryCAD.tools import available_tools
 
 
 def quick_test():

@@ -6,8 +6,8 @@ Test script for LINEMP tool implementation
 import sys
 sys.path.append('/Users/gminette/dev/git-repos/pyTkCAD')
 
-from src.core.cad_objects import Point
-from src.tools.linemp import LineMPObject, LineMPTool
+from BelfryCAD.core.cad_objects import Point
+from BelfryCAD.tools.linemp import LineMPObject, LineMPTool
 
 def test_linemp_object():
     """Test LineMPObject functionality"""

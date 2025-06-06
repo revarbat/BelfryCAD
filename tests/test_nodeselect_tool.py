@@ -10,9 +10,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsView
 from PySide6.QtCore import QPointF
 
-from src.tools.nodeselect import NodeSelectTool
-from src.core.cad_objects import CADObject, ObjectType, Point
-from src.core.document import Document
+from BelfryCAD.tools.nodeselect import NodeSelectTool
+from BelfryCAD.core.cad_objects import CADObject, ObjectType, Point
+from BelfryCAD.core.document import Document
 
 
 class MockPreferences:

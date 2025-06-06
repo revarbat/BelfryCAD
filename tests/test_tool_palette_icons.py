@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt
-from src.tools import available_tools
+from BelfryCAD.tools import available_tools
 
 def test_icon_loading_method():
     """Test the icon loading method directly"""

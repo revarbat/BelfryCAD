@@ -1,0 +1,53 @@
+[build-system]
+requires = [
+    "setuptools",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "BelfryCAD"
+version = "0.0.1"
+authors = [
+  { name="Revar Desmera", email="revarbat@gmail.com" },
+]
+maintainers = [
+  { name="Revar Desmera", email="revarbat@gmail.com" },
+]
+description = "A 2.5D CAD/CAM. A port of TkCAD from TCL/Tk to Python"
+readme = "README.rst"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: MacOS X",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Cython",
+    "Topic :: Artistic Software",
+    "Topic :: Multimedia :: Graphics :: Editors",
+    "Topic :: Other/Nonlisted Topic",
+    "Topic :: Scientific/Engineering"
+]
+keywords = ["cad", "cam", "cad/cam", "computer aided design", "computer aided manufacturing"]
+dependencies = [
+    "pillow>=10.3.0",
+    "numpy>=1.25.2",
+    "pyclipr>=0.1.7",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/revarbat/BelfryCAD"
+"Repository" = "https://github.com/revarbat/BelfryCAD"
+"Bug Tracker" = "https://github.com/revarbat/BelfryCAD/issues"
+"Releases" = "https://github.com/revarbat/BelfryCAD/releases"
+"Usage" = "https://github.com/revarbat/BelfryCAD/README.rst"
+"Documentation" = "https://github.com/revarbat/BelfryCAD/wiki/"
+

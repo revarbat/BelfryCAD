@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
 
-from src.gui.rulers import RulerWidget
+from BelfryCAD.gui.rulers import RulerWidget
 from PySide6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene
 
 

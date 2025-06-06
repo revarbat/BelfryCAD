@@ -5,12 +5,11 @@ Test script to verify that duplicate secondary key validation works correctly.
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
 
 from PySide6.QtWidgets import QApplication
-from src.tools.base import ToolDefinition, ToolCategory
-from src.gui.tool_palette import ToolPalette
+from BelfryCAD.tools.base import ToolDefinition, ToolCategory
+from BelfryCAD.gui.tool_palette import ToolPalette
 
 
 def dummy_icon_loader(icon_name):

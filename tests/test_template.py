@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..')))
 
 # Import modules to test
-from src.tools.base import ToolCategory
+from BelfryCAD.tools.base import ToolCategory
 
 
 class TestExample(unittest.TestCase):

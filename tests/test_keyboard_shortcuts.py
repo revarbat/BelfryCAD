@@ -17,11 +17,11 @@ sys.path.insert(0, project_root)
 
 def test_keyboard_shortcut_mappings():
     """Test that keyboard shortcuts are properly mapped"""
-    from src.gui.main_window import MainWindow
-    from src.tools.base import ToolCategory
-    from src.core.config import Config
-    from src.core.preferences import PreferencesManager
-    from src.core.document import TkCADDocument
+    from BelfryCAD.gui.main_window import MainWindow
+    from BelfryCAD.tools.base import ToolCategory
+    from BelfryCAD.core.config import Config
+    from BelfryCAD.core.preferences import PreferencesManager
+    from BelfryCAD.core.document import TkCADDocument
     
     # Create test instances
     config = Config()
@@ -68,11 +68,11 @@ def test_keyboard_shortcut_mappings():
 
 def test_shortcut_activation():
     """Test that shortcuts can be activated"""
-    from src.gui.main_window import MainWindow
-    from src.tools.base import ToolCategory
-    from src.core.config import Config
-    from src.core.preferences import PreferencesManager
-    from src.core.document import TkCADDocument
+    from BelfryCAD.gui.main_window import MainWindow
+    from BelfryCAD.tools.base import ToolCategory
+    from BelfryCAD.core.config import Config
+    from BelfryCAD.core.preferences import PreferencesManager
+    from BelfryCAD.core.document import TkCADDocument
     
     # Create test instances
     config = Config()
