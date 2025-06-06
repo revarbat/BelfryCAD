@@ -13,25 +13,25 @@ from PySide6.QtGui import QPixmap, QIcon
 def test_icon_loading():
     """Test that PNG icons can be loaded properly"""
     app = QApplication(sys.argv)
-    
+
     # Test a few key icons
     test_icons = [
         'tool-dimarc',
-        'tool-circlectr', 
+        'tool-circlectr',
         'tool-line',
         'tool-rectangle',
         'layer-cam',
         'node-diamond'
     ]
-    
+
     images_dir = os.path.join(os.path.dirname(__file__), 'images')
-    
+
     success_count = 0
     total_count = len(test_icons)
-    
+
     for icon_name in test_icons:
         icon_path = os.path.join(images_dir, f"{icon_name}.png")
-        
+
         if os.path.exists(icon_path):
             try:
                 pixmap = QPixmap(icon_path)
@@ -48,9 +48,9 @@ def test_icon_loading():
                 print(f"✗ {icon_name}.png exception: {e}")
         else:
             print(f"✗ {icon_name}.png file not found")
-    
+
     print(f"\nResult: {success_count}/{total_count} icons loaded successfully")
-    
+
     if success_count == total_count:
         print("🎉 All test icons loaded successfully!")
         return True

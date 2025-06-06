@@ -16,16 +16,16 @@ def test_arcctr_secondary_key():
     """Test that ARCCTR has the correct secondary key 'C' in ARCS category"""
     print("Testing ARCCTR secondary keybinding...")
     print("=" * 50)
-    
+
     # Create a mock ToolPalette instance to test secondary key mappings
     class MockToolPalette:
         def __init__(self, category):
             self.category = category
-            
+
         def _create_secondary_key_mappings(self):
             """Test the secondary key mappings for tools"""
             mappings = {}
-            
+
             if self.category == ToolCategory.ARCS:
                 # A is primary, secondary keys use letters and digits
                 tool_map = {
@@ -49,17 +49,17 @@ def test_arcctr_secondary_key():
                 }
             else:
                 tool_map = {}
-            
+
             # Simulate mapping creation (like the real ToolPalette does)
             # This simulates having the ARCCTR tool available in this palette
             tools_in_palette = ['ARCCTR', 'ARC3PT', 'ARCTAN', 'CONIC2PT', 'CONIC3PT'] if self.category == ToolCategory.ARCS else ['CIRCLE', 'CIRCLE2PT', 'CIRCLE3PT', 'ELLIPSECTR', 'ELLIPSEDIAG', 'ELLIPSE3COR', 'ELLIPSECTAN', 'ELLIPSEOPTAN']
-            
+
             for tool_token in tools_in_palette:
                 if tool_token in tool_map:
                     mappings[tool_map[tool_token]] = tool_token
-                    
+
             return mappings
-        
+
         def get_secondary_key_for_tool(self, tool_token):
             """Get the secondary key for a specific tool token"""
             mappings = self._create_secondary_key_mappings()
@@ -67,34 +67,34 @@ def test_arcctr_secondary_key():
                 if token == tool_token:
                     return key
             return None
-    
+
     # Test ARCS category
     arcs_palette = MockToolPalette(ToolCategory.ARCS)
-    
+
     # Test ARCCTR specifically
     arcctr_key = arcs_palette.get_secondary_key_for_tool('ARCCTR')
     print(f"ARCCTR secondary key in ARCS category: '{arcctr_key}'")
     assert arcctr_key == 'C', f"Expected 'C', got '{arcctr_key}'"
-    
+
     # Test all ARCS mappings
     mappings = arcs_palette._create_secondary_key_mappings()
     print(f"\nAll ARCS secondary key mappings:")
     for key, tool in mappings.items():
         print(f"  '{key}' -> {tool}")
-    
+
     # Verify 'C' maps to ARCCTR
     assert mappings.get('C') == 'ARCCTR', f"Expected 'C' to map to 'ARCCTR', got '{mappings.get('C')}'"
-    
+
     print(f"\n✅ ARCCTR secondary key 'C' is working correctly in ARCS category")
-    
+
     # Also test ELLIPSES category to show the difference
     print(f"\nFor comparison, ELLIPSES category:")
     ellipses_palette = MockToolPalette(ToolCategory.ELLIPSES)
     ellipses_mappings = ellipses_palette._create_secondary_key_mappings()
     print(f"CIRCLE secondary key in ELLIPSES category: '{ellipses_palette.get_secondary_key_for_tool('CIRCLE')}'")
-    
+
     print(f"\nELLIPSES 'C' mapping: '{ellipses_mappings.get('C')}'")
-    
+
     print("\n" + "=" * 50)
     print("ARCCTR SECONDARY KEY TEST PASSED!")
     print("✅ ARCCTR uses 'C' in ARCS category")

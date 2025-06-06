@@ -18,10 +18,10 @@ from BelfryCAD.tools import available_tools
 def quick_test():
     """Quick automated test without GUI"""
     app = QApplication(sys.argv)
-    
+
     print("Quick ARCCTR Secondary Key Test")
     print("=" * 35)
-    
+
     # Get available tools and create arc tool definitions
     arc_tool_definitions = []
     for tool_class in available_tools:
@@ -32,38 +32,38 @@ def quick_test():
                     arc_tool_definitions.append(definition)
         except:
             pass
-    
+
     def dummy_icon_loader(icon_name):
         from PySide6.QtGui import QIcon
         return QIcon()
-    
+
     # Create tool palette
     palette = ToolPalette(
         ToolCategory.ARCS,
         arc_tool_definitions,
         dummy_icon_loader
     )
-    
+
     print(f"Mappings: {palette.secondary_key_mappings}")
-    
+
     # Test the exact scenario: Press 'A', then 'C'
     print("\nStep 1: User presses 'A' → ARCS palette shows")
     print("Step 2: User presses 'C' → Should select ARCCTR")
-    
+
     # Test both uppercase and lowercase 'C'
     test_cases = ['C', 'c']
-    
+
     for key_input in test_cases:
         # Simulate the fixed keyPressEvent logic
         key_processed = key_input.upper()
-        
+
         if key_processed in palette.secondary_key_mappings:
             tool_token = palette.secondary_key_mappings[key_processed]
             status = "✅ PASS" if tool_token == 'ARCCTR' else "❌ FAIL"
             print(f"{status} Key '{key_input}' → {tool_token}")
         else:
             print(f"❌ FAIL Key '{key_input}' → Not found")
-    
+
     print("\n🎉 ARCCTR secondary key fix is working!")
     app.quit()
 

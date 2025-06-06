@@ -17,13 +17,13 @@ from PySide6.QtWidgets import QGraphicsScene
 
 class GridTestWindow(QMainWindow):
     """Test window to verify grid alignment with rulers."""
-    
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Grid Lines Test - PyTkCAD")
         self.resize(800, 600)
         self._setup_ui()
-    
+
     def _setup_ui(self):
         # Create central widget and layout
         central_widget = QWidget()
@@ -31,72 +31,72 @@ class GridTestWindow(QMainWindow):
         layout = QGridLayout(central_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
+
         # Create graphics scene and view
         self.scene = QGraphicsScene()
         self.scene.setSceneRect(-2000, -2000, 4000, 4000)
-        
+
         self.canvas = CADGraphicsView()
         self.canvas.setScene(self.scene)
-        
+
         # Create rulers
         self.ruler_manager = RulerManager(self.canvas, central_widget)
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
         vertical_ruler = self.ruler_manager.get_vertical_ruler()
-        
+
         # Corner widget
         corner_widget = QWidget()
         corner_widget.setFixedSize(32, 32)
         corner_widget.setStyleSheet("background-color: white; border: 1px solid black;")
-        
+
         # Layout grid
         layout.addWidget(corner_widget, 0, 0)
         layout.addWidget(horizontal_ruler, 0, 1)
         layout.addWidget(vertical_ruler, 1, 0)
         layout.addWidget(self.canvas, 1, 1)
-        
+
         layout.setColumnStretch(1, 1)
         layout.setRowStretch(1, 1)
-        
+
         # Add axis lines and grid
         self._add_axis_lines()
         self._add_grid_lines()
-        
+
         # Connect events
         self._connect_events()
-    
+
     def _add_axis_lines(self):
         """Add axis lines at X=0 and Y=0"""
         axis_pen = QPen(QColor(128, 128, 128))
         axis_pen.setWidth(1)
-        
+
         scene_rect = self.scene.sceneRect()
         h_axis = self.scene.addLine(scene_rect.left(), 0, scene_rect.right(), 0, axis_pen)
         v_axis = self.scene.addLine(0, scene_rect.top(), 0, scene_rect.bottom(), axis_pen)
-        
+
         h_axis.setZValue(-1000)
         v_axis.setZValue(-1000)
-    
+
     def _add_grid_lines(self):
         """Add dotted grid lines that align with ruler major tickmarks"""
         # Get grid information from ruler
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
         (minorspacing, majorspacing, superspacing, labelspacing,
          divisor, units, formatfunc, conversion) = horizontal_ruler.get_grid_info()
-        
+
         # Create dotted pen for grid
         grid_pen = QPen(QColor(200, 200, 200))
         grid_pen.setWidth(1)
         grid_pen.setStyle(Qt.DotLine)
-        
+
         scene_rect = self.scene.sceneRect()
-        
+
         # Vertical grid lines (align with horizontal ruler major ticks)
         import math
         x_start = scene_rect.left()
         x_end = scene_rect.right()
         first_x = math.floor(x_start / labelspacing) * labelspacing
-        
+
         x = first_x
         while x <= x_end:
             if abs(math.floor(x / labelspacing + 1e-6) - x / labelspacing) < 1e-3:
@@ -105,12 +105,12 @@ class GridTestWindow(QMainWindow):
                 )
                 grid_line.setZValue(-1001)
             x += labelspacing
-        
+
         # Horizontal grid lines (align with vertical ruler major ticks)
         y_start = scene_rect.top()
         y_end = scene_rect.bottom()
         first_y = math.floor(y_start / labelspacing) * labelspacing
-        
+
         y = first_y
         while y <= y_end:
             if abs(math.floor(y / labelspacing + 1e-6) - y / labelspacing) < 1e-3:
@@ -119,32 +119,32 @@ class GridTestWindow(QMainWindow):
                 )
                 grid_line.setZValue(-1001)
             y += labelspacing
-    
+
     def _connect_events(self):
         """Connect scroll events to ruler updates"""
         def update_rulers():
             self.ruler_manager.update_rulers()
-        
+
         self.canvas.horizontalScrollBar().valueChanged.connect(update_rulers)
         self.canvas.verticalScrollBar().valueChanged.connect(update_rulers)
-        
+
         # Mouse tracking for ruler position indicators
         original_mouse_move = self.canvas.mouseMoveEvent
-        
+
         def enhanced_mouse_move(event):
             original_mouse_move(event)
             scene_pos = self.canvas.mapToScene(event.pos())
             self.ruler_manager.update_mouse_position(scene_pos.x(), scene_pos.y())
-        
+
         self.canvas.mouseMoveEvent = enhanced_mouse_move
 
 
 def main():
     app = QApplication(sys.argv)
-    
+
     window = GridTestWindow()
     window.show()
-    
+
     sys.exit(app.exec())
 
 

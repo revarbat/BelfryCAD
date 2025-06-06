@@ -23,11 +23,11 @@ class LineMPObject(CADObject):
         extended_x = (endpoint.x - midpoint.x) * 2.0 + midpoint.x
         extended_y = (endpoint.y - midpoint.y) * 2.0 + midpoint.y
         extended_point = Point(extended_x, extended_y)
-        
+
         # Store the full line (midpoint to extended endpoint)
         super().__init__(
             object_id, ObjectType.LINE, coords=[midpoint, extended_point], **kwargs)
-        
+
         # Store the original control points for editing
         self.midpoint = midpoint
         self.endpoint = endpoint
@@ -115,7 +115,7 @@ class LineMPTool(Tool):
             ),
             ToolDefinition(
                 token="LINEMP21",
-                name="Midpoint Line, End First", 
+                name="Midpoint Line, End First",
                 category=ToolCategory.LINES,
                 icon="tool-linemp21",
                 cursor="crosshair",
@@ -141,7 +141,7 @@ class LineMPTool(Tool):
             scene_pos = event.scenePos()
         else:
             scene_pos = QPointF(event.x, event.y)
-        
+
         # Get the snapped point based on current snap settings
         point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
@@ -176,7 +176,7 @@ class LineMPTool(Tool):
             # Determine which point is midpoint and which is endpoint based on tool variant
             first_point = self.points[0]
             second_point = point
-            
+
             # Check which tool variant is active based on the current definition
             if hasattr(self, 'definition') and self.definition.token == "LINEMP21":
                 # End First variant: first point is endpoint, second is midpoint
@@ -194,7 +194,7 @@ class LineMPTool(Tool):
             # Draw temporary full line
             pen = QPen(QColor("blue"))
             pen.setDashPattern([4, 4])  # Dashed line for preview
-            
+
             preview_line = self.scene.addLine(
                 midpoint.x, midpoint.y,
                 extended_x, extended_y,
@@ -205,14 +205,14 @@ class LineMPTool(Tool):
             # Draw control points for clarity
             control_pen = QPen(QColor("red"))
             control_pen.setWidth(2)
-            
+
             # Midpoint marker (circle)
             midpoint_marker = self.scene.addEllipse(
                 midpoint.x - 2, midpoint.y - 2, 4, 4,
                 control_pen
             )
             self.temp_objects.append(midpoint_marker)
-            
+
             # Endpoint marker (square)
             endpoint_marker = self.scene.addRect(
                 endpoint.x - 2, endpoint.y - 2, 4, 4,
@@ -228,7 +228,7 @@ class LineMPTool(Tool):
         # Determine which point is midpoint and which is endpoint based on tool variant
         first_point = self.points[0]
         second_point = self.points[1]
-        
+
         # Check which tool variant was used based on the current definition
         if hasattr(self, 'definition') and self.definition.token == "LINEMP21":
             # End First variant: first point is endpoint, second is midpoint

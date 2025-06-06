@@ -21,12 +21,12 @@ def test_duplicate_key_detection():
     """Test that duplicate secondary keys are detected and errors are thrown"""
     print("Testing Duplicate Secondary Key Detection")
     print("=" * 45)
-    
+
     app = QApplication(sys.argv)
-    
+
     # Test 1: Create tools with duplicate secondary keys in the same category
     print("\nTest 1: Creating tools with duplicate 'D' key in NODES category")
-    
+
     conflicting_tools = [
         ToolDefinition(
             token="NODEADD",
@@ -50,7 +50,7 @@ def test_duplicate_key_detection():
             secondary_key="S"  # Unique key
         ),
     ]
-    
+
     try:
         palette = ToolPalette(ToolCategory.NODES, conflicting_tools, dummy_icon_loader)
         print("❌ ERROR: Expected ValueError but none was thrown!")
@@ -58,10 +58,10 @@ def test_duplicate_key_detection():
     except ValueError as e:
         print("✅ SUCCESS: ValueError correctly thrown!")
         print(f"Error message: {e}")
-    
+
     # Test 2: Test the existing ELLIPSES conflict
     print("\nTest 2: Testing existing ELLIPSES 'O' key conflict")
-    
+
     ellipse_tools = [
         ToolDefinition(
             token="ELLIPSEOPTAN",
@@ -78,7 +78,7 @@ def test_duplicate_key_detection():
             secondary_key="O"  # This will trigger special case
         ),
     ]
-    
+
     try:
         palette = ToolPalette(ToolCategory.ELLIPSES, ellipse_tools, dummy_icon_loader)
         print("❌ ERROR: Expected ValueError but none was thrown!")
@@ -86,10 +86,10 @@ def test_duplicate_key_detection():
     except ValueError as e:
         print("✅ SUCCESS: ValueError correctly thrown for ELLIPSES conflict!")
         print(f"Error message: {e}")
-    
+
     # Test 3: Create tools with no conflicts (should work fine)
     print("\nTest 3: Creating tools with unique secondary keys")
-    
+
     valid_tools = [
         ToolDefinition(
             token="NODEADD",
@@ -113,7 +113,7 @@ def test_duplicate_key_detection():
             secondary_key="S"  # Unique key
         ),
     ]
-    
+
     try:
         palette = ToolPalette(ToolCategory.NODES, valid_tools, dummy_icon_loader)
         print("✅ SUCCESS: No error thrown for unique keys!")
@@ -121,7 +121,7 @@ def test_duplicate_key_detection():
     except ValueError as e:
         print(f"❌ ERROR: Unexpected ValueError: {e}")
         return False
-    
+
     print("\n" + "=" * 45)
     print("All tests completed successfully!")
     return True

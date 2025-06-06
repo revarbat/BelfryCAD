@@ -13,7 +13,7 @@ from .cad_objects import *
 
 __all__ = [
     'Document',
-    'LayerManager', 
+    'LayerManager',
     'Layer',
     'PreferencesManager',
 ]

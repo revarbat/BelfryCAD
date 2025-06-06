@@ -15,20 +15,20 @@ from .tool_palette import ToolPalette
 
 class CategoryToolButton(QToolButton):
     """A toolbar button that represents a category and shows a tool palette"""
-    
+
     # Signal emitted when a tool is selected from the palette
     tool_selected = Signal(str)  # tool_token
-    
+
     # Class variable to track the currently visible palette
     _current_visible_palette = None
-    
+
     @classmethod
     def _dismiss_current_palette(cls):
         """Dismiss the currently visible palette, if any"""
         if cls._current_visible_palette:
             cls._current_visible_palette.hide()
             cls._current_visible_palette = None
-    
+
     def __init__(self, category: ToolCategory, tools: List[ToolDefinition],
                  icon_loader, parent=None):
         super().__init__(parent)
@@ -47,27 +47,27 @@ class CategoryToolButton(QToolButton):
         # Connection will be made dynamically in mousePressEvent
 
         self._setup_ui()
-        
+
     def _setup_ui(self):
         """Set up the button UI"""
         self.setFixedSize(48, 48)
         self.setIconSize(QSize(48, 48))  # Ensure icons are 48x48
-        
+
         # Update tooltip based on whether category has one or multiple tools
         if len(self.tools) == 1:
             self.setToolTip(f"{self.tools[0].name}")
         else:
             self.setToolTip(f"{self.category.value} Tools")
-        
+
         # Set initial icon (first tool in category)
         self._update_icon()
-        
+
         # All categories now use press-and-hold behavior
         # handled by mouse events instead of clicked signal
-        
+
         # Style the button
         self._update_stylesheet()
-    
+
     def _update_stylesheet(self):
         """Update the button stylesheet based on active state"""
         if self.is_active:
@@ -101,7 +101,7 @@ class CategoryToolButton(QToolButton):
                     background-color: rgba(255, 255, 255, 50);
                 }
             """)
-    
+
     def _update_icon(self):
         """Update the button icon to show the current tool"""
         if self.current_tool:
@@ -123,31 +123,31 @@ class CategoryToolButton(QToolButton):
         """Directly activate the single tool in this category"""
         # Dismiss any currently visible palette before activating this tool
         self._dismiss_current_palette()
-        
+
         if self.current_tool:
             self.tool_selected.emit(self.current_tool.token)
-    
+
     def _show_palette(self):
         """Show the tool palette"""
         # Dismiss any currently visible palette before showing this one
         self._dismiss_current_palette()
-        
+
         if not self.palette:
             self.palette = ToolPalette(
                 self.category, self.tools, self.icon_loader, self.parent()
             )
             self.palette.tool_selected.connect(self._on_tool_selected)
-        
+
         # Position palette to the right of this button
         button_rect = self.geometry()
         global_pos = self.parent().mapToGlobal(button_rect.topRight())
         global_pos.setX(global_pos.x() + 5)  # Small gap
-        
+
         # Track this palette as the currently visible one
         CategoryToolButton._current_visible_palette = self.palette
-        
+
         self.palette.show_at_position(global_pos)
-    
+
     def _on_tool_selected(self, tool_token: str):
         """Handle tool selection from palette"""
         # Find the selected tool definition
@@ -156,13 +156,13 @@ class CategoryToolButton(QToolButton):
                 self.current_tool = tool_def
                 self._update_icon()
                 break
-        
+
         # Clear the tracked palette since it will be hidden
         CategoryToolButton._current_visible_palette = None
-        
+
         # Emit the tool selection signal
         self.tool_selected.emit(tool_token)
-    
+
     def set_current_tool(self, tool_token: str):
         """Set the current tool programmatically"""
         for tool_def in self.tools:
@@ -199,7 +199,7 @@ class CategoryToolButton(QToolButton):
                     pass  # No connections to disconnect
                 self.hold_timer.timeout.connect(self._show_palette)
             self.hold_timer.start(500)
-        
+
         # Call parent implementation to maintain normal button behavior
         super().mousePressEvent(event)
 
@@ -208,7 +208,7 @@ class CategoryToolButton(QToolButton):
         if event.button() == Qt.LeftButton:
             # Stop the hold timer for both single and multi-tool categories
             self.hold_timer.stop()
-            
+
             if len(self.tools) == 1:
                 # Single tool: activate immediately on quick click
                 if self.current_tool:
@@ -222,6 +222,6 @@ class CategoryToolButton(QToolButton):
                 if palette_not_visible and self.current_tool:
                     self._dismiss_current_palette()
                     self.tool_selected.emit(self.current_tool.token)
-        
+
         # Call parent implementation
         super().mouseReleaseEvent(event)

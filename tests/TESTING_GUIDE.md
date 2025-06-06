@@ -103,10 +103,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 def test_arc_tool_shortcut():
     """Test that the Arc tool uses the 'A' shortcut."""
     from BelfryCAD.tools.arcs import ArcCenterTool
-    
+
     tool = ArcCenterTool(None, None, None)
     definition = tool.definitions[0]
-    
+
     assert definition.secondary_key == 'C'
 ```
 
@@ -116,17 +116,17 @@ def test_arc_tool_shortcut():
 def test_tool_palette_shows_correctly():
     """Test that the tool palette shows correctly."""
     app = QApplication(sys.argv)
-    
+
     # Create palette
     palette = ToolPalette(ToolCategory.ARCS, arc_tool_definitions, dummy_icon_loader)
-    
+
     # Test specific properties
     assert palette.isVisible() == False
-    
+
     # Show palette
     palette.show()
     assert palette.isVisible() == True
-    
+
     # Clean up
     palette.hide()
     app.quit()

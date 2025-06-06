@@ -97,7 +97,7 @@ class CircleTool(Tool):
             from PySide6.QtWidgets import QGraphicsEllipseItem
             from PySide6.QtCore import QRectF, Qt
             from PySide6.QtGui import QPen
-            
+
             ellipse_item = QGraphicsEllipseItem(
                 QRectF(center_point.x - radius, center_point.y - radius,
                        2 * radius, 2 * radius)
@@ -106,7 +106,7 @@ class CircleTool(Tool):
             pen.setColor("blue")
             pen.setStyle(Qt.DashLine)
             ellipse_item.setPen(pen)
-            
+
             self.scene.addItem(ellipse_item)
             self.temp_objects.append(ellipse_item)
 
@@ -189,10 +189,10 @@ class Circle3PTObject(CADObject):
     def _calculate_circle(self):
         """Calculate center and radius from three points"""
         p1, p2, p3 = self.point1, self.point2, self.point3
-        
+
         # Check if points are collinear
         col = p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)
-        
+
         if abs(col) < 1e-6:
             # Points are collinear - this becomes a line
             self.attributes['is_line'] = True
@@ -201,7 +201,7 @@ class Circle3PTObject(CADObject):
             return
 
         self.attributes['is_line'] = False
-        
+
         # Calculate center using perpendicular bisector method
         mx1 = (p1.x + p3.x) / 2.0
         my1 = (p1.y + p3.y) / 2.0
@@ -231,7 +231,7 @@ class Circle3PTObject(CADObject):
 
         center = Point(cx, cy)
         radius = math.sqrt((p1.y - cy)**2 + (p1.x - cx)**2)
-        
+
         self.attributes['center'] = center
         self.attributes['radius'] = radius
 
@@ -275,7 +275,7 @@ class Circle2PTTool(Tool):
         """Handle mouse down events"""
         scene_pos = event.scenePos()
         point = Point(scene_pos.x(), scene_pos.y())
-        
+
         if self.state == ToolState.INIT:
             self.points = [point]
             self.state = ToolState.DRAWING
@@ -321,7 +321,7 @@ class Circle2PTTool(Tool):
             pen.setColor("blue")
             pen.setStyle(Qt.DashLine)
             ellipse_item.setPen(pen)
-            
+
             self.scene.addItem(ellipse_item)
             self.temp_objects.append(ellipse_item)
 
@@ -367,7 +367,7 @@ class Circle3PTTool(Tool):
         """Handle mouse down events"""
         scene_pos = event.scenePos()
         point = Point(scene_pos.x(), scene_pos.y())
-        
+
         if self.state == ToolState.INIT:
             self.points = [point]
             self.state = ToolState.DRAWING
@@ -386,7 +386,7 @@ class Circle3PTTool(Tool):
         if self.state == ToolState.DRAWING:
             scene_pos = event.scenePos()
             current_point = Point(scene_pos.x(), scene_pos.y())
-            
+
             if len(self.points) == 1:
                 self.draw_preview([self.points[0], current_point])
             elif len(self.points) == 2:
@@ -402,20 +402,20 @@ class Circle3PTTool(Tool):
         if len(points) == 3:
             # Calculate circle from 3 points
             p1, p2, p3 = points
-            
+
             # Check if collinear
             col = p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)
             if abs(col) < 1e-6:
                 # Draw line preview for collinear points
                 from PySide6.QtWidgets import QGraphicsLineItem
                 from PySide6.QtGui import QPen, Qt
-                
+
                 line_item = QGraphicsLineItem(p1.x, p1.y, p3.x, p3.y)
                 pen = QPen()
                 pen.setColor("red")
                 pen.setStyle(Qt.DashLine)
                 line_item.setPen(pen)
-                
+
                 self.scene.addItem(line_item)
                 self.temp_objects.append(line_item)
                 return
@@ -458,7 +458,7 @@ class Circle3PTTool(Tool):
             pen.setColor("blue")
             pen.setStyle(Qt.DashLine)
             ellipse_item.setPen(pen)
-            
+
             self.scene.addItem(ellipse_item)
             self.temp_objects.append(ellipse_item)
 
@@ -466,14 +466,14 @@ class Circle3PTTool(Tool):
             # Draw line preview between first two points
             from PySide6.QtWidgets import QGraphicsLineItem
             from PySide6.QtGui import QPen, Qt
-            
+
             p1, p2 = points
             line_item = QGraphicsLineItem(p1.x, p1.y, p2.x, p2.y)
             pen = QPen()
             pen.setColor("gray")
             pen.setStyle(Qt.DashLine)
             line_item.setPen(pen)
-            
+
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
 

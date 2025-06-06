@@ -94,7 +94,7 @@ class CADGraphicsView(QGraphicsView):
         if self.tool_manager and self.tool_manager.get_active_tool():
             # Convert to scene coordinates
             scene_pos = self.mapToScene(event.pos())
-            
+
             # Convert Qt scene coordinates to CAD coordinates using drawing manager
             if self.drawing_manager:
                 # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up) coordinates
@@ -103,7 +103,7 @@ class CADGraphicsView(QGraphicsView):
             else:
                 # Fallback to scene coordinates if no drawing manager
                 cad_x, cad_y = scene_pos.x(), scene_pos.y()
-            
+
             # Create a simple event object with CAD coordinates and x/y attrs
             class SceneEvent:
                 def __init__(self, scene_pos, cad_x, cad_y):
@@ -123,7 +123,7 @@ class CADGraphicsView(QGraphicsView):
         """Handle mouse move events and forward to active tool"""
         if self.tool_manager and self.tool_manager.get_active_tool():
             scene_pos = self.mapToScene(event.pos())
-            
+
             # Convert Qt scene coordinates to CAD coordinates using drawing manager
             if self.drawing_manager:
                 # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up) coordinates
@@ -151,7 +151,7 @@ class CADGraphicsView(QGraphicsView):
         """Handle mouse release events and forward to active tool"""
         if self.tool_manager and self.tool_manager.get_active_tool():
             scene_pos = self.mapToScene(event.pos())
-            
+
             # Convert Qt scene coordinates to CAD coordinates using drawing manager
             if self.drawing_manager:
                 # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up) coordinates
@@ -187,10 +187,10 @@ class MainWindow(QMainWindow):
         self.config = config
         self.preferences = preferences
         self.document = document
-        
+
         # Track graphics items by object ID for updates/deletion
         self.graphics_items = {}  # object_id -> list of graphics items
-        
+
         self._setup_ui()
 
     def _setup_ui(self):
@@ -375,7 +375,7 @@ class MainWindow(QMainWindow):
         self.main_menu.zoom_out_triggered.connect(self.zoom_out)
         self.main_menu.show_origin_toggled.connect(self.toggle_show_origin)
         self.main_menu.show_grid_toggled.connect(self.toggle_show_grid)
-        
+
         # Palette visibility connections
         self.main_menu.show_info_panel_toggled.connect(self.toggle_info_panel)
         self.main_menu.show_properties_toggled.connect(self.toggle_properties)
@@ -507,20 +507,20 @@ class MainWindow(QMainWindow):
         """Setup the palette system with dockable windows."""
         # Create the palette manager and default palettes
         self.palette_manager = create_default_palettes(self)
-        
+
         # Connect palette visibility changes to menu sync
         self.palette_manager.palette_visibility_changed.connect(
             self._on_palette_visibility_changed
         )
-        
+
         # Connect palette content to canvas and other components
         self._connect_palette_content()
-        
+
         # Restore palette layout from preferences if available
         saved_layout = self.preferences.get("palette_layout", None)
         if saved_layout:
             self.palette_manager.restore_palette_layout(saved_layout)
-    
+
     def _connect_palette_content(self):
         """Connect palette content widgets to the main window functionality."""
         # Connect info pane to canvas for position updates
@@ -528,13 +528,13 @@ class MainWindow(QMainWindow):
         if info_pane and hasattr(self, 'canvas'):
             # TODO: Connect canvas mouse move events to info pane updates
             pass
-            
+
         # Connect config pane to document and selection
         config_pane = self.palette_manager.get_palette_content("config_pane")
         if config_pane and hasattr(self, 'document'):
             # TODO: Connect document selection changes to config pane
             pass
-            
+
         # Connect layer window to document layer management
         layer_window = self.palette_manager.get_palette_content("layer_window")
         if layer_window and hasattr(self, 'document'):
@@ -549,7 +549,7 @@ class MainWindow(QMainWindow):
 
         # Connect tool manager to graphics view
         self.canvas.set_tool_manager(self.tool_manager)
-        
+
         # Connect drawing manager to graphics view for coordinate transformations
         self.canvas.set_drawing_manager(self.drawing_manager)
 
@@ -1280,16 +1280,16 @@ class MainWindow(QMainWindow):
         """Draw a single object to the scene using DrawingManager."""
         # Get object ID for tracking
         obj_id = getattr(obj, 'id', None) or id(obj)
-        
+
         # Remove any existing graphics items for this object
         if obj_id in self.graphics_items:
             for item in self.graphics_items[obj_id]:
                 if item.scene() == self.scene:
                     self.scene.removeItem(item)
             del self.graphics_items[obj_id]
-        
+
         graphics_items = []
-        
+
         # Use the DrawingManager to draw objects with proper TCL translation
         if hasattr(self, 'drawing_manager'):
             graphics_items = self.drawing_manager.object_draw(obj)
@@ -1301,7 +1301,7 @@ class MainWindow(QMainWindow):
             graphics_items = self._draw_object_simple(obj)
             if graphics_items:
                 self.graphics_items[obj_id] = graphics_items
-        
+
         return graphics_items
 
     def on_object_created(self, obj):
@@ -1400,25 +1400,25 @@ class MainWindow(QMainWindow):
         self.preferences.set("show_info_panel", show)
         self.palette_manager.set_palette_visibility("info_pane", show)
         self._sync_palette_menu_states()
-    
+
     def toggle_properties(self, show):
         """Handle Properties panel visibility toggle."""
         self.preferences.set("show_properties", show)
         self.palette_manager.set_palette_visibility("config_pane", show)
         self._sync_palette_menu_states()
-    
+
     def toggle_layers(self, show):
         """Handle Layers panel visibility toggle."""
         self.preferences.set("show_layers", show)
         self.palette_manager.set_palette_visibility("layer_window", show)
         self._sync_palette_menu_states()
-    
+
     def toggle_snap_settings(self, show):
         """Handle Snap Settings panel visibility toggle."""
         self.preferences.set("show_snap_settings", show)
         self.palette_manager.set_palette_visibility("snap_window", show)
         self._sync_palette_menu_states()
-    
+
     def _sync_palette_menu_states(self):
         """Sync the palette menu checkbox states with actual visibility."""
         self.main_menu.sync_palette_menu_states(self.palette_manager)
@@ -1434,7 +1434,7 @@ class MainWindow(QMainWindow):
             self.preferences.set("show_layers", visible)
         elif palette_id == "snap_window":
             self.preferences.set("show_snap_settings", visible)
-        
+
         # Sync the menu checkboxes with the new state
         self._sync_palette_menu_states()
 
@@ -1447,7 +1447,7 @@ class MainWindow(QMainWindow):
         # Skip invisible objects
         if not getattr(obj, 'visible', True):
             return []
-            
+
         # Get color from attributes, default to black
         color_name = obj.attributes.get('color', 'black')
         if color_name == 'black':
@@ -1460,7 +1460,7 @@ class MainWindow(QMainWindow):
             color = QColor(0, 255, 0)
         else:
             color = QColor(0, 0, 0)
-            
+
         # Get line width from attributes
         line_width = obj.attributes.get('linewidth', 2)
         pen = QPen(color, line_width)

@@ -8,7 +8,7 @@ The layer management system has been **successfully translated** from the origin
 
 #### Core Layer Management
 - ✅ Layer creation, deletion, and naming
-- ✅ Layer visibility and lock status management  
+- ✅ Layer visibility and lock status management
 - ✅ Layer color and CAM settings (cut bit, cut depth)
 - ✅ Layer ordering and reordering
 - ✅ Current layer tracking and switching
@@ -54,7 +54,7 @@ The layer management system has been **successfully translated** from the origin
 
 #### Files Created/Modified:
 - `src/core/layers.py` - Complete layer management system (539 lines)
-- `src/core/document.py` - Fixed serialization/deserialization 
+- `src/core/document.py` - Fixed serialization/deserialization
 - `src/core/cad_objects.py` - Enhanced object-layer integration
 - `test_layers.py` - Comprehensive unit tests
 - `test_layer_integration.py` - Integration tests

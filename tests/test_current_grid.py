@@ -111,7 +111,7 @@ class CurrentGridTest(QMainWindow):
 
         # Start from first minor tick position (ruler logic)
         x = math.floor(x_start / minorspacing + 1e-6) * minorspacing
-        
+
         grid_count = 0
         while x <= x_end and grid_count < 50:  # Safety limit
             # Test if this position would be a major tick with label
@@ -134,7 +134,7 @@ class CurrentGridTest(QMainWindow):
 
         # Start from first minor tick position (ruler logic)
         y = math.floor(y_start / minorspacing + 1e-6) * minorspacing
-        
+
         grid_count = 0
         while y <= y_end and grid_count < 50:  # Safety limit
             # Test if this position would be a major tick with label
@@ -171,21 +171,21 @@ class CurrentGridTest(QMainWindow):
             if abs(math.floor(pos / labelspacing + 1e-6) - pos / labelspacing) < 1e-3:
                 # Vertical marker (for horizontal position)
                 self.scene.addEllipse(pos-0.2, -0.5, 0.4, 1.0, marker_pen, marker_brush)
-                # Horizontal marker (for vertical position)  
+                # Horizontal marker (for vertical position)
                 self.scene.addEllipse(-0.5, pos-0.2, 1.0, 0.4, marker_pen, marker_brush)
                 print(f"Ruler major tick marker at {pos}")
 
 def main():
     app = QApplication(sys.argv)
-    
+
     window = CurrentGridTest()
     window.show()
-    
+
     print("\nInstructions:")
     print("1. Red markers show where ruler major ticks should be")
     print("2. Grid lines should align exactly with red markers")
     print("3. If grid lines don't align, there's still an issue")
-    
+
     sys.exit(app.exec())
 
 if __name__ == "__main__":

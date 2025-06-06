@@ -20,16 +20,16 @@ from BelfryCAD.gui.main_window import MainWindow
 def visual_test_rulers():
     """Visual test to demonstrate rulers functionality."""
     app = QApplication([])
-    
+
     # Create application components
     config = AppConfig()
     preferences = PreferencesManager(config)
     document = Document()
-    
+
     # Create main window
     main_window = MainWindow(config, preferences, document)
     main_window.show()
-    
+
     print("PyTkCAD opened with rulers!")
     print("You should see:")
     print("- Horizontal ruler at the top")
@@ -43,7 +43,7 @@ def visual_test_rulers():
     print("3. Using drawing tools - rulers help with precise positioning")
     print("")
     print("Close the window to exit the test.")
-    
+
     # Keep the application running until user closes it
     sys.exit(app.exec())
 

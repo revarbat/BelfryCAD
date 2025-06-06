@@ -7,7 +7,7 @@ The palette system integration for PyTkCAD has been successfully completed. User
 
 ### 1. View Menu Controls ✅
 - Added "Show Info Panel" checkbox (default: checked)
-- Added "Show Properties" checkbox (default: checked) 
+- Added "Show Properties" checkbox (default: checked)
 - Added "Show Layers" checkbox (default: checked)
 - Added "Show Snap Settings" checkbox (default: unchecked)
 - All menu items are properly checkable and reflect current palette state
@@ -64,7 +64,7 @@ The palette system integration for PyTkCAD has been successfully completed. User
 ### Import Test
 ```
 ✓ InfoPaneWindow imported successfully
-✓ ConfigPane imported successfully  
+✓ ConfigPane imported successfully
 ✓ SnapWindow imported successfully
 ✓ LayerWindow imported successfully
 ✓ Palette system components imported successfully
@@ -89,7 +89,7 @@ The palette system integration for PyTkCAD has been successfully completed. User
 3. Use checkboxes to show/hide palettes:
    - Show Info Panel
    - Show Properties
-   - Show Layers  
+   - Show Layers
    - Show Snap Settings
 4. Preferences are automatically saved
 

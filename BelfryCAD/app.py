@@ -34,7 +34,7 @@ class TkCADApplication:
         self.app = QApplication.instance()
         if self.app is None:
             self.app = QApplication([])
-        
+
         self.setup_application()
 
     def setup_application(self):
@@ -86,7 +86,7 @@ class TkCADApplication:
                     QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
                 )
                 msg.setDefaultButton(QMessageBox.Yes)
-                
+
                 result = msg.exec()
 
                 if result == QMessageBox.Cancel:

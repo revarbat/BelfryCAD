@@ -66,7 +66,7 @@ class LineTool(Tool):
             scene_pos = event.scenePos()
         else:
             scene_pos = QPointF(event.x, event.y)
-        
+
         # Get the snapped point based on current snap settings
         point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
@@ -102,7 +102,7 @@ class LineTool(Tool):
             start_point = self.points[0]
             pen = QPen(QColor("blue"))
             pen.setDashPattern([4, 4])  # Dashed line for preview
-            
+
             preview_line = self.scene.addLine(
                 start_point.x, start_point.y,
                 point.x, point.y,

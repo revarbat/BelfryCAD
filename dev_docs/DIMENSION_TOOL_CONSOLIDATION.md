@@ -60,7 +60,7 @@ All dimension tools can be successfully imported:
 ```python
 from BelfryCAD.tools.dimension import (
     HorizontalDimensionTool,
-    VerticalDimensionTool, 
+    VerticalDimensionTool,
     LinearDimensionTool,
     ArcDimensionTool
 )

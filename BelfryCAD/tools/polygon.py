@@ -100,7 +100,7 @@ class RectangleTool(Tool):
             from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
             from PySide6.QtCore import QRectF, Qt
             from PySide6.QtGui import QPen
-            
+
             rect_item = QGraphicsRectItem(QRectF(x1, y1, x2 - x1, y2 - y1))
             pen = QPen()
             pen.setColor("blue")
@@ -119,7 +119,7 @@ class RectangleTool(Tool):
                 dim_x_item.setDefaultTextColor("blue")
                 self.scene.addItem(dim_x_item)
                 self.temp_objects.append(dim_x_item)
-                
+
                 dim_y_item = QGraphicsTextItem(f"Height: {height:.1f}")
                 dim_y_item.setPos(x2 + 15, (y1 + y2) / 2)
                 dim_y_item.setDefaultTextColor("blue")
@@ -170,10 +170,10 @@ class RoundedRectangleTool(Tool):
     def __init__(self, canvas, document, preferences):
         """Initialize the tool with the canvas, document and preferences"""
         super().__init__(canvas, document, preferences)
-        
+
         # Default corner radius
         self.corner_radius = 10.0
-        
+
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
         return [ToolDefinition(
@@ -218,22 +218,22 @@ class RoundedRectangleTool(Tool):
         """Set corner radius based on distance from rectangle edge"""
         if len(self.points) < 2:
             return
-            
+
         p1, p2 = self.points[0], self.points[1]
-        
+
         # Calculate rectangle bounds
         x1, y1 = min(p1.x, p2.x), min(p1.y, p2.y)
         x2, y2 = max(p1.x, p2.x), max(p1.y, p2.y)
-        
+
         # Calculate distance from point to nearest edge
         dx_left = abs(point.x - x1)
         dx_right = abs(point.x - x2)
         dy_bottom = abs(point.y - y1)
         dy_top = abs(point.y - y2)
-        
+
         # Use the minimum distance to any edge as radius
         self.corner_radius = min(dx_left, dx_right, dy_bottom, dy_top)
-        
+
         # Limit radius to half the minimum dimension
         max_radius = min(x2 - x1, y2 - y1) / 2
         self.corner_radius = min(self.corner_radius, max_radius)
@@ -273,13 +273,13 @@ class RoundedRectangleTool(Tool):
 
             if width > 10 and height > 10:  # Only show if large enough
                 from PySide6.QtWidgets import QGraphicsTextItem
-                
+
                 dim_x_item = QGraphicsTextItem(f"Width: {width:.1f}")
                 dim_x_item.setPos((x1 + x2) / 2, y2 + 15)
                 dim_x_item.setDefaultTextColor("blue")
                 self.scene.addItem(dim_x_item)
                 self.temp_objects.append(dim_x_item)
-                
+
                 dim_y_item = QGraphicsTextItem(f"Height: {height:.1f}")
                 dim_y_item.setPos(x2 + 15, (y1 + y2) / 2)
                 dim_y_item.setDefaultTextColor("blue")
@@ -296,17 +296,17 @@ class RoundedRectangleTool(Tool):
 
         if len(self.points) == 2:
             p1, p2 = self.points[0], self.points[1]
-            
+
             # Calculate rectangle bounds
             x1, y1 = min(p1.x, p2.x), min(p1.y, p2.y)
             x2, y2 = max(p1.x, p2.x), max(p1.y, p2.y)
-            
+
             # Calculate temporary radius from current point
             temp_radius = self._calc_radius_from_point(point, x1, y1, x2, y2)
-            
+
             # Draw rounded rectangle with current radius
             self._draw_temp_rounded_rectangle(x1, y1, x2, y2, temp_radius)
-            
+
             # Add radius text
             from PySide6.QtWidgets import QGraphicsTextItem
             radius_text = QGraphicsTextItem(f"Radius: {temp_radius:.1f}")
@@ -323,10 +323,10 @@ class RoundedRectangleTool(Tool):
         dx_right = abs(point.x - x2)
         dy_bottom = abs(point.y - y1)
         dy_top = abs(point.y - y2)
-        
+
         # Use the minimum distance to any edge as radius
         radius = min(dx_left, dx_right, dy_bottom, dy_top)
-        
+
         # Limit radius to half the minimum dimension
         max_radius = min(x2 - x1, y2 - y1) / 2
         return min(radius, max_radius)
@@ -339,7 +339,7 @@ class RoundedRectangleTool(Tool):
             from PySide6.QtWidgets import QGraphicsRectItem
             from PySide6.QtCore import QRectF, Qt
             from PySide6.QtGui import QPen
-            
+
             rect_item = QGraphicsRectItem(QRectF(x1, y1, x2 - x1, y2 - y1))
             pen = QPen()
             pen.setColor("blue")
@@ -356,12 +356,12 @@ class RoundedRectangleTool(Tool):
         """Draw a temporary rounded rectangle using bezier curves"""
         # Generate vertices for rounded rectangle
         vertices = self._gen_rounded_rect_vertices(x1, y1, x2, y2, radius)
-        
+
         if vertices:
             from PySide6.QtWidgets import QGraphicsPathItem
             from PySide6.QtGui import QPainterPath, QPen
             from PySide6.QtCore import Qt
-            
+
             # Create a path for the rounded rectangle
             path = QPainterPath()
             if vertices:
@@ -369,7 +369,7 @@ class RoundedRectangleTool(Tool):
                 for vertex in vertices[1:]:
                     path.lineTo(vertex.x, vertex.y)
                 path.closeSubpath()
-            
+
             path_item = QGraphicsPathItem(path)
             pen = QPen()
             pen.setColor("blue")
@@ -384,52 +384,52 @@ class RoundedRectangleTool(Tool):
         if radius <= 0:
             # Regular rectangle
             return [Point(x1, y1), Point(x2, y1), Point(x2, y2), Point(x1, y2)]
-        
+
         # Limit radius to half the minimum dimension
         max_radius = min(x2 - x1, y2 - y1) / 2
         radius = min(radius, max_radius)
-        
+
         # Import bezier utilities
         from BelfryCAD.utils.bezutils import bezutil_append_bezier_arc
-        
+
         # Build coordinate list using bezier arcs for corners
         coords = []
-        
+
         # Start at bottom-left + radius, move clockwise
         # Bottom edge (left to right)
         coords.extend([x1 + radius, y1, x2 - radius, y1])
-        
+
         # Bottom-right corner (90 degree arc from bottom to right)
         bezutil_append_bezier_arc(coords, x2 - radius, y1 + radius,
                                   radius, radius, -90, 90)
-        
-        # Right edge (bottom to top)  
+
+        # Right edge (bottom to top)
         coords.extend([x2, y1 + radius, x2, y2 - radius])
-        
+
         # Top-right corner (90 degree arc from right to top)
-        bezutil_append_bezier_arc(coords, x2 - radius, y2 - radius, 
+        bezutil_append_bezier_arc(coords, x2 - radius, y2 - radius,
                                   radius, radius, 0, 90)
-        
+
         # Top edge (right to left)
         coords.extend([x2 - radius, y2, x1 + radius, y2])
-        
+
         # Top-left corner (90 degree arc from top to left)
         bezutil_append_bezier_arc(coords, x1 + radius, y2 - radius,
                                   radius, radius, 90, 90)
-        
+
         # Left edge (top to bottom)
         coords.extend([x1, y2 - radius, x1, y1 + radius])
-        
+
         # Bottom-left corner (90 degree arc from left to bottom)
         bezutil_append_bezier_arc(coords, x1 + radius, y1 + radius,
                                   radius, radius, 180, 90)
-        
+
         # Convert coordinate list to Point objects
         vertices = []
         for i in range(0, len(coords), 2):
             if i + 1 < len(coords):
                 vertices.append(Point(coords[i], coords[i + 1]))
-        
+
         return vertices
 
     def create_object(self) -> Optional[CADObject]:
@@ -591,7 +591,7 @@ class RegularPolygonTool(Tool):
                 from PySide6.QtWidgets import QGraphicsPolygonItem, QGraphicsLineItem, QGraphicsTextItem
                 from PySide6.QtGui import QPolygonF, QPointF, QPen
                 from PySide6.QtCore import Qt
-                
+
                 # Create Qt polygon from vertices
                 qt_polygon = QPolygonF()
                 for p in vertices:
@@ -619,7 +619,7 @@ class RegularPolygonTool(Tool):
                 radius_text_item.setDefaultTextColor("blue")
                 self.scene.addItem(radius_text_item)
                 self.temp_objects.append(radius_text_item)
-                
+
                 sides_text_item = QGraphicsTextItem(f"Sides: {self.num_sides}")
                 sides_text_item.setPos(center.x, center.y - radius - 15)
                 sides_text_item.setDefaultTextColor("blue")

@@ -18,7 +18,7 @@ Transform tools include:
 import math
 from typing import Optional, List, Tuple, Dict, Any
 
-from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsEllipseItem, 
+from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsEllipseItem,
                                QGraphicsPathItem, QGraphicsRectItem)
 from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush, QTransform
@@ -56,7 +56,7 @@ class NodeAddTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # Find object near the click point
             obj = self._find_object_near_point(point.x, point.y)
@@ -108,7 +108,7 @@ class NodeDeleteTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # Find control point or object near the click
             node_info = self._find_node_near_point(point.x, point.y)
@@ -170,7 +170,7 @@ class ReorientTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # Find control point near the click
             node_info = self._find_node_near_point(point.x, point.y)
@@ -221,7 +221,7 @@ class ConnectTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - select first object
             self.points.append(point)
@@ -231,13 +231,13 @@ class ConnectTool(Tool):
                 self.state = ToolState.DRAWING
             else:
                 self.cancel()
-                
+
         elif self.state == ToolState.DRAWING:
             # Second click - select second object and connect
             self.points.append(point)
             obj = self._find_object_near_point(point.x, point.y)
             if obj and obj != self.first_object:
-                self._connect_objects(self.first_object, self.points[0], 
+                self._connect_objects(self.first_object, self.points[0],
                                     obj, self.points[1])
                 self.complete()
             else:
@@ -252,12 +252,12 @@ class ConnectTool(Tool):
         """Draw a preview line from first point to current position"""
         if len(self.points) < 1:
             return
-            
+
         self.clear_temp_objects()
         start_point = self.points[0]
-        
+
         # Create a preview line
-        line_item = QGraphicsLineItem(start_point.x, start_point.y, 
+        line_item = QGraphicsLineItem(start_point.x, start_point.y,
                                      current_x, current_y)
         line_item.setPen(QPen(QColor(0, 0, 255)))  # Blue preview
         self.scene.addItem(line_item)
@@ -268,7 +268,7 @@ class ConnectTool(Tool):
         # TODO: Implement object search
         return None
 
-    def _connect_objects(self, obj1: CADObject, point1: Point, 
+    def _connect_objects(self, obj1: CADObject, point1: Point,
                         obj2: CADObject, point2: Point):
         """Connect two objects with a line"""
         # TODO: Implement object connection
@@ -302,12 +302,12 @@ class TranslateTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - reference point
             self.points.append(point)
             self.state = ToolState.DRAWING
-            
+
         elif self.state == ToolState.DRAWING:
             # Second click - destination point
             self.points.append(point)
@@ -323,14 +323,14 @@ class TranslateTool(Tool):
         """Draw a preview of the translation"""
         if len(self.points) < 1:
             return
-            
+
         self.clear_temp_objects()
         ref_point = self.points[0]
-        
+
         # Calculate translation vector
         dx = current_x - ref_point.x
         dy = current_y - ref_point.y
-        
+
         # Check for constrained movement (SHIFT key)
         if self._is_shift_pressed():
             # Constrain to horizontal, vertical, or diagonal
@@ -348,7 +348,7 @@ class TranslateTool(Tool):
                 else:
                     # Vertical
                     dx = 0.0
-        
+
         # Draw preview of selected objects at new position
         selected_objects = self._get_selected_objects()
         if selected_objects:
@@ -360,13 +360,13 @@ class TranslateTool(Tool):
         """Translate all selected objects"""
         if len(self.points) < 2:
             return
-            
+
         ref_point = self.points[0]
         dest_point = self.points[1]
-        
+
         dx = dest_point.x - ref_point.x
         dy = dest_point.y - ref_point.y
-        
+
         # Check for constrained movement
         if self._is_shift_pressed():
             if abs(dx) > abs(dy):
@@ -379,7 +379,7 @@ class TranslateTool(Tool):
                     dx = abs(dy) * (1.0 if dx >= 0 else -1.0)
                 else:
                     dx = 0.0
-        
+
         # Apply translation to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
@@ -394,7 +394,7 @@ class TranslateTool(Tool):
             (bbox.right(), bbox.top()),
             (bbox.right(), bbox.bottom())
         ]
-        
+
         # Draw lines connecting original corners to new positions
         for x, y in corners:
             line_item = QGraphicsLineItem(x + dx, y + dy, x + dx, y + dy)
@@ -450,16 +450,16 @@ class RotateTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - center of rotation
             self.points.append(point)
             self.state = ToolState.DRAWING
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 1:
             # Second click - reference point
             self.points.append(point)
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
             # Third click - rotation target
             self.points.append(point)
@@ -475,22 +475,22 @@ class RotateTool(Tool):
         """Draw a preview of the rotation"""
         if len(self.points) < 2:
             return
-            
+
         self.clear_temp_objects()
         center = self.points[0]
         ref_point = self.points[1]
-        
+
         # Calculate rotation angle
         angle1 = math.atan2(ref_point.y - center.y, ref_point.x - center.x)
         angle2 = math.atan2(current_y - center.y, current_x - center.x)
         rotation_angle = math.degrees(angle2 - angle1)
-        
+
         # Normalize angle to -180 to 180
         while rotation_angle > 180:
             rotation_angle -= 360
         while rotation_angle < -180:
             rotation_angle += 360
-        
+
         # Draw preview of rotated selection
         selected_objects = self._get_selected_objects()
         if selected_objects:
@@ -502,22 +502,22 @@ class RotateTool(Tool):
         """Rotate all selected objects"""
         if len(self.points) < 3:
             return
-            
+
         center = self.points[0]
         ref_point = self.points[1]
         target_point = self.points[2]
-        
+
         # Calculate rotation angle
         angle1 = math.atan2(ref_point.y - center.y, ref_point.x - center.x)
         angle2 = math.atan2(target_point.y - center.y, target_point.x - center.x)
         rotation_angle = math.degrees(angle2 - angle1)
-        
+
         # Normalize angle
         while rotation_angle > 180:
             rotation_angle -= 360
         while rotation_angle < -180:
             rotation_angle += 360
-        
+
         # Apply rotation to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
@@ -529,7 +529,7 @@ class RotateTool(Tool):
         angle_rad = math.radians(-angle)  # Negative for screen coordinates
         cos_a = math.cos(angle_rad)
         sin_a = math.sin(angle_rad)
-        
+
         # Get corners of bounding box
         corners = [
             (bbox.left(), bbox.top()),
@@ -537,7 +537,7 @@ class RotateTool(Tool):
             (bbox.right(), bbox.bottom()),
             (bbox.right(), bbox.top())
         ]
-        
+
         # Rotate corners around center
         rotated_corners = []
         for x, y in corners:
@@ -551,7 +551,7 @@ class RotateTool(Tool):
             rx += center.x
             ry += center.y
             rotated_corners.append((rx, ry))
-        
+
         # Draw rotated box outline
         for i in range(len(rotated_corners)):
             x1, y1 = rotated_corners[i]
@@ -604,16 +604,16 @@ class ScaleTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - center of scaling
             self.points.append(point)
             self.state = ToolState.DRAWING
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 1:
             # Second click - reference point
             self.points.append(point)
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
             # Third click - scale target
             self.points.append(point)
@@ -629,32 +629,32 @@ class ScaleTool(Tool):
         """Draw a preview of the scaling"""
         if len(self.points) < 2:
             return
-            
+
         self.clear_temp_objects()
         center = self.points[0]
         ref_point = self.points[1]
-        
+
         # Calculate scale factors
         ref_dx = ref_point.x - center.x
         ref_dy = ref_point.y - center.y
-        
+
         if abs(ref_dx) > 1e-6:
             scale_x = (current_x - center.x) / ref_dx
         else:
             scale_x = 1.0
-            
+
         if abs(ref_dy) > 1e-6:
             scale_y = (current_y - center.y) / ref_dy
         else:
             scale_y = 1.0
-        
+
         # Check for uniform scaling (SHIFT key)
         if self._is_shift_pressed():
             if abs(scale_x) > abs(scale_y):
                 scale_y = abs(scale_x) * (1.0 if scale_y >= 0 else -1.0)
             else:
                 scale_x = abs(scale_y) * (1.0 if scale_x >= 0 else -1.0)
-        
+
         # Draw preview of scaled selection
         selected_objects = self._get_selected_objects()
         if selected_objects:
@@ -666,38 +666,38 @@ class ScaleTool(Tool):
         """Scale all selected objects"""
         if len(self.points) < 3:
             return
-            
+
         center = self.points[0]
         ref_point = self.points[1]
         target_point = self.points[2]
-        
+
         # Calculate scale factors
         ref_dx = ref_point.x - center.x
         ref_dy = ref_point.y - center.y
-        
+
         if abs(ref_dx) > 1e-6:
             scale_x = (target_point.x - center.x) / ref_dx
         else:
             scale_x = 1.0
-            
+
         if abs(ref_dy) > 1e-6:
             scale_y = (target_point.y - center.y) / ref_dy
         else:
             scale_y = 1.0
-        
+
         # Check for uniform scaling
         if self._is_shift_pressed():
             if abs(scale_x) > abs(scale_y):
                 scale_y = abs(scale_x) * (1.0 if scale_y >= 0 else -1.0)
             else:
                 scale_x = abs(scale_y) * (1.0 if scale_x >= 0 else -1.0)
-        
+
         # Apply scaling to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
             self._scale_object(obj, scale_x, scale_y, center.x, center.y)
 
-    def _draw_scale_preview_box(self, bbox: QRectF, center: Point, 
+    def _draw_scale_preview_box(self, bbox: QRectF, center: Point,
                                scale_x: float, scale_y: float):
         """Draw a preview box showing the scaled position"""
         # Get corners of bounding box
@@ -707,7 +707,7 @@ class ScaleTool(Tool):
             (bbox.right(), bbox.bottom()),
             (bbox.right(), bbox.top())
         ]
-        
+
         # Scale corners around center
         scaled_corners = []
         for x, y in corners:
@@ -715,7 +715,7 @@ class ScaleTool(Tool):
             sx = (x - center.x) * scale_x + center.x
             sy = (y - center.y) * scale_y + center.y
             scaled_corners.append((sx, sy))
-        
+
         # Draw scaled box outline
         for i in range(len(scaled_corners)):
             x1, y1 = scaled_corners[i]
@@ -774,12 +774,12 @@ class FlipTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - start of flip line
             self.points.append(point)
             self.state = ToolState.DRAWING
-            
+
         elif self.state == ToolState.DRAWING:
             # Second click - end of flip line
             self.points.append(point)
@@ -795,16 +795,16 @@ class FlipTool(Tool):
         """Draw a preview of the flip operation"""
         if len(self.points) < 1:
             return
-            
+
         self.clear_temp_objects()
         start_point = self.points[0]
-        
+
         # Check for valid flip line
-        line_length = math.sqrt((current_x - start_point.x)**2 + 
+        line_length = math.sqrt((current_x - start_point.x)**2 +
                                (current_y - start_point.y)**2)
         if line_length < 1e-6:
             return
-        
+
         # Draw preview of flipped selection
         selected_objects = self._get_selected_objects()
         if selected_objects:
@@ -817,10 +817,10 @@ class FlipTool(Tool):
         """Flip all selected objects across the defined line"""
         if len(self.points) < 2:
             return
-            
+
         start_point = self.points[0]
         end_point = self.points[1]
-        
+
         # Apply flip to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
@@ -835,7 +835,7 @@ class FlipTool(Tool):
             matrix = Matrix.reflect_line(x1, y1, x2, y2)
         except:
             return
-        
+
         # Get corners of bounding box and center
         corners = [
             (bbox.left(), bbox.top()),
@@ -843,19 +843,19 @@ class FlipTool(Tool):
             (bbox.right(), bbox.bottom()),
             (bbox.right(), bbox.top())
         ]
-        
+
         center_x = bbox.center().x()
         center_y = bbox.center().y()
         quarter_x = (bbox.left() + bbox.right() * 3) / 4
         quarter_y = (bbox.top() + bbox.bottom() * 3) / 4
-        
+
         # Add center and quarter point lines for reference
         preview_lines = corners + [
             (bbox.left(), center_y), (bbox.right(), center_y),
             (center_x, bbox.top()), (center_x, bbox.bottom()),
             (center_x, bbox.top()), (quarter_x, quarter_y)
         ]
-        
+
         # Transform and draw original and reflected lines
         for i in range(0, len(preview_lines), 2):
             if i + 1 < len(preview_lines):
@@ -866,7 +866,7 @@ class FlipTool(Tool):
                 line_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
                 self.scene.addItem(line_item)
                 self.temp_objects.append(line_item)
-                
+
                 # Reflected line in blue
                 coords = [x_orig1, y_orig1, x_orig2, y_orig2]
                 reflected_coords = matrix.transform_coords(coords)
@@ -921,16 +921,16 @@ class ShearTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - center of shear
             self.points.append(point)
             self.state = ToolState.DRAWING
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 1:
             # Second click - reference point
             self.points.append(point)
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
             # Third click - shear target
             self.points.append(point)
@@ -946,32 +946,32 @@ class ShearTool(Tool):
         """Draw a preview of the shear operation"""
         if len(self.points) < 2:
             return
-            
+
         self.clear_temp_objects()
         center = self.points[0]
         ref_point = self.points[1]
-        
+
         # Calculate shear factors
         ref_dy = ref_point.y - center.y
         ref_dx = ref_point.x - center.x
-        
+
         if abs(ref_dy) > 1e-6:
             shear_x = (current_x - ref_point.x) / ref_dy
         else:
             shear_x = 0.0
-            
+
         if abs(ref_dx) > 1e-6:
             shear_y = (current_y - ref_point.y) / ref_dx
         else:
             shear_y = 0.0
-        
+
         # Check for constrained shear (SHIFT key)
         if self._is_shift_pressed():
             if abs(shear_x) > abs(shear_y):
                 shear_y = 0.0
             else:
                 shear_x = 0.0
-        
+
         # Draw preview of sheared selection
         selected_objects = self._get_selected_objects()
         if selected_objects:
@@ -983,32 +983,32 @@ class ShearTool(Tool):
         """Shear all selected objects"""
         if len(self.points) < 3:
             return
-            
+
         center = self.points[0]
         ref_point = self.points[1]
         target_point = self.points[2]
-        
+
         # Calculate shear factors
         ref_dy = ref_point.y - center.y
         ref_dx = ref_point.x - center.x
-        
+
         if abs(ref_dy) > 1e-6:
             shear_x = (target_point.x - ref_point.x) / ref_dy
         else:
             shear_x = 0.0
-            
+
         if abs(ref_dx) > 1e-6:
             shear_y = (target_point.y - ref_point.y) / ref_dx
         else:
             shear_y = 0.0
-        
+
         # Check for constrained shear
         if self._is_shift_pressed():
             if abs(shear_x) > abs(shear_y):
                 shear_y = 0.0
             else:
                 shear_x = 0.0
-        
+
         # Apply shear to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
@@ -1022,7 +1022,7 @@ class ShearTool(Tool):
             matrix = Matrix.skew_xy(shear_x, shear_y, center.x, center.y)
         except:
             return
-        
+
         # Get corners of bounding box
         corners = [
             (bbox.left(), bbox.top()),
@@ -1030,7 +1030,7 @@ class ShearTool(Tool):
             (bbox.right(), bbox.bottom()),
             (bbox.right(), bbox.top())
         ]
-        
+
         # Transform corners
         for i in range(len(corners)):
             x1, y1 = corners[i]
@@ -1093,16 +1093,16 @@ class BendTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - first endpoint
             self.points.append(point)
             self.state = ToolState.DRAWING
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 1:
             # Second click - second endpoint
             self.points.append(point)
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
             # Third click - control point
             self.points.append(point)
@@ -1118,9 +1118,9 @@ class BendTool(Tool):
         """Draw a preview of the bend operation"""
         if len(self.points) < 2:
             return
-            
+
         self.clear_temp_objects()
-        
+
         # Show the current bend line/arc
         if len(self.points) == 1:
             # Show line from first point to cursor
@@ -1141,12 +1141,12 @@ class BendTool(Tool):
         arc_info = self._find_arc_from_points(p1.x, p1.y, p3.x, p3.y, p2.x, p2.y)
         if not arc_info:
             return
-            
+
         cx, cy, radius, start_angle, end_angle = arc_info
-        
+
         # Draw arc preview
         rect = QRectF(cx - radius, cy - radius, 2 * radius, 2 * radius)
-        # Note: QGraphicsEllipseItem doesn't directly support arcs, 
+        # Note: QGraphicsEllipseItem doesn't directly support arcs,
         # would need QPainterPath for proper arc drawing
         ellipse_item = QGraphicsEllipseItem(rect)
         ellipse_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
@@ -1165,7 +1165,7 @@ class BendTool(Tool):
         """Bend all selected objects"""
         if len(self.points) < 3:
             return
-            
+
         # Apply bend to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
@@ -1209,22 +1209,22 @@ class WrapTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - center point
             self.points.append(point)
             self.state = ToolState.DRAWING
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 1:
             # Second click - reference point
             self.points.append(point)
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
             # Third click - tangent point (or auto-calculate perpendicular)
             if len(self.points) < 3:
                 # Auto-calculate perpendicular point
                 center = self.points[0]
-                ref_point = self.points[1] 
+                ref_point = self.points[1]
                 # Calculate perpendicular direction
                 angle = math.atan2(ref_point.y - center.y, ref_point.x - center.x) - math.pi/2
                 perp_x = ref_point.x + math.cos(angle)
@@ -1244,9 +1244,9 @@ class WrapTool(Tool):
         """Draw a preview of the wrap operation"""
         if len(self.points) < 1:
             return
-            
+
         self.clear_temp_objects()
-        
+
         # Draw reference elements based on current state
         if len(self.points) == 1:
             # Show line from center to cursor
@@ -1269,7 +1269,7 @@ class WrapTool(Tool):
         """Wrap all selected objects"""
         if len(self.points) < 3:
             return
-            
+
         # Apply wrap to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
@@ -1280,7 +1280,7 @@ class WrapTool(Tool):
         # TODO: Implement selection retrieval
         return []
 
-    def _wrap_object(self, obj: CADObject, center: Point, ref_point: Point, 
+    def _wrap_object(self, obj: CADObject, center: Point, ref_point: Point,
                     tangent_point: Point):
         """Wrap an object around the defined center"""
         # TODO: Implement object wrapping
@@ -1314,16 +1314,16 @@ class UnwrapTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
         point = self.get_snap_point(event.x, event.y)
-        
+
         if self.state == ToolState.ACTIVE:
             # First click - center point
             self.points.append(point)
             self.state = ToolState.DRAWING
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 1:
             # Second click - reference point
             self.points.append(point)
-            
+
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
             # Third click - tangent point (or auto-calculate)
             if len(self.points) < 3:
@@ -1348,9 +1348,9 @@ class UnwrapTool(Tool):
         """Draw a preview of the unwrap operation"""
         if len(self.points) < 2:
             return
-            
+
         self.clear_temp_objects()
-        
+
         # Draw preview elements
         self._draw_unwrap_preview()
 
@@ -1358,13 +1358,13 @@ class UnwrapTool(Tool):
         """Draw a preview of the unwrap transformation"""
         if len(self.points) < 2:
             return
-            
+
         center = self.points[0]
         ref_point = self.points[1]
-        
+
         # Calculate radius and draw reference circle/arc
         radius = math.sqrt((ref_point.x - center.x)**2 + (ref_point.y - center.y)**2)
-        
+
         # Draw reference arc
         rect = QRectF(center.x - radius, center.y - radius, 2 * radius, 2 * radius)
         ellipse_item = QGraphicsEllipseItem(rect)
@@ -1372,7 +1372,7 @@ class UnwrapTool(Tool):
         ellipse_item.setBrush(QBrush(Qt.NoBrush))
         self.scene.addItem(ellipse_item)
         self.temp_objects.append(ellipse_item)
-        
+
         # Draw reference line
         if len(self.points) >= 2:
             line_item = QGraphicsLineItem(self.points[0].x, self.points[0].y,
@@ -1385,7 +1385,7 @@ class UnwrapTool(Tool):
         """Unwrap all selected objects"""
         if len(self.points) < 3:
             return
-            
+
         # Apply unwrap to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:

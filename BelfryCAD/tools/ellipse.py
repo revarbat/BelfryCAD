@@ -80,7 +80,7 @@ class EllipseCenterTool(Tool):
             from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsTextItem
             from PySide6.QtCore import QRectF, Qt
             from PySide6.QtGui import QPen
-            
+
             ellipse_item = QGraphicsEllipseItem(
                 QRectF(center.x - rad_x, center.y - rad_y,
                        2 * rad_x, 2 * rad_y)
@@ -103,7 +103,7 @@ class EllipseCenterTool(Tool):
             line_h_item.setPen(pen_line)
             self.scene.addItem(line_h_item)
             self.temp_objects.append(line_h_item)
-            
+
             line_v_item = QGraphicsLineItem(
                 center.x, center.y - rad_y,
                 center.x, center.y + rad_y
@@ -119,7 +119,7 @@ class EllipseCenterTool(Tool):
                 dim_x_item.setDefaultTextColor("blue")
                 self.scene.addItem(dim_x_item)
                 self.temp_objects.append(dim_x_item)
-                
+
                 dim_y_item = QGraphicsTextItem(f"Height: {rad_y*2:.1f}")
                 dim_y_item.setPos(center.x + rad_x + 15, center.y)
                 dim_y_item.setDefaultTextColor("blue")
@@ -230,7 +230,7 @@ class EllipseDiagonalTool(Tool):
             from PySide6.QtWidgets import QGraphicsRectItem
             from PySide6.QtCore import QRectF, Qt
             from PySide6.QtGui import QPen, QBrush
-            
+
             ellipse_item = QGraphicsEllipseItem(
                 QRectF(x1, y1, x2 - x1, y2 - y1)
             )
@@ -267,7 +267,7 @@ class EllipseDiagonalTool(Tool):
             line_h_item.setPen(QPen("blue"))
             self.scene.addItem(line_h_item)
             self.temp_objects.append(line_h_item)
-            
+
             line_v_item = QGraphicsLineItem(
                 center_x, center_y - rad_y,
                 center_x, center_y + rad_y
@@ -283,7 +283,7 @@ class EllipseDiagonalTool(Tool):
                 dim_x_item.setDefaultTextColor("blue")
                 self.scene.addItem(dim_x_item)
                 self.temp_objects.append(dim_x_item)
-                
+
                 dim_y_item = QGraphicsTextItem(f"Height: {rad_y*2:.1f}")
                 dim_y_item.setPos(center_x + rad_x + 15, center_y)
                 dim_y_item.setDefaultTextColor("blue")
@@ -403,7 +403,7 @@ class Ellipse3CornerTool(Tool):
         elif len(self.points) == 2:
             # Drawing from first two corners - show rectangle preview
             p1, p2 = self.points[0], self.points[1]
-            
+
             # Show partial rectangle outline
             rect_item = QGraphicsRectItem(
                 QRectF(min(p1.x, p2.x), min(p1.y, p2.y),
@@ -426,7 +426,7 @@ class Ellipse3CornerTool(Tool):
             center_x, center_y, rad_x, rad_y = (
                 self._calculate_ellipse_from_corners(p1, p2, point)
             )
-            
+
             if rad_x > 0 and rad_y > 0:
                 # Draw preview ellipse
                 ellipse_item = QGraphicsEllipseItem(
@@ -454,23 +454,23 @@ class Ellipse3CornerTool(Tool):
         """Calculate ellipse parameters from three corner points"""
         # The three points define corners of a rectangle
         # We need to determine which corner the third point represents
-        
+
         # Calculate potential rectangle bounds
         x_coords = [p1.x, p2.x, p3.x]
         y_coords = [p1.y, p2.y, p3.y]
-        
+
         # Find the bounds that would make a complete rectangle
         min_x = min(x_coords)
         max_x = max(x_coords)
         min_y = min(y_coords)
         max_y = max(y_coords)
-        
+
         # Center and radii
         center_x = (min_x + max_x) / 2
         center_y = (min_y + max_y) / 2
         rad_x = (max_x - min_x) / 2
         rad_y = (max_y - min_y) / 2
-        
+
         return center_x, center_y, rad_x, rad_y
 
     def create_object(self) -> Optional[CADObject]:
@@ -482,7 +482,7 @@ class Ellipse3CornerTool(Tool):
         center_x, center_y, rad_x, rad_y = (
             self._calculate_ellipse_from_corners(p1, p2, p3)
         )
-        
+
         center = Point(center_x, center_y)
 
         # Create an ellipse object
@@ -588,7 +588,7 @@ class EllipseCenterTangentTool(Tool):
         elif len(self.points) == 2:
             # Show lines from center to both tangent points
             center, t1 = self.points[0], self.points[1]
-            
+
             # Line to first tangent point
             line1_item = QGraphicsLineItem(center.x, center.y, t1.x, t1.y)
             pen_gray = QPen()
@@ -609,7 +609,7 @@ class EllipseCenterTangentTool(Tool):
             center_x, center_y, rad_x, rad_y, angle = (
                 self._calculate_ellipse_from_center_tangents(center, t1, point)
             )
-            
+
             if rad_x > 0 and rad_y > 0:
                 # Draw preview ellipse (approximation)
                 ellipse_item = QGraphicsEllipseItem(
@@ -643,20 +643,20 @@ class EllipseCenterTangentTool(Tool):
         # Calculate distances from center to tangent points
         d1 = math.sqrt((t1.x - center.x)**2 + (t1.y - center.y)**2)
         d2 = math.sqrt((t2.x - center.x)**2 + (t2.y - center.y)**2)
-        
+
         # Calculate angles
         angle1 = math.atan2(t1.y - center.y, t1.x - center.x)
         angle2 = math.atan2(t2.y - center.y, t2.x - center.x)
-        
+
         # For simplicity, use the distances as the semi-major and
         # semi-minor axes. In a more sophisticated implementation,
         # this would involve solving the tangent conditions for an ellipse
         rad_x = max(d1, d2)
         rad_y = min(d1, d2)
-        
+
         # Calculate rotation angle (average of the two tangent angles)
         angle = (angle1 + angle2) / 2
-        
+
         return center.x, center.y, rad_x, rad_y, angle
 
     def create_object(self) -> Optional[CADObject]:
@@ -767,7 +767,7 @@ class EllipseOppositeTangentTool(Tool):
         elif len(self.points) == 2:
             # Show both tangent lines
             t1, t2 = self.points[0], self.points[1]
-            
+
             # First tangent line
             line1_item = QGraphicsLineItem(
                 t1.x - 50, t1.y, t1.x + 50, t1.y
@@ -799,7 +799,7 @@ class EllipseOppositeTangentTool(Tool):
             center_x, center_y, rad_x, rad_y = (
                 self._calculate_ellipse_from_opposite_tangents(t1, t2, point)
             )
-            
+
             if rad_x > 0 and rad_y > 0:
                 # Draw preview ellipse
                 ellipse_item = QGraphicsEllipseItem(
@@ -820,23 +820,23 @@ class EllipseOppositeTangentTool(Tool):
         # Calculate center as midpoint between tangents
         center_x = (t1.x + t2.x) / 2
         center_y = (t1.y + t2.y) / 2
-        
+
         # Calculate distance between tangents (this will be one diameter)
         distance_between_tangents = math.sqrt((t2.x - t1.x)**2 +
                                               (t2.y - t1.y)**2)
-        
+
         # Distance from center to size point determines the other radius
         distance_to_size = math.sqrt((size_point.x - center_x)**2 +
                                      (size_point.y - center_y)**2)
-        
+
         # Determine which is the major and minor axis
         rad_x = distance_between_tangents / 2
         rad_y = distance_to_size
-        
+
         # Ensure rad_x >= rad_y (major axis convention)
         if rad_y > rad_x:
             rad_x, rad_y = rad_y, rad_x
-        
+
         return center_x, center_y, rad_x, rad_y
 
     def create_object(self) -> Optional[CADObject]:
@@ -848,7 +848,7 @@ class EllipseOppositeTangentTool(Tool):
         center_x, center_y, rad_x, rad_y = (
             self._calculate_ellipse_from_opposite_tangents(t1, t2, size_point)
         )
-        
+
         center = Point(center_x, center_y)
 
         # Create an ellipse object

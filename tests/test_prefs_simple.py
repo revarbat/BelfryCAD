@@ -36,12 +36,12 @@ exec(code, dialog_module.__dict__)
 # Test it
 if __name__ == "__main__":
     import tkinter as tk
-    
+
     root = tk.Tk()
     root.title("Preferences Test")
-    
-    button = tk.Button(root, text="Open Preferences", 
+
+    button = tk.Button(root, text="Open Preferences",
                       command=lambda: dialog_module.show_preferences(root))
     button.pack(pady=20)
-    
+
     root.mainloop()

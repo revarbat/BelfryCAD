@@ -10,7 +10,7 @@ All construction lines and points are now being drawn correctly when using CAD t
 
 ### 1. **Fixed Missing Return Statements** ✅
 - `object_draw_controlpoint()` - Added missing return statement
-- `object_draw_control_line()` - Added missing return statement  
+- `object_draw_control_line()` - Added missing return statement
 - `object_draw_oval()` - Added missing return statement
 - `object_draw_oval_cross()` - Added missing return statement
 - `object_draw_centerline()` - Added missing return statement
@@ -39,7 +39,7 @@ All construction lines and points are now being drawn correctly when using CAD t
 - Line diagonal 20 units → **~28 pixels** (barely visible)
 
 ### **After Fix (DPI=72.0):**
-- Control point at CAD(10,10) → Qt(720,-720) = **720 pixels from origin**  
+- Control point at CAD(10,10) → Qt(720,-720) = **720 pixels from origin**
 - Line diagonal 20 units → **~2036 pixels** (clearly visible)
 
 **Size increase: 72x larger (proper scaling!)**
@@ -81,7 +81,7 @@ qt_y = -cad_y * dpi * scale_factor  # Y-axis flip for CAD convention
 
 ### **Standard DPI Values in PyTkCAD**
 - **Main Application**: DPI = 72.0 (standard screen DPI)
-- **Rulers**: DPI = 96.0 (high DPI displays)  
+- **Rulers**: DPI = 96.0 (high DPI displays)
 - **Tests**: DPI = 100.0 (easy calculations)
 
 ## **Key Learnings**

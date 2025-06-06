@@ -26,43 +26,43 @@ def test_complete_integration():
     """Test complete integration of objects, canvas, and layers."""
     print("Testing complete PyTkCAD integration...")
     print("=" * 50)
-    
+
     # Setup application components
     print("Setting up application components...")
     config = AppConfig()
     preferences = PreferencesManager(config)
     document = Document()
-    
+
     # Create main window
     print("Creating main window...")
     app = QApplication.instance()
     if not app:
         app = QApplication(sys.argv)
-        
+
     main_window = MainWindow(config, preferences, document)
-    
+
     # Test layer system integration
     print("\nTesting layer system integration...")
-    
+
     # Create additional layers
     layer1 = document.layers.get_current_layer()
     document.layers.set_layer_name(layer1, "Default Layer")
-    
+
     layer2 = document.layers.create_layer("Drawing Layer")
     document.layers.set_layer_color(layer2, "blue")
-    
+
     layer3 = document.layers.create_layer("Notes Layer")
     document.layers.set_layer_color(layer3, "red")
-    
+
     print(f"Created layers: {document.layers.get_layer_ids()}")
     for layer_id in document.layers.get_layer_ids():
         name = document.layers.get_layer_name(layer_id)
         color = document.layers.get_layer_color(layer_id)
         print(f"  Layer {layer_id}: {name} ({color})")
-    
+
     # Test object creation on different layers
     print("\nCreating test objects on different layers...")
-    
+
     # Create objects on layer 1
     document.layers.set_current_layer(layer1)
     line1 = document.objects.create_object(
@@ -71,7 +71,7 @@ def test_complete_integration():
         layer=layer1
     )
     document.layers.add_object_to_layer(layer1, line1.object_id)
-    
+
     # Create objects on layer 2
     document.layers.set_current_layer(layer2)
     circle1 = document.objects.create_object(
@@ -81,14 +81,14 @@ def test_complete_integration():
         attributes={'radius': 25}
     )
     document.layers.add_object_to_layer(layer2, circle1.object_id)
-    
+
     line2 = document.objects.create_object(
         ObjectType.LINE,
         Point(0, 100), Point(100, 100),
         layer=layer2
     )
     document.layers.add_object_to_layer(layer2, line2.object_id)
-    
+
     # Create objects on layer 3
     document.layers.set_current_layer(layer3)
     point1 = document.objects.create_object(
@@ -97,23 +97,23 @@ def test_complete_integration():
         layer=layer3
     )
     document.layers.add_object_to_layer(layer3, point1.object_id)
-    
+
     print(f"Created {len(document.objects.get_all_objects())} total objects")
     for layer_id in document.layers.get_layer_ids():
         objects_in_layer = document.layers.get_layer_objects(layer_id)
         layer_name = document.layers.get_layer_name(layer_id)
         print(f"  {layer_name}: {len(objects_in_layer)} objects")
-    
+
     # Force canvas refresh
     print("\nRefreshing canvas...")
     main_window.draw_objects()
-    
+
     # Test layer panel integration
     print("\nTesting layer panel integration...")
     layer_window = main_window.palette_manager.get_palette_content("layer_window")
     if layer_window:
         print("✓ Layer panel found")
-        
+
         # Prepare layer data for layer window
         layers_data = []
         for layer_id in document.layers.get_layer_ids():
@@ -128,19 +128,19 @@ def test_complete_integration():
                 'object_count': len(document.layers.get_layer_objects(layer_id))
             }
             layers_data.append(layer_info)
-        
+
         # Update layer window
         current_layer_str = str(document.layers.get_current_layer())
         layer_window.refresh_layers(layers_data, current_layer_str)
         print("✓ Layer panel updated with object counts")
-        
+
     else:
         print("⚠ Layer panel not found")
-    
+
     # Show the window
     print("\nShowing main window...")
     main_window.show()
-    
+
     # Setup a timer to automatically close after a few seconds
     def auto_close():
         print("\n" + "=" * 50)
@@ -149,17 +149,17 @@ def test_complete_integration():
         print("Closing window...")
         main_window.close()
         app.quit()
-    
+
     timer = QTimer()
     timer.timeout.connect(auto_close)
     timer.start(3000)  # Close after 3 seconds
-    
+
     print("Window shown. Integration test running...")
     print("You should see:")
     print("1. Objects rendered on the canvas")
     print("2. Layer panel showing layers with object counts")
     print("3. Different colored objects on different layers")
-    
+
     # Run the application
     return app.exec()
 

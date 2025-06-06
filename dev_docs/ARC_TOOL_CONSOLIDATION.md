@@ -16,7 +16,7 @@ Successfully moved the `ArcTangentTool` class from its separate `arc_tangent.py`
 
 ### 2. Updated Import System
 - **File**: `/src/tools/__init__.py`
-- **Before**: 
+- **Before**:
   ```python
   from .arcs import ArcCenterTool, Arc3PointTool
   from .arc_tangent import ArcTangentTool

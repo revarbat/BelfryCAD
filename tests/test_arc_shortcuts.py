@@ -19,19 +19,19 @@ def test_arc_shortcuts():
     """Test that Arc category shortcuts work correctly"""
     print("Testing Arc Category Secondary Shortcuts")
     print("=======================================")
-    
+
     # Create Arc tools
     tools = [
         ToolDefinition(
             token='ARCCTR',
-            name='Arc by Center', 
+            name='Arc by Center',
             category=ToolCategory.ARCS,
             icon='tool-arcctr'
         ),
         ToolDefinition(
             token='ARC3PT',
             name='Arc by 3 Points',
-            category=ToolCategory.ARCS, 
+            category=ToolCategory.ARCS,
             icon='tool-arc3pt'
         ),
         ToolDefinition(
@@ -41,20 +41,20 @@ def test_arc_shortcuts():
             icon='tool-arctan'
         ),
     ]
-    
+
     def dummy_icon_loader(icon_name):
         return None
-    
+
     # Create tool palette
     palette = ToolPalette(ToolCategory.ARCS, tools, dummy_icon_loader)
-    
+
     # Test expected mappings
     expected_mappings = {
         'C': 'ARCCTR',
-        '3': 'ARC3PT', 
+        '3': 'ARC3PT',
         'T': 'ARCTAN',
     }
-    
+
     print("Testing Arc tools secondary shortcuts:")
     for key, expected_token in expected_mappings.items():
         if key in palette.secondary_key_mappings:
@@ -67,7 +67,7 @@ def test_arc_shortcuts():
         else:
             print(f"  ✗ Key '{key}' not found in mappings")
             return False
-    
+
     print()
     print("✓ Arc category shortcuts working correctly!")
     return True
@@ -75,7 +75,7 @@ def test_arc_shortcuts():
 
 def main():
     app = QApplication([])
-    
+
     try:
         success = test_arc_shortcuts()
         if success:

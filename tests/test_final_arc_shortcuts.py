@@ -21,10 +21,10 @@ except ImportError as e:
 
 def test_arc_shortcuts():
     print("Testing Arc tool shortcuts...")
-    
+
     # Create a mock tool palette for Arcs
     palette = ToolPalette(None, ToolCategory.ARCS)
-    
+
     # Get the tool mappings
     tool_map = {}
     if palette.category == ToolCategory.ARCS:
@@ -33,15 +33,15 @@ def test_arc_shortcuts():
             'ARC3PT': '3',       # Arc by 3 Points (3 for 3 points)
             'ARCTAN': 'T',       # Arc by Tangent (T for Tangent)
         }
-    
+
     print(f"Arc tool mappings: {tool_map}")
-    
+
     # Verify the specific shortcuts we're testing
     expected_shortcuts = {
         'ARC3PT': '3',  # Should be '3' for Three points
         'ARCTAN': 'T',  # Should be 'T' for Tangent
     }
-    
+
     success = True
     for tool, expected_key in expected_shortcuts.items():
         actual_key = tool_map.get(tool)
@@ -50,7 +50,7 @@ def test_arc_shortcuts():
         else:
             print(f"✗ {tool}: expected '{expected_key}', got '{actual_key}'")
             success = False
-    
+
     if success:
         print("\n✓ All Arc tool shortcuts are correctly configured!")
         return True

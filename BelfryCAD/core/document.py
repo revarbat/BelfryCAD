@@ -94,7 +94,7 @@ class Document:
                 "locked": obj.locked
             }
             serialized_objects.append(obj_data)
-        
+
         return {
             "objects": serialized_objects,
             "layers": {
@@ -111,7 +111,7 @@ class Document:
         # Clear and restore objects and layers
         self.objects.clear_all()
         self.layers.init_layers()  # Reset layer system
-        
+
         # Restore layer system
         layers_data = data.get("layers", {})
         if "layer_data" in layers_data:
@@ -133,7 +133,7 @@ class Document:
             current_layer = data.get("current_layer", 0)
             if self.layers.layer_exists(current_layer):
                 self.layers.set_current_layer(current_layer)
-        
+
         # Restore objects with proper deserialization
         from .cad_objects import ObjectType, Point
         objects_data = data.get("objects", [])
@@ -145,7 +145,7 @@ class Document:
                     object_type = ObjectType(object_type_str)
                 else:
                     object_type = object_type_str
-                
+
                 # Rebuild coords from proper dict format
                 coords_data = obj_data.get("coords", [])
                 coords = []
@@ -154,22 +154,22 @@ class Document:
                         coords.append(Point(coord["x"], coord["y"]))
                     elif hasattr(coord, 'x') and hasattr(coord, 'y'):
                         coords.append(Point(coord.x, coord.y))
-                
+
                 # Create object with manager (don't pass attributes as kwargs)
                 obj = self.objects.create_object(
                     object_type,
                     *coords,
                     layer=obj_data.get("layer", 0)
                 )
-                
+
                 # Set attributes after creation
                 obj.attributes.update(obj_data.get("attributes", {}))
-                
+
                 # Set additional properties
                 obj.selected = obj_data.get("selected", False)
                 obj.visible = obj_data.get("visible", True)
                 obj.locked = obj_data.get("locked", False)
-                
+
             except Exception as e:
                 print(f"Failed to deserialize object: {e}")
                 continue

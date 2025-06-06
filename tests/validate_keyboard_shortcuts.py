@@ -53,7 +53,7 @@ def main():
             print('3. Press L to show Line tools, then L-M-P-B-Q for tools')
             print('4. Continue with other categories as needed')
             print('5. Press Escape to close any open palette')
-            
+
         else:
             print('✗ Keyboard shortcuts not found')
             return 1

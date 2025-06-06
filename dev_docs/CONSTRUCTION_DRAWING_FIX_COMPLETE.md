@@ -14,7 +14,7 @@ The DrawingManager class in `/Users/gminette/dev/git-repos/pyTkCAD/src/gui/drawi
 ## Fixes Applied ✅
 
 ### 1. Fixed Control Point Drawing
-- **Fixed `object_draw_controlpoint()` method**: 
+- **Fixed `object_draw_controlpoint()` method**:
   - Removed duplicate return statements
   - Added proper tagging with `_set_item_tags()`
   - Ensured single return point
@@ -54,7 +54,7 @@ The DrawingManager class in `/Users/gminette/dev/git-repos/pyTkCAD/src/gui/drawi
   - Added missing return statement
 
 ### 6. Enhanced Tagging System
-- **Implemented `_set_item_tags()` method**: 
+- **Implemented `_set_item_tags()` method**:
   - Replaced TODO placeholder with functional implementation
   - Uses QGraphicsItem.setData() to store object IDs, tags, and object types
   - Enables proper tracking and cleanup of construction elements
@@ -73,7 +73,7 @@ Construction elements are tagged with:
 
 ### Z-Value Ordering
 - Control points: Z-value **3** (above everything)
-- Control arcs: Z-value **1.5** (above control lines, below control points)  
+- Control arcs: Z-value **1.5** (above control lines, below control points)
 - Construction lines/shapes: Z-value **0.5** (below objects, above background)
 
 ## Verification ✅
@@ -81,7 +81,7 @@ Construction elements are tagged with:
 Created and ran comprehensive test (`test_construction_drawing.py`) that verified:
 
 1. **Control point drawing** ✅ - Creates proper control point markers
-2. **Control line drawing** ✅ - Creates dashed construction lines  
+2. **Control line drawing** ✅ - Creates dashed construction lines
 3. **Construction oval drawing** ✅ - Creates elliptical construction shapes
 4. **Oval cross drawing** ✅ - Creates center cross markers
 5. **Centerline drawing** ✅ - Creates centerlines with proper dash pattern

@@ -14,7 +14,7 @@ def test_real_ellipse_conflict():
         from BelfryCAD.tools.base import ToolCategory
         from BelfryCAD.tools.ellipse import (
             EllipseCenterTool,
-            EllipseDiagonalTool, 
+            EllipseDiagonalTool,
             Ellipse3CornerTool,
             EllipseCenterTangentTool,
             EllipseOppositeTangentTool
@@ -27,7 +27,7 @@ def test_real_ellipse_conflict():
         # Create real tool definitions
         all_ellipse_tools = [
             CircleTool,
-            Circle2PTTool, 
+            Circle2PTTool,
             Circle3PTTool,
             EllipseCenterTool,
             EllipseDiagonalTool,
@@ -35,7 +35,7 @@ def test_real_ellipse_conflict():
             EllipseCenterTangentTool,
             EllipseOppositeTangentTool
         ]
-        
+
         # Get all definitions for ELLIPSES category
         ellipse_definitions = []
         for tool_class in all_ellipse_tools:
@@ -54,17 +54,17 @@ def test_real_ellipse_conflict():
             return None
 
         print(f"\nAttempting to create ToolPalette with {len(ellipse_definitions)} ellipse tools...")
-        
+
         try:
             palette = ToolPalette(ToolCategory.ELLIPSES, ellipse_definitions, dummy_icon_loader)
             print("✅ SUCCESS: No duplicate key errors! Conflict resolved.")
-            
+
             # Show the final mappings
             print("\nFinal Secondary Key Mappings:")
             for tool_def in ellipse_definitions:
                 key = palette._get_secondary_key_for_tool(tool_def.token)
                 print(f"  {key}: {tool_def.token} ({tool_def.name})")
-                
+
         except ValueError as e:
             print(f"❌ CONFLICT STILL EXISTS: {e}")
             return False
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     success = True
     print("Starting real ellipse conflict test...")
     success = test_real_ellipse_conflict() and success
-    
+
     if success:
         print("\n🎉 All tests passed! Conflicts resolved.")
     else:

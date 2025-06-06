@@ -17,40 +17,40 @@ from BelfryCAD.core.document import Document
 def test_mouse_position():
     """Test the mouse position indicators."""
     app = QApplication(sys.argv)
-    
+
     # Create main window
     main_window = PyTkCADMainWindow()
     main_window.show()
-    
+
     # Test mouse position updates manually
     def test_positions():
         print("Testing mouse position updates...")
-        
+
         # Get rulers
         h_ruler = main_window.ruler_manager.get_horizontal_ruler()
         v_ruler = main_window.ruler_manager.get_vertical_ruler()
-        
+
         print(f"Initial horizontal ruler position: {h_ruler.position}")
         print(f"Initial vertical ruler position: {v_ruler.position}")
-        
+
         # Update positions manually
         main_window.ruler_manager.update_mouse_position(50.0, 25.0)
         print(f"After update (50, 25) - H: {h_ruler.position}, V: {v_ruler.position}")
-        
+
         main_window.ruler_manager.update_mouse_position(100.0, 75.0)
         print(f"After update (100, 75) - H: {h_ruler.position}, V: {v_ruler.position}")
-        
+
         # Test that rulers are updating visually
         h_ruler.update()
         v_ruler.update()
         print("Rulers updated visually")
-    
+
     # Set up timer to run test after window is shown
     QTimer.singleShot(1000, test_positions)
-    
+
     # Run for a short time then exit
     QTimer.singleShot(3000, app.quit)
-    
+
     app.exec()
 
 if __name__ == "__main__":

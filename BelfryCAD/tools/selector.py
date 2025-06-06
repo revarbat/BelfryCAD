@@ -52,7 +52,7 @@ class SelectorTool(Tool):
             scene_pos = event.scenePos()
         else:
             scene_pos = QPointF(event.x, event.y)
-        
+
         self.start_x = scene_pos.x()
         self.start_y = scene_pos.y()
 
@@ -84,7 +84,7 @@ class SelectorTool(Tool):
                     scene_pos = event.scenePos()
                 else:
                     scene_pos = QPointF(event.x, event.y)
-                
+
                 # Get bounds of selection rectangle
                 x1 = min(self.start_x, scene_pos.x())
                 y1 = min(self.start_y, scene_pos.y())
@@ -109,9 +109,9 @@ class SelectorTool(Tool):
             scene_pos = event.scenePos()
         else:
             scene_pos = QPointF(event.x, event.y)
-            
+
         current_x, current_y = scene_pos.x(), scene_pos.y()
-        
+
         if self.state == ToolState.SELECTING:
             # Drawing selection rectangle
             if self.selection_rect:
@@ -130,7 +130,7 @@ class SelectorTool(Tool):
             pen.setDashPattern([2, 2])  # Dash pattern
             self.selection_rect = self.scene.addRect(rect, pen)
             self.temp_objects.append(self.selection_rect)
-            
+
         elif self.state == ToolState.EDITING:
             # Moving selected objects
             dx = current_x - self.start_x

@@ -13,38 +13,38 @@ from PySide6.QtGui import QPixmap, QIcon
 def test_svg_icon_loading():
     """Test that SVG icons can be loaded properly"""
     app = QApplication(sys.argv)
-    
+
     # Test a few key icons that should have been converted to SVG
     test_icons = [
         'tool-line',
-        'tool-circle2pt', 
+        'tool-circle2pt',
         'tool-rectangle',
         'tool-arc2ptrad',
         'tool-bezier',
         'tool-text'
     ]
-    
+
     images_dir = os.path.join(os.path.dirname(__file__), 'images')
     svg_dir = images_dir  # SVG files are in main images directory
-    
+
     success_count = 0
     total_count = len(test_icons)
-    
+
     print("Testing SVG icon loading...")
     print(f"SVG directory: {svg_dir}")
     print()
-    
+
     for icon_name in test_icons:
         svg_path = os.path.join(svg_dir, f"{icon_name}.svg")
         png_path = os.path.join(images_dir, f"{icon_name}.png")
-        
+
         svg_exists = os.path.exists(svg_path)
         png_exists = os.path.exists(png_path)
-        
+
         print(f"Testing {icon_name}:")
         print(f"  SVG exists: {svg_exists}")
         print(f"  PNG exists: {png_exists}")
-        
+
         if svg_exists:
             try:
                 # Test SVG loading
@@ -52,7 +52,7 @@ def test_svg_icon_loading():
                 if not svg_icon.isNull():
                     print(f"  ✓ SVG loaded successfully")
                     success_count += 1
-                    
+
                     # Get icon sizes to verify it's working
                     sizes = svg_icon.availableSizes()
                     if sizes:
@@ -67,11 +67,11 @@ def test_svg_icon_loading():
             print(f"  ⚠ No SVG available, PNG exists as fallback")
         else:
             print(f"  ✗ Neither SVG nor PNG found")
-        
+
         print()
-    
+
     print(f"Result: {success_count}/{total_count} SVG icons loaded successfully")
-    
+
     if success_count == total_count:
         print("🎉 All test SVG icons loaded successfully!")
         return True

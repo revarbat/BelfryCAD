@@ -98,17 +98,17 @@ class TextTool(Tool):
         from PySide6.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, QGraphicsLineItem
         from PySide6.QtCore import QRectF, Qt
         from PySide6.QtGui import QPen, QBrush, QFont
-        
+
         text_item = QGraphicsTextItem(self.text)
         font = QFont(self.font_family, self.font_size)
         text_item.setFont(font)
         text_item.setPos(position.x, position.y)
         text_item.setDefaultTextColor("gray")
-        
+
         # Apply rotation if needed
         if abs(self.text_angle) > 0.01:
             text_item.setRotation(self.text_angle)
-        
+
         self.scene.addItem(text_item)
         self.temp_objects.append(text_item)
 

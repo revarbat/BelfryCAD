@@ -11,7 +11,7 @@ while leveraging Qt's powerful graphics system.
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional, Union
 
 from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import (
@@ -21,6 +21,14 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsItem
 
 from BelfryCAD.core.cad_objects import CADObject, ObjectType, Point
+
+
+class ConstructionCADObject:
+    """CAD-like object for construction items that don't have real
+    CAD objects"""
+    def __init__(self, object_id: str, object_type: ObjectType):
+        self.object_id = object_id
+        self.object_type = object_type
 
 
 class DrawingTags(Enum):
@@ -68,7 +76,7 @@ class NodeType(Enum):
 class DrawingManager:
     """
     Main drawing manager that translates TCL cadobjects drawing procedures
-    to Python/Qt. Maintains compatibility with the original TCL 
+    to Python/Qt. Maintains compatibility with the original TCL
     cadobjects.tcl structure.
     """
 
@@ -77,6 +85,90 @@ class DrawingManager:
         self.construction_points: List[Point] = []
         self.node_images: Dict[NodeType, str] = {}
         self._init_node_images()
+
+        # Tagging system for graphics items
+        self._tagged_items: Dict[str, List[QGraphicsItem]] = {}
+        self._item_tags: Dict[QGraphicsItem, List[str]] = {}
+
+    def add_item_tag(self, item: QGraphicsItem, tag: str):
+        """Add a tag to a graphics item"""
+        if item not in self._item_tags:
+            self._item_tags[item] = []
+
+        if tag not in self._item_tags[item]:
+            self._item_tags[item].append(tag)
+
+        if tag not in self._tagged_items:
+            self._tagged_items[tag] = []
+
+        if item not in self._tagged_items[tag]:
+            self._tagged_items[tag].append(item)
+
+    def remove_item_tag(self, item: QGraphicsItem, tag: str):
+        """Remove a tag from a graphics item"""
+        if item in self._item_tags and tag in self._item_tags[item]:
+            self._item_tags[item].remove(tag)
+
+        if tag in self._tagged_items and item in self._tagged_items[tag]:
+            self._tagged_items[tag].remove(item)
+
+        # Clean up empty tag lists
+        if tag in self._tagged_items and not self._tagged_items[tag]:
+            del self._tagged_items[tag]
+
+        if item in self._item_tags and not self._item_tags[item]:
+            del self._item_tags[item]
+
+    def get_items_by_tag(self, tag: str) -> List[QGraphicsItem]:
+        """Get all graphics items with a specific tag"""
+        return self._tagged_items.get(tag, []).copy()
+
+    def get_items_by_any_tag(self, tags: List[str]) -> List[QGraphicsItem]:
+        """Get all graphics items that have any of the specified tags"""
+        items = []
+        for tag in tags:
+            items.extend(self.get_items_by_tag(tag))
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_items = []
+        for item in items:
+            if item not in seen:
+                seen.add(item)
+                unique_items.append(item)
+        return unique_items
+
+    def get_items_by_all_tags(self, tags: List[str]) -> List[QGraphicsItem]:
+        """Get all graphics items that have all of the specified tags"""
+        if not tags:
+            return []
+
+        # Start with items that have the first tag
+        items = set(self.get_items_by_tag(tags[0]))
+
+        # Intersect with items that have each subsequent tag
+        for tag in tags[1:]:
+            items &= set(self.get_items_by_tag(tag))
+
+        return list(items)
+
+    def get_item_tags(self, item: QGraphicsItem) -> List[str]:
+        """Get all tags for a graphics item"""
+        return self._item_tags.get(item, []).copy()
+
+    def remove_items_by_tag(self, tag: str):
+        """Remove all graphics items with a specific tag from the scene"""
+        items = self.get_items_by_tag(tag)
+        for item in items:
+            # Remove all tags from this item
+            for tag_to_remove in self.get_item_tags(item):
+                self.remove_item_tag(item, tag_to_remove)
+            # Remove from scene
+            self.context.scene.removeItem(item)
+
+    def clear_all_tags(self):
+        """Clear all tagging data"""
+        self._tagged_items.clear()
+        self._item_tags.clear()
 
     def _init_node_images(self):
         """Initialize node type images (placeholder for actual images)"""
@@ -97,39 +189,45 @@ class DrawingManager:
         return self.context.scale_factor
 
     def scale_coords(self, coords: List[float]) -> List[float]:
-        """Scale coordinates based on DPI and scale factor with Y-axis flip for CAD convention"""
+        """Scale coordinates based on DPI and scale factor with Y-axis flip
+        for CAD convention"""
         dpi = self.context.dpi
         scale_factor = self.context.scale_factor
-        
+
         # Convert CAD coordinates to canvas coordinates
-        # X: normal scaling, Y: negative scaling to flip from CAD convention (Y up) to Qt convention (Y down)
+        # X: normal scaling, Y: negative scaling to flip from CAD convention
+        # (Y up) to Qt convention (Y down)
         scaled_coords = []
         for i in range(0, len(coords), 2):
             x = coords[i] * dpi * scale_factor
-            y = -coords[i + 1] * dpi * scale_factor  # Negative Y for coordinate system flip
+            # Negative Y for coordinate system flip
+            y = -coords[i + 1] * dpi * scale_factor
             scaled_coords.extend([x, y])
-        
+
         return scaled_coords
 
     def descale_coords(self, coords: List[float]) -> List[float]:
-        """Convert canvas coordinates back to CAD coordinates with Y-axis flip"""
+        """Convert canvas coordinates back to CAD coordinates with
+        Y-axis flip"""
         dpi = self.context.dpi
         scale_factor = self.context.scale_factor
-        
+
         # Convert canvas coordinates to CAD coordinates
-        # X: normal descaling, Y: negative descaling to flip from Qt convention (Y down) to CAD convention (Y up)
+        # X: normal descaling, Y: negative descaling to flip from
+        # Qt convention (Y down) to CAD convention (Y up)
         descaled_coords = []
         for i in range(0, len(coords), 2):
             x = coords[i] / (dpi * scale_factor)
-            y = coords[i + 1] / (-dpi * scale_factor)  # Negative Y for coordinate system flip
+            # Negative Y for coordinate system flip
+            y = coords[i + 1] / (-dpi * scale_factor)
             descaled_coords.extend([x, y])
-        
+
         return descaled_coords
 
     def get_stroke_width(self, obj: CADObject) -> float:
         """Calculate stroke width based on object properties and scale"""
         width = obj.attributes.get('linewidth', 1.0)
-        
+
         # Handle special width values from TCL
         if isinstance(width, str):
             if width.lower() == "hairline":
@@ -141,40 +239,43 @@ class DrawingManager:
                     width = float(width)
                 except ValueError:
                     width = 1.0
-        
+
         # Apply only scale factor for zoom/pan operations
         # DPI is already handled in coordinate transformations
         scaled_width = width * self.context.scale_factor
-        
+
         # Minimum width for visibility
         if scaled_width < 0.5:
             scaled_width = 0.5
-            
+
         return scaled_width
 
     def get_construction_line_width(self) -> float:
-        """Calculate proper line width for construction lines and control lines"""
-        # Construction lines should be scaled with DPI and scale_factor for visibility
+        """Calculate proper line width for construction lines and
+        control lines"""
+        # Construction lines should be scaled with DPI and scale_factor
+        # for visibility
         # Based on TCL implementation that uses strokewidth 0.75 or width 1.0
         base_width = 1.0  # Base construction line width
-        scaled_width = (base_width * self.context.dpi / 72.0 * 
-                       self.context.scale_factor)
-        
+
+        scaled_width = (base_width * self.context.dpi / 72.0 *
+                        self.context.scale_factor)
+
         # Minimum width for visibility (but allow it to be thin at high zoom)
         if scaled_width < 0.25:
             scaled_width = 0.25
-            
+
         return scaled_width
 
-    def get_object_color(self, obj: CADObject, 
-                        default_color: str = "black") -> QColor:
+    def get_object_color(self, obj: CADObject,
+                         default_color: str = "black") -> QColor:
         """Get object color with layer fallback"""
         color_name = obj.attributes.get('color', '')
-        
+
         if not color_name or color_name == "none":
             # TODO: Get layer color
             color_name = default_color
-            
+
         return self._parse_color(color_name)
 
     def _parse_color(self, color_name: str) -> QColor:
@@ -207,7 +308,7 @@ class DrawingManager:
         """Get dash pattern for line styles"""
         if not dash_name:
             return []
-            
+
         # Common dash patterns from TCL
         patterns = {
             "": [],
@@ -219,7 +320,7 @@ class DrawingManager:
             "hidden": [3, 3],
             "phantom": [10, 3, 3, 3, 3, 3]
         }
-        
+
         return patterns.get(dash_name.lower(), [])
 
     def object_draw(self, obj: CADObject, override_color: str = ""):
@@ -228,7 +329,7 @@ class DrawingManager:
         Returns list of graphics items created for tracking
         """
         items = []
-        
+
         if not obj.visible:
             return items
 
@@ -241,24 +342,26 @@ class DrawingManager:
             return items
 
         # Get object properties
-        color = (override_color if override_color else 
-                self.get_object_color(obj))
+        color = (override_color if override_color else
+                 self.get_object_color(obj))
         fill_color = obj.attributes.get('fillcolor', '')
         if fill_color and fill_color != "none":
             fill = QBrush(self._parse_color(fill_color))
         else:
-            fill = QBrush(Qt.NoBrush)
+            fill = QBrush(Qt.BrushStyle.NoBrush)
 
         width = self.get_stroke_width(obj)
         dash_pattern = self.get_dash_pattern(
             obj.attributes.get('linedash', ''))
 
         # Create pen
-        pen = QPen(color, width)
+        color_obj = (self._parse_color(color) if isinstance(color, str)
+                     else color)
+        pen = QPen(color_obj, width)
         if dash_pattern:
             pen.setDashPattern(dash_pattern)
-        pen.setCapStyle(Qt.RoundCap)
-        pen.setJoinStyle(Qt.RoundJoin)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
 
         # Remove existing graphics for this object
         self._delete_object_graphics(obj)
@@ -271,8 +374,9 @@ class DrawingManager:
         # Draw selection if selected
         if obj.selected:
             selection_items = self._draw_selection(obj)
-            items.extend(selection_items)
-            
+            if selection_items:
+                items.extend(selection_items)
+
         return items
 
     def _delete_object_graphics(self, obj: CADObject):
@@ -280,23 +384,23 @@ class DrawingManager:
         # TODO: Track and remove graphics items by object ID
         pass
 
-    def _try_custom_drawing(self, obj: CADObject, pen: QPen, 
-                           fill: QBrush) -> bool:
+    def _try_custom_drawing(self, obj: CADObject, pen: QPen,
+                            fill: QBrush) -> bool:
         """Try object-specific custom drawing methods"""
         # This would call object-specific drawing methods
         # For now, return False to use decomposition
         return False
 
-    def object_drawobj_from_decomposition(self, obj: CADObject, pen: QPen, 
-                                         fill: QBrush):
+    def object_drawobj_from_decomposition(self, obj: CADObject, pen: QPen,
+                                          fill: QBrush):
         """
-        Draw object from decomposition - translates 
+        Draw object from decomposition - translates
         cadobjects_object_drawobj_from_decomposition
         Returns list of graphics items created
         """
         items = []
         decomposition = self._decompose_object(obj)
-        
+
         for shape_type, shape_data in decomposition:
             if shape_type == "ELLIPSE":
                 item = self._draw_ellipse(shape_data, pen, fill, obj)
@@ -334,7 +438,7 @@ class DrawingManager:
                 item = self._draw_image(shape_data, pen, fill, obj)
                 if item:
                     items.append(item)
-                    
+
         return items
 
     def _decompose_object(self, obj: CADObject) -> List[Tuple[str, Any]]:
@@ -342,20 +446,20 @@ class DrawingManager:
         Decompose CAD object into basic drawing primitives
         """
         decomposition = []
-        
+
         if obj.object_type == ObjectType.LINE:
             if len(obj.coords) >= 2:
                 coords = []
                 for point in obj.coords:
                     coords.extend([point.x, point.y])
                 decomposition.append(("LINES", coords))
-                
+
         elif obj.object_type == ObjectType.CIRCLE:
             if len(obj.coords) >= 1 and 'radius' in obj.attributes:
                 center = obj.coords[0]
                 radius = obj.attributes['radius']
                 decomposition.append(("CIRCLE", [center.x, center.y, radius]))
-                
+
         elif obj.object_type == ObjectType.ARC:
             if len(obj.coords) >= 1:
                 center = obj.coords[0]
@@ -364,16 +468,16 @@ class DrawingManager:
                 end_angle = obj.attributes.get('end_angle', 0)
                 extent = end_angle - start_angle
                 decomposition.append(("ARC", [center.x, center.y, radius,
-                                            math.degrees(start_angle),
-                                            math.degrees(extent)]))
-                
+                                              math.degrees(start_angle),
+                                              math.degrees(extent)]))
+
         elif obj.object_type == ObjectType.BEZIER:
             if len(obj.coords) >= 4:
                 coords = []
                 for point in obj.coords:
                     coords.extend([point.x, point.y])
                 decomposition.append(("BEZIER", coords))
-                
+
         elif obj.object_type == ObjectType.POLYGON:
             if len(obj.coords) >= 3:
                 coords = []
@@ -383,7 +487,7 @@ class DrawingManager:
                 if obj.coords[0] != obj.coords[-1]:
                     coords.extend([obj.coords[0].x, obj.coords[0].y])
                 decomposition.append(("LINES", coords))
-                
+
         elif obj.object_type == ObjectType.TEXT:
             if len(obj.coords) >= 1:
                 pos = obj.coords[0]
@@ -393,88 +497,87 @@ class DrawingManager:
                 justification = obj.attributes.get('justification', 'left')
                 font = [font_family, font_size]
                 decomposition.append(("TEXT", [pos.x, pos.y, text, font,
-                                             justification]))
-                
+                                               justification]))
+
         return decomposition
 
-    def _draw_ellipse(self, data: List[float], pen: QPen, fill: QBrush, 
-                     obj: CADObject):
+    def _draw_ellipse(self, data: List[float], pen: QPen, fill: QBrush,
+                      obj: CADObject):
         """Draw ellipse primitive"""
         cx, cy, rad1, rad2 = data
         scaled_coords = self.scale_coords([cx, cy, rad1, 0, rad2, 0])
         cx, cy, rad1, _, rad2, _ = scaled_coords
-        
+
         ellipse = self.context.scene.addEllipse(
             cx - rad1, cy - rad2, rad1 * 2, rad2 * 2, pen, fill
         )
         ellipse.setZValue(1)
-        self._set_item_tags(ellipse, obj, [DrawingTags.ALL_DRAWN, 
-                                         DrawingTags.ACTUAL])
+        self._set_item_tags(ellipse, obj, [DrawingTags.ALL_DRAWN,
+                                           DrawingTags.ACTUAL])
         return ellipse
 
-    def _draw_circle(self, data: List[float], pen: QPen, fill: QBrush, 
-                    obj: CADObject):
+    def _draw_circle(self, data: List[float], pen: QPen, fill: QBrush,
+                     obj: CADObject):
         """Draw circle primitive"""
         cx, cy, radius = data
         scaled_coords = self.scale_coords([cx, cy, radius, 0])
         cx, cy, radius, _ = scaled_coords
-        
+
         ellipse = self.context.scene.addEllipse(
             cx - radius, cy - radius, radius * 2, radius * 2, pen, fill
         )
         ellipse.setZValue(1)
-        self._set_item_tags(ellipse, obj, [DrawingTags.ALL_DRAWN, 
-                                         DrawingTags.ACTUAL])
+        self._set_item_tags(ellipse, obj, [DrawingTags.ALL_DRAWN,
+                                           DrawingTags.ACTUAL])
         return ellipse
 
-    def _draw_rectangle(self, data: List[float], pen: QPen, fill: QBrush, 
-                       obj: CADObject):
+    def _draw_rectangle(self, data: List[float], pen: QPen, fill: QBrush,
+                        obj: CADObject):
         """Draw rectangle primitive"""
         x0, y0, x1, y1 = data
         scaled_coords = self.scale_coords([x0, y0, x1, y1])
         x0, y0, x1, y1 = scaled_coords
-        
+
         rect = self.context.scene.addRect(x0, y0, x1 - x0, y1 - y0, pen, fill)
         rect.setZValue(1)
-        self._set_item_tags(rect, obj, [DrawingTags.ALL_DRAWN, 
-                                      DrawingTags.ACTUAL])
+        self._set_item_tags(rect, obj, [DrawingTags.ALL_DRAWN,
+                                        DrawingTags.ACTUAL])
         return rect
 
-    def _draw_arc(self, data: List[float], pen: QPen, fill: QBrush, 
-                 obj: CADObject):
+    def _draw_arc(self, data: List[float], pen: QPen, fill: QBrush,
+                  obj: CADObject):
         """Draw arc primitive"""
         cx, cy, radius, start_deg, extent_deg = data
         scaled_coords = self.scale_coords([cx, cy, radius, 0])
         cx, cy, radius, _ = scaled_coords
-        
+
         # Convert to Qt's angle system (16ths of a degree)
         start_angle_16 = int(start_deg * 16)
         span_angle_16 = int(extent_deg * 16)
-        
         ellipse = self.context.scene.addEllipse(
-            cx - radius, cy - radius, radius * 2, radius * 2, pen, 
-            QBrush(Qt.NoBrush)
+            cx - radius, cy - radius, radius * 2, radius * 2, pen,
+            QBrush(Qt.BrushStyle.NoBrush)
         )
         ellipse.setStartAngle(start_angle_16)
         ellipse.setSpanAngle(span_angle_16)
         ellipse.setZValue(1)
-        self._set_item_tags(ellipse, obj, [DrawingTags.ALL_DRAWN, 
-                                         DrawingTags.ACTUAL])
+        self._set_item_tags(ellipse, obj, [DrawingTags.ALL_DRAWN,
+                                           DrawingTags.ACTUAL])
         return ellipse
 
-    def _draw_bezier(self, data: List[float], pen: QPen, fill: QBrush, 
-                    obj: CADObject):
+    def _draw_bezier(self, data: List[float], pen: QPen, fill: QBrush,
+                     obj: CADObject):
         """Draw bezier curve primitive"""
         if len(data) < 8:
             return
-            
+
         scaled_coords = self.scale_coords(data)
-        
+
         # Create QPainterPath for bezier curve
         path = QPainterPath()
         x0, y0 = scaled_coords[0], scaled_coords[1]
         path.moveTo(x0, y0)
-        
+
         # Process control points in groups of 6 (3 points = x1,y1,x2,y2,x3,y3)
         for i in range(2, len(scaled_coords), 6):
             if i + 5 < len(scaled_coords):
@@ -482,53 +585,53 @@ class DrawingManager:
                 x2, y2 = scaled_coords[i + 2], scaled_coords[i + 3]
                 x3, y3 = scaled_coords[i + 4], scaled_coords[i + 5]
                 path.cubicTo(x1, y1, x2, y2, x3, y3)
-        
+
         path_item = self.context.scene.addPath(path, pen, fill)
         path_item.setZValue(1)
-        self._set_item_tags(path_item, obj, [DrawingTags.ALL_DRAWN, 
-                                           DrawingTags.ACTUAL, 
-                                           DrawingTags.BEZIER])
+        self._set_item_tags(path_item, obj, [DrawingTags.ALL_DRAWN,
+                                             DrawingTags.ACTUAL,
+                                             DrawingTags.BEZIER])
         return path_item
 
-    def _draw_lines(self, data: List[float], pen: QPen, fill: QBrush, 
-                   obj: CADObject):
+    def _draw_lines(self, data: List[float], pen: QPen, fill: QBrush,
+                    obj: CADObject):
         """Draw lines/polyline primitive"""
         if len(data) < 4:
             return
-            
+
         scaled_coords = self.scale_coords(data)
-        
+
         # Check if path is closed
         is_closed = (len(scaled_coords) >= 4 and
-                    abs(scaled_coords[0] - scaled_coords[-2]) < 1e-6 and
-                    abs(scaled_coords[1] - scaled_coords[-1]) < 1e-6)
-        
-        if is_closed and fill.style() != Qt.NoBrush:
+                     abs(scaled_coords[0] - scaled_coords[-2]) < 1e-6 and
+                     abs(scaled_coords[1] - scaled_coords[-1]) < 1e-6)
+
+        if is_closed and fill.style() != Qt.BrushStyle.NoBrush:
             # Draw as polygon
             points = []
             for i in range(0, len(scaled_coords), 2):
                 points.append(QPointF(scaled_coords[i], scaled_coords[i + 1]))
-            
+
             polygon = QPolygonF(points)
             poly_item = self.context.scene.addPolygon(polygon, pen, fill)
             poly_item.setZValue(1)
-            self._set_item_tags(poly_item, obj, [DrawingTags.ALL_DRAWN, 
-                                               DrawingTags.ACTUAL, 
-                                               DrawingTags.FILLED])
+            self._set_item_tags(poly_item, obj, [DrawingTags.ALL_DRAWN,
+                                                 DrawingTags.ACTUAL,
+                                                 DrawingTags.FILLED])
             return [poly_item]
         else:
             # Draw as polyline
             path = QPainterPath()
             path.moveTo(scaled_coords[0], scaled_coords[1])
-            
+
             for i in range(2, len(scaled_coords), 2):
                 path.lineTo(scaled_coords[i], scaled_coords[i + 1])
-                
-            path_item = self.context.scene.addPath(path, pen, 
-                                                  QBrush(Qt.NoBrush))
+
+            path_item = self.context.scene.addPath(
+                path, pen, QBrush(Qt.BrushStyle.NoBrush))
             path_item.setZValue(1)
-            self._set_item_tags(path_item, obj, [DrawingTags.ALL_DRAWN, 
-                                               DrawingTags.ACTUAL])
+            self._set_item_tags(path_item, obj, [DrawingTags.ALL_DRAWN,
+                                                 DrawingTags.ACTUAL])
             return [path_item]
 
     def _draw_text(self, data: List, pen: QPen, fill: QBrush, obj: CADObject):
@@ -536,20 +639,20 @@ class DrawingManager:
         cx, cy, text, font_spec, justification = data
         scaled_coords = self.scale_coords([cx, cy])
         cx, cy = scaled_coords
-        
+
         # Create font
         font_family, font_size = font_spec
-        scaled_font_size = int(font_size * self.context.scale_factor * 
-                              2.153 + 0.5)
+        scaled_font_size = int(font_size * self.context.scale_factor *
+                               2.153 + 0.5)
         if scaled_font_size < 1:
             scaled_font_size = 1
-            
+
         font = QFont(font_family, scaled_font_size)
-        
+
         # Create text item
         text_item = self.context.scene.addText(text, font)
         text_item.setDefaultTextColor(pen.color())
-        
+
         # Set anchor based on justification
         if justification == "center":
             # Center alignment
@@ -562,44 +665,44 @@ class DrawingManager:
         else:
             # Left alignment (default)
             text_item.setPos(cx, cy)
-            
+
         text_item.setZValue(1)
-        self._set_item_tags(text_item, obj, [DrawingTags.ALL_DRAWN, 
-                                           DrawingTags.ACTUAL, 
-                                           DrawingTags.TEXT])
+        self._set_item_tags(text_item, obj, [DrawingTags.ALL_DRAWN,
+                                             DrawingTags.ACTUAL,
+                                             DrawingTags.TEXT])
         return text_item
 
-    def _draw_rottext(self, data: List, pen: QPen, fill: QBrush, 
-                     obj: CADObject):
+    def _draw_rottext(self, data: List, pen: QPen, fill: QBrush,
+                      obj: CADObject):
         """Draw rotated text primitive"""
         cx, cy, text, font_spec, justification, rotation = data
         scaled_coords = self.scale_coords([cx, cy])
         cx, cy = scaled_coords
-        
+
         # Create font
         font_family, font_size = font_spec
-        scaled_font_size = int(font_size * self.context.scale_factor * 
-                              2.153 + 0.5)
+        scaled_font_size = int(font_size * self.context.scale_factor *
+                               2.153 + 0.5)
         if scaled_font_size < 1:
             scaled_font_size = 1
-            
+
         font = QFont(font_family, scaled_font_size)
-        
+
         # Create text item
         text_item = self.context.scene.addText(text, font)
         text_item.setDefaultTextColor(pen.color())
-        
+
         # Apply rotation
         transform = QTransform()
         transform.rotate(-rotation)  # Qt uses negative angles
         text_item.setTransform(transform)
-        
+
         # Set position
         text_item.setPos(cx, cy)
         text_item.setZValue(1)
-        self._set_item_tags(text_item, obj, [DrawingTags.ALL_DRAWN, 
-                                           DrawingTags.ACTUAL, 
-                                           DrawingTags.PTEXT])
+        self._set_item_tags(text_item, obj, [DrawingTags.ALL_DRAWN,
+                                             DrawingTags.ACTUAL,
+                                             DrawingTags.PTEXT])
         return text_item
 
     def _draw_image(self, data: List, pen: QPen, fill: QBrush, obj: CADObject):
@@ -607,38 +710,51 @@ class DrawingManager:
         cx, cy, width, height, rotation, pixmap = data
         scaled_coords = self.scale_coords([cx, cy, width, height])
         cx, cy, width, height = scaled_coords
-        
+
         # Create pixmap item
         if isinstance(pixmap, QPixmap):
             image_item = self.context.scene.addPixmap(pixmap)
-            
+
             # Scale and position
             image_item.setScale(width / pixmap.width())
             image_item.setPos(cx - width / 2, cy - height / 2)
-            
+
             # Apply rotation if needed
             if abs(rotation) > 0.01:
                 transform = QTransform()
                 transform.rotate(-rotation)
                 image_item.setTransform(transform)
-                
+
             image_item.setZValue(0)  # Behind other objects
-            self._set_item_tags(image_item, obj, [DrawingTags.ALL_DRAWN, 
-                                                DrawingTags.ACTUAL, 
-                                                DrawingTags.PIMAGE])
+            self._set_item_tags(image_item, obj, [DrawingTags.ALL_DRAWN,
+                                                  DrawingTags.ACTUAL,
+                                                  DrawingTags.PIMAGE])
             return image_item
 
-    def _set_item_tags(self, item: QGraphicsItem, obj: CADObject, 
-                      tags: List[str]):
+    def _set_item_tags(self, item: QGraphicsItem,
+                       obj: Union[CADObject, ConstructionCADObject],
+                       tags: List):
         """Set tags on graphics item for organization"""
+        # Convert DrawingTags enum to strings if needed
+        string_tags = []
+        for tag in tags:
+            if isinstance(tag, DrawingTags):
+                string_tags.append(tag.value)
+            else:
+                string_tags.append(str(tag))
+
         # Store tags in item data for later retrieval and management
         if item:
             # Store object ID for tracking
             item.setData(0, obj.object_id)
             # Store tags as a list
-            item.setData(1, tags)
+            item.setData(1, string_tags)
             # Store object type
             item.setData(2, obj.object_type.value)
+
+            # Update tagging system mappings
+            for tag in string_tags:
+                self.add_item_tag(item, tag)
 
     def _draw_selection(self, obj: CADObject):
         """Draw selection highlight around object"""
@@ -647,15 +763,15 @@ class DrawingManager:
             x1, y1, x2, y2 = bounds
             scaled_bounds = self.scale_coords([x1, y1, x2, y2])
             x1, y1, x2, y2 = scaled_bounds
-            
+
             padding = 3
             select_pen = QPen(QColor(255, 255, 0), 1)  # Yellow selection
             select_pen.setDashPattern([3, 3])  # Dashed line
-            
+
             select_rect = self.context.scene.addRect(
                 x1 - padding, y1 - padding,
                 (x2 - x1) + 2 * padding, (y2 - y1) + 2 * padding,
-                select_pen, QBrush(Qt.NoBrush)
+                select_pen, QBrush(Qt.BrushStyle.NoBrush)
             )
             select_rect.setZValue(2)  # Above the object
             return [select_rect]
@@ -672,7 +788,7 @@ class DrawingManager:
 
         # Delete existing control graphics
         self._delete_control_graphics(obj)
-        
+
         # Draw object-specific controls
         self._draw_object_controls(obj, color)
 
@@ -684,29 +800,30 @@ class DrawingManager:
     def _draw_object_controls(self, obj: CADObject, color: str):
         """Draw object-specific control points and lines"""
         control_points = obj.get_control_points()
-        
+
         for i, point in enumerate(control_points):
             self.object_draw_controlpoint(
                 obj, obj.object_type.value, point.x, point.y, i,
                 NodeType.OVAL, color, "white"
             )
 
-    def object_draw_controlpoint(self, obj: CADObject, obj_type: str, 
-                               x: float, y: float, cp_num: int, 
-                               cp_type: NodeType, outline_color: str,
-                               fill_color: str, tags: List[str] = None):
+    def object_draw_controlpoint(self, obj: CADObject, obj_type: str,
+                                 x: float, y: float, cp_num: int,
+                                 cp_type: NodeType, outline_color: str,
+                                 fill_color: str,
+                                 tags: Optional[List[str]] = None):
         """Draw a control point marker"""
         if tags is None:
             tags = []
-            
+
         scaled_coords = self.scale_coords([x, y])
         x, y = scaled_coords
-        
+
         # Draw control point marker based on type
         size = 6
         pen = QPen(self._parse_color(outline_color))
         brush = QBrush(self._parse_color(fill_color))
-        
+
         if cp_type == NodeType.OVAL:
             cp_item = self.context.scene.addEllipse(
                 x - size/2, y - size/2, size, size, pen, brush
@@ -730,87 +847,88 @@ class DrawingManager:
             cp_item = self.context.scene.addEllipse(
                 x - size/2, y - size/2, size, size, pen, brush
             )
-            
+
         cp_item.setZValue(3)  # Above everything else
-        
+
         # Set tags for tracking and management
         self._set_item_tags(cp_item, obj, ["CP", f"Node_{cp_num}"])
-        
+
         return cp_item
 
     def object_draw_control_line(self, obj: CADObject, x0: float, y0: float,
-                                x1: float, y1: float, cp_num: int, 
-                                color: str, dash: str = "", 
-                                tags: List[str] = None):
+                                 x1: float, y1: float, cp_num: int,
+                                 color: str, dash: str = "",
+                                 tags: Optional[List[str]] = None):
         """Draw a control/construction line"""
         if tags is None:
             tags = []
-            
+
         scaled_coords = self.scale_coords([x0, y0, x1, y1])
         x0, y0, x1, y1 = scaled_coords
-        
-        pen = QPen(self._parse_color(color), self.get_construction_line_width())
+
+        pen = QPen(self._parse_color(color),
+                   self.get_construction_line_width())
         if dash:
             pen.setDashPattern(self.get_dash_pattern(dash))
-            
+
         line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
         line_item.setZValue(0.5)  # Below objects but above background
-        
+
         # Set tags for tracking and management
         self._set_item_tags(line_item, obj, ["CL", f"Node_{cp_num}"] + tags)
-        
+
         return line_item
 
     def object_draw_circle(self, cx: float, cy: float, radius: float,
-                          tags: List[str], color: str, dash: str = "", 
-                          width: float = 0.001):
+                           tags: List[str], color: str, dash: str = "",
+                           width: float = 0.001):
         """Draw a construction circle"""
-        self.object_draw_oval(cx, cy, radius, radius, tags, color, 
-                             dash, width)
+        self.object_draw_oval(cx, cy, radius, radius, tags, color,
+                              dash, width)
 
-    def object_draw_oval(self, cx: float, cy: float, rad1: float, 
-                        rad2: float, tags: List[str], color: str, 
-                        dash: str = "", width: float = 0.001):
+    def object_draw_oval(self, cx: float, cy: float, rad1: float,
+                         rad2: float, tags: List[str], color: str,
+                         dash: str = "", width: float = 0.001):
         """Draw a construction oval/ellipse"""
         scaled_coords = self.scale_coords([cx, cy, rad1, rad2])
         cx, cy, rad1, rad2 = scaled_coords
-        
-        pen = QPen(self._parse_color(color), self.get_construction_line_width())
+
+        pen = QPen(self._parse_color(color),
+                   self.get_construction_line_width())
         if dash:
             pen.setDashPattern(self.get_dash_pattern(dash))
-            
+
         ellipse_item = self.context.scene.addEllipse(
             cx - rad1, cy - rad2, rad1 * 2, rad2 * 2,
-            pen, QBrush(Qt.NoBrush)
+            pen, QBrush(Qt.BrushStyle.NoBrush)
         )
         ellipse_item.setZValue(0.5)
-        
-        # Set tags for tracking and management  
-        # Create a dummy object for tagging since this doesn't have an obj parameter
-        dummy_obj = type('DummyObject', (), {
-            'object_id': f"oval_{id(ellipse_item)}", 
-            'object_type': ObjectType.LINE  # Use the already imported ObjectType
-        })()
+        # Set tags for tracking and management
+        # Create a construction object for tagging
+        dummy_obj = ConstructionCADObject(
+            f"oval_{id(ellipse_item)}", ObjectType.LINE
+        )
         self._set_item_tags(ellipse_item, dummy_obj, ["CL"] + tags)
-        
+
         return ellipse_item
 
     def object_draw_center_cross(self, cx: float, cy: float, radius: float,
-                                tags: List[str], color: str, 
-                                width: float = 0.001):
+                                 tags: List[str], color: str,
+                                 width: float = 0.001):
         """Draw center cross marker"""
         self.object_draw_oval_cross(cx, cy, radius, radius, tags, color, width)
 
-    def object_draw_oval_cross(self, cx: float, cy: float, 
-                              rad1: float, rad2: float, tags: List[str], 
-                              color: str, width: float = 0.001):
+    def object_draw_oval_cross(self, cx: float, cy: float,
+                               rad1: float, rad2: float, tags: List[str],
+                               color: str, width: float = 0.001):
         """Draw oval center cross marker"""
         scaled_coords = self.scale_coords([cx, cy, rad1, rad2])
         cx, cy, rad1, rad2 = scaled_coords
-        
-        pen = QPen(self._parse_color(color), self.get_construction_line_width())
+
+        pen = QPen(self._parse_color(color),
+                   self.get_construction_line_width())
         pen.setDashPattern(self.get_dash_pattern("centerline"))
-        
+
         # Draw cross lines from center
         lines = [
             (cx, cy, cx - rad1, cy),  # Left
@@ -818,104 +936,109 @@ class DrawingManager:
             (cx, cy, cx, cy - rad2),  # Up
             (cx, cy, cx, cy + rad2)   # Down
         ]
-        
+
         line_items = []
         for x0, y0, x1, y1 in lines:
             line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
             line_item.setZValue(0.5)
-            
+
             # Set tags for tracking and management
-            dummy_obj = type('DummyObject', (), {
-                'object_id': f"cross_{id(line_item)}", 
-                'object_type': ObjectType.LINE  # Use the already imported ObjectType
-            })()
+            dummy_obj = ConstructionCADObject(
+                f"cross_{id(line_item)}", ObjectType.LINE
+            )
             self._set_item_tags(line_item, dummy_obj, ["CL", "CROSS"] + tags)
             line_items.append(line_item)
-            
+
         return line_items
 
-    def object_draw_centerline(self, x0: float, y0: float, x1: float, 
-                              y1: float, tags: List[str], color: str):
+    def object_draw_centerline(self, x0: float, y0: float, x1: float,
+                               y1: float, tags: List[str], color: str):
         """Draw a centerline"""
         scaled_coords = self.scale_coords([x0, y0, x1, y1])
         x0, y0, x1, y1 = scaled_coords
-        
-        pen = QPen(self._parse_color(color), self.get_construction_line_width())
+
+        pen = QPen(self._parse_color(color),
+                   self.get_construction_line_width())
         pen.setDashPattern(self.get_dash_pattern("centerline"))
-        
+
         line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
         line_item.setZValue(0.5)
-        
+
         # Set tags for tracking and management
-        dummy_obj = type('DummyObject', (), {
-            'object_id': f"centerline_{id(line_item)}", 
-            'object_type': ObjectType.LINE  # Use the already imported ObjectType
-        })()
+        dummy_obj = ConstructionCADObject(
+            f"centerline_{id(line_item)}", ObjectType.LINE
+        )
         self._set_item_tags(line_item, dummy_obj, ["CL", "CENTERLINE"] + tags)
-        
+
         return line_item
 
     def object_draw_center_arc(self, cx: float, cy: float, radius: float,
-                              start_deg: float, extent_deg: float,
-                              tags: List[str], color: str):
+                               start_deg: float, extent_deg: float,
+                               tags: List[str], color: str):
         """Draw a center arc construction line"""
         scaled_coords = self.scale_coords([cx, cy, radius, 0])
         cx, cy, radius, _ = scaled_coords
-        
-        pen = QPen(self._parse_color(color), 
-                  self.get_construction_line_width())
+
+        pen = QPen(self._parse_color(color),
+                   self.get_construction_line_width())
         pen.setDashPattern(self.get_dash_pattern("centerline"))
-        
+
         # Create arc path
         path = QPainterPath()
-        
+
         # Create arc
         rect = QRectF(cx - radius, cy - radius, radius * 2, radius * 2)
         path.arcMoveTo(rect, start_deg)
         path.arcTo(rect, start_deg, extent_deg)
-        
-        path_item = self.context.scene.addPath(path, pen, QBrush(Qt.NoBrush))
+
+        path_item = self.context.scene.addPath(
+            path, pen, QBrush(Qt.BrushStyle.NoBrush)
+        )
         path_item.setZValue(0.5)
-        
+
         # Set tags for tracking and management
-        dummy_obj = type('DummyObject', (), {
-            'object_id': f"center_arc_{id(path_item)}", 
-            'object_type': ObjectType.ARC
-        })()
+        dummy_obj = ConstructionCADObject(
+            f"center_arc_{id(path_item)}", ObjectType.ARC
+        )
         self._set_item_tags(path_item, dummy_obj, ["CL", "CENTER_ARC"] + tags)
-        
+
         return path_item
 
-    def object_draw_control_arc(self, obj: CADObject, cx: float, cy: float, 
-                               radius: float, start_deg: float, 
-                               extent_deg: float, cp_num: int, color: str, 
-                               dash: str = "", tags: List[str] = None):
-        """Draw a control arc - translates cadobjects_object_draw_control_arc"""
+    def object_draw_control_arc(self, obj: CADObject, cx: float, cy: float,
+                                radius: float, start_deg: float,
+                                extent_deg: float, cp_num: int, color: str,
+                                dash: str = "",
+                                tags: Optional[List[str]] = None):
+        """Draw a control arc - translates
+        cadobjects_object_draw_control_arc"""
         if tags is None:
             tags = []
-            
+
         scaled_coords = self.scale_coords([cx, cy, radius, 0])
         cx, cy, radius, _ = scaled_coords
-        
+
         pen = QPen(self._parse_color(color),
                    self.get_construction_line_width())
         if dash:
             pen.setDashPattern(self.get_dash_pattern(dash))
-            
+
         # Create arc path
         path = QPainterPath()
-        
+
         # Create arc
         rect = QRectF(cx - radius, cy - radius, radius * 2, radius * 2)
         path.arcMoveTo(rect, start_deg)
         path.arcTo(rect, start_deg, extent_deg)
-        
-        path_item = self.context.scene.addPath(path, pen, QBrush(Qt.NoBrush))
-        path_item.setZValue(1.5)  # Above control lines but below control points
-        
+
+        path_item = self.context.scene.addPath(
+            path, pen, QBrush(Qt.BrushStyle.NoBrush)
+        )
+        # Above control lines but below control points
+        path_item.setZValue(1.5)
+
         # Set tags for tracking and management
         self._set_item_tags(path_item, obj, ["CL", f"Node_{cp_num}"] + tags)
-        
+
         return path_item
 
     # Grid and background drawing
@@ -924,7 +1047,7 @@ class DrawingManager:
         """Redraw the grid - translates cadobjects_redraw_grid"""
         if not self.context.show_grid:
             return
-            
+
         # TODO: Implement grid drawing
         # This would draw grid lines based on current zoom and units
         pass
@@ -933,13 +1056,13 @@ class DrawingManager:
         """Complete redraw of all objects - translates cadobjects_redraw"""
         # Clear scene
         self.context.scene.clear()
-        
+
         # Redraw grid
         self.redraw_grid(color)
-        
+
         # TODO: Redraw all objects from document
         # This would iterate through all objects in layers and draw them
-        
+
         # Redraw construction points
         self.object_redraw_construction_points()
 
@@ -954,15 +1077,15 @@ class DrawingManager:
         """Redraw all construction points"""
         # Clear existing construction points
         # TODO: Track and remove existing construction point graphics
-        
+
         for point in self.construction_points:
             scaled_coords = self.scale_coords([point.x, point.y])
             x, y = scaled_coords
-            
+
             size = 4
             pen = QPen(QColor(255, 0, 0))  # Red
             brush = QBrush(QColor(255, 0, 0))
-            
+
             cp_item = self.context.scene.addEllipse(
                 x - size/2, y - size/2, size, size, pen, brush
             )

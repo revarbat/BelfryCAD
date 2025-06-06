@@ -22,19 +22,19 @@ def test_keyboard_shortcut_mappings():
     from BelfryCAD.core.config import Config
     from BelfryCAD.core.preferences import PreferencesManager
     from BelfryCAD.core.document import TkCADDocument
-    
+
     # Create test instances
     config = Config()
     preferences = PreferencesManager()
     document = TkCADDocument()
-    
+
     # Create main window (this will set up shortcuts)
     main_window = MainWindow(config, preferences, document)
-    
+
     # Test that category key mappings are defined
     assert hasattr(main_window, 'category_key_mappings')
     assert len(main_window.category_key_mappings) > 0
-    
+
     # Test expected mappings
     expected_mappings = {
         'S': ToolCategory.SELECTOR,
@@ -52,17 +52,17 @@ def test_keyboard_shortcut_mappings():
         'O': ToolCategory.POINTS,
         'H': ToolCategory.SCREWHOLES,
     }
-    
+
     for key, category in expected_mappings.items():
         assert key in main_window.category_key_mappings
         assert main_window.category_key_mappings[key] == category
-    
+
     # Test that shortcuts are created
     assert hasattr(main_window, 'category_shortcuts')
     assert len(main_window.category_shortcuts) > 0
-    
+
     print("✓ All keyboard shortcut mappings are correct")
-    
+
     # Clean up
     main_window.close()
 
@@ -73,18 +73,18 @@ def test_shortcut_activation():
     from BelfryCAD.core.config import Config
     from BelfryCAD.core.preferences import PreferencesManager
     from BelfryCAD.core.document import TkCADDocument
-    
+
     # Create test instances
     config = Config()
     preferences = PreferencesManager()
     document = TkCADDocument()
-    
+
     # Create main window
     main_window = MainWindow(config, preferences, document)
-    
+
     # Test that the shortcut activation method exists and works
     assert hasattr(main_window, '_activate_category_shortcut')
-    
+
     # Test calling shortcut activation (should not raise errors)
     # Even if category_buttons don't exist yet, it should handle gracefully
     try:
@@ -93,18 +93,18 @@ def test_shortcut_activation():
     except Exception as e:
         print(f"✗ Shortcut activation failed: {e}")
         raise
-    
+
     # Clean up
     main_window.close()
 
 if __name__ == "__main__":
     print("Testing keyboard shortcuts functionality...")
-    
+
     try:
         test_keyboard_shortcut_mappings()
         test_shortcut_activation()
         print("\n✅ All keyboard shortcut tests passed!")
-        
+
         print("\nKeyboard Shortcut Reference:")
         print("==========================")
         print("Space - Selector tools")
@@ -121,7 +121,7 @@ if __name__ == "__main__":
         print("U - Duplicator tools")
         print("O - Point tools")
         print("H - Screw hole tools")
-        
+
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         sys.exit(1)

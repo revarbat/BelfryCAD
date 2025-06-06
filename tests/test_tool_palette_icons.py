@@ -50,24 +50,24 @@ def test_icon_loading_method():
                 print(f"Failed to load PNG icon {png_path}: {e}")
 
         return None
-    
+
     return load_tool_icon
 
 def test_tool_palette_icons():
     """Test that tool palette icons are properly loaded"""
     app = QApplication([])
-    
+
     print("Testing tool palette icon loading...")
     print(f"Number of available tools: {len(available_tools)}")
-    
+
     # Get the icon loader function
     icon_loader = test_icon_loading_method()
-    
+
     # Test loading icons for each tool
     success_count = 0
     total_count = 0
     failed_tools = []
-    
+
     for tool_class in available_tools:
         # Create an instance to get definitions (with None arguments)
         try:
@@ -76,14 +76,14 @@ def test_tool_palette_icons():
                 total_count += 1
                 icon_name = definition.icon
                 print(f"\nTesting {definition.name} (icon: {icon_name})")
-                
+
                 # Test the icon loading
                 icon = icon_loader(icon_name)
-                
+
                 if icon and not icon.isNull():
                     print(f"  ✓ Icon loaded successfully")
                     success_count += 1
-                    
+
                     # Check if icon has available sizes
                     sizes = icon.availableSizes()
                     if sizes:
@@ -95,28 +95,28 @@ def test_tool_palette_icons():
                     failed_tools.append(f"{definition.name} ({icon_name})")
         except Exception as e:
             print(f"  ✗ Error creating tool {tool_class.__name__}: {e}")
-    
+
     print(f"\nResult: {success_count}/{total_count} tool icons loaded successfully")
-    
+
     if failed_tools:
         print(f"\nFailed to load icons for:")
         for failed in failed_tools:
             print(f"  - {failed}")
-    
+
     # Check which icon files actually exist
     print(f"\nChecking icon file availability...")
     images_dir = os.path.join(os.path.dirname(__file__), 'images')
     svg_count = 0
     png_count = 0
-    
+
     for file in os.listdir(images_dir):
         if file.startswith('tool-') and file.endswith('.svg'):
             svg_count += 1
         elif file.startswith('tool-') and file.endswith('.png'):
             png_count += 1
-    
+
     print(f"Available tool icons: {svg_count} SVG files, {png_count} PNG files")
-    
+
     if success_count == total_count:
         print("🎉 All tool icons loaded successfully!")
         return True

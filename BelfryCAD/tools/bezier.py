@@ -81,7 +81,7 @@ class BezierTool(Tool):
             from PySide6.QtWidgets import QGraphicsLineItem
             from PySide6.QtCore import Qt
             from PySide6.QtGui import QPen
-            
+
             for i in range(len(preview_points) - 1):
                 line_item = QGraphicsLineItem(
                     preview_points[i].x, preview_points[i].y,
@@ -103,13 +103,13 @@ class BezierTool(Tool):
                 if curve_points:
                     from PySide6.QtWidgets import QGraphicsPathItem
                     from PySide6.QtGui import QPainterPath
-                    
+
                     path = QPainterPath()
                     if curve_points:
                         path.moveTo(curve_points[0].x, curve_points[0].y)
                         for p in curve_points[1:]:
                             path.lineTo(p.x, p.y)
-                    
+
                     path_item = QGraphicsPathItem(path)
                     pen = QPen()
                     pen.setColor("blue")
@@ -224,7 +224,7 @@ class BezierQuadTool(Tool):
             from PySide6.QtWidgets import QGraphicsLineItem
             from PySide6.QtCore import Qt
             from PySide6.QtGui import QPen
-            
+
             for i in range(len(preview_points) - 1):
                 line_item = QGraphicsLineItem(
                     preview_points[i].x, preview_points[i].y,
@@ -245,13 +245,13 @@ class BezierQuadTool(Tool):
                 if curve_points:
                     from PySide6.QtWidgets import QGraphicsPathItem
                     from PySide6.QtGui import QPainterPath
-                    
+
                     path = QPainterPath()
                     if curve_points:
                         path.moveTo(curve_points[0].x, curve_points[0].y)
                         for p in curve_points[1:]:
                             path.lineTo(p.x, p.y)
-                    
+
                     path_item = QGraphicsPathItem(path)
                     pen = QPen()
                     pen.setColor("blue")
@@ -268,7 +268,7 @@ class BezierQuadTool(Tool):
 
         for i in range(steps + 1):
             t = i / steps
-            # Quadratic bezier formula: 
+            # Quadratic bezier formula:
             # B(t) = (1-t)^2*P0 + 2(1-t)t*P1 + t^2*P2
             x = ((1-t)**2 * p0.x + 2*(1-t)*t * p1.x + t**2 * p2.x)
             y = ((1-t)**2 * p0.y + 2*(1-t)*t * p1.y + t**2 * p2.y)

@@ -23,19 +23,19 @@ def test_letter_shortcuts():
     """Test that letter-based secondary shortcuts work"""
     print("Testing Letter-Based Secondary Shortcuts")
     print("=======================================")
-    
+
     # Create a simple test with Node tools
     tools = [
         ToolDefinition(
             token='NODESEL',
-            name='Select Nodes', 
+            name='Select Nodes',
             category=ToolCategory.NODES,
             icon='tool-nodesel'
         ),
         ToolDefinition(
             token='NODEADD',
             name='Add Node',
-            category=ToolCategory.NODES, 
+            category=ToolCategory.NODES,
             icon='tool-nodeadd'
         ),
         ToolDefinition(
@@ -45,20 +45,20 @@ def test_letter_shortcuts():
             icon='tool-nodedel'
         ),
     ]
-    
+
     def dummy_icon_loader(icon_name):
         return None
-    
+
     # Create tool palette
     palette = ToolPalette(ToolCategory.NODES, tools, dummy_icon_loader)
-    
+
     # Test expected letter mappings
     expected_mappings = {
         'S': 'NODESEL',
-        'A': 'NODEADD', 
+        'A': 'NODEADD',
         'D': 'NODEDEL',
     }
-    
+
     print("Testing Node tools secondary shortcuts:")
     for key, expected_token in expected_mappings.items():
         if key in palette.secondary_key_mappings:
@@ -71,7 +71,7 @@ def test_letter_shortcuts():
         else:
             print(f"  ✗ Key '{key}' not found in mappings")
             return False
-    
+
     print()
     print("✓ Letter-based secondary shortcuts working correctly!")
     return True
@@ -79,7 +79,7 @@ def test_letter_shortcuts():
 
 def main():
     app = QApplication([])
-    
+
     try:
         success = test_letter_shortcuts()
         if success:

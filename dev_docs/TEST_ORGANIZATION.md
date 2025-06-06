@@ -2,7 +2,7 @@
 
 ## Overview
 
-All test files in the pyTkCAD project have been organized into the `tests` 
+All test files in the pyTkCAD project have been organized into the `tests`
 directory. This improves project structure and makes test management easier.
 
 ## Changes Made
