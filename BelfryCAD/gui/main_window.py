@@ -28,13 +28,14 @@ class CADGraphicsView(QGraphicsView):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setRenderHint(QPainter.Antialiasing)
-        self.setDragMode(QGraphicsView.NoDrag)  # Handle dragging ourselves
+        self.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Handle dragging ourselves
+        self.setDragMode(QGraphicsView.DragMode.NoDrag)
 
         # Enable scrollbars
-        from PySide6.QtCore import Qt
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         # Enable mouse wheel scrolling
         self.setInteractive(True)
@@ -65,7 +66,10 @@ class CADGraphicsView(QGraphicsView):
         scroll_speed = 30
 
         # Handle horizontal scrolling (Shift+wheel or horizontal wheel)
-        if event.modifiers() & Qt.ShiftModifier or delta.x() != 0:
+        if (
+            event.modifiers() & Qt.KeyboardModifier.ShiftModifier or
+            delta.x() != 0
+        ):
             # Horizontal scrolling
             scroll_amount = delta.y() if delta.x() == 0 else delta.x()
             # Normalize wheel delta
@@ -95,10 +99,13 @@ class CADGraphicsView(QGraphicsView):
             # Convert to scene coordinates
             scene_pos = self.mapToScene(event.pos())
 
-            # Convert Qt scene coordinates to CAD coordinates using drawing manager
+            # Convert Qt scene coordinates to CAD coordinates using
+            # drawing manager
             if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up) coordinates
-                cad_coords = self.drawing_manager.descale_coords([scene_pos.x(), scene_pos.y()])
+                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
+                # coordinates
+                cad_coords = self.drawing_manager.descale_coords(
+                    [scene_pos.x(), scene_pos.y()])
                 cad_x, cad_y = cad_coords[0], cad_coords[1]
             else:
                 # Fallback to scene coordinates if no drawing manager
@@ -124,10 +131,13 @@ class CADGraphicsView(QGraphicsView):
         if self.tool_manager and self.tool_manager.get_active_tool():
             scene_pos = self.mapToScene(event.pos())
 
-            # Convert Qt scene coordinates to CAD coordinates using drawing manager
+            # Convert Qt scene coordinates to CAD coordinates using
+            # drawing manager
             if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up) coordinates
-                cad_coords = self.drawing_manager.descale_coords([scene_pos.x(), scene_pos.y()])
+                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
+                # coordinates
+                cad_coords = self.drawing_manager.descale_coords(
+                    [scene_pos.x(), scene_pos.y()])
                 cad_x, cad_y = cad_coords[0], cad_coords[1]
             else:
                 # Fallback to scene coordinates if no drawing manager
@@ -152,10 +162,13 @@ class CADGraphicsView(QGraphicsView):
         if self.tool_manager and self.tool_manager.get_active_tool():
             scene_pos = self.mapToScene(event.pos())
 
-            # Convert Qt scene coordinates to CAD coordinates using drawing manager
+            # Convert Qt scene coordinates to CAD coordinates using
+            # drawing manager
             if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up) coordinates
-                cad_coords = self.drawing_manager.descale_coords([scene_pos.x(), scene_pos.y()])
+                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
+                # coordinates
+                cad_coords = self.drawing_manager.descale_coords(
+                    [scene_pos.x(), scene_pos.y()])
                 cad_x, cad_y = cad_coords[0], cad_coords[1]
             else:
                 # Fallback to scene coordinates if no drawing manager
@@ -406,18 +419,17 @@ class MainWindow(QMainWindow):
         """Create a toolbar with drawing tools"""
         from PySide6.QtCore import Qt, QSize
         self.toolbar = self.addToolBar("Tools")
-        self.addToolBar(Qt.LeftToolBarArea, self.toolbar)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
         # Set the icon size to 48x48 for 150% size visibility
         self.toolbar.setIconSize(QSize(48, 48))
-        # Set spacing between toolbar buttons to 2 pixels
-        self.toolbar.layout().setSpacing(2)
+        # Set spacing between toolbar buttons to 2 pixels using stylesheet
         self.toolbar.setContentsMargins(0, 0, 0, 0)
         # Make toolbar more compact
-        self.toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         # Apply custom stylesheet with 2px spacing
         self.toolbar.setStyleSheet("""
             QToolBar {
-                spacing: 2px;
+                spacing: 2px 0 2px 0;
                 border: none;
             }
             QToolButton {
@@ -550,7 +562,8 @@ class MainWindow(QMainWindow):
         # Connect tool manager to graphics view
         self.canvas.set_tool_manager(self.tool_manager)
 
-        # Connect drawing manager to graphics view for coordinate transformations
+        # Connect drawing manager to graphics view for coordinate
+        # transformations
         self.canvas.set_drawing_manager(self.drawing_manager)
 
         # Register all available tools and group by category
@@ -663,7 +676,7 @@ class MainWindow(QMainWindow):
                 self.draw_objects()
             except Exception as e:
                 msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
+                msg.setIcon(QMessageBox.Icon.Critical)
                 msg.setWindowTitle("Open Error")
                 msg.setText(f"Failed to open file:\n{e}")
                 msg.exec()
@@ -685,7 +698,7 @@ class MainWindow(QMainWindow):
             self.update_title()
         except Exception as e:
             msg = QMessageBox()
-            msg.setIcon(QMessageBox.Critical)
+            msg.setIcon(QMessageBox.Icon.Critical)
             msg.setWindowTitle("Save Error")
             msg.setText(f"Failed to save file:\n{e}")
             msg.exec()
@@ -707,7 +720,7 @@ class MainWindow(QMainWindow):
                 self.update_title()
             except Exception as e:
                 msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
+                msg.setIcon(QMessageBox.Icon.Critical)
                 msg.setWindowTitle("Save Error")
                 msg.setText(f"Failed to save file:\n{e}")
                 msg.exec()
@@ -741,7 +754,7 @@ class MainWindow(QMainWindow):
                 )
             except Exception as e:
                 msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
+                msg.setIcon(QMessageBox.Icon.Critical)
                 msg.setWindowTitle("Import Error")
                 msg.setText(f"Failed to import file:\n{e}")
                 msg.exec()
@@ -764,7 +777,7 @@ class MainWindow(QMainWindow):
                 )
             except Exception as e:
                 msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
+                msg.setIcon(QMessageBox.Icon.Critical)
                 msg.setWindowTitle("Export Error")
                 msg.setText(f"Failed to export file:\n{e}")
                 msg.exec()
@@ -1115,7 +1128,7 @@ class MainWindow(QMainWindow):
 
         # Create axis line pen (thin, dark gray)
         axis_pen = QPen(QColor(64, 64, 64), 1)
-        axis_pen.setStyle(Qt.DashLine)
+        axis_pen.setStyle(Qt.PenStyle.DashLine)
 
         # Add X-axis (horizontal line at Y=0)
         x_line = self.scene.addLine(
@@ -1149,7 +1162,7 @@ class MainWindow(QMainWindow):
         # Create a light gray dotted pen for grid lines
         grid_pen = QPen(QColor(200, 200, 200))  # Light gray
         grid_pen.setWidth(1)
-        grid_pen.setStyle(Qt.DotLine)  # Dotted line style
+        grid_pen.setStyle(Qt.PenStyle.DotLine)  # Dotted line style
 
         # Get the visible scene rectangle
         scene_rect = self.scene.sceneRect()
@@ -1248,15 +1261,16 @@ class MainWindow(QMainWindow):
                     items_to_remove.append(item)
 
             for item in items_to_remove:
-                self.scene.removeItem(item)
+                try:
+                    self.scene.removeItem(item)
+                except RuntimeError:
+                    # Item may have already been removed
+                    pass
 
             # Add new grid lines
             self._add_grid_lines()
-            if hasattr(self, 'ruler_manager'):
-                self.ruler_manager.update_rulers()
-        except (RuntimeError, AttributeError):
-            # Scene has been deleted or is invalid
-            return
+        except Exception as e:
+            print(f"Error redrawing grid: {e}")
 
     def draw_objects(self):
         """Draw all objects from the document to the scene."""
@@ -1268,29 +1282,40 @@ class MainWindow(QMainWindow):
                 items_to_remove.append(item)
 
         for item in items_to_remove:
-            self.scene.removeItem(item)
+            try:
+                self.scene.removeItem(item)
+            except RuntimeError:
+                # Item may have already been removed
+                pass
 
-        # Draw objects from document
-        if hasattr(self.document, 'objects'):
-            # CADObjectManager stores objects in a dictionary
-            for obj_id, obj in self.document.objects.objects.items():
-                self._draw_object(obj)
+                # Draw objects from document
+                if (
+                    hasattr(self.document, 'objects') and
+                    hasattr(self.document.objects, 'objects')
+                ):
+                    # CADObjectManager stores objects in a dictionary
+                    for obj_id, obj in self.document.objects.objects.items():
+                        self._draw_object(obj)
 
     def _draw_object(self, obj):
-        """Draw a single object to the scene using DrawingManager."""
-        # Get object ID for tracking
-        obj_id = getattr(obj, 'id', None) or id(obj)
+        """Draw a single object to the scene."""
+        obj_id = id(obj)
 
         # Remove any existing graphics items for this object
         if obj_id in self.graphics_items:
             for item in self.graphics_items[obj_id]:
-                if item.scene() == self.scene:
-                    self.scene.removeItem(item)
+                try:
+                    if item.scene() == self.scene:
+                        self.scene.removeItem(item)
+                except RuntimeError:
+                    # Item may have already been removed
+                    pass
             del self.graphics_items[obj_id]
 
         graphics_items = []
 
-        # Use the DrawingManager to draw objects with proper TCL translation
+        # Use the DrawingManager to draw objects with proper TCL
+        # translation
         if hasattr(self, 'drawing_manager'):
             graphics_items = self.drawing_manager.object_draw(obj)
             # Store graphics items for this object if any were returned
@@ -1324,14 +1349,16 @@ class MainWindow(QMainWindow):
             self, "Unsaved Changes",
             "The document has been modified. "
             "Do you want to save your changes?",
-            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-            QMessageBox.Save
+            (QMessageBox.StandardButton.Save |
+             QMessageBox.StandardButton.Discard |
+             QMessageBox.StandardButton.Cancel),
+            QMessageBox.StandardButton.Save
         )
 
-        if reply == QMessageBox.Save:
+        if reply == QMessageBox.StandardButton.Save:
             self.save_file()
             return True
-        elif reply == QMessageBox.Discard:
+        elif reply == QMessageBox.StandardButton.Discard:
             return True
         else:  # Cancel
             return False
@@ -1371,7 +1398,9 @@ class MainWindow(QMainWindow):
                 if not pixmap.isNull():
                     # Scale PNG icons to 150% for better visibility
                     scaled_pixmap = pixmap.scaled(
-                        48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                        48, 48,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
                     )
                     return QIcon(scaled_pixmap)
             except Exception as e:
@@ -1464,7 +1493,7 @@ class MainWindow(QMainWindow):
         # Get line width from attributes
         line_width = obj.attributes.get('linewidth', 2)
         pen = QPen(color, line_width)
-        brush = QBrush(Qt.NoBrush)
+        brush = QBrush(Qt.BrushStyle.NoBrush)
 
         graphics_items = []
 

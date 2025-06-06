@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="32"
+   height="32"
+   viewBox="0 0 32 32"
+   sodipodi:docname="tool-captiveslot.svg"
+   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#111111"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13"
+     inkscape:cx="16"
+     inkscape:cy="16"
+     inkscape:window-width="1304"
+     inkscape:window-height="847"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g1" />
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="Image"
+     id="g1">
+    <g
+       id="g3"
+       transform="translate(0.02884781,0.3747002)">
+      <path
+         id="rect2"
+         style="fill:none;fill-opacity:1;stroke:#1a1a1a;stroke-width:1.5;stroke-linecap:round"
+         d="M 14.539062,4.9609375 V 12 H 2.5390625 v 8 H 14.539062 v 7.039062 h 7.769532 V 20 h 7.230468 V 12 H 22.308594 V 4.9609375 Z" />
+      <ellipse
+         style="fill:#ff0000;fill-opacity:1;stroke:#ff0000;stroke-width:0.908384;stroke-linecap:round"
+         id="path1"
+         cx="2.4423101"
+         cy="16"
+         rx="1.0458062"
+         ry="1.0458078" />
+      <ellipse
+         style="fill:#ff0000;fill-opacity:1;stroke:#ff0000;stroke-width:0.908384;stroke-linecap:round"
+         id="path1-8"
+         cx="29.499994"
+         cy="16"
+         rx="1.0458062"
+         ry="1.0458078" />
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
+       x="1.4903864"
+       y="27.297777"
+       id="text3"><tspan
+         sodipodi:role="line"
+         id="tspan3"
+         x="1.4903864"
+         y="27.297777">1</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
+       x="26.721157"
+       y="27.297777"
+       id="text4"><tspan
+         sodipodi:role="line"
+         id="tspan4"
+         x="26.721157"
+         y="27.297777">2</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
+       x="8.5673084"
+       y="10.605469"
+       id="text5"><tspan
+         sodipodi:role="line"
+         id="tspan5"
+         x="8.5673084"
+         y="10.605469">3</tspan></text>
+    <ellipse
+       style="fill:#ff0000;fill-opacity:1;stroke:#ff0000;stroke-width:0.908384;stroke-linecap:round"
+       id="path1-5"
+       cx="14.528846"
+       cy="5.3362374"
+       rx="1.0458062"
+       ry="1.0458078" />
+  </g>
+</svg>

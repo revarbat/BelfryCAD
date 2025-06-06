@@ -4,10 +4,10 @@
 <svg
    version="1.1"
    id="svg1"
-   width="7"
-   height="7"
-   viewBox="0 0 7 7"
-   sodipodi:docname="node-oval-sel.svg"
+   width="16"
+   height="16"
+   viewBox="0 0 16 16"
+   sodipodi:docname="layer-unlocked.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -24,11 +24,11 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="83.2"
-     inkscape:cx="2.5"
-     inkscape:cy="2.4699519"
-     inkscape:window-width="1144"
-     inkscape:window-height="772"
+     inkscape:zoom="26"
+     inkscape:cx="8"
+     inkscape:cy="7.9038462"
+     inkscape:window-width="1232"
+     inkscape:window-height="824"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="0"
@@ -37,11 +37,18 @@
      inkscape:groupmode="layer"
      inkscape:label="Image"
      id="g1">
-    <circle
-       style="fill:#ff0000"
+    <path
+       style="fill:#b3b3b3;stroke:#000000"
+       d="M 7.5961536,7.5384614 V 3.7692306 c 0,-3.30769216 6.6923084,-3.34615367 6.6923084,0 V 7.5769229 H 12.557693 V 4.3461537 c 0,-1.5735963 -3.2692314,-1.6706988 -3.2692314,0 v 3.2307692 z"
        id="path1"
-       cx="3.5"
-       cy="3.5"
-       r="2.5" />
+       sodipodi:nodetypes="cssccsscc" />
+    <rect
+       style="fill:#ffcc00;stroke:#000000"
+       id="rect1"
+       width="9.0769224"
+       height="6.7692299"
+       x="1.7115384"
+       y="7.5"
+       ry="1.2307693" />
   </g>
 </svg>

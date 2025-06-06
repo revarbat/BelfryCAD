@@ -1,27 +1,27 @@
 """
 Layer Window Module for PyTkCAD
 
-This module provides a layer management window for CAD operations, allowing users to:
+This module provides a layer management window for CAD operations, allowing
+users to:
 - View and manage layers with visibility, lock status, and CAM settings
 - Create, delete, and reorder layers
 - Edit layer properties (name, color, CAM settings)
 - Toggle layer visibility and lock status
 
-Translated from layerwin.tcl to provide equivalent functionality using PySide6/Qt.
+Translated from layerwin.tcl to provide equivalent functionality using
+PySide6/Qt.
 
 Author: Converted from TCL to Python
 """
 
-import math
-import os
-from typing import Dict, Any, Optional, List, Callable
+from typing import Dict, Any, Optional, List
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QScrollArea,
-    QLabel, QPushButton, QLineEdit, QSpinBox, QDoubleSpinBox,
+    QLabel, QPushButton, QLineEdit, QDoubleSpinBox,
     QComboBox, QDialog, QMessageBox, QFrame, QColorDialog,
     QApplication
 )
-from PySide6.QtCore import Qt, Signal, QTimer, QMimeData, QRect
+from PySide6.QtCore import Qt, Signal, QTimer, QMimeData
 from PySide6.QtGui import (
     QPixmap, QIcon, QColor, QPalette, QDrag, QPainter,
     QMouseEvent, QDragEnterEvent, QDropEvent
@@ -31,16 +31,18 @@ from PySide6.QtGui import (
 class LayerWindowInfo:
     """Global layer window information storage (singleton pattern)"""
     _instance = None
+    
+    def __init__(self):
+        self.windows = {}
+        self.icons = {}
+        self.click_positions = {}
+        self.drag_states = {}
+        self.drag_positions = {}
+        self.drag_timers = {}
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance.windows = {}
-            cls._instance.icons = {}
-            cls._instance.click_positions = {}
-            cls._instance.drag_states = {}
-            cls._instance.drag_positions = {}
-            cls._instance.drag_timers = {}
         return cls._instance
 
     def register_window(self, base_id: str, window):
@@ -180,20 +182,23 @@ class LayerItem(QFrame):
         self.lock_button = QPushButton()
         self.lock_button.setFixedSize(16, 16)
         self.lock_button.setFlat(True)
-        self.lock_button.clicked.connect(lambda: self.lock_toggled.emit(self.layer_id))
+        self.lock_button.clicked.connect(
+            lambda: self.lock_toggled.emit(self.layer_id))
         layout.addWidget(self.lock_button)
 
         # Visibility button
         self.visibility_button = QPushButton()
         self.visibility_button.setFixedSize(16, 16)
         self.visibility_button.setFlat(True)
-        self.visibility_button.clicked.connect(lambda: self.visibility_toggled.emit(self.layer_id))
+        self.visibility_button.clicked.connect(
+            lambda: self.visibility_toggled.emit(self.layer_id))
         layout.addWidget(self.visibility_button)
 
         # Layer name label
         self.name_label = QLabel(self.layer_data['name'])
         self.name_label.setMinimumWidth(100)
-        self.name_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.name_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self.name_label, 1)  # Stretch factor 1
 
         # Layer name edit (initially hidden)
@@ -213,13 +218,15 @@ class LayerItem(QFrame):
         self.cam_button = QPushButton()
         self.cam_button.setFixedSize(16, 16)
         self.cam_button.setFlat(True)
-        self.cam_button.clicked.connect(lambda: self.cam_edit_requested.emit(self.layer_id))
+        self.cam_button.clicked.connect(
+            lambda: self.cam_edit_requested.emit(self.layer_id))
         layout.addWidget(self.cam_button)
 
         # Object count label
         self.count_label = QLabel(str(self.layer_data['object_count']))
         self.count_label.setFixedWidth(30)
-        self.count_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.count_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         layout.addWidget(self.count_label)
 
         # Mouse events for layer selection and drag
@@ -238,9 +245,11 @@ class LayerItem(QFrame):
 
         # Update visibility icon
         if self.layer_data['visible']:
-            self.visibility_button.setIcon(self.icons.get('visible', QIcon()))
+            self.visibility_button.setIcon(
+                self.icons.get('visible', QIcon()))
         else:
-            self.visibility_button.setIcon(self.icons.get('invisible', QIcon()))
+            self.visibility_button.setIcon(
+                self.icons.get('invisible', QIcon()))
 
         # Update CAM icon
         if self.layer_data['cut_bit'] > 0:
@@ -250,15 +259,18 @@ class LayerItem(QFrame):
 
         # Update color button
         color = QColor(self.layer_data['color'])
-        self.color_button.setStyleSheet(f"background-color: {color.name()}; border: 1px solid black;")
+        self.color_button.setStyleSheet(
+            f"background-color: {color.name()}; border: 1px solid black;")
 
         # Update name label appearance for current layer
         if self.is_current:
             palette = self.name_label.palette()
-            palette.setColor(QPalette.ColorRole.WindowText,
-                           palette.color(QPalette.ColorRole.HighlightedText))
-            palette.setColor(QPalette.ColorRole.Window,
-                           palette.color(QPalette.ColorRole.Highlight))
+            palette.setColor(
+                QPalette.ColorRole.WindowText,
+                palette.color(QPalette.ColorRole.HighlightedText))
+            palette.setColor(
+                QPalette.ColorRole.Window,
+                palette.color(QPalette.ColorRole.Highlight))
             self.name_label.setPalette(palette)
             self.name_label.setAutoFillBackground(True)
         else:
@@ -268,7 +280,8 @@ class LayerItem(QFrame):
         # Update object count
         self.count_label.setText(str(self.layer_data['object_count']))
 
-    def update_layer_data(self, layer_data: Dict[str, Any], is_current: bool = False):
+    def update_layer_data(
+            self, layer_data: Dict[str, Any], is_current: bool = False):
         """Update the layer data and refresh appearance"""
         self.layer_data = layer_data
         self.is_current = is_current
@@ -278,7 +291,8 @@ class LayerItem(QFrame):
     def _edit_color(self):
         """Open color selection dialog"""
         current_color = QColor(self.layer_data['color'])
-        color = QColorDialog.getColor(current_color, self, "Choose a new color")
+        color = QColorDialog.getColor(
+            current_color, self, "Choose a new color")
 
         if color.isValid():
             self.color_changed.emit(self.layer_id, color.name())
@@ -302,8 +316,10 @@ class LayerItem(QFrame):
         if not self.drag_start_pos:
             return
 
-        if ((event.pos() - self.drag_start_pos).manhattanLength() <
-            QApplication.startDragDistance()):
+        if (
+            (event.pos() - self.drag_start_pos).manhattanLength() <
+            QApplication.startDragDistance()
+        ):
             return
 
         # Start drag operation
@@ -373,7 +389,10 @@ class LayerWindow(QWidget):
     layer_cam_changed = Signal(str, int, float)  # layer_id, cut_bit, cut_depth
     layer_reordered = Signal(str, int)  # layer_id, new_position
 
-    def __init__(self, canvas=None, window_id: str = "main", parent: Optional[QWidget] = None):
+    def __init__(
+            self, canvas=None, window_id: str = "main",
+            parent: Optional[QWidget] = None
+    ):
         """
         Initialize the layer window.
 
@@ -405,8 +424,10 @@ class LayerWindow(QWidget):
         # Scroll area for layers
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setFixedWidth(220)
 
         # Container widget for layer items
@@ -447,21 +468,34 @@ class LayerWindow(QWidget):
         # Try to load icons from the images directory
         icons = {}
         try:
-            # These would be loaded from the actual image files
-            # For now, we'll use simple colored pixmaps as placeholders
-            icons['visible'] = self._create_icon_pixmap(Qt.GlobalColor.green, "👁")
-            icons['invisible'] = self._create_icon_pixmap(Qt.GlobalColor.lightGray, "")
-            icons['lock'] = self._create_icon_pixmap(Qt.GlobalColor.red, "🔒")
-            icons['unlock'] = self._create_icon_pixmap(Qt.GlobalColor.green, "🔓")
-            icons['cam'] = self._create_icon_pixmap(Qt.GlobalColor.blue, "⚙")
-            icons['nocam'] = self._create_icon_pixmap(Qt.GlobalColor.lightGray, "")
-            icons['new'] = self._create_icon_pixmap(Qt.GlobalColor.green, "+")
-            icons['delete'] = self._create_icon_pixmap(Qt.GlobalColor.red, "×")
-
+            for key, filename, text in [
+                ('visible', 'layer-visible.gif', '👁'),
+                ('invisible', 'layer-invisible.gif', '🕶️'),
+                ('lock', 'layer-locked.gif', '🔒'),
+                ('unlock', 'layer-unlocked.gif', '🔓'),
+                ('cam', 'layer-cam.gif', '⚙'),
+                ('nocam', 'layer-nocam.gif', ' '),
+                ('new', 'layer-new.gif', '+'),
+                ('delete', 'layer-delete.gif', '-')
+            ]:
+                # For now, we'll use simple colored pixmaps as placeholders
+                # Try to load actual icon file first, fallback to pixmap
+                try:
+                    icons[key] = QIcon(f"images/layer-{filename}.gif")
+                    icons[key].setToolTip(f"{key} {text.capitalize()}")
+                    if icons[key].isNull():
+                        raise FileNotFoundError()
+                except (FileNotFoundError, OSError):
+                    icons[key] = self._create_icon_pixmap(
+                        Qt.GlobalColor.green, text)
+                    icons[key].setToolTip(f"{key} {text.capitalize()}")
         except Exception as e:
             print(f"Warning: Could not load layer icons: {e}")
             # Create empty icons as fallback
-            for key in ['visible', 'invisible', 'lock', 'unlock', 'cam', 'nocam', 'new', 'delete']:
+            for key in [
+                'visible', 'invisible', 'lock', 'unlock',
+                'cam', 'nocam', 'new', 'delete'
+            ]:
                 icons[key] = QIcon()
 
         layerwin_info.set_icons(self.base_id, icons)
@@ -470,7 +504,9 @@ class LayerWindow(QWidget):
         self.new_button.setIcon(icons['new'])
         self.delete_button.setIcon(icons['delete'])
 
-    def _create_icon_pixmap(self, color: Qt.GlobalColor, text: str = "") -> QIcon:
+    def _create_icon_pixmap(
+        self, color: Qt.GlobalColor, text: str = ""
+    ) -> QIcon:
         """Create a simple icon pixmap with color and optional text"""
         pixmap = QPixmap(16, 16)
         pixmap.fill(color)
@@ -490,7 +526,10 @@ class LayerWindow(QWidget):
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         """Handle drag enter events"""
-        if event.mimeData().hasText() and event.mimeData().text().startswith("layer:"):
+        if (
+            event.mimeData().hasText() and
+            event.mimeData().text().startswith("layer:")
+        ):
             event.acceptProposedAction()
 
     def dropEvent(self, event: QDropEvent):
@@ -530,8 +569,11 @@ class LayerWindow(QWidget):
         # Drop at end
         return self.layer_layout.count()
 
-    def refresh_layers(self, layers_data: List[Dict[str, Any]], current_layer_id: str = None,
-                      edit_layer_id: str = None):
+    def refresh_layers(
+            self, layers_data: List[Dict[str, Any]],
+            current_layer_id: Optional[str] = None,
+            edit_layer_id: Optional[str] = None
+    ):
         """
         Refresh the layer display with new data.
 
@@ -580,7 +622,8 @@ class LayerWindow(QWidget):
 
         # Start editing if requested
         if edit_layer_id and edit_layer_id in self.layer_items:
-            QTimer.singleShot(10, lambda: self.layer_items[edit_layer_id]._start_name_edit())
+            QTimer.singleShot(
+                10, lambda: self.layer_items[edit_layer_id]._start_name_edit())
 
     def _toggle_visibility(self, layer_id: str):
         """Toggle layer visibility"""
@@ -678,9 +721,10 @@ class LayerWindow(QWidget):
                 reply = QMessageBox.question(
                     self,
                     "Delete Layer",
-                    f"Are you sure you want to delete the layer '{layer_name}' "
+                    f"Are you sure you want to delete layer '{layer_name}' "
                     f"and all of the {object_count} objects in it?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    (QMessageBox.StandardButton.Yes |
+                     QMessageBox.StandardButton.No),
                     QMessageBox.StandardButton.No
                 )
 
@@ -693,7 +737,8 @@ class LayerWindow(QWidget):
         """Update data for a specific layer"""
         if layer_id in self.layer_items:
             is_current = (layer_id == self.current_layer_id)
-            self.layer_items[layer_id].update_layer_data(layer_data, is_current)
+            self.layer_items[layer_id].update_layer_data(
+                layer_data, is_current)
 
     def set_current_layer(self, layer_id: str):
         """Set the current layer"""
@@ -711,8 +756,10 @@ class LayerWindow(QWidget):
             self.layer_items[layer_id].update_layer_data(layer_data, True)
 
 
-def create_layer_window(canvas=None, window_id: str = "main",
-                       parent: Optional[QWidget] = None) -> LayerWindow:
+def create_layer_window(
+    canvas=None, window_id: str = "main",
+    parent: Optional[QWidget] = None
+) -> LayerWindow:
     """
     Create and return a new layer window.
 

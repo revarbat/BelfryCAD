@@ -4,10 +4,10 @@
 <svg
    version="1.1"
    id="svg1"
-   width="7"
-   height="7"
-   viewBox="0 0 7 7"
-   sodipodi:docname="node-oval-sel.svg"
+   width="16"
+   height="16"
+   viewBox="0 0 16 16"
+   sodipodi:docname="layer-new.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -24,11 +24,11 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="83.2"
-     inkscape:cx="2.5"
-     inkscape:cy="2.4699519"
-     inkscape:window-width="1144"
-     inkscape:window-height="772"
+     inkscape:zoom="26"
+     inkscape:cx="8"
+     inkscape:cy="7.9038462"
+     inkscape:window-width="1216"
+     inkscape:window-height="804"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="0"
@@ -37,11 +37,19 @@
      inkscape:groupmode="layer"
      inkscape:label="Image"
      id="g1">
-    <circle
-       style="fill:#ff0000"
-       id="path1"
-       cx="3.5"
-       cy="3.5"
-       r="2.5" />
+    <g
+       id="g2"
+       transform="translate(-2.5e-7,0.01923095)"
+       style="fill:#fff9cd;fill-opacity:1">
+      <path
+         style="fill:#fff9cd;stroke:#000000;fill-opacity:1"
+         d="M 3.4615385,5.2692308 V 14.384615 H 12.538462 V 1.5769231 H 7.0769231 Z"
+         id="path1" />
+      <path
+         style="fill:#fff9cd;stroke:#000000;fill-opacity:1"
+         d="m 3.4615384,5.5384615 h 4 l -0.043614,-4"
+         id="path2"
+         sodipodi:nodetypes="ccc" />
+    </g>
   </g>
 </svg>
