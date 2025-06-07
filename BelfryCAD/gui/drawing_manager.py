@@ -1161,7 +1161,7 @@ class DrawingManager:
             pen.setWidthF(linewidth)
             line_item = self.context.scene.addLine(
                 x0, y_scene, x1, y_scene, pen)
-            line_item.setZValue(-10)  # Behind everything
+            line_item.setZValue(-5)  # Behind everything
 
             dummy_obj = ConstructionCADObject(
                 f"origin_x_{id(line_item)}", ObjectType.LINE)
@@ -1175,7 +1175,7 @@ class DrawingManager:
             pen.setWidthF(linewidth)
             line_item = self.context.scene.addLine(
                 x_scene, y0, x_scene, y1, pen)
-            line_item.setZValue(-10)  # Behind everything
+            line_item.setZValue(-5)  # Behind everything
 
             dummy_obj = ConstructionCADObject(
                 f"origin_y_{id(line_item)}", ObjectType.LINE)
