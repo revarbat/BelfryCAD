@@ -21,7 +21,8 @@ from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QMouseEvent
 
 from BelfryCAD.gui.drawing_manager import DrawingManager, DrawingContext
-from BelfryCAD.gui.main_window import CADGraphicsView, MainWindow
+from BelfryCAD.gui.cad_graphics_view import CADGraphicsView
+from BelfryCAD.gui.main_window import MainWindow
 from BelfryCAD.core.cad_objects import CADObject, ObjectType, Point
 from BelfryCAD.tools.line import LineTool
 from BelfryCAD.core.tool_state import ToolState

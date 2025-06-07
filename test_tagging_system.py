@@ -11,7 +11,10 @@ from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsEllipseItem
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QBrush, QColor
 
-from BelfryCAD.gui.drawing_manager_complete import DrawingManager, DrawingContext, DrawingTags
+from BelfryCAD.gui.drawing_manager import (
+    DrawingManager, DrawingContext, DrawingTags
+)
+from BelfryCAD.gui.cad_scene import CadScene
 
 
 def test_tagging_system():
@@ -27,6 +30,11 @@ def test_tagging_system():
     scene = QGraphicsScene()
     context = DrawingContext(scene=scene)
     drawing_manager = DrawingManager(context)
+
+    # Create CadScene with the same scene and link it to the DrawingManager
+    cad_scene = CadScene()
+    cad_scene.scene = scene  # Use the same scene
+    drawing_manager.set_cad_scene(cad_scene)
 
     # Create some test graphics items
     item1 = scene.addEllipse(0, 0, 10, 10, QPen(QColor("red")), QBrush(Qt.BrushStyle.NoBrush))
@@ -93,18 +101,35 @@ def test_tagging_system():
     assert "circle" in item1_tags_after, "Circle tag should remain"
 
     print("✓ Removed tag correctly")
+    
+    # Debug: Check current circle items and their tags
+    current_circles = drawing_manager.get_items_by_tag("circle")
+    print(f"Current circles: {len(current_circles)}")
+    for i, circle in enumerate(current_circles):
+        tags = drawing_manager.get_item_tags(circle)
+        print(f"  Circle {i+1} tags: {tags}")
 
     # Test removing items by tag
     initial_scene_count = len(scene.items())
+    print(f"Initial scene count: {initial_scene_count}")
+    
+    circles_before = drawing_manager.get_items_by_tag("circle")
+    print(f"Circles before removal: {len(circles_before)}")
+    
     drawing_manager.remove_items_by_tag("circle")
+    
     final_scene_count = len(scene.items())
+    print(f"Final scene count: {final_scene_count}")
+    
+    circles_after = drawing_manager.get_items_by_tag("circle")
+    print(f"Circles after removal: {len(circles_after)}")
 
     assert final_scene_count == initial_scene_count - 2, "Should have removed 2 circle items"
 
     print("✓ Removed items by tag correctly")
 
     # Test clearing all tags
-    drawing_manager.clear_all_tags()
+    drawing_manager.clearAllTags()
     remaining_tags = drawing_manager.get_items_by_tag(DrawingTags.ALL_DRAWN.value)
 
     assert len(remaining_tags) == 0, "All tags should be cleared"

@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QColor
 
-from BelfryCAD.gui.main_window import CADGraphicsView
+from BelfryCAD.gui.cad_graphics_view import CADGraphicsView
 from BelfryCAD.gui.rulers import RulerManager
 from PySide6.QtWidgets import QGraphicsScene
 

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout
 from PySide6.QtGui import QPen, QColor, QBrush
 from PySide6.QtCore import Qt
-from BelfryCAD.gui.main_window import CADGraphicsView
+from BelfryCAD.gui.cad_graphics_view import CADGraphicsView
 from BelfryCAD.gui.rulers import RulerManager
 from PySide6.QtWidgets import QGraphicsScene
 import math

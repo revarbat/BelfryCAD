@@ -89,12 +89,15 @@ class DrawingManager:
         self.node_images: Dict[NodeType, str] = {}
         self._init_node_images()
 
-        # Tagging system for graphics items
-        self._tagged_items: Dict[str, List[QGraphicsItem]] = {}
-        self._item_tags: Dict[QGraphicsItem, List[str]] = {}
+        # Reference to CadScene for tagged item creation
+        self.cad_scene = None
 
         # Layer management - will be set by main window
         self.layer_manager = None
+
+    def set_cad_scene(self, cad_scene):
+        """Set the CadScene reference for tagged item creation"""
+        self.cad_scene = cad_scene
 
     def set_layer_manager(self, layer_manager):
         """Set the layer manager for accessing layer data"""
@@ -132,36 +135,26 @@ class DrawingManager:
 
     def add_item_tag(self, item: QGraphicsItem, tag: str):
         """Add a tag to a graphics item"""
-        if item not in self._item_tags:
-            self._item_tags[item] = []
-
-        if tag not in self._item_tags[item]:
-            self._item_tags[item].append(tag)
-
-        if tag not in self._tagged_items:
-            self._tagged_items[tag] = []
-
-        if item not in self._tagged_items[tag]:
-            self._tagged_items[tag].append(item)
+        if self.cad_scene:
+            self.cad_scene.addTag(item, tag)
+        else:
+            # Fallback for cases where cad_scene is not set
+            pass
 
     def remove_item_tag(self, item: QGraphicsItem, tag: str):
         """Remove a tag from a graphics item"""
-        if item in self._item_tags and tag in self._item_tags[item]:
-            self._item_tags[item].remove(tag)
-
-        if tag in self._tagged_items and item in self._tagged_items[tag]:
-            self._tagged_items[tag].remove(item)
-
-        # Clean up empty tag lists
-        if tag in self._tagged_items and not self._tagged_items[tag]:
-            del self._tagged_items[tag]
-
-        if item in self._item_tags and not self._item_tags[item]:
-            del self._item_tags[item]
+        if self.cad_scene:
+            self.cad_scene.removeTag(item, tag)
+        else:
+            # Fallback for cases where cad_scene is not set
+            pass
 
     def get_items_by_tag(self, tag: str) -> List[QGraphicsItem]:
         """Get all graphics items with a specific tag"""
-        return self._tagged_items.get(tag, []).copy()
+        if self.cad_scene:
+            return self.cad_scene.getItemsByTag(tag)
+        else:
+            return []
 
     def get_items_by_any_tag(self, tags: List[str]) -> List[QGraphicsItem]:
         """Get all graphics items that have any of the specified tags"""
@@ -193,22 +186,28 @@ class DrawingManager:
 
     def get_item_tags(self, item: QGraphicsItem) -> List[str]:
         """Get all tags for a graphics item"""
-        return self._item_tags.get(item, []).copy()
+        if self.cad_scene:
+            return self.cad_scene.getTags(item)
+        else:
+            return []
 
     def remove_items_by_tag(self, tag: str):
         """Remove all graphics items with a specific tag from the scene"""
-        items = self.get_items_by_tag(tag)
+        items = list(self.get_items_by_tag(tag))  # Make a copy to avoid modification during iteration
         for item in items:
             # Remove all tags from this item
-            for tag_to_remove in self.get_item_tags(item):
+            for tag_to_remove in list(self.get_item_tags(item)):  # Also copy this list
                 self.remove_item_tag(item, tag_to_remove)
             # Remove from scene
             self.context.scene.removeItem(item)
 
-    def clear_all_tags(self):
+    def clearAllTags(self):
         """Clear all tagging data"""
-        self._tagged_items.clear()
-        self._item_tags.clear()
+        if self.cad_scene:
+            self.cad_scene.clearAllTags()
+        else:
+            # Fallback for cases where cad_scene is not set
+            pass
 
     def _init_node_images(self):
         """Initialize node type images (placeholder for actual images)"""
@@ -557,9 +556,14 @@ class DrawingManager:
         scaled_coords = self.scale_coords([cx, cy, rad1, 0, rad2, 0])
         cx, cy, rad1, _, rad2, _ = scaled_coords
 
-        ellipse = self.context.scene.addEllipse(
-            cx - rad1, cy - rad2, rad1 * 2, rad2 * 2, pen, fill
-        )
+        if self.cad_scene:
+            ellipse = self.cad_scene.addEllipse(
+                cx - rad1, cy - rad2, rad1 * 2, rad2 * 2, pen, fill
+            )
+        else:
+            ellipse = self.context.scene.addEllipse(
+                cx - rad1, cy - rad2, rad1 * 2, rad2 * 2, pen, fill
+            )
         ellipse.setZValue(1)
         self._set_item_tags(ellipse, obj, [DrawingTags.ALL_DRAWN,
                                            DrawingTags.ACTUAL])
@@ -572,9 +576,14 @@ class DrawingManager:
         scaled_coords = self.scale_coords([cx, cy, radius, 0])
         cx, cy, radius, _ = scaled_coords
 
-        ellipse = self.context.scene.addEllipse(
-            cx - radius, cy - radius, radius * 2, radius * 2, pen, fill
-        )
+        if self.cad_scene:
+            ellipse = self.cad_scene.addEllipse(
+                cx - radius, cy - radius, radius * 2, radius * 2, pen, fill
+            )
+        else:
+            ellipse = self.context.scene.addEllipse(
+                cx - radius, cy - radius, radius * 2, radius * 2, pen, fill
+            )
         ellipse.setZValue(1)
         self._set_item_tags(ellipse, obj, [DrawingTags.ALL_DRAWN,
                                            DrawingTags.ACTUAL])
@@ -585,7 +594,12 @@ class DrawingManager:
         """Draw rectangle primitive"""
         x0, y0, x1, y1 = self.scale_coords(data)
 
-        rect = self.context.scene.addRect(x0, y0, x1 - x0, y1 - y0, pen, fill)
+        if self.cad_scene:
+            rect = self.cad_scene.addRect(
+                x0, y0, x1 - x0, y1 - y0, pen, fill)
+        else:
+            rect = self.context.scene.addRect(
+                x0, y0, x1 - x0, y1 - y0, pen, fill)
         rect.setZValue(1)
         self._set_item_tags(rect, obj, [DrawingTags.ALL_DRAWN,
                                         DrawingTags.ACTUAL])
@@ -601,10 +615,16 @@ class DrawingManager:
         # Convert to Qt's angle system (16ths of a degree)
         start_angle_16 = int(start_deg * 16)
         span_angle_16 = int(extent_deg * 16)
-        ellipse = self.context.scene.addEllipse(
-            cx - radius, cy - radius, radius * 2, radius * 2, pen,
-            QBrush(Qt.BrushStyle.NoBrush)
-        )
+        if self.cad_scene:
+            ellipse = self.cad_scene.addEllipse(
+                cx - radius, cy - radius, radius * 2, radius * 2, pen,
+                QBrush(Qt.BrushStyle.NoBrush)
+            )
+        else:
+            ellipse = self.context.scene.addEllipse(
+                cx - radius, cy - radius, radius * 2, radius * 2, pen,
+                QBrush(Qt.BrushStyle.NoBrush)
+            )
         ellipse.setStartAngle(start_angle_16)
         ellipse.setSpanAngle(span_angle_16)
         ellipse.setZValue(1)
@@ -631,7 +651,10 @@ class DrawingManager:
                 x1, y1, x2, y2, x3, y3 = scaled_coords[i:i + 6]
                 path.cubicTo(x1, y1, x2, y2, x3, y3)
 
-        path_item = self.context.scene.addPath(path, pen, fill)
+        if self.cad_scene:
+            path_item = self.cad_scene.addPath(path, pen, fill)
+        else:
+            path_item = self.context.scene.addPath(path, pen, fill)
         path_item.setZValue(1)
         self._set_item_tags(path_item, obj, [DrawingTags.ALL_DRAWN,
                                              DrawingTags.ACTUAL,
@@ -658,7 +681,10 @@ class DrawingManager:
                 points.append(QPointF(scaled_coords[i], scaled_coords[i + 1]))
 
             polygon = QPolygonF(points)
-            poly_item = self.context.scene.addPolygon(polygon, pen, fill)
+            if self.cad_scene:
+                poly_item = self.cad_scene.addPolygon(polygon, pen, fill)
+            else:
+                poly_item = self.context.scene.addPolygon(polygon, pen, fill)
             poly_item.setZValue(1)
             self._set_item_tags(poly_item, obj, [DrawingTags.ALL_DRAWN,
                                                  DrawingTags.ACTUAL,
@@ -672,8 +698,12 @@ class DrawingManager:
             for i in range(2, len(scaled_coords), 2):
                 path.lineTo(scaled_coords[i], scaled_coords[i + 1])
 
-            path_item = self.context.scene.addPath(
-                path, pen, QBrush(Qt.BrushStyle.NoBrush))
+            if self.cad_scene:
+                path_item = self.cad_scene.addPath(
+                    path, pen, QBrush(Qt.BrushStyle.NoBrush))
+            else:
+                path_item = self.context.scene.addPath(
+                    path, pen, QBrush(Qt.BrushStyle.NoBrush))
             path_item.setZValue(1)
             self._set_item_tags(path_item, obj, [DrawingTags.ALL_DRAWN,
                                                  DrawingTags.ACTUAL])
@@ -695,7 +725,10 @@ class DrawingManager:
         font = QFont(font_family, scaled_font_size)
 
         # Create text item
-        text_item = self.context.scene.addText(text, font)
+        if self.cad_scene:
+            text_item = self.cad_scene.addText(text, font)
+        else:
+            text_item = self.context.scene.addText(text, font)
         text_item.setDefaultTextColor(pen.color())
 
         # Set anchor based on justification
@@ -734,7 +767,10 @@ class DrawingManager:
         font = QFont(font_family, scaled_font_size)
 
         # Create text item
-        text_item = self.context.scene.addText(text, font)
+        if self.cad_scene:
+            text_item = self.cad_scene.addText(text, font)
+        else:
+            text_item = self.context.scene.addText(text, font)
         text_item.setDefaultTextColor(pen.color())
 
         # Apply rotation
@@ -758,7 +794,10 @@ class DrawingManager:
 
         # Create pixmap item
         if isinstance(pixmap, QPixmap):
-            image_item = self.context.scene.addPixmap(pixmap)
+            if self.cad_scene:
+                image_item = self.cad_scene.addPixmap(pixmap)
+            else:
+                image_item = self.context.scene.addPixmap(pixmap)
 
             # Scale and position
             image_item.setScale(width / pixmap.width())
@@ -813,11 +852,18 @@ class DrawingManager:
             select_pen = QPen(QColor(255, 255, 0), 1)  # Yellow selection
             select_pen.setDashPattern([3, 3])  # Dashed line
 
-            select_rect = self.context.scene.addRect(
-                x1 - padding, y1 - padding,
-                (x2 - x1) + 2 * padding, (y2 - y1) + 2 * padding,
-                select_pen, QBrush(Qt.BrushStyle.NoBrush)
-            )
+            if self.cad_scene:
+                select_rect = self.cad_scene.addRect(
+                    x1 - padding, y1 - padding,
+                    (x2 - x1) + 2 * padding, (y2 - y1) + 2 * padding,
+                    select_pen, QBrush(Qt.BrushStyle.NoBrush)
+                )
+            else:
+                select_rect = self.context.scene.addRect(
+                    x1 - padding, y1 - padding,
+                    (x2 - x1) + 2 * padding, (y2 - y1) + 2 * padding,
+                    select_pen, QBrush(Qt.BrushStyle.NoBrush)
+                )
             select_rect.setZValue(2)  # Above the object
             return [select_rect]
 
@@ -891,13 +937,23 @@ class DrawingManager:
         brush = QBrush(self._parse_color(fill_color))
 
         if cp_type == NodeType.OVAL:
-            cp_item = self.context.scene.addEllipse(
-                x - size/2, y - size/2, size, size, pen, brush
-            )
+            if self.cad_scene:
+                cp_item = self.cad_scene.addEllipse(
+                    x - size/2, y - size/2, size, size, pen, brush
+                )
+            else:
+                cp_item = self.context.scene.addEllipse(
+                    x - size/2, y - size/2, size, size, pen, brush
+                )
         elif cp_type == NodeType.RECTANGLE:
-            cp_item = self.context.scene.addRect(
-                x - size/2, y - size/2, size, size, pen, brush
-            )
+            if self.cad_scene:
+                cp_item = self.cad_scene.addRect(
+                    x - size/2, y - size/2, size, size, pen, brush
+                )
+            else:
+                cp_item = self.context.scene.addRect(
+                    x - size/2, y - size/2, size, size, pen, brush
+                )
         elif cp_type == NodeType.DIAMOND:
             # Create diamond shape
             points = [
@@ -907,12 +963,20 @@ class DrawingManager:
                 QPointF(x - size/2, y)   # Left
             ]
             polygon = QPolygonF(points)
-            cp_item = self.context.scene.addPolygon(polygon, pen, brush)
+            if self.cad_scene:
+                cp_item = self.cad_scene.addPolygon(polygon, pen, brush)
+            else:
+                cp_item = self.context.scene.addPolygon(polygon, pen, brush)
         else:
             # Default to oval
-            cp_item = self.context.scene.addEllipse(
-                x - size/2, y - size/2, size, size, pen, brush
-            )
+            if self.cad_scene:
+                cp_item = self.cad_scene.addEllipse(
+                    x - size/2, y - size/2, size, size, pen, brush
+                )
+            else:
+                cp_item = self.context.scene.addEllipse(
+                    x - size/2, y - size/2, size, size, pen, brush
+                )
 
         cp_item.setZValue(3)  # Above everything else
 
@@ -937,7 +1001,10 @@ class DrawingManager:
         if dash:
             pen.setDashPattern(self.get_dash_pattern(dash))
 
-        line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
+        if self.cad_scene:
+            line_item = self.cad_scene.addLine(x0, y0, x1, y1, pen)
+        else:
+            line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
         line_item.setZValue(0.5)  # Below objects but above background
 
         # Set tags for tracking and management
@@ -964,10 +1031,16 @@ class DrawingManager:
         if dash:
             pen.setDashPattern(self.get_dash_pattern(dash))
 
-        ellipse_item = self.context.scene.addEllipse(
-            cx - rad1, cy - rad2, rad1 * 2, rad2 * 2,
-            pen, QBrush(Qt.BrushStyle.NoBrush)
-        )
+        if self.cad_scene:
+            ellipse_item = self.cad_scene.addEllipse(
+                cx - rad1, cy - rad2, rad1 * 2, rad2 * 2,
+                pen, QBrush(Qt.BrushStyle.NoBrush)
+            )
+        else:
+            ellipse_item = self.context.scene.addEllipse(
+                cx - rad1, cy - rad2, rad1 * 2, rad2 * 2,
+                pen, QBrush(Qt.BrushStyle.NoBrush)
+            )
         ellipse_item.setZValue(0.5)
         # Set tags for tracking and management
         # Create a construction object for tagging
@@ -1005,7 +1078,10 @@ class DrawingManager:
 
         line_items = []
         for x0, y0, x1, y1 in lines:
-            line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
+            if self.cad_scene:
+                line_item = self.cad_scene.addLine(x0, y0, x1, y1, pen)
+            else:
+                line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
             line_item.setZValue(0.5)
 
             # Set tags for tracking and management
@@ -1027,7 +1103,10 @@ class DrawingManager:
                    self.get_construction_line_width())
         pen.setDashPattern(self.get_dash_pattern("centerline"))
 
-        line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
+        if self.cad_scene:
+            line_item = self.cad_scene.addLine(x0, y0, x1, y1, pen)
+        else:
+            line_item = self.context.scene.addLine(x0, y0, x1, y1, pen)
         line_item.setZValue(0.5)
 
         # Set tags for tracking and management
@@ -1057,9 +1136,14 @@ class DrawingManager:
         path.arcMoveTo(rect, start_deg)
         path.arcTo(rect, start_deg, extent_deg)
 
-        path_item = self.context.scene.addPath(
-            path, pen, QBrush(Qt.BrushStyle.NoBrush)
-        )
+        if self.cad_scene:
+            path_item = self.cad_scene.addPath(
+                path, pen, QBrush(Qt.BrushStyle.NoBrush)
+            )
+        else:
+            path_item = self.context.scene.addPath(
+                path, pen, QBrush(Qt.BrushStyle.NoBrush)
+            )
         path_item.setZValue(0.5)
 
         # Set tags for tracking and management
@@ -1096,9 +1180,14 @@ class DrawingManager:
         path.arcMoveTo(rect, start_deg)
         path.arcTo(rect, start_deg, extent_deg)
 
-        path_item = self.context.scene.addPath(
-            path, pen, QBrush(Qt.BrushStyle.NoBrush)
-        )
+        if self.cad_scene:
+            path_item = self.cad_scene.addPath(
+                path, pen, QBrush(Qt.BrushStyle.NoBrush)
+            )
+        else:
+            path_item = self.context.scene.addPath(
+                path, pen, QBrush(Qt.BrushStyle.NoBrush)
+            )
         # Above control lines but below control points
         path_item.setZValue(1.5)
 
@@ -1159,8 +1248,12 @@ class DrawingManager:
         if y0 <= y_scene <= y1:  # Origin is visible
             pen = QPen(QColor(x_color))
             pen.setWidthF(linewidth)
-            line_item = self.context.scene.addLine(
-                x0, y_scene, x1, y_scene, pen)
+            if self.cad_scene:
+                line_item = self.cad_scene.addLine(
+                    x0, y_scene, x1, y_scene, pen)
+            else:
+                line_item = self.context.scene.addLine(
+                    x0, y_scene, x1, y_scene, pen)
             line_item.setZValue(-5)  # Behind everything
 
             dummy_obj = ConstructionCADObject(
@@ -1173,8 +1266,12 @@ class DrawingManager:
         if x0 <= x_scene <= x1:  # Origin is visible
             pen = QPen(QColor(y_color))
             pen.setWidthF(linewidth)
-            line_item = self.context.scene.addLine(
-                x_scene, y0, x_scene, y1, pen)
+            if self.cad_scene:
+                line_item = self.cad_scene.addLine(
+                    x_scene, y0, x_scene, y1, pen)
+            else:
+                line_item = self.context.scene.addLine(
+                    x_scene, y0, x_scene, y1, pen)
             line_item.setZValue(-5)  # Behind everything
 
             dummy_obj = ConstructionCADObject(
@@ -1228,8 +1325,12 @@ class DrawingManager:
                         tags.append(DrawingTags.GRID_LINE.value)
                         z_val = -8
 
-                    line_item = self.context.scene.addLine(
-                        x_scene, sry0, x_scene, sry1, pen)
+                    if self.cad_scene:
+                        line_item = self.cad_scene.addLine(
+                            x_scene, sry0, x_scene, sry1, pen)
+                    else:
+                        line_item = self.context.scene.addLine(
+                            x_scene, sry0, x_scene, sry1, pen)
                     line_item.setZValue(z_val)
 
                     dummy_obj = ConstructionCADObject(
@@ -1261,8 +1362,12 @@ class DrawingManager:
                         tags.append(DrawingTags.GRID_LINE.value)
                         z_val = -8
 
-                    line_item = self.context.scene.addLine(
-                        srx0, y_scene, srx1, y_scene, pen)
+                    if self.cad_scene:
+                        line_item = self.cad_scene.addLine(
+                            srx0, y_scene, srx1, y_scene, pen)
+                    else:
+                        line_item = self.context.scene.addLine(
+                            srx0, y_scene, srx1, y_scene, pen)
                     line_item.setZValue(z_val)
 
                     dummy_obj = ConstructionCADObject(
@@ -1374,9 +1479,14 @@ class DrawingManager:
             pen = QPen(QColor(255, 0, 0))  # Red
             brush = QBrush(QColor(255, 0, 0))
 
-            cp_item = self.context.scene.addEllipse(
-                x - size/2, y - size/2, size, size, pen, brush
-            )
+            if self.cad_scene:
+                cp_item = self.cad_scene.addEllipse(
+                    x - size/2, y - size/2, size, size, pen, brush
+                )
+            else:
+                cp_item = self.context.scene.addEllipse(
+                    x - size/2, y - size/2, size, size, pen, brush
+                )
             cp_item.setZValue(2)
 
             # Set tags for tracking and management

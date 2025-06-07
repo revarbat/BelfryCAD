@@ -2,11 +2,10 @@
 """Main window for the PyTkCAD application."""
 import math
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QFileDialog, QMessageBox, QGridLayout,
-    QGraphicsScene, QGraphicsView
+    QMainWindow, QFileDialog, QMessageBox
 )
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPainter, QPen, QColor
+from PySide6.QtGui import QPen, QColor
 
 try:
     from PIL import Image
@@ -17,181 +16,9 @@ except ImportError:
 
 from BelfryCAD.tools import available_tools, ToolManager
 from BelfryCAD.gui.category_button import CategoryToolButton
-from BelfryCAD.gui.rulers import RulerManager
 from BelfryCAD.gui.mainmenu import MainMenuBar
-from BelfryCAD.gui.drawing_manager import DrawingManager, DrawingContext
+from BelfryCAD.gui.cad_scene import CadScene
 from .palette_system import create_default_palettes
-
-
-class CADGraphicsView(QGraphicsView):
-    """Custom graphics view for CAD drawing operations."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Handle dragging ourselves
-        self.setDragMode(QGraphicsView.DragMode.NoDrag)
-
-        # Enable scrollbars
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-
-        # Enable mouse wheel scrolling
-        self.setInteractive(True)
-
-        # Enable mouse tracking to receive mouse move events
-        # even when no buttons are pressed
-        self.setMouseTracking(True)
-
-        self.tool_manager = None  # Will be set by the main window
-        self.drawing_manager = None  # Will be set by the main window
-
-    def set_tool_manager(self, tool_manager):
-        """Set the tool manager for handling events"""
-        self.tool_manager = tool_manager
-
-    def set_drawing_manager(self, drawing_manager):
-        """Set the drawing manager for coordinate transformations"""
-        self.drawing_manager = drawing_manager
-
-    def wheelEvent(self, event):
-        """Handle mouse wheel events for scrolling"""
-        from PySide6.QtCore import Qt
-
-        # Get wheel delta values
-        delta = event.angleDelta()
-
-        # Scroll speed multiplier
-        scroll_speed = 30
-
-        # Handle horizontal scrolling (Shift+wheel or horizontal wheel)
-        if (
-            event.modifiers() & Qt.KeyboardModifier.ShiftModifier or
-            delta.x() != 0
-        ):
-            # Horizontal scrolling
-            scroll_amount = delta.y() if delta.x() == 0 else delta.x()
-            # Normalize wheel delta
-            scroll_amount = int(scroll_amount / 120 * scroll_speed)
-
-            # Use the view's built-in scrolling methods
-            h_bar = self.horizontalScrollBar()
-            new_value = h_bar.value() - scroll_amount
-            h_bar.setValue(new_value)
-
-        else:
-            # Vertical scrolling (normal wheel movement)
-            # Normalize wheel delta
-            scroll_amount = int(delta.y() / 120 * scroll_speed)
-
-            # Use the view's built-in scrolling methods
-            v_bar = self.verticalScrollBar()
-            new_value = v_bar.value() - scroll_amount
-            v_bar.setValue(new_value)
-
-        # Accept the event to prevent it from being passed to parent
-        event.accept()
-
-    def mousePressEvent(self, event):
-        """Handle mouse press events and forward to active tool"""
-        if self.tool_manager and self.tool_manager.get_active_tool():
-            # Convert to scene coordinates
-            scene_pos = self.mapToScene(event.pos())
-
-            # Convert Qt scene coordinates to CAD coordinates using
-            # drawing manager
-            if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
-                # coordinates
-                cad_coords = self.drawing_manager.descale_coords(
-                    [scene_pos.x(), scene_pos.y()])
-                cad_x, cad_y = cad_coords[0], cad_coords[1]
-            else:
-                # Fallback to scene coordinates if no drawing manager
-                cad_x, cad_y = scene_pos.x(), scene_pos.y()
-
-            # Create a simple event object with CAD coordinates and x/y attrs
-            class SceneEvent:
-                def __init__(self, scene_pos, cad_x, cad_y):
-                    self._scene_pos = scene_pos
-                    self.x = cad_x  # Use CAD coordinates
-                    self.y = cad_y  # Use CAD coordinates
-
-                def scenePos(self):
-                    return self._scene_pos
-
-            scene_event = SceneEvent(scene_pos, cad_x, cad_y)
-            self.tool_manager.get_active_tool().handle_mouse_down(scene_event)
-        else:
-            super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        """Handle mouse move events and forward to active tool"""
-        if self.tool_manager and self.tool_manager.get_active_tool():
-            scene_pos = self.mapToScene(event.pos())
-
-            # Convert Qt scene coordinates to CAD coordinates using
-            # drawing manager
-            if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
-                # coordinates
-                cad_coords = self.drawing_manager.descale_coords(
-                    [scene_pos.x(), scene_pos.y()])
-                cad_x, cad_y = cad_coords[0], cad_coords[1]
-            else:
-                # Fallback to scene coordinates if no drawing manager
-                cad_x, cad_y = scene_pos.x(), scene_pos.y()
-
-            class SceneEvent:
-                def __init__(self, scene_pos, cad_x, cad_y):
-                    self._scene_pos = scene_pos
-                    self.x = cad_x  # Use CAD coordinates
-                    self.y = cad_y  # Use CAD coordinates
-
-                def scenePos(self):
-                    return self._scene_pos
-
-            scene_event = SceneEvent(scene_pos, cad_x, cad_y)
-            self.tool_manager.get_active_tool().handle_mouse_move(scene_event)
-        else:
-            super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        """Handle mouse release events and forward to active tool"""
-        if self.tool_manager and self.tool_manager.get_active_tool():
-            scene_pos = self.mapToScene(event.pos())
-
-            # Convert Qt scene coordinates to CAD coordinates using
-            # drawing manager
-            if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
-                # coordinates
-                cad_coords = self.drawing_manager.descale_coords(
-                    [scene_pos.x(), scene_pos.y()])
-                cad_x, cad_y = cad_coords[0], cad_coords[1]
-            else:
-                # Fallback to scene coordinates if no drawing manager
-                cad_x, cad_y = scene_pos.x(), scene_pos.y()
-
-            class SceneEvent:
-                def __init__(self, scene_pos, cad_x, cad_y):
-                    self._scene_pos = scene_pos
-                    self.x = cad_x  # Use CAD coordinates
-                    self.y = cad_y  # Use CAD coordinates
-
-                def scenePos(self):
-                    return self._scene_pos
-
-            scene_event = SceneEvent(scene_pos, cad_x, cad_y)
-            # Check if tool has handle_mouse_up method (selector tool has it)
-            active_tool = self.tool_manager.get_active_tool()
-            if hasattr(active_tool, 'handle_mouse_up'):
-                active_tool.handle_mouse_up(scene_event)
-            elif hasattr(active_tool, 'handle_drag'):
-                active_tool.handle_drag(scene_event)
-        else:
-            super().mouseReleaseEvent(event)
 
 
 class MainWindow(QMainWindow):
@@ -444,84 +271,32 @@ class MainWindow(QMainWindow):
         self.category_buttons = {}
 
     def _create_canvas(self):
-        # Create central widget and grid layout for rulers and canvas
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        layout = QGridLayout(central_widget)
-
-        # Remove all spacing around the grid
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        # Create graphics view and scene
-        self.scene = QGraphicsScene()
-        # Set a large scene rectangle to enable scrolling
-        # This creates a virtual canvas much larger than the visible area
-        self.scene.setSceneRect(-5000, -5000, 10000, 10000)
-
-        self.canvas = CADGraphicsView()
-        self.canvas.setScene(self.scene)
-
-        # Initialize DrawingManager for object drawing
-        drawing_context = DrawingContext(
-            scene=self.scene,
-            dpi=72.0,
-            scale_factor=1.0,
-            show_grid=True,
-            show_origin=True
-        )
-        self.drawing_manager = DrawingManager(drawing_context)
-
-        # Connect DrawingManager to Document's LayerManager
-        if hasattr(self.document, 'layers'):
-            self.drawing_manager.set_layer_manager(self.document.layers)
-
-        # Create ruler manager and get ruler widgets
-        self.ruler_manager = RulerManager(self.canvas, central_widget)
+        # Create the CAD scene component
+        self.cad_scene = CadScene(document=self.document, parent=self)
         
-        # Connect rulers to drawing context for DPI and scale factor access
-        self.ruler_manager.set_drawing_context(drawing_context)
+        # Set the CAD scene as the central widget
+        self.setCentralWidget(self.cad_scene)
         
-        horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
-        vertical_ruler = self.ruler_manager.get_vertical_ruler()
-
-        # Create a spacer widget for the top-left corner
-        corner_widget = QWidget()
-        corner_widget.setFixedSize(32, 32)  # Match ruler width
-        corner_widget.setStyleSheet(
-            "background-color: white; border: 1px solid black;"
-        )
-
-        # Set up grid layout:
-        # [corner] [horizontal_ruler]
-        # [vertical_ruler] [canvas]
-        layout.addWidget(corner_widget, 0, 0)
-        layout.addWidget(horizontal_ruler, 0, 1)
-        layout.addWidget(vertical_ruler, 1, 0)
-        layout.addWidget(self.canvas, 1, 1)
-
-        # Set column and row stretch so canvas takes remaining space
-        layout.setColumnStretch(1, 1)  # Canvas column stretches
-        layout.setRowStretch(1, 1)     # Canvas row stretches
-
-        # Add axis lines at X=0 and Y=0
-        self._add_axis_lines()
-
-        # Add grid lines using the new multi-level grid system
-        self._redraw_grid()
-
-        # Remove any default margins/padding from the graphics view
-        self.canvas.setContentsMargins(0, 0, 0, 0)
-        self.canvas.setStyleSheet("""
-            QGraphicsView {
-                border: none;
-                margin: 0px;
-                padding: 0px;
-            }
-        """)
-
-        # Connect canvas scroll and mouse events to rulers
-        self._connect_ruler_events()
+        # Get references to components for backward compatibility
+        self.scene = self.cad_scene.get_scene()
+        self.canvas = self.cad_scene.get_canvas()
+        self.drawing_manager = self.cad_scene.get_drawing_manager()
+        self.ruler_manager = self.cad_scene.get_ruler_manager()
+        
+        # Connect CadScene signals
+        self.cad_scene.mouse_position_changed.connect(
+            self._on_mouse_position_changed)
+        self.cad_scene.scale_changed.connect(self._on_scale_changed)
+    
+    def _on_mouse_position_changed(self, scene_x: float, scene_y: float):
+        """Handle mouse position changes from CadScene."""
+        # Update any UI elements that need mouse position updates
+        pass
+    
+    def _on_scale_changed(self, scale_factor: float):
+        """Handle scale changes from CadScene."""
+        # Update any UI elements that need scale factor updates
+        pass
 
     def _setup_palettes(self):
         """Setup the palette system with dockable windows."""
