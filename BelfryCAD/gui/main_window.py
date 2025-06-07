@@ -273,26 +273,26 @@ class MainWindow(QMainWindow):
     def _create_canvas(self):
         # Create the CAD scene component
         self.cad_scene = CadScene(document=self.document, parent=self)
-        
+
         # Set the CAD scene as the central widget
         self.setCentralWidget(self.cad_scene)
-        
+
         # Get references to components for backward compatibility
         self.scene = self.cad_scene.get_scene()
         self.canvas = self.cad_scene.get_canvas()
         self.drawing_manager = self.cad_scene.get_drawing_manager()
         self.ruler_manager = self.cad_scene.get_ruler_manager()
-        
+
         # Connect CadScene signals
         self.cad_scene.mouse_position_changed.connect(
             self._on_mouse_position_changed)
         self.cad_scene.scale_changed.connect(self._on_scale_changed)
-    
+
     def _on_mouse_position_changed(self, scene_x: float, scene_y: float):
         """Handle mouse position changes from CadScene."""
         # Update any UI elements that need mouse position updates
         pass
-    
+
     def _on_scale_changed(self, scale_factor: float):
         """Handle scale changes from CadScene."""
         # Update any UI elements that need scale factor updates
@@ -1226,7 +1226,7 @@ class MainWindow(QMainWindow):
         # Check if scene is still valid
         if not self.scene or not hasattr(self.scene, 'items'):
             return
-        
+
         # Use DrawingManager to redraw grid with TCL-compatible system
         if hasattr(self, 'drawing_manager') and self.drawing_manager:
             try:

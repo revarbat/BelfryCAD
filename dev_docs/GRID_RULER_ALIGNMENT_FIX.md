@@ -42,7 +42,7 @@ def _get_grid_info(self):
     units = '"'
     formatfunc = "decimal"  # or "fractions"
     conversion = 1.0
-    
+
     return (minorspacing, majorspacing, superspacing, labelspacing,
             divisor, units, formatfunc, conversion)
 ```

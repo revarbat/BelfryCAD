@@ -31,7 +31,7 @@ from PySide6.QtGui import (
 class LayerWindowInfo:
     """Global layer window information storage (singleton pattern)"""
     _instance = None
-    
+
     def __init__(self):
         self.windows = {}
         self.icons = {}

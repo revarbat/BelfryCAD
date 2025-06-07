@@ -21,7 +21,9 @@ class RulerWidget(QWidget):
     functionality with PySide6/Qt.
     """
 
-    def __init__(self, canvas: QGraphicsView, orientation: str, parent=None):
+    def __init__(self, canvas: QGraphicsView,
+                 orientation: str, parent=None,
+                 dpi=96.0, scale_factor=1.0):
         """
         Initialize the ruler widget.
 
@@ -32,12 +34,11 @@ class RulerWidget(QWidget):
         """
         super().__init__(parent)
         self.canvas = canvas
+        self.dpi = dpi
+        self.scale_factor = scale_factor
         self.orientation = orientation
         self.ruler_width = 32.0
         self.position = 0.0
-        
-        # Drawing context for accessing DPI and scale factor
-        self.drawing_context = None
 
         # Ruler appearance settings
         self.ruler_font = QFont("Helvetica", 8)
@@ -175,7 +176,8 @@ class RulerWidget(QWidget):
     def get_grid_info(self) -> \
             Tuple[float, float, float, float, float, str, str, float]:
         """
-        Get grid information from the canvas using dynamic TCL-compatible logic.
+        Get grid information from the canvas using dynamic TCL-compatible
+        logic.
 
         This method replicates the logic from cadobjects_grid_info in the TCL
         implementation, providing adaptive grid spacing based on current zoom
@@ -185,6 +187,7 @@ class RulerWidget(QWidget):
             Tuple of (minorspacing, majorspacing, superspacing, labelspacing,
                      divisor, units, formatfunc, conversion)
         """
+
         # Get DPI and scale factor
         dpi = self.get_dpi()
         scalefactor = self.get_scale_factor()
@@ -201,29 +204,64 @@ class RulerWidget(QWidget):
             formatfunc = self.format_fractions
         else:
             formatfunc = self.format_decimal
-        
+
         divisor = 1.0
 
         # Set up significant spacing values based on unit type
         if unittype == "Inches":
             if isfract:
-                # Proposed: 10ft, 1ft, 1in, 1/4in, 1/16in, 1/64in, 1/256in gridline sets.
-                significants = [0.00390625, 0.015625, 0.0625, 0.25, 1.0, 12.0, 120.0, 1200.0]
+                significants = [
+                    0.00390625,  # 1/256 inch
+                    0.015625,  # 1/64 inch
+                    0.0625,  # 1/16 inch
+                    0.25,   # 1/4 inch
+                    1.0,    # 1 inch
+                    12.0,   # 1 ft
+                    120.0,  # 10 ft
+                    1200.0  # 100 ft
+                ]
                 unit = '"'
             else:
-                # Proposed: 10ft, 1ft, 1in, 1/10in, 1/100in, 1/1000in gridline sets.
-                significants = [0.001, 0.01, 0.1, 1.0, 12.0, 120.0, 1200.0]
+                significants = [
+                    0.001,  # 1/1000 inch
+                    0.01,   # 1/100 inch
+                    0.1,    # 1/10 inch
+                    1.0,    # 1 inch
+                    12.0,   # 1 ft
+                    120.0,  # 10 ft
+                    1200.0  # 100 ft
+                ]
                 unit = '"'
         elif unittype == "Feet":
-            # Proposed: 10ft, 1ft, 1in, 1/4in, 1/16in, 1/64in, 1/256in gridline sets.
-            significants = [0.000325520833333, 0.001302083333333, 0.005208333333333, 
-                          0.020833333333333, 0.083333333333333, 1.0, 10.0, 100.0]
+            # Proposed:
+            #   10ft, 1ft, 1in, 1/4in, 1/16in, 1/64in, 1/256in
+            significants = [
+                0.000325520833333,  # 1/256 inch
+                0.001302083333333,  # 1/64 inch
+                0.005208333333333,  # 1/16 inch
+                0.020833333333333,  # 1/4 inch
+                0.083333333333333,  # 1 inch
+                1.0,   # 1 ft
+                10.0,  # 10 ft
+                100.0  # 100 ft
+            ]
             formatfunc = self.format_fractions
             unit = "'"
         else:
             # Metric
-            # Proposed: 10m, 1m, 1dm, 1cm, 1mm, 0.1mm gridline sets.
-            significants = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
+            # Proposed: 10m, 1m, 1dm, 1cm, 1mm, 0.1mm
+            significants = [
+                0.0001,  # 100 nm
+                0.001,   # 1 µm
+                0.01,    # 10 µm
+                0.1,     # 100 µm
+                1.0,     # 1 mm
+                10.0,    # 1 cm
+                100.0,   # 10 cm
+                1000.0,   # 1 m
+                10000.0,  # 10 m
+                100000.0  # 100 m
+            ]
             unit = "mm"
             formatfunc = self.format_decimal
             if unittype == "Centimeters":
@@ -259,21 +297,27 @@ class RulerWidget(QWidget):
         return (minorspacing, majorspacing, superspacing, labelspacing,
                 divisor, unit, formatfunc, conversion)
 
-    def set_drawing_context(self, drawing_context):
-        """Set the drawing context for accessing DPI and scale factor."""
-        self.drawing_context = drawing_context
-
     def get_dpi(self) -> float:
-        """Get DPI setting from drawing context or use default."""
-        if self.drawing_context:
-            return self.drawing_context.dpi
+        """Get DPI setting from scene or use default."""
+        if self.canvas:
+            return self.dpi
         return 96.0  # Standard screen DPI fallback
 
+    def set_dpi(self, dpi: float):
+        """Set DPI for the ruler widget."""
+        self.dpi = dpi
+        self.update()
+
     def get_scale_factor(self) -> float:
-        """Get current scale factor from drawing context or use default."""
-        if self.drawing_context:
-            return self.drawing_context.scale_factor
+        """Get current scale factor from scene or use default."""
+        if self.canvas:
+            return self.scale_factor
         return 1.0  # No zoom fallback
+
+    def set_scale_factor(self, scale_factor: float):
+        """Set scale factor for the ruler widget."""
+        self.scale_factor = scale_factor
+        self.update()
 
     def paintEvent(self, event):
         """Paint the ruler widget."""
@@ -339,7 +383,7 @@ class RulerWidget(QWidget):
 
         bw = math.floor(rect.width() - 1 + 0.5)
         bh = math.floor(rect.height() + 0.5)
-        
+
         # Draw border line
         painter.setPen(tick_pen)
         painter.drawLine(int(bw), 0, int(bw), int(bh))
@@ -501,11 +545,6 @@ class RulerManager:
         self.horizontal_ruler = RulerWidget(canvas, "horizontal", parent)
         self.vertical_ruler = RulerWidget(canvas, "vertical", parent)
 
-    def set_drawing_context(self, drawing_context):
-        """Set the drawing context for both rulers."""
-        self.horizontal_ruler.set_drawing_context(drawing_context)
-        self.vertical_ruler.set_drawing_context(drawing_context)
-
     def get_horizontal_ruler(self) -> RulerWidget:
         """Get the horizontal ruler widget."""
         return self.horizontal_ruler
@@ -513,6 +552,25 @@ class RulerManager:
     def get_vertical_ruler(self) -> RulerWidget:
         """Get the vertical ruler widget."""
         return self.vertical_ruler
+
+    def set_dpi(self, dpi: float):
+        """
+        Set DPI for both rulers.
+
+        Args:
+            dpi: The new DPI value
+        """
+        self.horizontal_ruler.set_dpi(dpi)
+        self.vertical_ruler.set_dpi(dpi)
+
+    def set_scale_factor(self, scale_factor: float):
+        """
+        Set scale factor for both rulers.
+        Args:
+            scale_factor: The new scale factor value
+        """
+        self.horizontal_ruler.set_scale_factor(scale_factor)
+        self.vertical_ruler.set_scale_factor(scale_factor)
 
     def update_mouse_position(self, scene_x: float, scene_y: float):
         """

@@ -15,9 +15,17 @@ from PySide6.QtGui import (
     QPen, QColor, QPixmap, QBrush, QPainterPath, QPolygonF, QTransform
 )
 
-from .drawing_manager import DrawingManager, DrawingContext
+from .drawing_manager import DrawingManager
 from .rulers import RulerManager
 from .cad_graphics_view import CADGraphicsView
+
+
+class GridTags:
+    """Grid drawing tags for organization and selection"""
+    GRID = "Grid"
+    GRID_LINE = "GridLine"
+    GRID_UNIT_LINE = "GridUnitLine"
+    GRID_ORIGIN = "GridOrigin"
 
 
 class CadScene(QWidget):
@@ -49,10 +57,19 @@ class CadScene(QWidget):
 
         self.document = document
 
+        # Initialize drawing context fields directly
+        self.dpi: float = 72.0
+        self.scale_factor: float = 1.0
+        self.show_grid: bool = True
+        self.show_origin: bool = True
+        self.grid_color: str = "#00ffff"
+        self.origin_color_x: str = "#ff0000"
+        self.origin_color_y: str = "#00ff00"
+
         # Initialize tagging system
         self._tagged_items = {}  # tag -> [items]
         self._item_tags = {}     # item -> [tags]
-        
+
         self._setup_ui()
         self._connect_events()
 
@@ -71,19 +88,8 @@ class CadScene(QWidget):
         self.canvas = CADGraphicsView()
         self.canvas.setScene(self.scene)
 
-        # Initialize drawing context
-        self.drawing_context = DrawingContext(
-            scene=self.scene,
-            dpi=72.0,
-            scale_factor=1.0,
-            show_grid=True,
-            show_origin=True
-        )
-
         # Initialize drawing manager
-        self.drawing_manager = DrawingManager(self.drawing_context)
-        
-        # Set this CadScene as the scene for tagged item creation
+        self.drawing_manager = DrawingManager()
         self.drawing_manager.set_cad_scene(self)
 
         # Connect drawing manager to document's layer manager
@@ -95,7 +101,8 @@ class CadScene(QWidget):
 
         # Create ruler manager
         self.ruler_manager = RulerManager(self.canvas, self)
-        self.ruler_manager.set_drawing_context(self.drawing_context)
+        self.ruler_manager.set_dpi(self.dpi)
+        self.ruler_manager.set_scale_factor(self.scale_factor)
 
         # Get ruler widgets
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
@@ -131,8 +138,8 @@ class CadScene(QWidget):
         """)
 
         # Initialize grid and axis
-        self._add_axis_lines()
-        self._redraw_grid()
+        self._draw_grid_origin(self.dpi, 1.0)
+        self.redraw_grid()
 
     def _connect_events(self):
         """Connect internal events."""
@@ -166,26 +173,230 @@ class CadScene(QWidget):
         # Also connect scene changes to ruler updates
         self.scene.sceneRectChanged.connect(self._update_rulers_and_grid)
 
-    def _add_axis_lines(self):
-        """Add coordinate system axis lines at X=0 and Y=0."""
-        # X-axis (red, horizontal line at Y=0)
-        x_pen = QPen(QColor(255, 0, 0), 1.0)
-        x_axis = self.scene.addLine(-1000, 0, 1000, 0, x_pen)
-        x_axis.setZValue(-10)  # Behind other elements
-
-        # Y-axis (green, vertical line at X=0)
-        y_pen = QPen(QColor(0, 255, 0), 1.0)
-        y_axis = self.scene.addLine(0, -1000, 0, 1000, y_pen)
-        y_axis.setZValue(-10)  # Behind other elements
-
-    def _redraw_grid(self):
-        """Redraw the grid using the drawing manager."""
-        self.drawing_manager.redraw_grid()
-
     def _update_rulers_and_grid(self):
         """Update both rulers and grid when the view changes."""
         if hasattr(self, 'ruler_manager') and self.ruler_manager:
+            self.ruler_manager.set_dpi(self.dpi)
+            self.ruler_manager.set_scale_factor(self.scale_factor)
             self.ruler_manager.update_rulers()
+
+    # Grid drawing methods (moved from DrawingManager)
+
+    def _get_grid_info(self):
+        """Calculate grid spacing info - calls ruler's method"""
+        horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
+        return horizontal_ruler.get_grid_info()
+
+    def _color_to_hsv(self, color):
+        """Convert QColor to HSV values (0-360, 0-1, 0-1)"""
+        if isinstance(color, str):
+            color = QColor(color)
+        elif isinstance(color, QColor):
+            pass
+        else:
+            color = QColor(0, 255, 255)  # Default cyan
+
+        # Get HSV values from QColor
+        h = color.hueF()
+        s = color.saturationF()
+        v = color.valueF()
+        return (h * 360.0 if h >= 0 else 0.0, s, v)
+
+    def _color_from_hsv(self, hue, saturation, value):
+        """Create QColor from HSV values"""
+        color = QColor()
+        color.setHsvF(hue / 360.0, saturation, value)
+        return color
+
+    def _adjust_saturation(self, color, factor):
+        """Adjust color saturation by given factor"""
+        if isinstance(color, str):
+            color = QColor(color)
+        elif not isinstance(color, QColor):
+            color = QColor(color)
+        
+        hue = color.hueF()
+        saturation = min(1.0, color.saturationF() * factor)
+        value = color.valueF()
+        
+        result = QColor()
+        result.setHsvF(hue, saturation, value)
+        return result
+
+    def _parse_color(self, color_spec):
+        """Parse color specification into QColor"""
+        if isinstance(color_spec, QColor):
+            return color_spec
+        elif isinstance(color_spec, str):
+            if color_spec.startswith('#'):
+                return QColor(color_spec)
+            else:
+                return QColor(color_spec)
+        else:
+            return QColor(0, 255, 255)  # Default cyan
+
+    def _draw_grid_origin(self, dpi, linewidth):
+        """Draw origin lines"""
+        # Get scene bounds
+        scene_rect = self.scene.sceneRect()
+        x0, y0 = scene_rect.left(), scene_rect.top()
+        x1, y1 = scene_rect.right(), scene_rect.bottom()
+
+        # Origin colors (default if not configured)
+        x_color = self.origin_color_x
+        y_color = self.origin_color_y
+
+        # Draw X-axis origin line (horizontal)
+        y_scene = 0  # Origin Y in CAD coordinates becomes 0 in scene
+        if y0 <= y_scene <= y1:  # Origin is visible
+            pen = QPen(QColor(x_color))
+            pen.setWidthF(linewidth)
+            line_item = self.addLine(x0, y_scene, x1, y_scene, pen)
+            line_item.setZValue(-5)  # Behind everything but grid lines
+            self.addTags(line_item, [GridTags.GRID_ORIGIN])
+
+        # Draw Y-axis origin line (vertical)
+        x_scene = 0  # Origin X in CAD coordinates becomes 0 in scene
+        if x0 <= x_scene <= x1:  # Origin is visible
+            pen = QPen(QColor(y_color))
+            pen.setWidthF(linewidth)
+            line_item = self.addLine(x_scene, y0, x_scene, y1, pen)
+            line_item.setZValue(-5)  # Behind everything but grid lines
+            self.addTags(line_item, [GridTags.GRID_ORIGIN])
+
+    def _draw_grid_lines(
+            self, xstart, xend, ystart, yend,
+            minorspacing, majorspacing,
+            superspacing, labelspacing, scalemult,
+            linewidth, srx0, srx1, sry0, sry1
+    ):
+        """Draw multi-level grid lines"""
+
+        print("------------ _draw_lines() start")
+        
+        def quantize(value, spacing):
+            """Quantize value to nearest multiple of spacing"""
+            return round(value / spacing) * spacing
+
+        def approx(x, y, epsilon=1e-6):
+            """Check if two floats are approximately equal"""
+            return abs(x - y) < epsilon
+
+        def adjust_saturation(color, factor):
+            """Adjust saturation of a color by a factor"""
+            hue, sat, val = self._color_to_hsv(color)
+            new_sat = min(max(sat * factor, 0.0), 1.0)
+            return self._color_from_hsv(hue, new_sat, val)
+
+        # Calculate colors
+        if self.grid_color:
+            super_grid_color = self._parse_color(self.grid_color)
+        else:
+            super_grid_color = self._color_from_hsv(180.0, 1.0, 1.0)
+        major_grid_color = adjust_saturation(super_grid_color, 0.75)
+        minor_grid_color = adjust_saturation(major_grid_color, 0.4)
+
+        # Minor grid lines (most frequent)
+        if minorspacing > 0:
+            # Vertical minor lines
+            x = quantize(xstart, minorspacing)
+            while x <= xend:
+                x_scene = x * scalemult
+                if srx0 <= x_scene <= srx1:
+                    tags = [GridTags.GRID]
+                    if (superspacing > 0 and
+                            approx(x, quantize(x, superspacing))):
+                        pen = QPen(super_grid_color)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(GridTags.GRID_UNIT_LINE)
+                        z_val = -6
+                    elif (majorspacing > 0 and
+                          approx(x, quantize(x, majorspacing))):
+                        pen = QPen(major_grid_color)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(GridTags.GRID_UNIT_LINE)
+                        z_val = -7
+                    else:
+                        pen = QPen(minor_grid_color)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(GridTags.GRID_LINE)
+                        z_val = -8
+
+                    line_item = self.addLine(
+                        x, sry0/scalemult, x, sry1/scalemult, pen, z=z_val, tags=tags)
+                x += minorspacing
+
+            # Horizontal minor lines
+            y = quantize(ystart, minorspacing)
+            while y <= yend:
+                y_scene = -y * scalemult  # Y-axis flip
+                if sry0 <= y_scene <= sry1:
+                    tags = [GridTags.GRID]
+                    if (superspacing > 0 and
+                            approx(y, quantize(y, superspacing))):
+                        pen = QPen(super_grid_color)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(GridTags.GRID_UNIT_LINE)
+                        z_val = -6
+                    elif (majorspacing > 0 and
+                            approx(y, quantize(y, majorspacing))):
+                        pen = QPen(major_grid_color)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(GridTags.GRID_UNIT_LINE)
+                        z_val = -7
+                    else:
+                        pen = QPen(minor_grid_color)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(GridTags.GRID_LINE)
+                        z_val = -8
+
+                    line_item = self.addLine(
+                        srx0/scalemult, y, srx1/scalemult, y, pen)
+                    line_item.setZValue(z_val)
+                    self.addTags(line_item, tags)
+                y += minorspacing
+
+    def redraw_grid(self):
+        """Redraw the grid - main grid drawing method"""
+        # Remove existing grid items (both tagged and old Z-value items)
+        self.removeItemsByTags([GridTags.GRID])
+
+        # Get grid info
+        grid_info = self._get_grid_info()
+        if not grid_info:
+            return
+
+        (minorspacing, majorspacing, superspacing, labelspacing,
+         divisor, units, formatfunc, conversion) = grid_info
+
+        dpi = self.dpi
+        scalefactor = self.scale_factor
+        lwidth = 0.5
+
+        scalemult = dpi * scalefactor / conversion
+
+        # Get visible scene rectangle
+        scene_rect = self.scene.sceneRect()
+        srx0, sry0 = scene_rect.left(), scene_rect.top()
+        srx1, sry1 = scene_rect.right(), scene_rect.bottom()
+
+        # Calculate CAD coordinate ranges (descale from scene coordinates)
+        xstart = srx0 / scalemult
+        xend = srx1 / scalemult
+        ystart = sry1 / (-scalemult)  # Y-axis flip
+        yend = sry0 / (-scalemult)    # Y-axis flip
+
+        # Draw origin if enabled
+        if self.show_origin:
+            self._draw_grid_origin(dpi, lwidth)
+
+        # Draw grid if enabled
+        if self.show_grid:
+            self._draw_grid_lines(
+                xstart, xend, ystart, yend,
+                minorspacing, majorspacing,
+                superspacing, labelspacing, scalemult,
+                lwidth, srx0, srx1, sry0, sry1)
 
     # Public API methods
 
@@ -205,36 +416,34 @@ class CadScene(QWidget):
         """Get the ruler manager."""
         return self.ruler_manager
 
-    def get_drawing_context(self) -> DrawingContext:
-        """Get the drawing context."""
-        return self.drawing_context
-
     def set_tool_manager(self, tool_manager):
         """Set the tool manager for the canvas."""
         self.canvas.set_tool_manager(tool_manager)
 
     def set_dpi(self, dpi: float):
         """Set the DPI setting."""
-        self.drawing_context.dpi = dpi
-        self._redraw_grid()
+        self.dpi = dpi
+        self.redraw_grid()
+        self.ruler_manager.set_dpi(dpi)
         self.ruler_manager.update_rulers()
 
     def set_scale_factor(self, scale_factor: float):
         """Set the scale factor (zoom level)."""
-        self.drawing_context.scale_factor = scale_factor
-        self._redraw_grid()
+        self.scale_factor = scale_factor
+        self.redraw_grid()
+        self.ruler_manager.set_scale_factor(self.scale_factor)
         self.ruler_manager.update_rulers()
         self.scale_changed.emit(scale_factor)
 
     def set_grid_visibility(self, visible: bool):
         """Set grid visibility."""
-        self.drawing_context.show_grid = visible
-        self._redraw_grid()
+        self.show_grid = visible
+        self.redraw_grid()
 
     def set_origin_visibility(self, visible: bool):
         """Set origin axis visibility."""
-        self.drawing_context.show_origin = visible
-        self._redraw_grid()
+        self.show_origin = visible
+        self.redraw_grid()
 
     def update_mouse_position(self, scene_x: float, scene_y: float):
         """Update mouse position on rulers."""
@@ -247,8 +456,7 @@ class CadScene(QWidget):
 
     def clear_scene(self):
         """Clear all drawable content from the scene."""
-        # Note: This would clear objects but preserve grid/axes
-        pass
+        self.removeItemsByTags(["Actual"])
 
     # Tagging system methods
 
@@ -273,7 +481,7 @@ class CadScene(QWidget):
     def addTags(self, item: QGraphicsItem, tags: Optional[List[str]]):
         """
         Apply a list of tags to an item.
-        
+
         Args:
             item: The QGraphicsItem to tag
             tags: Optional list of tag strings to apply
@@ -349,7 +557,8 @@ class CadScene(QWidget):
 
         Args:
             tags: List of tag strings that items must have
-            all: If True, items must have ALL tags; if False, items need ANY tag
+            all: If True, items must have ALL tags; if False, items need
+                 ANY tag
 
         Returns:
             List of QGraphicsItem that have the specified tags
@@ -362,25 +571,25 @@ class CadScene(QWidget):
             # Start with items that have the first tag
             if tags[0] not in self._tagged_items:
                 return []
-            
+
             items_with_all_tags = set(self._tagged_items[tags[0]])
-            
+
             # Filter by remaining tags - keep only items that have all tags
             for tag in tags[1:]:
                 if tag not in self._tagged_items:
                     # If any tag doesn't exist, no items can have all tags
                     return []
                 items_with_all_tags &= set(self._tagged_items[tag])
-            
+
             return list(items_with_all_tags)
         else:
             # Items need ANY tag (union)
             items_with_any_tag = set()
-            
+
             for tag in tags:
                 if tag in self._tagged_items:
                     items_with_any_tag |= set(self._tagged_items[tag])
-            
+
             return list(items_with_any_tag)
 
     def removeItemsByTags(self, tags: List[str], all: bool = True) -> int:
@@ -389,21 +598,22 @@ class CadScene(QWidget):
 
         Args:
             tags: List of tag strings that items must have
-            all: If True, items must have ALL tags; if False, items need ANY tag
+            all: If True, items must have ALL tags; if False, items need
+                 ANY tag
 
         Returns:
             Number of items that were removed
         """
         # Find all items that have the specified tags
         items_to_remove = self.getItemsByTags(tags, all=all)
-        
+
         # Remove each item from the scene and clean up tags
         for item in items_to_remove:
             # Remove from the graphics scene
             self.scene.removeItem(item)
             # Clean up all tags for this item
             self.clearTags(item)
-        
+
         return len(items_to_remove)
 
     def moveItemsByTags(self, tags: List[str], dx: float,
@@ -415,18 +625,19 @@ class CadScene(QWidget):
             tags: List of tag strings that items must have
             dx: Horizontal distance to move items
             dy: Vertical distance to move items
-            all: If True, items must have ALL tags; if False, items need ANY tag
+            all: If True, items must have ALL tags; if False, items need
+                 ANY tag
 
         Returns:
             Number of items that were moved
         """
         # Find all items that have the specified tags
         items_to_move = self.getItemsByTags(tags, all=all)
-        
+
         # Move each item by the specified distance
         for item in items_to_move:
             item.moveBy(dx, dy)
-        
+
         return len(items_to_move)
 
     def scaleItemsByTags(self, tags: List[str], sx: float,
@@ -438,21 +649,22 @@ class CadScene(QWidget):
             tags: List of tag strings that items must have
             sx: Horizontal scale factor
             sy: Vertical scale factor
-            all: If True, items must have ALL tags; if False, items need ANY tag
+            all: If True, items must have ALL tags; if False, items need
+                 ANY tag
 
         Returns:
             Number of items that were scaled
         """
         # Find all items that have the specified tags
         items_to_scale = self.getItemsByTags(tags, all=all)
-        
+
         # Scale each item by the specified factors
         for item in items_to_scale:
             # Get current transform and apply scaling
             current_transform = item.transform()
             current_transform.scale(sx, sy)
             item.setTransform(current_transform)
-        
+
         return len(items_to_scale)
 
     def rotateItemsByTags(self, tags: List[str], angle: float,
@@ -467,14 +679,15 @@ class CadScene(QWidget):
             angle: Rotation angle in degrees (positive = counterclockwise)
             origin_x: X coordinate of rotation origin (None = use item center)
             origin_y: Y coordinate of rotation origin (None = use item center)
-            all: If True, items must have ALL tags; if False, items need ANY tag
+            all: If True, items must have ALL tags; if False, items need
+                 ANY tag
 
         Returns:
             Number of items that were rotated
         """
         # Find all items that have the specified tags
         items_to_rotate = self.getItemsByTags(tags, all=all)
-        
+
         # Rotate each item by the specified angle
         for item in items_to_rotate:
             if origin_x is not None and origin_y is not None:
@@ -490,7 +703,7 @@ class CadScene(QWidget):
                 current_transform = item.transform()
                 current_transform.rotate(angle)
                 item.setTransform(current_transform)
-        
+
         return len(items_to_rotate)
 
     def transformItemsByTags(self, tags: List[str], transform: QTransform,
@@ -540,11 +753,41 @@ class CadScene(QWidget):
         # Apply the transformation matrix to each item
         for item in items_to_transform:
             item.setTransform(transform)
-        
+
         return len(items_to_transform)
 
-    # QGraphicsScene add* methods with tagging support
+    # Coordinate scaling methods (moved from DrawingManager)
+    def scale_coords(self, coords: List[float]) -> List[float]:
+        """Scale coordinates based on DPI and scale factor with Y-axis flip
+        for CAD convention"""
+        # Convert CAD coordinates to canvas coordinates
+        # X: normal scaling, Y: negative scaling to flip from CAD convention
+        # (Y up) to Qt convention (Y down)
+        scaled_coords = []
+        for i in range(0, len(coords), 2):
+            x = coords[i] * self.dpi * self.scale_factor
+            # Negative Y for coordinate system flip
+            y = -coords[i + 1] * self.dpi * self.scale_factor
+            scaled_coords.extend([x, y])
 
+        return scaled_coords
+
+    def descale_coords(self, coords: List[float]) -> List[float]:
+        """Convert canvas coordinates back to CAD coordinates with
+        Y-axis flip"""
+        # Convert canvas coordinates to CAD coordinates
+        # X: normal descaling, Y: negative descaling to flip from
+        # Qt convention (Y down) to CAD convention (Y up)
+        descaled_coords = []
+        for i in range(0, len(coords), 2):
+            x = coords[i] / (self.dpi * self.scale_factor)
+            # Negative Y for coordinate system flip
+            y = coords[i + 1] / (-self.dpi * self.scale_factor)
+            descaled_coords.extend([x, y])
+
+        return descaled_coords
+
+    # Graphics item creation methods with automatic coordinate scaling
     def addItem(self, item: QGraphicsItem, tags: Optional[List[str]] = None,
                 z: Optional[float] = None, data: Optional[Any] = None):
         """
@@ -570,7 +813,7 @@ class CadScene(QWidget):
         Add a line to the scene with optional tags.
 
         Args:
-            x1, y1, x2, y2: Line coordinates
+            x1, y1, x2, y2: Line coordinates in CAD space
             pen: Optional QPen for the line
             tags: Optional list of tag strings to associate with the line
             z: Optional z-value for the line (controls layering/depth)
@@ -578,7 +821,10 @@ class CadScene(QWidget):
         """
         if pen is None:
             pen = QPen()
-        line = self.scene.addLine(x1, y1, x2, y2, pen)
+        # Scale coordinates from CAD space to canvas space
+        scaled_coords = self.scale_coords([x1, y1, x2, y2])
+        line = self.scene.addLine(scaled_coords[0], scaled_coords[1],
+                                  scaled_coords[2], scaled_coords[3], pen)
         if z is not None:
             line.setZValue(z)
         if data is not None:
@@ -593,7 +839,7 @@ class CadScene(QWidget):
         Add a rectangle to the scene with optional tags.
 
         Args:
-            rect: QRectF or (x, y, width, height) as separate args
+            rect: QRectF or (x, y, width, height) as separate args in CAD space
             pen: Optional QPen for the rectangle
             brush: Optional QBrush for the rectangle fill
             tags: Optional list of tag strings to associate with the rectangle
@@ -604,14 +850,26 @@ class CadScene(QWidget):
             pen = QPen()
         if brush is None:
             brush = QBrush()
-        
+
         if len(args) == 1:
             rect = args[0]
+            # Convert QRectF from CAD space to canvas space
+            scaled_coords = self.scale_coords([rect.x(), rect.y(),
+                                               rect.x() + rect.width(),
+                                               rect.y() + rect.height()])
+            rect = QRectF(scaled_coords[0], scaled_coords[1],
+                          scaled_coords[2] - scaled_coords[0],
+                          scaled_coords[3] - scaled_coords[1])
         elif len(args) == 4:
-            rect = QRectF(args[0], args[1], args[2], args[3])
+            # Scale coordinates from CAD space to canvas space
+            x, y, width, height = args
+            scaled_coords = self.scale_coords([x, y, x + width, y + height])
+            rect = QRectF(scaled_coords[0], scaled_coords[1],
+                          scaled_coords[2] - scaled_coords[0],
+                          scaled_coords[3] - scaled_coords[1])
         else:
             raise ValueError("Invalid arguments for addRect")
-            
+
         rectangle = self.scene.addRect(rect, pen, brush)
         if z is not None:
             rectangle.setZValue(z)
@@ -627,7 +885,7 @@ class CadScene(QWidget):
         Add an ellipse to the scene with optional tags.
 
         Args:
-            rect: QRectF or (x, y, width, height) as separate args
+            rect: QRectF or (x, y, width, height) as separate args in CAD space
             pen: Optional QPen for the ellipse
             brush: Optional QBrush for the ellipse fill
             tags: Optional list of tag strings to associate with the ellipse
@@ -638,14 +896,26 @@ class CadScene(QWidget):
             pen = QPen()
         if brush is None:
             brush = QBrush()
-            
+
         if len(args) == 1:
             rect = args[0]
+            # Convert QRectF from CAD space to canvas space
+            scaled_coords = self.scale_coords([rect.x(), rect.y(),
+                                               rect.x() + rect.width(),
+                                               rect.y() + rect.height()])
+            rect = QRectF(scaled_coords[0], scaled_coords[1],
+                          scaled_coords[2] - scaled_coords[0],
+                          scaled_coords[3] - scaled_coords[1])
         elif len(args) == 4:
-            rect = QRectF(args[0], args[1], args[2], args[3])
+            # Scale coordinates from CAD space to canvas space
+            x, y, width, height = args
+            scaled_coords = self.scale_coords([x, y, x + width, y + height])
+            rect = QRectF(scaled_coords[0], scaled_coords[1],
+                          scaled_coords[2] - scaled_coords[0],
+                          scaled_coords[3] - scaled_coords[1])
         else:
             raise ValueError("Invalid arguments for addEllipse")
-            
+
         ellipse = self.scene.addEllipse(rect, pen, brush)
         if z is not None:
             ellipse.setZValue(z)
@@ -662,6 +932,7 @@ class CadScene(QWidget):
 
         Args:
             polygon: QPolygonF or list of points [(x1, y1), (x2, y2), ...]
+                     in CAD space
             pen: Optional QPen for the polygon
             brush: Optional QBrush for the polygon fill
             tags: Optional list of tag strings to associate with the polygon
@@ -672,9 +943,32 @@ class CadScene(QWidget):
             pen = QPen()
         if brush is None:
             brush = QBrush()
-            
+
         if isinstance(polygon, list):
-            polygon = QPolygonF([QPointF(x, y) for x, y in polygon])
+            # Convert list of points to flat coordinate list and scale
+            flat_coords = []
+            for x, y in polygon:
+                flat_coords.extend([x, y])
+            scaled_coords = self.scale_coords(flat_coords)
+            # Convert back to QPolygonF
+            scaled_points = []
+            for i in range(0, len(scaled_coords), 2):
+                scaled_points.append(QPointF(scaled_coords[i],
+                                             scaled_coords[i+1]))
+            polygon = QPolygonF(scaled_points)
+        elif isinstance(polygon, QPolygonF):
+            # Convert QPolygonF to flat coordinates, scale, and convert back
+            flat_coords = []
+            for i in range(polygon.size()):
+                point = polygon.at(i)
+                flat_coords.extend([point.x(), point.y()])
+            scaled_coords = self.scale_coords(flat_coords)
+            scaled_points = []
+            for i in range(0, len(scaled_coords), 2):
+                scaled_points.append(QPointF(scaled_coords[i],
+                                             scaled_coords[i+1]))
+            polygon = QPolygonF(scaled_points)
+
         poly_item = self.scene.addPolygon(polygon, pen, brush)
         if z is not None:
             poly_item.setZValue(z)

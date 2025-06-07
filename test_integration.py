@@ -18,32 +18,32 @@ from BelfryCAD.tools.text import TextTool
 def test_integration():
     """Test cursor functionality with actual BelfryCAD tools"""
     app = QApplication(sys.argv)
-    
+
     scene = QGraphicsScene()
     view = QGraphicsView(scene)
-    
+
     # Create actual BelfryCAD tools
     tools = [
         ("Selector", SelectorTool(scene, None, None)),
-        ("Line", LineTool(scene, None, None)),  
+        ("Line", LineTool(scene, None, None)),
         ("Text", TextTool(scene, None, None)),
     ]
-    
+
     print("BelfryCAD Tool Cursor Integration Test")
     print("=" * 50)
-    
+
     for tool_name, tool in tools:
         if hasattr(tool, 'definition') and tool.definition:
             cursor_type = tool.definition.cursor
-            
+
             # Activate tool and check cursor
             tool.activate()
             actual_cursor = view.cursor().shape()
-            
+
             print(f"✓ {tool_name} Tool:")
             print(f"  - Cursor type: '{cursor_type}'")
             print(f"  - Qt cursor shape: {actual_cursor}")
-            
+
             # Deactivate tool
             tool.deactivate()
             deactivated_cursor = view.cursor().shape()
@@ -51,7 +51,7 @@ def test_integration():
             print()
         else:
             print(f"✗ {tool_name} Tool: No definition found")
-    
+
     print("=" * 50)
     print("Integration test completed!")
     print("\nCursor implementation summary:")

@@ -101,7 +101,7 @@ def test_tagging_system():
     assert "circle" in item1_tags_after, "Circle tag should remain"
 
     print("✓ Removed tag correctly")
-    
+
     # Debug: Check current circle items and their tags
     current_circles = drawing_manager.get_items_by_tag("circle")
     print(f"Current circles: {len(current_circles)}")
@@ -112,15 +112,15 @@ def test_tagging_system():
     # Test removing items by tag
     initial_scene_count = len(scene.items())
     print(f"Initial scene count: {initial_scene_count}")
-    
+
     circles_before = drawing_manager.get_items_by_tag("circle")
     print(f"Circles before removal: {len(circles_before)}")
-    
+
     drawing_manager.remove_items_by_tag("circle")
-    
+
     final_scene_count = len(scene.items())
     print(f"Final scene count: {final_scene_count}")
-    
+
     circles_after = drawing_manager.get_items_by_tag("circle")
     print(f"Circles after removal: {len(circles_after)}")
 

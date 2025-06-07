@@ -16,11 +16,11 @@ from BelfryCAD.tools.base import ToolDefinition, Tool
 
 class TestTool(Tool):
     """Test tool for cursor testing"""
-    
+
     def __init__(self, scene, cursor_name):
         self.cursor_name = cursor_name
         super().__init__(scene, None, None)
-    
+
     def _get_definition(self):
         return [ToolDefinition(
             token="TEST",
@@ -33,10 +33,10 @@ class TestTool(Tool):
 def test_all_cursors():
     """Test various cursor types"""
     app = QApplication(sys.argv)
-    
+
     scene = QGraphicsScene()
     view = QGraphicsView(scene)
-    
+
     # Test different cursor types
     cursor_tests = [
         ("arrow", Qt.CursorShape.ArrowCursor),
@@ -46,21 +46,21 @@ def test_all_cursors():
         ("wait", Qt.CursorShape.WaitCursor),
         ("invalid_cursor", Qt.CursorShape.CrossCursor),  # Should fallback to default
     ]
-    
+
     print("Testing cursor mappings...")
     print("=" * 50)
-    
+
     for cursor_name, expected_shape in cursor_tests:
         tool = TestTool(scene, cursor_name)
         tool.activate()
-        
+
         actual_shape = view.cursor().shape()
         status = "✓ PASS" if actual_shape == expected_shape else "✗ FAIL"
-        
+
         print(f"{status} Cursor '{cursor_name}': {actual_shape} (expected: {expected_shape})")
-        
+
         tool.deactivate()
-    
+
     print("=" * 50)
     print("Cursor mapping test completed!")
 

@@ -31,7 +31,7 @@ while x <= xend:
 ```
 
 ### Key Differences
-1. **Starting position calculation**: 
+1. **Starting position calculation**:
    - Wrong: `math.ceil(xstart / majorspacing) * majorspacing`
    - Right: `math.floor(xstart / minorspacing + 1e-6) * minorspacing`
 
@@ -63,7 +63,7 @@ def _draw_grid_lines(self, xstart, xend, ystart, yend, minorspacing,
 ```python
 self._draw_grid_lines(xstart, xend, ystart, yend, minorspacing,
                       majorspacing, superspacing, labelspacing,
-                      scalemult, gridcolor, unitcolor, 
+                      scalemult, gridcolor, unitcolor,
                       supercolor, lwidth, srx0, srx1, sry0, sry1)
 ```
 
@@ -135,11 +135,11 @@ Alignment accuracy: 100.0%
 
 ## Status: ✅ COMPLETELY RESOLVED
 
-The grid-ruler alignment issue has been definitively resolved. The grid system now uses the exact same positioning algorithm as the ruler system, ensuring perfect alignment at all zoom levels and positions. 
+The grid-ruler alignment issue has been definitively resolved. The grid system now uses the exact same positioning algorithm as the ruler system, ensuring perfect alignment at all zoom levels and positions.
 
 **Previous Issues Resolved:**
 1. ✅ Multi-level grid system implementation
-2. ✅ Grid display overlap with legacy system  
+2. ✅ Grid display overlap with legacy system
 3. ✅ Grid-ruler alignment discrepancy (this fix)
 
 **Verification:**
