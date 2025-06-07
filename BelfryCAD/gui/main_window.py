@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QFileDialog, QMessageBox, QGridLayout,
     QGraphicsScene, QGraphicsView
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPainter, QPen, QColor
 
 try:
@@ -471,7 +471,7 @@ class MainWindow(QMainWindow):
             show_origin=True
         )
         self.drawing_manager = DrawingManager(drawing_context)
-        
+
         # Connect DrawingManager to Document's LayerManager
         if hasattr(self.document, 'layers'):
             self.drawing_manager.set_layer_manager(self.document.layers)
@@ -548,8 +548,8 @@ class MainWindow(QMainWindow):
         # Connect config pane to document and selection
         config_pane = self.palette_manager.get_palette_content("config_pane")
         if config_pane and hasattr(self, 'document'):
-            # TODO: Connect document selection changes to config pane
-            pass
+            # Connect the config pane to selection changes
+            self._connect_config_pane(config_pane)
 
         # Connect layer window to document layer management
         layer_window = self.palette_manager.get_palette_content(
@@ -571,24 +571,27 @@ class MainWindow(QMainWindow):
         layer_window.layer_color_changed.connect(self._on_layer_color_changed)
         layer_window.layer_cam_changed.connect(self._on_layer_cam_changed)
         layer_window.layer_reordered.connect(self._on_layer_reordered)
-        
+
         # Initialize layer window with current layer data
         self._refresh_layer_window()
-    
+
     def _refresh_layer_window(self):
         """Refresh the layer window with current layer data."""
         layer_window = self.palette_manager.get_palette_content(
             "layer_window")
         if not layer_window or not hasattr(self.document, 'layers'):
             return
-            
+
         # Get all layer data from the layer manager
         layers_data = self.document.layers.get_all_layers_data()
         current_layer_id = str(self.document.layers.get_current_layer())
-        
+
         # Update the layer window
-        layer_window.refresh_layers(layers_data, current_layer_id)
-    
+        if hasattr(layer_window, 'refresh_layers'):
+            refresh_method = getattr(layer_window, 'refresh_layers', None)
+            if callable(refresh_method):
+                refresh_method(layers_data, current_layer_id)
+
     def _on_layer_created(self):
         """Handle layer creation request from layer window."""
         if hasattr(self.document, 'layers'):
@@ -596,7 +599,7 @@ class MainWindow(QMainWindow):
             self.document.layers.set_current_layer(new_layer_id)
             self._refresh_layer_window()
             self.draw_objects()  # Redraw to update layer visibility
-    
+
     def _on_layer_deleted(self, layer_id_str):
         """Handle layer deletion request from layer window."""
         if hasattr(self.document, 'layers'):
@@ -604,54 +607,146 @@ class MainWindow(QMainWindow):
             if self.document.layers.delete_layer(layer_id):
                 self._refresh_layer_window()
                 self.draw_objects()  # Redraw to update layer visibility
-    
+
     def _on_layer_selected(self, layer_id_str):
         """Handle layer selection from layer window."""
         if hasattr(self.document, 'layers'):
             layer_id = int(layer_id_str)
             self.document.layers.set_current_layer(layer_id)
             self._refresh_layer_window()
-    
+
     def _on_layer_renamed(self, layer_id_str, new_name):
         """Handle layer rename from layer window."""
         if hasattr(self.document, 'layers'):
             layer_id = int(layer_id_str)
             self.document.layers.set_layer_name(layer_id, new_name)
             self._refresh_layer_window()
-    
+
     def _on_layer_visibility_changed(self, layer_id_str, visible):
         """Handle layer visibility change from layer window."""
         if hasattr(self.document, 'layers'):
             layer_id = int(layer_id_str)
             self.document.layers.set_layer_visible(layer_id, visible)
             self.draw_objects()  # Redraw to update layer visibility
-    
+
     def _on_layer_lock_changed(self, layer_id_str, locked):
         """Handle layer lock change from layer window."""
         if hasattr(self.document, 'layers'):
             layer_id = int(layer_id_str)
             self.document.layers.set_layer_locked(layer_id, locked)
-    
+
     def _on_layer_color_changed(self, layer_id_str, color):
         """Handle layer color change from layer window."""
         if hasattr(self.document, 'layers'):
             layer_id = int(layer_id_str)
             self.document.layers.set_layer_color(layer_id, color)
             self.draw_objects()  # Redraw with new color
-    
+
     def _on_layer_cam_changed(self, layer_id_str, cut_bit, cut_depth):
         """Handle layer CAM settings change from layer window."""
         if hasattr(self.document, 'layers'):
             layer_id = int(layer_id_str)
             self.document.layers.set_layer_cut_bit(layer_id, cut_bit)
             self.document.layers.set_layer_cut_depth(layer_id, cut_depth)
-    
+
     def _on_layer_reordered(self, layer_id_str, new_position):
         """Handle layer reorder from layer window."""
         if hasattr(self.document, 'layers'):
             layer_id = int(layer_id_str)
             self.document.layers.reorder_layer(layer_id, new_position)
             self._refresh_layer_window()
+
+    def _connect_config_pane(self, config_pane):
+        """Connect config pane to the selection system for property editing."""
+        # Connect config pane field changes to property updates
+        config_pane.field_changed.connect(self._on_property_changed)
+
+        # Set up periodic check for selection changes
+        if not hasattr(self, '_selection_timer'):
+            self._selection_timer = QTimer()
+            self._selection_timer.timeout.connect(
+                self._check_selection_changes
+            )
+            self._selection_timer.start(100)  # Check every 100ms
+
+        # Track current selection state
+        self._current_selection = set()
+
+    def _check_selection_changes(self):
+        """Check if selection changed and update config pane if needed."""
+        if not hasattr(self, 'tool_manager'):
+            return
+
+        # Get current tool and check if it's the selector tool
+        current_tool = self.tool_manager.get_active_tool()
+        if current_tool and hasattr(current_tool, 'selected_objects'):
+            # Get current selection using getattr for type safety
+            selected_objects = getattr(current_tool, 'selected_objects', [])
+            current_selection = set(
+                obj.object_id for obj in selected_objects
+            )
+            # Check if selection changed
+            if current_selection != self._current_selection:
+                self._current_selection = current_selection
+                self._update_config_pane_for_selection(selected_objects)
+
+    def _update_config_pane_for_selection(self, selected_objects):
+        """Update config pane based on current selection."""
+        config_pane = self.palette_manager.get_palette_content("config_pane")
+        if not config_pane:
+            return
+
+        if not selected_objects:
+            # No selection - clear config pane or show default fields
+            self._populate_config_pane_for_objects([])
+        elif len(selected_objects) == 1:
+            # Single object selected - show its properties
+            self._populate_config_pane_for_objects(selected_objects)
+        else:
+            # Multiple objects selected - show common properties
+            self._populate_config_pane_for_objects(selected_objects)
+
+    def _populate_config_pane_for_objects(self, objects):
+        """Populate config pane with properties for given objects."""
+        config_pane = self.palette_manager.get_palette_content("config_pane")
+        if not config_pane:
+            return
+
+        # Store reference to selected objects for property updates
+        # We'll use dynamic attributes to work around type checker limitations
+        setattr(config_pane, 'selected_objects', objects)
+
+        # Update the config pane fields based on selection
+        # Check if the config pane has the populate method
+        if hasattr(config_pane, 'populate'):
+            populate_method = getattr(config_pane, 'populate', None)
+            if callable(populate_method):
+                populate_method()
+
+    def _on_property_changed(self, field_name, datum, value):
+        """Handle property changes from config pane."""
+        config_pane = self.palette_manager.get_palette_content("config_pane")
+        if not config_pane or not hasattr(config_pane, 'selected_objects'):
+            return
+
+        # Apply property change to all selected objects
+        for obj in getattr(config_pane, 'selected_objects', []):
+            try:
+                # Update object attribute
+                if hasattr(obj, 'attributes'):
+                    obj.attributes[field_name] = value
+                elif hasattr(obj, field_name):
+                    setattr(obj, field_name, value)
+
+                # Mark object as modified
+                obj.selected = True  # Ensure it stays selected
+
+            except Exception as e:
+                print(f"Error updating property {field_name} on object "
+                      f"{obj.object_id}: {e}")
+
+        # Redraw objects to show changes
+        self.draw_objects()
 
     def _setup_tools(self):
         """Set up the tool system and register tools"""

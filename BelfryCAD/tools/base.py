@@ -120,10 +120,27 @@ class Tool(QObject):
         self.state = ToolState.ACTIVE
         self.points = []
         # Set cursor on the view(s) that use this scene
-        for view in self.scene.views():
-            cursor_name = self.definition.cursor
-            cursor_shape = getattr(Qt, f'{cursor_name}Cursor', Qt.CrossCursor)
-            view.setCursor(QCursor(cursor_shape))
+        if self.definition and hasattr(self.definition, 'cursor'):
+            for view in self.scene.views():
+                cursor_name = self.definition.cursor
+                # Map cursor names to Qt cursor shapes
+                cursor_mapping = {
+                    'arrow': Qt.CursorShape.ArrowCursor,
+                    'crosshair': Qt.CursorShape.CrossCursor,
+                    'text': Qt.CursorShape.IBeamCursor,
+                    'pointing': Qt.CursorShape.PointingHandCursor,
+                    'hand': Qt.CursorShape.PointingHandCursor,
+                    'wait': Qt.CursorShape.WaitCursor,
+                    'busy': Qt.CursorShape.BusyCursor,
+                    'forbidden': Qt.CursorShape.ForbiddenCursor,
+                    'size': Qt.CursorShape.SizeAllCursor,
+                    'resize': Qt.CursorShape.SizeAllCursor,
+                }
+                cursor_shape = cursor_mapping.get(
+                    cursor_name,
+                    Qt.CursorShape.CrossCursor
+                )
+                view.setCursor(QCursor(cursor_shape))
 
     def deactivate(self):
         """Called when the tool is deactivated"""
@@ -131,7 +148,7 @@ class Tool(QObject):
         self.state = ToolState.INIT
         # Reset cursor on the view(s) that use this scene
         for view in self.scene.views():
-            view.setCursor(QCursor(Qt.ArrowCursor))
+            view.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
 
     def clear_temp_objects(self):
         """Clear any temporary preview objects"""
