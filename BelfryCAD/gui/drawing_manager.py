@@ -22,6 +22,9 @@ from PySide6.QtWidgets import QGraphicsScene, QGraphicsItem
 
 from BelfryCAD.core.cad_objects import CADObject, ObjectType, Point
 
+# Import RulerWidget for grid info access
+from BelfryCAD.gui.rulers import RulerWidget
+
 
 class ConstructionCADObject:
     """CAD-like object for construction items that don't have real
@@ -89,7 +92,7 @@ class DrawingManager:
         # Tagging system for graphics items
         self._tagged_items: Dict[str, List[QGraphicsItem]] = {}
         self._item_tags: Dict[QGraphicsItem, List[str]] = {}
-        
+
         # Layer management - will be set by main window
         self.layer_manager = None
 
@@ -101,7 +104,7 @@ class DrawingManager:
         """Get the color of a layer by layer ID"""
         if not self.layer_manager:
             return None
-            
+
         layer_data = self.layer_manager.get_layer_data(layer_id)
         if layer_data:
             return layer_data.get('color')
@@ -111,7 +114,7 @@ class DrawingManager:
         """Get the visibility status of a layer"""
         if not self.layer_manager:
             return True  # Default to visible if no layer manager
-            
+
         layer_data = self.layer_manager.get_layer_data(layer_id)
         if layer_data:
             return layer_data.get('visible', True)
@@ -121,7 +124,7 @@ class DrawingManager:
         """Get the lock status of a layer"""
         if not self.layer_manager:
             return False  # Default to unlocked if no layer manager
-            
+
         layer_data = self.layer_manager.get_layer_data(layer_id)
         if layer_data:
             return layer_data.get('locked', False)
@@ -839,19 +842,19 @@ class DrawingManager:
         # Remove control points and control lines for this object
         cp_items = self.get_items_by_tag("CP")
         cl_items = self.get_items_by_tag("CL")
-        
+
         items_to_remove = []
-        
+
         # Check control points
         for item in cp_items:
             if item.data(0) == obj.object_id:  # Check object ID stored in item
                 items_to_remove.append(item)
-        
+
         # Check control lines
         for item in cl_items:
             if item.data(0) == obj.object_id:  # Check object ID stored in item
                 items_to_remove.append(item)
-        
+
         # Remove items from scene and clean up tags
         for item in items_to_remove:
             # Remove all tags from this item
@@ -1104,16 +1107,238 @@ class DrawingManager:
 
         return path_item
 
-    # Grid and background drawing
+    # Grid helper methods (from TCL cadobjects_grid_info and color functions)
+
+    def _get_grid_info(self):
+        """Calculate grid spacing info - calls ruler's method"""
+        # Create temporary RulerWidget to get grid info (no duplication)
+        # This ensures we always use the same values as the ruler system
+        from PySide6.QtWidgets import QGraphicsView
+        temp_view = QGraphicsView(self.context.scene)
+        temp_ruler = RulerWidget(temp_view, "horizontal")
+        
+        # Connect the ruler to this drawing context for real DPI/scale values
+        temp_ruler.set_drawing_context(self.context)
+        
+        return temp_ruler.get_grid_info()
+
+    def _color_to_hsv(self, color):
+        """Convert QColor to HSV values (0-360, 0-1, 0-1)"""
+        if isinstance(color, str):
+            color = QColor(color)
+        elif isinstance(color, QColor):
+            pass
+        else:
+            color = QColor(0, 255, 255)  # Default cyan
+
+        # Get HSV values from QColor
+        h = color.hueF()
+        s = color.saturationF()
+        v = color.valueF()
+        return (h * 360.0 if h >= 0 else 0.0, s, v)
+
+    def _color_from_hsv(self, hue, saturation, value):
+        """Create QColor from HSV values"""
+        color = QColor()
+        color.setHsvF(hue / 360.0, saturation, value)
+        return color
+
+    def _draw_grid_origin(self, dpi, linewidth):
+        """Draw origin lines - translates part of cadobjects_redraw_grid"""
+        # Get scene bounds
+        scene_rect = self.context.scene.sceneRect()
+        x0, y0 = scene_rect.left(), scene_rect.top()
+        x1, y1 = scene_rect.right(), scene_rect.bottom()
+
+        # Origin colors (default if not configured)
+        x_color = "#FF0000"  # Red
+        y_color = "#00FF00"  # Green
+
+        # Draw X-axis origin line (horizontal)
+        y_scene = 0  # Origin Y in CAD coordinates becomes 0 in scene
+        if y0 <= y_scene <= y1:  # Origin is visible
+            pen = QPen(QColor(x_color))
+            pen.setWidthF(linewidth)
+            line_item = self.context.scene.addLine(
+                x0, y_scene, x1, y_scene, pen)
+            line_item.setZValue(-10)  # Behind everything
+
+            dummy_obj = ConstructionCADObject(
+                f"origin_x_{id(line_item)}", ObjectType.LINE)
+            self._set_item_tags(
+                line_item, dummy_obj, [DrawingTags.GRID_ORIGIN])
+
+        # Draw Y-axis origin line (vertical)
+        x_scene = 0  # Origin X in CAD coordinates becomes 0 in scene
+        if x0 <= x_scene <= x1:  # Origin is visible
+            pen = QPen(QColor(y_color))
+            pen.setWidthF(linewidth)
+            line_item = self.context.scene.addLine(
+                x_scene, y0, x_scene, y1, pen)
+            line_item.setZValue(-10)  # Behind everything
+
+            dummy_obj = ConstructionCADObject(
+                f"origin_y_{id(line_item)}", ObjectType.LINE)
+            self._set_item_tags(
+                line_item, dummy_obj, [DrawingTags.GRID_ORIGIN])
+
+    def _draw_grid_lines(
+            self, xstart, xend, ystart, yend,
+            minorspacing, majorspacing,
+            superspacing, labelspacing, scalemult,
+            gridcolor, unitcolor, supercolor,
+            linewidth, srx0, srx1, sry0, sry1
+    ):
+        """Draw multi-level grid lines - main part of cadobjects_redraw_grid"""
+
+        # Calculate grid line positions and draw them
+        # Following the TCL logic closely
+
+        def quantize(value, spacing):
+            """Quantize value to nearest multiple of spacing"""
+            return round(value / spacing) * spacing
+
+        def approx(x, y, epsilon=1e-6):
+            """Check if two floats are approximately equal"""
+            return abs(x - y) < epsilon
+
+        # Minor grid lines (most frequent)
+        if minorspacing > 0:
+            # Vertical minor lines
+            x = quantize(xstart, minorspacing)
+            while x <= xend:
+                x_scene = x * scalemult
+                if srx0 <= x_scene <= srx1:
+                    tags = [DrawingTags.GRID.value]
+                    if (superspacing > 0 and
+                            approx(x, quantize(x, superspacing))):
+                        pen = QPen(supercolor)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(DrawingTags.GRID_UNIT_LINE.value)
+                        z_val = -6
+                    elif (majorspacing > 0 and
+                          approx(x, quantize(x, majorspacing))):
+                        pen = QPen(unitcolor)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(DrawingTags.GRID_UNIT_LINE.value)
+                        z_val = -7
+                    else:
+                        pen = QPen(gridcolor)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(DrawingTags.GRID_LINE.value)
+                        z_val = -8
+
+                    line_item = self.context.scene.addLine(
+                        x_scene, sry0, x_scene, sry1, pen)
+                    line_item.setZValue(z_val)
+
+                    dummy_obj = ConstructionCADObject(
+                        f"grid_minor_v_{id(line_item)}", ObjectType.LINE)
+                    self._set_item_tags(line_item, dummy_obj, tags)
+                x += minorspacing
+
+            # Horizontal minor lines
+            y = quantize(ystart, minorspacing)
+            while y <= yend:
+                y_scene = -y * scalemult  # Y-axis flip
+                if sry0 <= y_scene <= sry1:
+                    tags = [DrawingTags.GRID.value]
+                    if (superspacing > 0 and
+                            approx(y, quantize(y, superspacing))):
+                        pen = QPen(supercolor)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(DrawingTags.GRID_UNIT_LINE.value)
+                        z_val = -6
+                    elif (majorspacing > 0 and
+                            approx(y, quantize(y, majorspacing))):
+                        pen = QPen(unitcolor)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(DrawingTags.GRID_UNIT_LINE.value)
+                        z_val = -7
+                    else:
+                        pen = QPen(gridcolor)
+                        pen.setWidthF(linewidth * 1.0)
+                        tags.append(DrawingTags.GRID_LINE.value)
+                        z_val = -8
+
+                    line_item = self.context.scene.addLine(
+                        srx0, y_scene, srx1, y_scene, pen)
+                    line_item.setZValue(z_val)
+
+                    dummy_obj = ConstructionCADObject(
+                        f"grid_minor_h_{id(line_item)}", ObjectType.LINE)
+                    self._set_item_tags(line_item, dummy_obj, tags)
+                y += minorspacing
 
     def redraw_grid(self, color: str = ""):
         """Redraw the grid - translates cadobjects_redraw_grid"""
-        if not self.context.show_grid:
+        # Remove existing grid items (both tagged and old Z-value items)
+        self.remove_items_by_tag(DrawingTags.GRID.value)
+
+        # Also remove old grid items with Z-value -1001 (legacy system)
+        items_to_remove = []
+        for item in self.context.scene.items():
+            if hasattr(item, 'zValue') and item.zValue() == -1001:
+                items_to_remove.append(item)
+
+        for item in items_to_remove:
+            try:
+                self.context.scene.removeItem(item)
+            except RuntimeError:
+                # Item may have already been removed
+                pass
+
+        # Get grid info like TCL implementation
+        grid_info = self._get_grid_info()
+        if not grid_info:
             return
 
-        # TODO: Implement grid drawing
-        # This would draw grid lines based on current zoom and units
-        pass
+        (minorspacing, majorspacing, superspacing, labelspacing,
+         divisor, units, formatfunc, conversion) = grid_info
+        
+        def _adjust_saturation(color, factor):
+            """Adjust saturation of a color by a factor"""
+            hue, sat, val = self._color_to_hsv(color)
+            new_sat = min(max(sat * factor, 0.0), 1.0)
+            return self._color_from_hsv(hue, new_sat, val)
+
+        # Calculate colors like TCL implementation
+        if color:
+            unitcolor = self._parse_color(color)
+        else:
+            unitcolor = self._color_from_hsv(180.0, 0.5, 1.0)
+        supercolor = _adjust_saturation(unitcolor, 2.0)
+        gridcolor = _adjust_saturation(unitcolor, 0.4)
+
+        dpi = self.context.dpi
+        scalefactor = self.context.scale_factor
+        lwidth = 0.5
+
+        scalemult = dpi * scalefactor / conversion
+
+        # Get visible scene rectangle
+        scene_rect = self.context.scene.sceneRect()
+        srx0, sry0 = scene_rect.left(), scene_rect.top()
+        srx1, sry1 = scene_rect.right(), scene_rect.bottom()
+
+        # Calculate CAD coordinate ranges (descale from scene coordinates)
+        xstart = srx0 / scalemult
+        xend = srx1 / scalemult
+        ystart = sry1 / (-scalemult)  # Y-axis flip
+        yend = sry0 / (-scalemult)    # Y-axis flip
+
+        # Draw origin if enabled (simplified check)
+        if self.context.show_origin:
+            self._draw_grid_origin(dpi, lwidth)
+
+        # Draw grid if enabled
+        if self.context.show_grid:
+            self._draw_grid_lines(
+                xstart, xend, ystart, yend,
+                minorspacing, majorspacing,
+                superspacing, labelspacing, scalemult,
+                gridcolor, unitcolor, supercolor,
+                lwidth, srx0, srx1, sry0, sry1)
 
     def redraw(self, color: str = ""):
         """Complete redraw of all objects - translates cadobjects_redraw"""

@@ -7,11 +7,10 @@ along the edges of the drawing canvas.
 """
 
 import math
-from typing import Optional, Tuple, List
-from PySide6.QtWidgets import QWidget, QGraphicsView, QGraphicsScene
+from typing import Tuple, Callable
+from PySide6.QtWidgets import QWidget, QGraphicsView
 from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QPainter, QPen, QColor, QFont, QBrush
-from PySide6.QtCore import Signal
+from PySide6.QtGui import QPainter, QPen, QColor, QFont
 
 
 class RulerWidget(QWidget):
@@ -36,12 +35,15 @@ class RulerWidget(QWidget):
         self.orientation = orientation
         self.ruler_width = 32.0
         self.position = 0.0
+        
+        # Drawing context for accessing DPI and scale factor
+        self.drawing_context = None
 
         # Ruler appearance settings
-        self.font = QFont("Helvetica", 8)
+        self.ruler_font = QFont("Helvetica", 8)
         self.ruler_bg = QColor("white")
         self.ruler_fg = QColor("black")
-        self.position_color = QColor("#ff4fff")  # Magenta for position indicator
+        self.position_color = QColor("#ff4fff")  # Magenta
 
         # Set fixed size based on orientation
         if orientation == "horizontal":
@@ -170,42 +172,113 @@ class RulerWidget(QWidget):
 
         return out
 
-    def get_grid_info(self) -> Tuple[float, float, float, float, float, str, str, float]:
+    def get_grid_info(self) -> \
+            Tuple[float, float, float, float, float, str, str, float]:
         """
-        Get grid information from the canvas (placeholder implementation).
+        Get grid information from the canvas using dynamic TCL-compatible logic.
 
-        In the original TCL implementation, this calls cadobjects_grid_info.
-        This is a simplified version that returns reasonable defaults.
+        This method replicates the logic from cadobjects_grid_info in the TCL
+        implementation, providing adaptive grid spacing based on current zoom
+        and DPI settings.
 
         Returns:
             Tuple of (minorspacing, majorspacing, superspacing, labelspacing,
                      divisor, units, formatfunc, conversion)
         """
-        # Default grid settings - these would come from the CAD system
-        minorspacing = 0.125
-        majorspacing = 1.0
-        superspacing = 12.0
-        labelspacing = 1.0
+        # Get DPI and scale factor
+        dpi = self.get_dpi()
+        scalefactor = self.get_scale_factor()
+
+        # Get unit system information
+        # For now, using default unit system - this would come from preferences
+        unittype = "Inches"
+        isfract = True  # Fractions vs decimal
+        conversion = 1.0  # Conversion factor
+        abbrev = '"'
+
+        # Set format function based on fractions preference
+        if isfract:
+            formatfunc = self.format_fractions
+        else:
+            formatfunc = self.format_decimal
+        
         divisor = 1.0
-        units = '"'
-        formatfunc = "decimal"  # or "fractions"
-        conversion = 1.0
+
+        # Set up significant spacing values based on unit type
+        if unittype == "Inches":
+            if isfract:
+                # Proposed: 10ft, 1ft, 1in, 1/4in, 1/16in, 1/64in, 1/256in gridline sets.
+                significants = [0.00390625, 0.015625, 0.0625, 0.25, 1.0, 12.0, 120.0, 1200.0]
+                unit = '"'
+            else:
+                # Proposed: 10ft, 1ft, 1in, 1/10in, 1/100in, 1/1000in gridline sets.
+                significants = [0.001, 0.01, 0.1, 1.0, 12.0, 120.0, 1200.0]
+                unit = '"'
+        elif unittype == "Feet":
+            # Proposed: 10ft, 1ft, 1in, 1/4in, 1/16in, 1/64in, 1/256in gridline sets.
+            significants = [0.000325520833333, 0.001302083333333, 0.005208333333333, 
+                          0.020833333333333, 0.083333333333333, 1.0, 10.0, 100.0]
+            formatfunc = self.format_fractions
+            unit = "'"
+        else:
+            # Metric
+            # Proposed: 10m, 1m, 1dm, 1cm, 1mm, 0.1mm gridline sets.
+            significants = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
+            unit = "mm"
+            formatfunc = self.format_decimal
+            if unittype == "Centimeters":
+                unit = "cm"
+            elif unittype == "Meters":
+                unit = "m"
+
+        # Calculate scale multiplier
+        scalemult = dpi * scalefactor / conversion
+
+        # Initialize spacing values
+        minorspacing = 0
+        majorspacing = 0
+        superspacing = 0
+        labelspacing = 0
+
+        # Find appropriate spacing values based on pixel thresholds
+        for val in significants:
+            if minorspacing == 0 and scalemult * val >= 8.0:
+                minorspacing = val
+            if labelspacing == 0 and scalemult * val >= 30.0:
+                labelspacing = val
+            if majorspacing == 0 and minorspacing != 0 and val / minorspacing > 2.99:
+                majorspacing = val
+            if superspacing == 0 and majorspacing != 0 and val / majorspacing > 1.99:
+                superspacing = val
+                break
+
+        # Adjust labelspacing if it would be too dense
+        while labelspacing * scalemult > 100.0:
+            labelspacing = labelspacing / 2.0
 
         return (minorspacing, majorspacing, superspacing, labelspacing,
-                divisor, units, formatfunc, conversion)
+                divisor, unit, formatfunc, conversion)
+
+    def set_drawing_context(self, drawing_context):
+        """Set the drawing context for accessing DPI and scale factor."""
+        self.drawing_context = drawing_context
 
     def get_dpi(self) -> float:
-        """Get DPI setting (placeholder implementation)."""
-        return 96.0  # Standard screen DPI
+        """Get DPI setting from drawing context or use default."""
+        if self.drawing_context:
+            return self.drawing_context.dpi
+        return 96.0  # Standard screen DPI fallback
 
     def get_scale_factor(self) -> float:
-        """Get current scale factor (placeholder implementation)."""
-        return 1.0  # No zoom
+        """Get current scale factor from drawing context or use default."""
+        if self.drawing_context:
+            return self.drawing_context.scale_factor
+        return 1.0  # No zoom fallback
 
     def paintEvent(self, event):
         """Paint the ruler widget."""
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Get widget dimensions
         rect = self.rect()
@@ -223,51 +296,60 @@ class RulerWidget(QWidget):
 
         # Get visible area of canvas in scene coordinates
         if self.canvas and self.canvas.scene():
-            scene_rect = self.canvas.mapToScene(self.canvas.viewport().rect()).boundingRect()
+            scene_rect = self.canvas.mapToScene(
+                self.canvas.viewport().rect()
+                ).boundingRect()
             srx0 = scene_rect.left()
             sry0 = scene_rect.top()
             srx1 = scene_rect.right()
             sry1 = scene_rect.bottom()
         else:
-            # Fallback if no canvas
-            srx0, sry0, srx1, sry1 = -100, -100, 100, 100
+            return  # No canvas available, skip drawing
 
         # Set up drawing tools
-        painter.setFont(self.font)
+        painter.setFont(self.ruler_font)
         tick_pen = QPen(self.ruler_fg)
         text_pen = QPen(self.ruler_fg)
 
         if self.orientation == "vertical":
-            self._draw_vertical_ruler(painter, rect, scalemult, srx0, sry0, srx1, sry1,
-                                    minorspacing, majorspacing, labelspacing,
-                                    divisor, units, formatfunc, tick_pen, text_pen)
+            self._draw_vertical_ruler(
+                painter, QRectF(rect), scalemult, srx0, sry0, srx1, sry1,
+                minorspacing, majorspacing, labelspacing,
+                divisor, units, formatfunc, tick_pen, text_pen)
         else:
-            self._draw_horizontal_ruler(painter, rect, scalemult, srx0, sry0, srx1, sry1,
-                                      minorspacing, majorspacing, labelspacing,
-                                      divisor, units, formatfunc, tick_pen, text_pen)
+            self._draw_horizontal_ruler(
+                painter, QRectF(rect), scalemult, srx0, sry0, srx1, sry1,
+                minorspacing, majorspacing, labelspacing,
+                divisor, units, formatfunc, tick_pen, text_pen)
 
         # Draw position indicator
-        self._draw_position_indicator(painter, rect, scalemult, srx0, sry0)
+        self._draw_position_indicator(
+            painter, QRectF(rect), scalemult, srx0, sry0)
 
-    def _draw_vertical_ruler(self, painter: QPainter, rect: QRectF, scalemult: float,
-                           srx0: float, sry0: float, srx1: float, sry1: float,
-                           minorspacing: float, majorspacing: float, labelspacing: float,
-                           divisor: float, units: str, formatfunc: str,
-                           tick_pen: QPen, text_pen: QPen):
+    def _draw_vertical_ruler(
+            self, painter: QPainter, rect: QRectF, scalemult: float,
+            srx0: float, sry0: float, srx1: float, sry1: float,
+            minorspacing: float, majorspacing: float, labelspacing: float,
+            divisor: float, units: str, formatfunc: Callable,
+            tick_pen: QPen, text_pen: QPen
+    ):
         """Draw vertical ruler ticks and labels."""
         ystart = sry0 / scalemult
         yend = sry1 / scalemult
 
+        bw = math.floor(rect.width() - 1 + 0.5)
+        bh = math.floor(rect.height() + 0.5)
+        
         # Draw border line
         painter.setPen(tick_pen)
-        painter.drawLine(rect.width() - 1, 0, rect.width() - 1, rect.height())
-        painter.drawLine(rect.width() - 1, rect.height(), 0, rect.height())
-        painter.drawLine(0, rect.height(), 0, 0)
+        painter.drawLine(int(bw), 0, int(bw), int(bh))
+        painter.drawLine(int(bw), int(bh), 0, int(bh))
+        painter.drawLine(0, int(bh), 0, 0)
 
         # Draw tick marks
         ys = math.floor(ystart / minorspacing + 1e-6) * minorspacing
         while ys <= yend:
-            ypos = scalemult * ys - sry0
+            ypos = -scalemult * ys - sry0
 
             # Convert to widget coordinates
             widget_y = ypos
@@ -279,15 +361,14 @@ class RulerWidget(QWidget):
                     xpos = rect.width() - ticklen - 1
 
                     # Format and draw label
-                    if formatfunc == "fractions":
-                        majortext = self.format_fractions(ys / divisor, units)
-                    else:
-                        majortext = self.format_decimal(ys / divisor, units)
-
+                    majortext = formatfunc(ys / divisor, units)
                     majortext = majortext.strip()
                     painter.setPen(text_pen)
-                    painter.drawText(int(xpos - 30), int(widget_y - 5), 30, 10,
-                                   Qt.AlignRight | Qt.AlignVCenter, majortext)
+                    painter.drawText(
+                        int(xpos - 30), int(widget_y - 5), 30, 10,
+                        (Qt.AlignmentFlag.AlignRight |
+                         Qt.AlignmentFlag.AlignVCenter),
+                        majortext)
                 elif abs(math.floor(ys / majorspacing + 1e-6) - ys / majorspacing) < 1e-3:
                     # Medium tick
                     ticklen = 4
@@ -302,20 +383,24 @@ class RulerWidget(QWidget):
 
             ys += minorspacing
 
-    def _draw_horizontal_ruler(self, painter: QPainter, rect: QRectF, scalemult: float,
-                             srx0: float, sry0: float, srx1: float, sry1: float,
-                             minorspacing: float, majorspacing: float, labelspacing: float,
-                             divisor: float, units: str, formatfunc: str,
-                             tick_pen: QPen, text_pen: QPen):
+    def _draw_horizontal_ruler(
+            self, painter: QPainter, rect: QRectF, scalemult: float,
+            srx0: float, sry0: float, srx1: float, sry1: float,
+            minorspacing: float, majorspacing: float, labelspacing: float,
+            divisor: float, units: str, formatfunc: Callable,
+            tick_pen: QPen, text_pen: QPen
+    ):
         """Draw horizontal ruler ticks and labels."""
         xstart = srx0 / scalemult
         xend = srx1 / scalemult
 
         # Draw border line
         painter.setPen(tick_pen)
-        painter.drawLine(0, rect.height() - 1, rect.width(), rect.height() - 1)
-        painter.drawLine(rect.width(), rect.height() - 1, rect.width(), 0)
-        painter.drawLine(rect.width(), 0, 0, 0)
+        painter.drawLine(0, int(rect.height() - 1), int(rect.width()),
+                         int(rect.height() - 1))
+        painter.drawLine(int(rect.width()), int(rect.height() - 1),
+                         int(rect.width()), 0)
+        painter.drawLine(int(rect.width()), 0, 0, 0)
 
         # Draw tick marks
         xs = math.floor(xstart / minorspacing + 1e-6) * minorspacing
@@ -332,14 +417,14 @@ class RulerWidget(QWidget):
                     ypos = rect.height() - ticklen
 
                     # Format and draw label
-                    if formatfunc == "fractions":
-                        majortext = self.format_fractions(xs / divisor, units)
-                    else:
-                        majortext = self.format_decimal(xs / divisor, units)
-
+                    majortext = formatfunc(xs / divisor, units)
+                    majortext = majortext.strip()
                     painter.setPen(text_pen)
-                    painter.drawText(int(widget_x - 15), int(ypos - 15), 30, 15,
-                                   Qt.AlignCenter | Qt.AlignBottom, majortext)
+                    painter.drawText(
+                        int(widget_x - 15), int(ypos - 15), 30, 15,
+                        (Qt.AlignmentFlag.AlignCenter |
+                         Qt.AlignmentFlag.AlignBottom),
+                        majortext)
                 elif abs(math.floor(xs / majorspacing + 1e-6) - xs / majorspacing) < 1e-3:
                     # Medium tick
                     ticklen = 4
@@ -350,12 +435,15 @@ class RulerWidget(QWidget):
                 # Draw tick mark
                 ypos = rect.height() - ticklen
                 painter.setPen(tick_pen)
-                painter.drawLine(int(widget_x), int(rect.height()), int(widget_x), int(ypos))
+                painter.drawLine(
+                    int(widget_x), int(rect.height()), int(widget_x), int(ypos))
 
             xs += minorspacing
 
-    def _draw_position_indicator(self, painter: QPainter, rect: QRectF, scalemult: float,
-                               srx0: float, sry0: float):
+    def _draw_position_indicator(
+            self, painter: QPainter, rect: QRectF, scalemult: float,
+            srx0: float, sry0: float
+    ):
         """Draw the position indicator line."""
         painter.setPen(QPen(self.position_color, 2))
 
@@ -412,6 +500,11 @@ class RulerManager:
         self.canvas = canvas
         self.horizontal_ruler = RulerWidget(canvas, "horizontal", parent)
         self.vertical_ruler = RulerWidget(canvas, "vertical", parent)
+
+    def set_drawing_context(self, drawing_context):
+        """Set the drawing context for both rulers."""
+        self.horizontal_ruler.set_drawing_context(drawing_context)
+        self.vertical_ruler.set_drawing_context(drawing_context)
 
     def get_horizontal_ruler(self) -> RulerWidget:
         """Get the horizontal ruler widget."""

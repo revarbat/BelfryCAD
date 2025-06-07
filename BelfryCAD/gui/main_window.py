@@ -478,6 +478,10 @@ class MainWindow(QMainWindow):
 
         # Create ruler manager and get ruler widgets
         self.ruler_manager = RulerManager(self.canvas, central_widget)
+        
+        # Connect rulers to drawing context for DPI and scale factor access
+        self.ruler_manager.set_drawing_context(drawing_context)
+        
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
         vertical_ruler = self.ruler_manager.get_vertical_ruler()
 
@@ -503,8 +507,8 @@ class MainWindow(QMainWindow):
         # Add axis lines at X=0 and Y=0
         self._add_axis_lines()
 
-        # Add grid lines that align with ruler major tickmarks
-        self._add_grid_lines()
+        # Add grid lines using the new multi-level grid system
+        self._redraw_grid()
 
         # Remove any default margins/padding from the graphics view
         self.canvas.setContentsMargins(0, 0, 0, 0)
@@ -928,7 +932,7 @@ class MainWindow(QMainWindow):
         self.document.new()  # Reset to new document
         self.scene.clear()
         self._add_axis_lines()
-        self._add_grid_lines()
+        self._redraw_grid()
         self.draw_objects()
         self.update_title()
 
@@ -1443,11 +1447,24 @@ class MainWindow(QMainWindow):
         self._redraw_grid()
 
     def _redraw_grid(self):
-        """Remove existing grid lines and redraw them."""
+        """Remove existing grid lines and redraw them using DrawingManager."""
         # Check if scene is still valid
         if not self.scene or not hasattr(self.scene, 'items'):
             return
+        
+        # Use DrawingManager to redraw grid with TCL-compatible system
+        if hasattr(self, 'drawing_manager') and self.drawing_manager:
+            try:
+                self.drawing_manager.redraw_grid()
+            except Exception as e:
+                print(f"Error redrawing grid with DrawingManager: {e}")
+                # Fallback to original implementation if needed
+                self._redraw_grid_fallback()
+        else:
+            self._redraw_grid_fallback()
 
+    def _redraw_grid_fallback(self):
+        """Fallback grid redraw using original implementation."""
         try:
             # Remove existing grid lines (z-value -1001)
             items_to_remove = []
