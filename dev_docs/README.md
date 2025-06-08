@@ -11,10 +11,42 @@ This directory contains all developer documentation for the pyTkCAD project.
 
 ## Current Documentation
 
+### Implementation and Migration Documentation
+- **COORDINATE_SCALING_MIGRATION_COMPLETE.md**: Complete coordinate scaling system migration
+- **FIELD_MIGRATION_COMPLETE.md**: Field migration implementation details
+- **MULTITOUCH_SCROLLING_COMPLETE.md**: Multitouch scrolling feature implementation
+- **TEST_ORGANIZATION_COMPLETE.md**: Comprehensive test organization cleanup
+
+### Tool Documentation
 - **ARC_TOOL_CONSOLIDATION.md**: Documentation about the consolidation of arc tools
 - **DIMENSION_TOOL_CONSOLIDATION.md**: Documentation about the consolidation of dimension tools
+- **DRAWING_MANAGER_COMPLETION_SUMMARY.md**: Drawing manager implementation summary
+
+### Grid and UI Systems
+- **COMPLETE_GRID_SYSTEM_SUMMARY.md**: Comprehensive grid system documentation
+- **GRID_IMPLEMENTATION_COMPLETE.md**: Grid implementation details
+- **GRID_RULER_ALIGNMENT_FINAL_FIX.md**: Final grid-ruler alignment fixes
+- **GRID_RULER_ALIGNMENT_FIX.md**: Grid-ruler alignment implementation
+- **GRID_DISPLAY_ISSUE_RESOLUTION.md**: Grid display issue resolutions
+
+### User Interface and Features
 - **KEYBOARD_SHORTCUTS.md**: Details about the keyboard shortcut system
+- **LAYER_TRANSLATION_COMPLETE.md**: Layer system translation completion
+- **PALETTE_SYSTEM_INTEGRATION_COMPLETE.md**: Tool palette system integration
+- **CONSTRUCTION_DRAWING_FINAL_RESOLUTION.md**: Construction drawing final resolution
+- **CONSTRUCTION_DRAWING_FIX_COMPLETE.md**: Construction drawing fix completion
+
+### Project Management
+- **TASK_COMPLETION_SUMMARY.md**: Overall project completion summary
 - **TEST_ORGANIZATION.md**: Information about the test organization structure
+
+### Placeholder Files (To Be Updated)
+- **ARC_SHORTCUTS_UPDATE.md**: Arc shortcuts updates
+- **ARCCTR_SECONDARY_KEY_FIX.md**: Arc center secondary key fixes
+- **CIRCLE_SHORTCUTS_UPDATE.md**: Circle shortcuts updates
+- **CONIC_TOOLS_ARCS_UPDATE.md**: Conic tools and arcs updates
+- **ELLIPSE_SHORTCUTS_UPDATE.md**: Ellipse shortcuts updates
+- **LETTER_SHORTCUTS_COMPLETED.md**: Letter shortcuts completion
 
 ## Adding New Documentation
 

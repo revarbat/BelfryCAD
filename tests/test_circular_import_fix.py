@@ -111,7 +111,7 @@ def test_integration_completeness():
         
         # Verify grid functionality is in CadScene
         grid_methods = ['redraw_grid', '_draw_grid_origin', '_draw_grid_lines',
-                       '_get_grid_info', '_parse_color', '_color_from_hsv']
+                       '_get_grid_info']
         
         for method in grid_methods:
             assert hasattr(scene, method), f"Missing grid method: {method}"

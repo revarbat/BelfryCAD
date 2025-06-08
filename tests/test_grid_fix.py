@@ -1,182 +1,104 @@
 #!/usr/bin/env python3
 """
-Test the fixed grid implementation to verify alignment with rulers
+Test script to verify that the grid fix works correctly.
+This script tests that old gray grid lines (Z-value -1001) are properly removed
+when the new multi-level grid system is activated.
 """
 
 import sys
-import os
-sys.path.insert(0, os.path.dirname(__file__))
+import math
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QColor, QPen
+from PySide6.QtWidgets import QApplication
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout
-from PySide6.QtGui import QPen, QColor, QBrush
-from PySide6.QtCore import Qt
-from BelfryCAD.gui.cad_graphics_view import CADGraphicsView
-from BelfryCAD.gui.rulers import RulerManager
-from PySide6.QtWidgets import QGraphicsScene
+def test_grid_fix():
+    """Test that old grid items are properly removed by new grid system"""
+    print("Testing grid fix...")
 
-
-class GridFixTest(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Grid Fix Test - Aligned with Ruler Major Ticks")
-        self.resize(800, 600)
-
-        # Create central widget and layout
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        layout = QGridLayout(central_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-
-        # Create scene and canvas
-        self.scene = QGraphicsScene()
-        self.scene.setSceneRect(-15, -15, 30, 30)
-
-        self.canvas = CADGraphicsView()
-        self.canvas.setScene(self.scene)
-
-        # Create rulers
-        self.ruler_manager = RulerManager(self.canvas, central_widget)
-        h_ruler = self.ruler_manager.get_horizontal_ruler()
-        v_ruler = self.ruler_manager.get_vertical_ruler()
-
-        # Corner widget
-        corner = QWidget()
-        corner.setFixedSize(32, 32)
-        corner.setStyleSheet("background-color: white; border: 1px solid black;")
-
-        # Layout
-        layout.addWidget(corner, 0, 0)
-        layout.addWidget(h_ruler, 0, 1)
-        layout.addWidget(v_ruler, 1, 0)
-        layout.addWidget(self.canvas, 1, 1)
-
-        layout.setColumnStretch(1, 1)
-        layout.setRowStretch(1, 1)
-
-        # Add grid and test objects
-        self._add_fixed_grid()
-        self._add_test_objects()
-
-        print("Grid Fix Test Created:")
-        print("- Grid should now align perfectly with ruler major ticks")
-        print("- Test objects at grid intersections for verification")
-        print("- Compare grid lines with ruler tickmarks")
-
-    def _add_fixed_grid(self):
-        """Add grid using the fixed logic that matches rulers exactly"""
-        # Get grid info from ruler
-        h_ruler = self.ruler_manager.get_horizontal_ruler()
-        (minorspacing, majorspacing, superspacing, labelspacing,
-         divisor, units, formatfunc, conversion) = h_ruler.get_grid_info()
-
-        print(f"Grid parameters: minorspacing={minorspacing}, labelspacing={labelspacing}")
-
-        # Create grid pen
-        grid_pen = QPen(QColor(200, 200, 200))
-        grid_pen.setWidth(1)
-        grid_pen.setStyle(Qt.DotLine)
-
-        scene_rect = self.scene.sceneRect()
-
-        # Use EXACT same logic as ruler for vertical grid lines
-        import math
-        x_start = scene_rect.left()
-        x_end = scene_rect.right()
-
-        # Start from first minor tick position (ruler logic)
-        x = math.floor(x_start / minorspacing + 1e-6) * minorspacing
-
-        grid_count = 0
-        while x <= x_end and grid_count < 50:  # Safety limit
-            # Test if this position would be a major tick with label (ruler logic)
-            if abs(math.floor(x / labelspacing + 1e-6) - x / labelspacing) < 1e-3:
-                grid_line = self.scene.addLine(
-                    x, scene_rect.top(), x, scene_rect.bottom(), grid_pen
-                )
-                grid_line.setZValue(-1001)
-                print(f"Vertical grid line at x={x}")
-                grid_count += 1
-            x += minorspacing
-
-        # Use EXACT same logic as ruler for horizontal grid lines
-        y_start = scene_rect.top()
-        y_end = scene_rect.bottom()
-
-        # Start from first minor tick position (ruler logic)
-        y = math.floor(y_start / minorspacing + 1e-6) * minorspacing
-
-        grid_count = 0
-        while y <= y_end and grid_count < 50:  # Safety limit
-            # Test if this position would be a major tick with label (ruler logic)
-            if abs(math.floor(y / labelspacing + 1e-6) - y / labelspacing) < 1e-3:
-                grid_line = self.scene.addLine(
-                    scene_rect.left(), y, scene_rect.right(), y, grid_pen
-                )
-                grid_line.setZValue(-1001)
-                print(f"Horizontal grid line at y={y}")
-                grid_count += 1
-            y += minorspacing
-
-    def _add_test_objects(self):
-        """Add test objects at grid intersections to verify alignment"""
-        # Add axis lines
-        axis_pen = QPen(QColor(128, 128, 128))
-        axis_pen.setWidth(2)
-
-        scene_rect = self.scene.sceneRect()
-
-        # Horizontal axis (y=0)
-        h_axis = self.scene.addLine(
-            scene_rect.left(), 0, scene_rect.right(), 0, axis_pen
-        )
-        h_axis.setZValue(-1000)
-
-        # Vertical axis (x=0)
-        v_axis = self.scene.addLine(
-            0, scene_rect.top(), 0, scene_rect.bottom(), axis_pen
-        )
-        v_axis.setZValue(-1000)
-
-        # Add test markers at expected grid intersections
-        marker_pen = QPen(QColor(255, 0, 0))
-        marker_pen.setWidth(3)
-        marker_brush = QBrush(QColor(255, 0, 0))
-
-        # Test at integer positions (should align with grid)
-        for x in [-10, -5, 0, 5, 10]:
-            for y in [-10, -5, 0, 5, 10]:
-                # Small circle at grid intersection
-                self.scene.addEllipse(
-                    x-0.3, y-0.3, 0.6, 0.6,
-                    marker_pen, marker_brush
-                )
-
-        # Add a test rectangle that should align with grid
-        rect_pen = QPen(QColor(0, 0, 255))
-        rect_pen.setWidth(2)
-        self.scene.addRect(-3, -2, 6, 4, rect_pen)
-
-        print("Test objects added:")
-        print("- Red dots at integer grid intersections")
-        print("- Blue rectangle from (-3,-2) to (3,2)")
-        print("- Should all align perfectly with grid lines")
-
-
-def main():
+    # Create Qt application
     app = QApplication(sys.argv)
 
-    window = GridFixTest()
-    window.show()
+    # Create CadScene instead of manually creating DrawingManager
+    # This will properly initialize the DrawingManager with CadScene integration
+    from BelfryCAD.gui.cad_scene import CadScene
+    cad_scene = CadScene()
 
-    print("\nInstructions:")
-    print("1. Check that grid lines align exactly with ruler major tickmarks")
-    print("2. Red dots should be at grid intersections")
-    print("3. Blue rectangle should align with grid")
-    print("4. Try scrolling - grid should update and stay aligned")
+    # Get the scene and drawing manager from CadScene
+    scene = cad_scene.get_scene()
+    drawing_manager = cad_scene.get_drawing_manager()
 
-    sys.exit(app.exec())
+    # Set up scene rectangle (equivalent to viewport)
+    scene.setSceneRect(-500, -500, 1000, 1000)
 
+    print("✓ Drawing manager created")
+
+    # First, simulate the old grid system by adding some items with Z-value -1001
+    print("Adding old grid lines (Z-value -1001)...")
+    old_grid_pen = QPen(QColor(200, 200, 200))  # Light gray
+    old_grid_pen.setWidth(1)
+    old_grid_pen.setStyle(Qt.PenStyle.DotLine)
+
+    # Add some vertical old grid lines
+    for x in range(-400, 500, 100):
+        grid_line = scene.addLine(x, -500, x, 500, old_grid_pen)
+        grid_line.setZValue(-1001)  # Old grid Z-value
+
+    # Add some horizontal old grid lines
+    for y in range(-400, 500, 100):
+        grid_line = scene.addLine(-500, y, 500, y, old_grid_pen)
+        grid_line.setZValue(-1001)  # Old grid Z-value
+
+    # Count old grid items
+    old_grid_count = len([item for item in scene.items()
+                         if hasattr(item, 'zValue') and item.zValue() == -1001])
+    print(f"✓ Added {old_grid_count} old grid lines")
+
+    # Now test the new grid system - it should remove the old items
+    print("Activating new grid system...")
+    try:
+        drawing_manager.redraw_grid()
+        print("✓ New grid system activated successfully")
+    except Exception as e:
+        print(f"✗ New grid system failed: {e}")
+        return False
+
+    # Check that old grid items are gone
+    remaining_old_grid = len([item for item in scene.items()
+                             if hasattr(item, 'zValue') and item.zValue() == -1001])
+    print(f"✓ Old grid items remaining: {remaining_old_grid}")
+
+    # Count new grid items (should have negative Z-values between -6 and -10)
+    new_grid_count = len([item for item in scene.items()
+                         if hasattr(item, 'zValue') and -10 <= item.zValue() < 0])
+    print(f"✓ New grid items created: {new_grid_count}")
+
+    # Verify the fix worked
+    if remaining_old_grid == 0:
+        print("🎉 SUCCESS: All old grid items were properly removed!")
+        result = True
+    else:
+        print(f"❌ FAILURE: {remaining_old_grid} old grid items still remain")
+        result = False
+
+    if new_grid_count > 0:
+        print(f"✓ New multi-level grid system is working ({new_grid_count} items)")
+    else:
+        print("⚠️  WARNING: New grid system didn't create any items")
+        result = False
+
+    print("\n" + "="*60)
+    print("GRID FIX TEST RESULTS:")
+    print(f"- Old grid items removed: {old_grid_count - remaining_old_grid}/{old_grid_count}")
+    print(f"- New grid items created: {new_grid_count}")
+    print(f"- Test result: {'PASS' if result else 'FAIL'}")
+    print("="*60)
+
+    return result
 
 if __name__ == "__main__":
-    main()
+    success = test_grid_fix()
+    if success:
+        print("\n🎉 Grid fix test passed! The issue is resolved.")
+    else:
+        print("\n❌ Grid fix test failed. The issue persists.")
+    sys.exit(0 if success else 1)

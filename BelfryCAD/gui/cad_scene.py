@@ -18,6 +18,7 @@ from PySide6.QtGui import (
 from .drawing_manager import DrawingManager
 from .rulers import RulerManager
 from .cad_graphics_view import CADGraphicsView
+from .colors import Colors
 
 
 class GridTags:
@@ -187,54 +188,6 @@ class CadScene(QWidget):
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
         return horizontal_ruler.get_grid_info()
 
-    def _color_to_hsv(self, color):
-        """Convert QColor to HSV values (0-360, 0-1, 0-1)"""
-        if isinstance(color, str):
-            color = QColor(color)
-        elif isinstance(color, QColor):
-            pass
-        else:
-            color = QColor(0, 255, 255)  # Default cyan
-
-        # Get HSV values from QColor
-        h = color.hueF()
-        s = color.saturationF()
-        v = color.valueF()
-        return (h * 360.0 if h >= 0 else 0.0, s, v)
-
-    def _color_from_hsv(self, hue, saturation, value):
-        """Create QColor from HSV values"""
-        color = QColor()
-        color.setHsvF(hue / 360.0, saturation, value)
-        return color
-
-    def _adjust_saturation(self, color, factor):
-        """Adjust color saturation by given factor"""
-        if isinstance(color, str):
-            color = QColor(color)
-        elif not isinstance(color, QColor):
-            color = QColor(color)
-        
-        hue = color.hueF()
-        saturation = min(1.0, color.saturationF() * factor)
-        value = color.valueF()
-        
-        result = QColor()
-        result.setHsvF(hue, saturation, value)
-        return result
-
-    def _parse_color(self, color_spec):
-        """Parse color specification into QColor"""
-        if isinstance(color_spec, QColor):
-            return color_spec
-        elif isinstance(color_spec, str):
-            if color_spec.startswith('#'):
-                return QColor(color_spec)
-            else:
-                return QColor(color_spec)
-        else:
-            return QColor(0, 255, 255)  # Default cyan
-
     def _draw_grid_origin(self, dpi, linewidth):
         """Draw origin lines"""
         # Get scene bounds
@@ -272,8 +225,6 @@ class CadScene(QWidget):
     ):
         """Draw multi-level grid lines"""
 
-        print("------------ _draw_lines() start")
-        
         def quantize(value, spacing):
             """Quantize value to nearest multiple of spacing"""
             return round(value / spacing) * spacing
@@ -282,19 +233,13 @@ class CadScene(QWidget):
             """Check if two floats are approximately equal"""
             return abs(x - y) < epsilon
 
-        def adjust_saturation(color, factor):
-            """Adjust saturation of a color by a factor"""
-            hue, sat, val = self._color_to_hsv(color)
-            new_sat = min(max(sat * factor, 0.0), 1.0)
-            return self._color_from_hsv(hue, new_sat, val)
-
         # Calculate colors
         if self.grid_color:
-            super_grid_color = self._parse_color(self.grid_color)
+            super_grid_color = Colors.parse(self.grid_color)
         else:
-            super_grid_color = self._color_from_hsv(180.0, 1.0, 1.0)
-        major_grid_color = adjust_saturation(super_grid_color, 0.75)
-        minor_grid_color = adjust_saturation(major_grid_color, 0.4)
+            super_grid_color = Colors.from_hsv(180.0, 1.0, 1.0)
+        major_grid_color = Colors.adjust_saturation(super_grid_color, 0.75)
+        minor_grid_color = Colors.adjust_saturation(major_grid_color, 0.4)
 
         # Minor grid lines (most frequent)
         if minorspacing > 0:

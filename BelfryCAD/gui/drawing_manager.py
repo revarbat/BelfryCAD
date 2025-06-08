@@ -22,6 +22,7 @@ from PySide6.QtWidgets import QGraphicsItem
 from PySide6.QtSvg import QSvgRenderer
 
 from BelfryCAD.core.cad_objects import CADObject, ObjectType, Point
+from .colors import Colors
 
 
 class ConstructionCADObject:
@@ -342,33 +343,7 @@ class DrawingManager:
             else:
                 color_name = default_color
 
-        return self._parse_color(color_name)
-
-    def _parse_color(self, color_name: str) -> QColor:
-        """Parse color name to QColor"""
-        if color_name == "black":
-            return QColor(0, 0, 0)
-        elif color_name == "white":
-            return QColor(255, 255, 255)
-        elif color_name == "red":
-            return QColor(255, 0, 0)
-        elif color_name == "green":
-            return QColor(0, 255, 0)
-        elif color_name == "blue":
-            return QColor(0, 0, 255)
-        elif color_name == "yellow":
-            return QColor(255, 255, 0)
-        elif color_name == "cyan":
-            return QColor(0, 255, 255)
-        elif color_name == "magenta":
-            return QColor(255, 0, 255)
-        elif color_name == "gray" or color_name == "grey":
-            return QColor(128, 128, 128)
-        else:
-            try:
-                return QColor(color_name)
-            except Exception:
-                return QColor(0, 0, 0)  # Default to black
+        return Colors.parse(color_name)
 
     def get_dash_pattern(self, dash_name: str) -> List[float]:
         """Get dash pattern for line styles"""
@@ -417,7 +392,7 @@ class DrawingManager:
                  self.get_object_color(obj))
         fill_color = obj.attributes.get('fillcolor', '')
         if fill_color and fill_color != "none":
-            fill = QBrush(self._parse_color(fill_color))
+            fill = QBrush(Colors.parse(fill_color))
         else:
             fill = QBrush(Qt.BrushStyle.NoBrush)
 
@@ -426,7 +401,7 @@ class DrawingManager:
             obj.attributes.get('linedash', ''))
 
         # Create pen
-        color_obj = (self._parse_color(color) if isinstance(color, str)
+        color_obj = (Colors.parse(color) if isinstance(color, str)
                      else color)
         pen = QPen(color_obj, width)
         if dash_pattern:
@@ -680,7 +655,8 @@ class DrawingManager:
                 points.append(QPointF(data[i], data[i + 1]))
 
             polygon = QPolygonF(points)
-            tags = [DrawingTags.ALL_DRAWN, DrawingTags.ACTUAL, DrawingTags.FILLED]
+            tags = [DrawingTags.ALL_DRAWN, DrawingTags.ACTUAL,
+                    DrawingTags.FILLED]
             if self.cad_scene:
                 poly_item = self.cad_scene.addPolygon(
                     polygon, pen=pen, brush=fill,
@@ -782,7 +758,8 @@ class DrawingManager:
 
         # Create pixmap item
         if isinstance(pixmap, QPixmap):
-            tags = [DrawingTags.ALL_DRAWN, DrawingTags.ACTUAL, DrawingTags.PIMAGE]
+            tags = [DrawingTags.ALL_DRAWN, DrawingTags.ACTUAL,
+                    DrawingTags.PIMAGE]
             if self.cad_scene:
                 image_item = self.cad_scene.addPixmap(
                     pixmap, z=1, tags=tags, data=obj.object_id)
@@ -885,8 +862,8 @@ class DrawingManager:
 
         # Draw control point marker based on type
         size = 6
-        pen = QPen(self._parse_color(outline_color))
-        brush = QBrush(self._parse_color(fill_color))
+        pen = QPen(Colors.parse(outline_color))
+        brush = QBrush(Colors.parse(fill_color))
 
         tags += ["CP", f"Node_{cp_num}"]
         if cp_type == NodeType.OVAL:
@@ -940,7 +917,7 @@ class DrawingManager:
             tags = []
         tags += ["CL", f"Node_{cp_num}"]
 
-        pen = QPen(self._parse_color(color),
+        pen = QPen(Colors.parse(color),
                    self.get_construction_line_width())
         if dash:
             pen.setDashPattern(self.get_dash_pattern(dash))
@@ -962,7 +939,7 @@ class DrawingManager:
                          rad2: float, tags: List[str], color: str,
                          dash: str = "", width: float = 0.001):
         """Draw a construction oval/ellipse"""
-        pen = QPen(self._parse_color(color),
+        pen = QPen(Colors.parse(color),
                    self.get_construction_line_width())
         if dash:
             pen.setDashPattern(self.get_dash_pattern(dash))
@@ -986,7 +963,7 @@ class DrawingManager:
                                rad1: float, rad2: float, tags: List[str],
                                color: str, width: float = 0.001):
         """Draw oval center cross marker"""
-        pen = QPen(self._parse_color(color),
+        pen = QPen(Colors.parse(color),
                    self.get_construction_line_width())
         pen.setDashPattern(self.get_dash_pattern("centerline"))
 
@@ -1010,7 +987,7 @@ class DrawingManager:
     def object_draw_centerline(self, x0: float, y0: float, x1: float,
                                y1: float, tags: List[str], color: str):
         """Draw a centerline"""
-        pen = QPen(self._parse_color(color),
+        pen = QPen(Colors.parse(color),
                    self.get_construction_line_width())
         pen.setDashPattern(self.get_dash_pattern("centerline"))
 
@@ -1026,7 +1003,7 @@ class DrawingManager:
                                start_deg: float, extent_deg: float,
                                tags: List[str], color: str):
         """Draw a center arc construction line"""
-        pen = QPen(self._parse_color(color),
+        pen = QPen(Colors.parse(color),
                    self.get_construction_line_width())
         pen.setDashPattern(self.get_dash_pattern("centerline"))
 
@@ -1056,7 +1033,7 @@ class DrawingManager:
         if tags is None:
             tags = []
 
-        pen = QPen(self._parse_color(color),
+        pen = QPen(Colors.parse(color),
                    self.get_construction_line_width())
         if dash:
             pen.setDashPattern(self.get_dash_pattern(dash))

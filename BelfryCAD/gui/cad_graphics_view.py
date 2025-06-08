@@ -4,7 +4,7 @@ CADGraphicsView - Custom graphics view for CAD operations
 
 from PySide6.QtWidgets import QGraphicsView
 from PySide6.QtGui import QPainter
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 
 
 class CADGraphicsView(QGraphicsView):
@@ -18,8 +18,10 @@ class CADGraphicsView(QGraphicsView):
         self.setDragMode(QGraphicsView.DragMode.NoDrag)
 
         # Enable scrollbars
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         # Enable mouse wheel scrolling
         self.setInteractive(True)
@@ -27,6 +29,9 @@ class CADGraphicsView(QGraphicsView):
         # Enable mouse tracking to receive mouse move events
         # even when no buttons are pressed
         self.setMouseTracking(True)
+
+        # Enable touch events for multitouch scrolling
+        self.setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, True)
 
         self.tool_manager = None  # Will be set by the main window
         self.drawing_manager = None  # Will be set by the main window
@@ -77,6 +82,53 @@ class CADGraphicsView(QGraphicsView):
         # Accept the event to prevent it from being passed to parent
         event.accept()
 
+    def event(self, event):
+        """Override event handler to catch touch events for multitouch
+        scrolling"""
+        # Handle multitouch pan gestures for two-finger scrolling
+        if (hasattr(event, 'type') and
+                event.type() == QEvent.Type.TouchUpdate):
+            if (hasattr(event, 'touchPoints') and
+                    len(event.touchPoints()) == 2):
+                return self._handle_two_finger_scroll(event)
+
+        return super().event(event)
+
+    def _handle_two_finger_scroll(self, event):
+        """Handle two-finger touch events for scrolling"""
+        touch_points = event.touchPoints()
+        if len(touch_points) != 2:
+            return False
+
+        # Calculate the center point movement between current and last
+        # positions
+        current_center = ((touch_points[0].pos() +
+                          touch_points[1].pos()) / 2)
+        last_center = ((touch_points[0].lastPos() +
+                       touch_points[1].lastPos()) / 2)
+
+        # Calculate the delta movement
+        delta = current_center - last_center
+
+        # Convert to scroll amounts (invert Y for natural scrolling)
+        scroll_speed = 3.0  # Adjust sensitivity as needed
+        scroll_x = int(delta.x() * scroll_speed)
+        scroll_y = int(-delta.y() * scroll_speed)  # Invert Y for natural
+
+        # Apply scrolling
+        if scroll_x != 0:
+            h_bar = self.horizontalScrollBar()
+            new_value = h_bar.value() + scroll_x
+            h_bar.setValue(new_value)
+
+        if scroll_y != 0:
+            v_bar = self.verticalScrollBar()
+            new_value = v_bar.value() + scroll_y
+            v_bar.setValue(new_value)
+
+        event.accept()
+        return True
+
     def mousePressEvent(self, event):
         """Handle mouse press events and forward to active tool"""
         if self.tool_manager and self.tool_manager.get_active_tool():
@@ -86,8 +138,8 @@ class CADGraphicsView(QGraphicsView):
             # Convert Qt scene coordinates to CAD coordinates using
             # drawing manager
             if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
-                # coordinates
+                # Use descale_coords to convert from Qt (Y-down) to CAD
+                # (Y-up) coordinates
                 cad_coords = self.drawing_manager.descale_coords(
                     [scene_pos.x(), scene_pos.y()])
                 cad_x, cad_y = cad_coords[0], cad_coords[1]
@@ -95,7 +147,8 @@ class CADGraphicsView(QGraphicsView):
                 # Fallback to scene coordinates if no drawing manager
                 cad_x, cad_y = scene_pos.x(), scene_pos.y()
 
-            # Create a simple event object with CAD coordinates and x/y attrs
+            # Create a simple event object with CAD coordinates and x/y
+            # attrs
             class SceneEvent:
                 def __init__(self, scene_pos, cad_x, cad_y):
                     self._scene_pos = scene_pos
@@ -106,7 +159,8 @@ class CADGraphicsView(QGraphicsView):
                     return self._scene_pos
 
             scene_event = SceneEvent(scene_pos, cad_x, cad_y)
-            self.tool_manager.get_active_tool().handle_mouse_down(scene_event)
+            self.tool_manager.get_active_tool().handle_mouse_down(
+                scene_event)
         else:
             super().mousePressEvent(event)
 
@@ -118,8 +172,8 @@ class CADGraphicsView(QGraphicsView):
             # Convert Qt scene coordinates to CAD coordinates using
             # drawing manager
             if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
-                # coordinates
+                # Use descale_coords to convert from Qt (Y-down) to CAD
+                # (Y-up) coordinates
                 cad_coords = self.drawing_manager.descale_coords(
                     [scene_pos.x(), scene_pos.y()])
                 cad_x, cad_y = cad_coords[0], cad_coords[1]
@@ -137,7 +191,8 @@ class CADGraphicsView(QGraphicsView):
                     return self._scene_pos
 
             scene_event = SceneEvent(scene_pos, cad_x, cad_y)
-            self.tool_manager.get_active_tool().handle_mouse_move(scene_event)
+            self.tool_manager.get_active_tool().handle_mouse_move(
+                scene_event)
         else:
             super().mouseMoveEvent(event)
 
@@ -149,8 +204,8 @@ class CADGraphicsView(QGraphicsView):
             # Convert Qt scene coordinates to CAD coordinates using
             # drawing manager
             if self.drawing_manager:
-                # Use descale_coords to convert from Qt (Y-down) to CAD (Y-up)
-                # coordinates
+                # Use descale_coords to convert from Qt (Y-down) to CAD
+                # (Y-up) coordinates
                 cad_coords = self.drawing_manager.descale_coords(
                     [scene_pos.x(), scene_pos.y()])
                 cad_x, cad_y = cad_coords[0], cad_coords[1]

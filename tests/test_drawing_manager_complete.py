@@ -180,8 +180,9 @@ def test_drawing_manager():
     print("6. Testing utility methods...")
 
     # Test color parsing
-    red_color = drawing_manager._parse_color("red")
-    hex_color = drawing_manager._parse_color("#FF0000")
+    from BelfryCAD.gui.colors import Colors
+    red_color = Colors.parse("red")
+    hex_color = Colors.parse("#FF0000")
     print("   ✓ Color parsing works")
 
     # Test dash patterns
