@@ -39,6 +39,14 @@ class CADGraphicsView(QGraphicsView):
         # Touch gesture state tracking
         self._last_pinch_distance = None
 
+    def _on_scale_changed(self, scale_factor):
+        """Handle scale changes from CadScene to update visual zoom"""
+        # Calculate the appropriate view transform scale
+        # The QGraphicsView transform should reflect the CadScene scale
+        # to provide visual feedback for zoom operations
+        self.resetTransform()
+        self.scale(scale_factor, scale_factor)
+
     def set_tool_manager(self, tool_manager):
         """Set the tool manager for handling events"""
         self.tool_manager = tool_manager
@@ -46,6 +54,14 @@ class CADGraphicsView(QGraphicsView):
     def set_drawing_manager(self, drawing_manager):
         """Set the drawing manager for coordinate transformations"""
         self.drawing_manager = drawing_manager
+        
+        # Connect to scale changes for visual zoom updates
+        if (self.drawing_manager and 
+            self.drawing_manager.cad_scene and 
+            hasattr(self.drawing_manager.cad_scene, 'scale_changed')):
+            self.drawing_manager.cad_scene.scale_changed.connect(
+                self._on_scale_changed
+            )
 
     def wheelEvent(self, event):
         """Handle mouse wheel events for scrolling and zooming"""
@@ -53,17 +69,19 @@ class CADGraphicsView(QGraphicsView):
 
         # Get wheel delta values
         delta = event.angleDelta()
-        print(f"Wheel event delta: {delta.x()}, {delta.y()}")
         # Check for Ctrl+wheel for zooming
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            # Zoom functionality with Ctrl+wheel
+            # Qt maps Command key (⌘) to ControlModifier on macOS for
+            # cross-platform compatibility, so this detects Cmd+wheel on
+            # macOS and Ctrl+wheel on Windows/Linux
+
             if self.drawing_manager and self.drawing_manager.cad_scene:
                 # Get current scale factor
                 current_scale = self.drawing_manager.cad_scene.scale_factor
 
                 # Calculate zoom factor (normalize wheel delta)
                 zoom_delta = delta.y() / 120.0  # Standard wheel delta is 120
-                zoom_factor = 1.0 + (zoom_delta * 0.2)  # 10% zoom step
+                zoom_factor = 1.0 + (zoom_delta * 0.2)  # 20% zoom step
 
                 # Calculate new scale factor
                 new_scale = current_scale * zoom_factor
@@ -81,23 +99,18 @@ class CADGraphicsView(QGraphicsView):
         # Scroll speed multiplier
         scroll_speed = 60
 
-        # Handle horizontal scrolling (Shift+wheel or horizontal wheel)
-        if (
-            event.modifiers() & Qt.KeyboardModifier.ShiftModifier or
-            delta.x() != 0
-        ):
+        # Handle horizontal scrolling
+        if delta.x() != 0:
             # Horizontal scrolling
-            scroll_amount = (delta.y() if delta.x() == 0 else delta.x())
-            # Normalize wheel delta
-            scroll_amount = int(scroll_amount / 120 * scroll_speed)
+            scroll_amount = int(delta.x() / 120 * scroll_speed)
 
             # Use the view's built-in scrolling methods
             h_bar = self.horizontalScrollBar()
             new_value = h_bar.value() - scroll_amount
             h_bar.setValue(new_value)
 
-        else:
-            # Vertical scrolling (normal wheel movement)
+        # Handle vertical scrolling
+        if delta.y() != 0:
             # Normalize wheel delta
             scroll_amount = int(delta.y() / 120 * scroll_speed)
 
@@ -130,7 +143,6 @@ class CADGraphicsView(QGraphicsView):
     def _handle_two_finger_scroll(self, event):
         """Handle two-finger touch events for scrolling and pinch-to-zoom"""
         touch_points = event.touchPoints()
-        print(f"Touch points: {len(touch_points)}")
         if len(touch_points) != 2:
             return False
 
@@ -139,38 +151,39 @@ class CADGraphicsView(QGraphicsView):
         point2_pos = touch_points[1].pos()
         current_distance = ((point1_pos.x() - point2_pos.x()) ** 2 +
                            (point1_pos.y() - point2_pos.y()) ** 2) ** 0.5
-
-        print(f"Current pinch distance: {current_distance:.2f}")
         
         # Handle pinch-to-zoom gesture
         if event.type() == QEvent.Type.TouchUpdate:
-            print("TouchUpdate")
             if self._last_pinch_distance is not None:
                 # Calculate distance change for zoom
-                distance_change = current_distance - self._last_pinch_distance
-                
-                print(f"Distance change: {distance_change:.2f}")
+                distance_change = (current_distance -
+                                   self._last_pinch_distance)
+
                 # Only handle zoom if distance change is significant enough
-                # This helps distinguish between intentional pinch and minor finger movement
+                # This helps distinguish between intentional pinch and minor
+                # finger movement
                 if abs(distance_change) > 5.0:  # Minimum threshold in pixels
-                    if self.drawing_manager and self.drawing_manager.cad_scene:
+                    if (self.drawing_manager and
+                            self.drawing_manager.cad_scene):
                         # Get current scale factor
-                        current_scale = self.drawing_manager.cad_scene.scale_factor
-                        
+                        current_scale = (self.drawing_manager.cad_scene
+                                         .scale_factor)
+
                         # Calculate zoom factor based on distance change
                         # Normalize the distance change and apply sensitivity
-                        zoom_sensitivity = 0.005  # Adjust sensitivity as needed
-                        zoom_factor = 1.0 + (distance_change * zoom_sensitivity)
-                        print(f"Zoom factor: {zoom_factor:.4f}")
+                        zoom_sensitivity = 0.005  # Adjust sensitivity
+                        zoom_factor = (1.0 +
+                                       (distance_change * zoom_sensitivity))
                         # Calculate new scale factor
                         new_scale = current_scale * zoom_factor
-                        
+
                         # Clamp zoom to reasonable limits (0.01x to 100x)
                         new_scale = max(0.01, min(100.0, new_scale))
-                        
+
                         # Apply the new scale factor
-                        self.drawing_manager.cad_scene.set_scale_factor(new_scale)
-            
+                        self.drawing_manager.cad_scene.set_scale_factor(
+                            new_scale)
+
         # Update the last pinch distance for next update
         self._last_pinch_distance = current_distance
 
@@ -184,7 +197,8 @@ class CADGraphicsView(QGraphicsView):
         delta = current_center - last_center
 
         # Only apply panning if the movement is significant
-        # This prevents minor movements during pinch gestures from causing unwanted panning
+        # This prevents minor movements during pinch gestures from causing
+        # unwanted panning
         if abs(delta.x()) > 1.0 or abs(delta.y()) > 1.0:
             # Convert to scroll amounts (invert Y for natural scrolling)
             scroll_speed = 3.0  # Adjust sensitivity as needed

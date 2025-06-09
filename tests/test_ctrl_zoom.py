@@ -98,7 +98,7 @@ def test_ctrl_zoom_functionality():
         "Ctrl+wheel should trigger zoom"
     assert mock_drawing_manager.cad_scene.zoom_calls[0] > 1.0, \
         "Zoom in should increase scale factor"
-    expected_scale = 1.0 * (1.0 + (1.0 * 0.1))  # 10% increase
+    expected_scale = 1.0 * (1.0 + (1.0 * 0.2))  # 20% increase
     actual_scale = mock_drawing_manager.cad_scene.zoom_calls[0]
     assert abs(actual_scale - expected_scale) < 0.001, \
         f"Expected scale {expected_scale}, got {actual_scale}"
@@ -120,7 +120,7 @@ def test_ctrl_zoom_functionality():
         "Ctrl+wheel should trigger zoom"
     assert mock_drawing_manager.cad_scene.zoom_calls[0] < 1.0, \
         "Zoom out should decrease scale factor"
-    expected_scale = 1.0 * (1.0 + (-1.0 * 0.1))  # 10% decrease
+    expected_scale = 1.0 * (1.0 + (-1.0 * 0.2))  # 20% decrease
     actual_scale = mock_drawing_manager.cad_scene.zoom_calls[0]
     assert abs(actual_scale - expected_scale) < 0.001, \
         f"Expected scale {expected_scale}, got {actual_scale}"
@@ -165,8 +165,8 @@ def test_ctrl_zoom_functionality():
     print("\n🎉 All tests passed! Ctrl+mousewheel zooming has been "
           "successfully implemented.")
     print("\nZoom features available:")
-    print("- Ctrl+wheel up: Zoom in (10% per step)")
-    print("- Ctrl+wheel down: Zoom out (10% per step)")
+    print("- Ctrl+wheel up: Zoom in (20% per step)")
+    print("- Ctrl+wheel down: Zoom out (20% per step)")
     print("- Zoom limits: 0.01x to 100x")
     print("- Integration with existing scroll functionality")
 
