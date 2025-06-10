@@ -10,7 +10,7 @@ from typing import List
 
 class CADGraphicsView(QGraphicsView):
     """Custom graphics view for CAD drawing operations."""
-    
+
     # Signal emitted when view position changes (scrolling, etc.)
     view_position_changed = Signal(float, float)  # x, y in scene coordinates
 
@@ -261,15 +261,18 @@ class CADGraphicsView(QGraphicsView):
 
                         if self._last_pinch_distance is not None:
                             # Calculate zoom factor based on distance change
-                            distance_ratio = current_distance / self._last_pinch_distance
+                            distance_ratio = current_distance / \
+                                self._last_pinch_distance
                             if (self.drawing_manager and
                                     self.drawing_manager.cad_scene):
-                                current_scale = self.drawing_manager.cad_scene.scale_factor
+                                current_scale = \
+                                    self.drawing_manager.cad_scene.scale_factor
                                 new_scale = current_scale * distance_ratio
                                 new_scale = max(0.01, min(100.0, new_scale))
                                 # Use deferred redraw during continuous gesture
-                                self.drawing_manager.cad_scene.set_scale_factor(
-                                    new_scale, defer_grid_redraw=True)
+                                self.drawing_manager.cad_scene. \
+                                    set_scale_factor(
+                                        new_scale, defer_grid_redraw=True)
 
                         self._last_pinch_distance = current_distance
                         event.accept()
@@ -328,7 +331,7 @@ class CADGraphicsView(QGraphicsView):
             # Create point in view coordinates
             view_point = QPointF(coords[i], coords[i + 1])
             # Map to scene (CAD) coordinates using Qt's transform system
-            cad_point = self.mapToScene(view_point)
+            cad_point = self.mapToScene(view_point.toPoint())
             descaled_coords.extend([cad_point.x(), cad_point.y()])
         return descaled_coords
 
@@ -446,7 +449,7 @@ class CADGraphicsView(QGraphicsView):
                     ruler_manager.update_rulers_on_view_change()
                 elif hasattr(ruler_manager, 'update_rulers'):
                     ruler_manager.update_rulers()
-                
+
                 # Emit signal to notify other components of view change
                 if hasattr(self, 'view_position_changed'):
                     # Get current view center in scene coordinates

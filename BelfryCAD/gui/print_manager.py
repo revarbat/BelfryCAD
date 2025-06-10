@@ -8,7 +8,7 @@ including print dialog, page setup, and PDF export capabilities.
 from typing import Optional
 from PySide6.QtCore import QRectF, Qt, QPointF
 from PySide6.QtGui import QPainter, QTransform, QPen, QBrush, QColor
-from PySide6.QtWidgets import QWidget, QFileDialog
+from PySide6.QtWidgets import QFileDialog
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter, QPageSetupDialog
 
 
@@ -53,10 +53,14 @@ class CadPrintManager:
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         if not printer:
             return False
-        if not isinstance(self._printer_settings, QPrinter):
+        if (
+            not self._printer_settings or
+            not isinstance(self._printer_settings, QPrinter)
+        ):
             self._setup_default_printer()
-        printer.setPageLayout(self._printer_settings.pageLayout())
-        printer.setColorMode(self._printer_settings.colorMode())
+        if self._printer_settings:
+            printer.setPageLayout(self._printer_settings.pageLayout())
+            printer.setColorMode(self._printer_settings.colorMode())
         
         # Show print dialog
         print_dialog = QPrintDialog(printer, self.parent)
@@ -103,10 +107,15 @@ class CadPrintManager:
         if not self._printer_settings:
             self._setup_default_printer()
         printer.setOutputFileName(filename)
+        if self._printer_settings:
+            printer.setPageLayout(self._printer_settings.pageLayout())
+            printer.setColorMode(self._printer_settings.colorMode())
+        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+        if not self._printer_settings:
+            return False
+        # Copy settings from the existing printer
         printer.setPageLayout(self._printer_settings.pageLayout())
         printer.setColorMode(self._printer_settings.colorMode())
-        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
-        printer = QPrinter(self._printer_settings)
         
         return self._print_to_device(printer)
     
@@ -177,7 +186,10 @@ class CadPrintManager:
         margin = line_width / 2
         
         # Special handling for circles
-        if hasattr(obj, 'object_type') and str(obj.object_type).upper() == 'CIRCLE':
+        if (
+            hasattr(obj, 'object_type') and
+            str(obj.object_type).upper() == 'CIRCLE'
+        ):
             radius = obj.attributes.get('radius', 0)
             if radius > 0 and obj.coords:
                 center = obj.coords[0]
@@ -195,8 +207,12 @@ class CadPrintManager:
             max_y - min_y + 2 * margin
         )
     
-    def _setup_print_transform(self, painter: QPainter, printer: QPrinter, 
-                             scene_bounds: QRectF):
+    def _setup_print_transform(
+            self,
+            painter: QPainter,
+            printer: QPrinter, 
+            scene_bounds: QRectF
+    ):
         """Set up coordinate transformation for printing."""
         # Get printable page area
         page_rect = printer.pageRect(QPrinter.Unit.DevicePixel)

@@ -8,9 +8,9 @@ component.
 
 from typing import List, Union, Optional, Any
 from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QGraphicsScene, QGraphicsItem
+    QWidget, QGridLayout, QGraphicsScene, QGraphicsItem, QGraphicsRectItem
 )
-from PySide6.QtCore import Signal, QPointF, QRectF
+from PySide6.QtCore import Signal, QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QPen, QColor, QPixmap, QBrush, QPainterPath, QPolygonF, QTransform
 )
@@ -19,6 +19,7 @@ from .drawing_manager import DrawingManager
 from .rulers import RulerManager
 from .cad_graphics_view import CADGraphicsView
 from .colors import Colors
+from ..core.cad_objects import CADObject
 
 
 class GridTags:
@@ -104,7 +105,8 @@ class CadScene(QWidget):
 
         # Connect view position changes to ruler updates
         if hasattr(self.canvas, 'view_position_changed'):
-            self.canvas.view_position_changed.connect(self._on_view_position_changed)
+            self.canvas.view_position_changed.connect(
+                self._on_view_position_changed)
 
         # Create ruler manager
         self.ruler_manager = RulerManager(self.canvas, self)
@@ -184,7 +186,8 @@ class CadScene(QWidget):
             scene_pos = self.canvas.mapToScene(event.pos())
             print(f"Debug: Mouse move - scene pos: {scene_pos.x():.4f}, " +
                   f"{scene_pos.y():.4f}")
-            # Pass scene coordinates directly - update_mouse_position will handle conversion
+            # Pass scene coordinates directly - update_mouse_position will
+            # handle conversion
             self.update_mouse_position(scene_pos.x(), scene_pos.y())
 
         # Replace the mouse move event handler
@@ -421,12 +424,12 @@ class CadScene(QWidget):
                               during continuous operations
         """
         self.canvas.set_scale_factor(scale_factor)
-        
+
         # Always redraw grid when scale changes to maintain 1.0 pixel width
         # Only defer during continuous gestures for performance
         if not defer_grid_redraw:
             self.redraw_grid()
-        
+
         self.ruler_manager.set_scale_factor(scale_factor)
         self.ruler_manager.update_rulers()
         self.scale_changed.emit(scale_factor)
@@ -462,7 +465,7 @@ class CadScene(QWidget):
         # Scene coordinates are already in the correct CAD coordinate system
         # We just need to account for the Y-axis flip that was applied
         cad_x = scene_x
-        cad_y = -scene_y  # Y-axis flip to convert from Qt (Y-down) to CAD (Y-up)
+        cad_y = -scene_y  # Y-axis flip for Qt coords.
 
         self._cursor_x = cad_x
         self._cursor_y = cad_y
@@ -581,6 +584,53 @@ class CadScene(QWidget):
         self._tagged_items.clear()
         self._item_tags.clear()
 
+    def hasAllTags(self, item: QGraphicsItem, tags: List[str]) -> bool:
+        """
+        Check if an item has all specified tags.
+
+        Args:
+            item: The QGraphicsItem to check
+            tags: List of tag strings to verify
+
+        Returns:
+            True if the item has all specified tags, False otherwise
+        """
+        if not tags:
+            return True
+        if item not in self._item_tags:
+            return False
+        if tags[0] not in self._tagged_items:
+            return False
+
+        # Check if item has all tags
+        for tag in tags:
+            if tag not in self._item_tags.get(item, []):
+                return False
+        return True
+
+    def hasAnyTags(self, item: QGraphicsItem, tags: List[str]) -> bool:
+        """
+        Check if an item has all specified tags.
+
+        Args:
+            item: The QGraphicsItem to check
+            tags: List of tag strings to verify
+
+        Returns:
+            True if the item has all specified tags, False otherwise
+        """
+        if not tags:
+            return False
+        if item not in self._item_tags:
+            return False
+
+        # Check if item has any tags
+        for tag in tags:
+            if tag in self._tagged_items:
+                if item in self._tagged_items[tag]:
+                    return True
+        return False
+
     def getItemsByTags(self, tags: List[str],
                        all: bool = True) -> List[QGraphicsItem]:
         """
@@ -698,10 +748,14 @@ class CadScene(QWidget):
 
         return len(items_to_scale)
 
-    def rotateItemsByTags(self, tags: List[str], angle: float,
-                          origin_x: Optional[float] = None,
-                          origin_y: Optional[float] = None,
-                          all: bool = True) -> int:
+    def rotateItemsByTags(
+            self,
+            tags: List[str],
+            angle: float,
+            origin_x: Optional[float] = None,
+            origin_y: Optional[float] = None,
+            all: bool = True
+    ) -> int:
         """
         Rotate all graphics items that have the specified tags.
 
@@ -737,8 +791,12 @@ class CadScene(QWidget):
 
         return len(items_to_rotate)
 
-    def transformItemsByTags(self, tags: List[str], transform: QTransform,
-                             all: bool = True) -> int:
+    def transformItemsByTags(
+            self,
+            tags: List[str],
+            transform: QTransform,
+            all: bool = True
+    ) -> int:
         """
         Apply a QTransform transformation matrix to all graphics items that
         have the specified tags.
@@ -786,6 +844,165 @@ class CadScene(QWidget):
             item.setTransform(transform)
 
         return len(items_to_transform)
+
+    def hideItemsByTags(
+            self,
+            tags: List[str],
+            all: bool = True
+    ) -> List[QGraphicsItem]:
+        """
+        Hide all graphics items that have the specified tags.
+
+        Args:
+            tags: List of tag strings that items must have
+            all: If True, items must have ALL tags; if False, items need
+                 ANY tag
+
+        Returns:
+            List of QGraphicsItem that were hidden
+        """
+        # Find all items that have the specified tags
+        items_to_hide = self.getItemsByTags(tags, all=all)
+
+        # Hide each item by setting visibility to False
+        for item in items_to_hide:
+            item.setVisible(False)
+
+        return items_to_hide
+
+    def showItemsByTags(
+            self,
+            tags: List[str],
+            all: bool = True
+    ) -> List[QGraphicsItem]:
+        """
+        Show all graphics items that have the specified tags.
+
+        Args:
+            tags: List of tag strings that items must have
+            all: If True, items must have ALL tags; if False, items need
+                 ANY tag
+
+        Returns:
+            List of QGraphicsItem that were hidden
+        """
+        # Find all items that have the specified tags
+        items_to_show = self.getItemsByTags(tags, all=all)
+
+        # Show each item by setting visibility to True
+        for item in items_to_show:
+            item.setVisible(True)
+
+        return items_to_show
+
+    def tagAsControlPoint(
+            self,
+            items: List[QGraphicsItem],
+            obj: Optional[CADObject] = None,
+            node: Optional[int] = None
+    ):
+        """
+        Add control point tags to an item.
+
+        Args:
+            item: The QGraphicsItem to tag as a control point
+        """
+        for item in items:
+            self.addTag(item, "CP")
+            self.addTag(item, "Construction")
+            if obj:
+                self.addTag(item, f"Obj_{obj.object_id}")
+            if node is not None:
+                self.addTag(item, f"Node_{node}")
+
+    def tagAsControlLine(
+            self,
+            items: List[QGraphicsItem],
+            obj: Optional[CADObject] = None
+    ):
+        """
+        Add control point tags to an item.
+
+        Args:
+            item: The QGraphicsItem to tag as a control point
+        """
+        for item in items:
+            self.addTag(item, "CL")
+            self.addTag(item, "Construction")
+            if obj:
+                self.addTag(item, f"Obj_{obj.object_id}")
+
+    def tagAsObject(
+            self,
+            obj: CADObject,
+            items: List[QGraphicsItem]
+    ):
+        """
+        Add "Actual" tags to an item.  This is used to mark items that
+        represent actual geometry in the scene, as opposed to construction
+        lines or other temporary items.
+        This is useful for distinguishing between visible geometry and
+        construction lines or other temporary items.
+        This method adds the "Actual", "Geometry", "Visible", and
+
+        Args:
+            item: The QGraphicsItem to tag as actual geometry
+        """
+        for item in items:
+            self.addTag(item, "Actual")
+            self.addTag(item, f"Obj_{obj.object_id}")
+
+    def itemsNearPoint(
+            self,
+            point: QPointF,
+            radius: float = 5.0,
+            tags: Optional[List[str]] = None,
+            all: bool = True,
+            use_scene: bool = False
+    ) -> List[QGraphicsItem]:
+        """
+        Find all objects near a point within a specified radius.
+
+        Args:
+            point: QPointF representing the center point to search around
+            radius: Search radius in CAD coordinates
+            tags: Optional list of tag strings that items must have
+            all: If True, items must have ALL tags; if False, items need
+                 ANY tag
+
+        Returns:
+            List of QGraphicsItem that are near the specified point
+        """
+        if not use_scene:
+            # If using view coordinates, convert point to scene coordinates
+            if isinstance(point, QPointF):
+                point = self.canvas.mapToScene(point.toPoint())
+            else:
+                point = self.canvas.mapToScene(point)
+        hit_box = QRectF(
+            point.x() - radius, point.y() - radius,
+            radius * 2, radius * 2
+        )
+        hit_box_item = QGraphicsRectItem(hit_box)
+        hit_box_item.setVisible(False)  # Invisible item for collision test
+
+        mode = Qt.ItemSelectionMode.IntersectsItemShape
+        items = self.scene.items(hit_box, mode=mode)
+
+        nearby_items = []
+        for item in items:
+            if (
+                item.isVisible() and
+                item.boundingRect().intersects(hit_box) and
+                item.collidesWithItem(hit_box_item, mode=mode)
+            ):
+                if (
+                    not tags or
+                    (all and self.hasAllTags(item, tags)) or
+                    (not all and self.hasAnyTags(item, tags))
+                ):
+                    nearby_items.append(item)
+        return nearby_items
 
     # Graphics item creation methods with direct CAD coordinates
     def addItem(
@@ -1124,6 +1341,7 @@ class CadScene(QWidget):
         # Update rulers when view position changes
         if hasattr(self, 'ruler_manager') and self.ruler_manager:
             self.ruler_manager.update_rulers()
-        
+
         # Note: Grid doesn't need to be redrawn on scroll/pan, only on zoom
-        # Grid lines are in scene coordinates and don't change with view position
+        # Grid lines are in scene coordinates and don't change with view
+        # position
