@@ -87,8 +87,10 @@ class LineMPObject(CADObject):
 
     def _update_coords(self):
         """Update the full line coordinates after field changes"""
-        extended_x = (self.endpoint.x - self.midpoint.x) * 2.0 + self.midpoint.x
-        extended_y = (self.endpoint.y - self.midpoint.y) * 2.0 + self.midpoint.y
+        extended_x = (self.endpoint.x - self.midpoint.x) * \
+            2.0 + self.midpoint.x
+        extended_y = (self.endpoint.y - self.midpoint.y) * \
+            2.0 + self.midpoint.y
         extended_point = Point(extended_x, extended_y)
         self.coords = [self.midpoint, extended_point]
 

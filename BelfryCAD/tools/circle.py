@@ -191,7 +191,8 @@ class Circle3PTObject(CADObject):
         p1, p2, p3 = self.point1, self.point2, self.point3
 
         # Check if points are collinear
-        col = p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)
+        col = p1.x * (p2.y - p3.y) + p2.x * \
+            (p3.y - p1.y) + p3.x * (p1.y - p2.y)
 
         if abs(col) < 1e-6:
             # Points are collinear - this becomes a line
@@ -315,7 +316,8 @@ class Circle2PTTool(Tool):
             from PySide6.QtGui import QPen, Qt
 
             ellipse_item = QGraphicsEllipseItem(
-                QRectF(center_x - radius, center_y - radius, 2 * radius, 2 * radius)
+                QRectF(center_x - radius, center_y -
+                       radius, 2 * radius, 2 * radius)
             )
             pen = QPen()
             pen.setColor("blue")
@@ -390,7 +392,8 @@ class Circle3PTTool(Tool):
             if len(self.points) == 1:
                 self.draw_preview([self.points[0], current_point])
             elif len(self.points) == 2:
-                self.draw_preview([self.points[0], self.points[1], current_point])
+                self.draw_preview(
+                    [self.points[0], self.points[1], current_point])
 
     def draw_preview(self, points):
         """Draw preview of the circle"""
@@ -404,7 +407,8 @@ class Circle3PTTool(Tool):
             p1, p2, p3 = points
 
             # Check if collinear
-            col = p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)
+            col = p1.x * (p2.y - p3.y) + p2.x * \
+                (p3.y - p1.y) + p3.x * (p1.y - p2.y)
             if abs(col) < 1e-6:
                 # Draw line preview for collinear points
                 from PySide6.QtWidgets import QGraphicsLineItem

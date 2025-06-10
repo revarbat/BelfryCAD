@@ -447,14 +447,18 @@ class LayerWindow(QWidget):
 
         # New layer button
         self.new_button = QPushButton()
+        self.new_button.setIcon(QIcon("images/layer-new.svg"))
         self.new_button.setFixedSize(24, 24)
+        self.new_button.setFlat(True)
         self.new_button.setToolTip("Create New Layer")
         self.new_button.clicked.connect(self._create_new_layer)
         button_layout.addWidget(self.new_button)
 
         # Delete layer button
         self.delete_button = QPushButton()
+        self.delete_button.setIcon(QIcon("images/layer-delete.svg"))
         self.delete_button.setFixedSize(24, 24)
+        self.delete_button.setFlat(True)
         self.delete_button.setToolTip("Delete Current Layer")
         self.delete_button.clicked.connect(self._delete_current_layer)
         button_layout.addWidget(self.delete_button)
@@ -468,40 +472,34 @@ class LayerWindow(QWidget):
         icons = {}
         try:
             for key, filename, text in [
-                ('visible', 'layer-visible.gif', '👁'),
-                ('invisible', 'layer-invisible.gif', '🕶️'),
-                ('lock', 'layer-locked.gif', '🔒'),
-                ('unlock', 'layer-unlocked.gif', '🔓'),
-                ('cam', 'layer-cam.gif', '⚙'),
-                ('nocam', 'layer-nocam.gif', ' '),
-                ('new', 'layer-new.gif', '+'),
-                ('delete', 'layer-delete.gif', '-')
+                ('visible', 'layer-visible.svg', '👁'),
+                ('invisible', 'layer-invisible.svg', '🕶️'),
+                ('lock', 'layer-locked.svg', '🔒'),
+                ('unlock', 'layer-unlocked.svg', '🔓'),
+                ('cam', 'layer-cam.svg', '⚙'),
+                ('nocam', 'layer-nocam.svg', ' '),
             ]:
-                # For now, we'll use simple colored pixmaps as placeholders
                 # Try to load actual icon file first, fallback to pixmap
                 try:
-                    icons[key] = QIcon(f"images/layer-{filename}.gif")
-                    icons[key].setToolTip(f"{key} {text.capitalize()}")
+                    icons[key] = QIcon(f"images/{filename}")
                     if icons[key].isNull():
                         raise FileNotFoundError()
                 except (FileNotFoundError, OSError):
                     icons[key] = self._create_icon_pixmap(
                         Qt.GlobalColor.green, text)
-                    icons[key].setToolTip(f"{key} {text.capitalize()}")
         except Exception as e:
             print(f"Warning: Could not load layer icons: {e}")
             # Create empty icons as fallback
             for key in [
                 'visible', 'invisible', 'lock', 'unlock',
-                'cam', 'nocam', 'new', 'delete'
+                'cam', 'nocam'
             ]:
                 icons[key] = QIcon()
 
         layerwin_info.set_icons(self.base_id, icons)
 
-        # Set button icons
-        self.new_button.setIcon(icons['new'])
-        self.delete_button.setIcon(icons['delete'])
+        # Note: Button icons are already set in _setup_ui() using SVG files
+        # Don't override them here with fallback icons
 
     def _create_icon_pixmap(
         self, color: Qt.GlobalColor, text: str = ""

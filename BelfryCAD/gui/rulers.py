@@ -174,7 +174,7 @@ class RulerWidget(QWidget):
         return out
 
     def get_grid_info(self) -> \
-            Tuple[float, float, float, float, float, str, str, float]:
+            Tuple[float, float, float, float, float, str, Callable, float]:
         """
         Get grid information from the canvas using dynamic TCL-compatible
         logic.
@@ -197,7 +197,7 @@ class RulerWidget(QWidget):
         unittype = "Inches"
         isfract = True  # Fractions vs decimal
         conversion = 1.0  # Conversion factor
-        abbrev = '"'
+        # abbrev = '"'
 
         # Set format function based on fractions preference
         if isfract:
@@ -269,9 +269,11 @@ class RulerWidget(QWidget):
             elif unittype == "Meters":
                 unit = "m"
 
-        # Calculate scale multiplier
-        scalemult = dpi * scalefactor / conversion
-
+        # Calculate scale multiplier - this is the key issue!
+        # Scene coordinates are already in CAD units, so we don't need DPI scaling
+        # scalemult should represent pixels per CAD unit for tick spacing calculations
+        scalemult = self.dpi * self.scale_factor / conversion # Remove DPI from calculation
+        
         # Initialize spacing values
         minorspacing = 0
         majorspacing = 0
@@ -279,19 +281,37 @@ class RulerWidget(QWidget):
         labelspacing = 0
 
         # Find appropriate spacing values based on pixel thresholds
+        # We want spacing to appear as reasonable pixel distances on screen
         for val in significants:
-            if minorspacing == 0 and scalemult * val >= 8.0:
+            pixel_spacing = scalemult * val
+            
+            if minorspacing == 0 and pixel_spacing >= 8.0:
                 minorspacing = val
-            if labelspacing == 0 and scalemult * val >= 30.0:
+            if labelspacing == 0 and pixel_spacing >= 30.0:
                 labelspacing = val
-            if majorspacing == 0 and minorspacing != 0 and val / minorspacing > 2.99:
+            if (
+                majorspacing == 0 and
+                minorspacing != 0 and
+                val / minorspacing > 2.99
+            ):
                 majorspacing = val
-            if superspacing == 0 and majorspacing != 0 and val / majorspacing > 1.99:
+            if (
+                superspacing == 0 and
+                majorspacing != 0 and
+                val / majorspacing > 1.99
+            ):
                 superspacing = val
                 break
 
+        # Fallback if no appropriate spacing was found
+        if minorspacing == 0:
+            minorspacing = 1.0  # 1 unit spacing as fallback
+            majorspacing = 5.0
+            superspacing = 10.0
+            labelspacing = 10.0
+
         # Adjust labelspacing if it would be too dense
-        while labelspacing * scalemult > 100.0:
+        while labelspacing > 0 and scalemult * labelspacing > 100.0:
             labelspacing = labelspacing / 2.0
 
         return (minorspacing, majorspacing, superspacing, labelspacing,
@@ -319,6 +339,10 @@ class RulerWidget(QWidget):
         self.scale_factor = scale_factor
         self.update()
 
+    def is_divisible(self, x, y, epsilon=1e-6):
+        val = float(x) / float(y)
+        return math.fabs(round(val) - val) <= epsilon
+
     def paintEvent(self, event):
         """Paint the ruler widget."""
         painter = QPainter(self)
@@ -340,16 +364,27 @@ class RulerWidget(QWidget):
 
         # Get visible area of canvas in scene coordinates
         if self.canvas and self.canvas.scene():
-            scene_rect = self.canvas.mapToScene(
-                self.canvas.viewport().rect()
-                ).boundingRect()
-            srx0 = scene_rect.left()
-            sry0 = scene_rect.top()
-            srx1 = scene_rect.right()
-            sry1 = scene_rect.bottom()
+            # Get the viewport rectangle in view coordinates
+            view_rect = self.canvas.viewport().rect()
+            
+            # Map viewport corners to scene coordinates
+            top_left = self.canvas.mapToScene(view_rect.topLeft())
+            bottom_right = self.canvas.mapToScene(view_rect.bottomRight())
+            
+            # Extract scene bounds (accounting for Y-axis flip in CAD coordinates)
+            srx0 = top_left.x()
+            sry0 = top_left.y()
+            srx1 = bottom_right.x()
+            sry1 = bottom_right.y()
         else:
+            painter.end()
             return  # No canvas available, skip drawing
 
+        # minorspacing *= scalemult
+        # majorspacing *= scalemult
+        # superspacing *= scalemult
+        # labelspacing *= scalemult
+        
         # Set up drawing tools
         painter.setFont(self.ruler_font)
         tick_pen = QPen(self.ruler_fg)
@@ -359,61 +394,73 @@ class RulerWidget(QWidget):
             self._draw_vertical_ruler(
                 painter, QRectF(rect), scalemult, srx0, sry0, srx1, sry1,
                 minorspacing, majorspacing, labelspacing,
-                divisor, units, formatfunc, tick_pen, text_pen)
+                divisor, formatfunc, units, tick_pen, text_pen)
         else:
             self._draw_horizontal_ruler(
                 painter, QRectF(rect), scalemult, srx0, sry0, srx1, sry1,
                 minorspacing, majorspacing, labelspacing,
-                divisor, units, formatfunc, tick_pen, text_pen)
+                divisor, formatfunc, units, tick_pen, text_pen)
 
         # Draw position indicator
         self._draw_position_indicator(
             painter, QRectF(rect), scalemult, srx0, sry0)
 
+        painter.end()
+        
     def _draw_vertical_ruler(
             self, painter: QPainter, rect: QRectF, scalemult: float,
             srx0: float, sry0: float, srx1: float, sry1: float,
             minorspacing: float, majorspacing: float, labelspacing: float,
-            divisor: float, units: str, formatfunc: Callable,
+            divisor: float, formatfunc: Callable, units: str,
             tick_pen: QPen, text_pen: QPen
     ):
         """Draw vertical ruler ticks and labels."""
-        ystart = sry0 / scalemult
-        yend = sry1 / scalemult
-
+        # Convert scene bounds to CAD coordinates for tick calculation
+        # Fix the same DPI issue as horizontal ruler
+        ystart = sry1  # Bottom of view in scene coordinates (CAD units)  
+        yend = sry0    # Top of view in scene coordinates (CAD units)
+        
+        # Draw border lines
         bw = math.floor(rect.width() - 1 + 0.5)
         bh = math.floor(rect.height() + 0.5)
-
-        # Draw border line
         painter.setPen(tick_pen)
         painter.drawLine(int(bw), 0, int(bw), int(bh))
         painter.drawLine(int(bw), int(bh), 0, int(bh))
         painter.drawLine(0, int(bh), 0, 0)
 
-        # Draw tick marks
-        ys = math.floor(ystart / minorspacing + 1e-6) * minorspacing
-        while ys <= yend:
-            ypos = -scalemult * ys - sry0
+        # Ensure we have valid spacing
+        if minorspacing <= 0:
+            minorspacing = max(1.0, abs(yend - ystart) / 20)
 
-            # Convert to widget coordinates
-            widget_y = ypos
+        # Draw tick marks
+        tick_count = 0
+        ys = math.floor(ystart / minorspacing) * minorspacing
+        
+        while ys <= yend and tick_count < 1000:  # Safety limit
+            # Convert CAD Y coordinate to widget Y coordinate
+            # Direct mapping - scene coords are already in CAD units
+            widget_y = -scalemult * (ys - sry0)
+
             if 0 <= widget_y <= rect.height():
-                # Determine tick length based on spacing
-                if abs(math.floor(ys / labelspacing + 1e-6) - ys / labelspacing) < 1e-3:
+                # Determine tick length and draw based on spacing level
+                if abs(ys) < 1e-10 or self.is_divisible(ys, labelspacing):
                     # Major tick with label
                     ticklen = 6
                     xpos = rect.width() - ticklen - 1
 
                     # Format and draw label
-                    majortext = formatfunc(ys / divisor, units)
-                    majortext = majortext.strip()
-                    painter.setPen(text_pen)
-                    painter.drawText(
-                        int(xpos - 30), int(widget_y - 5), 30, 10,
-                        (Qt.AlignmentFlag.AlignRight |
-                         Qt.AlignmentFlag.AlignVCenter),
-                        majortext)
-                elif abs(math.floor(ys / majorspacing + 1e-6) - ys / majorspacing) < 1e-3:
+                    try:
+                        majortext = formatfunc(ys / divisor, units)
+                        majortext = majortext.strip()
+                        painter.setPen(text_pen)
+                        painter.drawText(
+                            int(xpos - 30), int(widget_y - 5), 30, 10,
+                            (Qt.AlignmentFlag.AlignRight |
+                             Qt.AlignmentFlag.AlignVCenter),
+                            majortext)
+                    except Exception as e:
+                        print(f"  Error formatting label for {ys}: {e}")
+                elif self.is_divisible(ys, majorspacing):
                     # Medium tick
                     ticklen = 4
                 else:
@@ -423,7 +470,11 @@ class RulerWidget(QWidget):
                 # Draw tick mark
                 xpos = rect.width() - ticklen
                 painter.setPen(tick_pen)
-                painter.drawLine(int(rect.width()), int(widget_y), int(xpos), int(widget_y))
+                painter.drawLine(
+                    int(rect.width()), int(widget_y),
+                    int(xpos), int(widget_y)
+                )
+                tick_count += 1
 
             ys += minorspacing
 
@@ -431,14 +482,16 @@ class RulerWidget(QWidget):
             self, painter: QPainter, rect: QRectF, scalemult: float,
             srx0: float, sry0: float, srx1: float, sry1: float,
             minorspacing: float, majorspacing: float, labelspacing: float,
-            divisor: float, units: str, formatfunc: Callable,
+            divisor: float, formatfunc: Callable, units: str,
             tick_pen: QPen, text_pen: QPen
     ):
         """Draw horizontal ruler ticks and labels."""
-        xstart = srx0 / scalemult
-        xend = srx1 / scalemult
+        # Convert scene bounds to CAD coordinates for tick calculation
+        # The issue is here - we need to account for the DPI scaling correctly
+        xstart = srx0  # Scene coordinates are already in CAD units
+        xend = srx1    # Scene coordinates are already in CAD units
 
-        # Draw border line
+        # Draw border lines
         painter.setPen(tick_pen)
         painter.drawLine(0, int(rect.height() - 1), int(rect.width()),
                          int(rect.height() - 1))
@@ -446,30 +499,39 @@ class RulerWidget(QWidget):
                          int(rect.width()), 0)
         painter.drawLine(int(rect.width()), 0, 0, 0)
 
-        # Draw tick marks
-        xs = math.floor(xstart / minorspacing + 1e-6) * minorspacing
-        while xs <= xend:
-            xpos = scalemult * xs - srx0
+        # Ensure we have valid spacing
+        if minorspacing <= 0:
+            minorspacing = max(1.0, (xend - xstart) / 20)
 
-            # Convert to widget coordinates
-            widget_x = xpos
+        # Draw tick marks with more robust iteration
+        tick_count = 0
+        xs = math.floor(xstart / minorspacing) * minorspacing
+        
+        while xs <= xend and tick_count < 1000:  # Safety limit
+            # Convert CAD X coordinate to widget X coordinate
+            # Use direct pixel mapping - scene coords map to pixels 1:1
+            widget_x = scalemult * (xs - srx0)
+
             if 0 <= widget_x <= rect.width():
-                # Determine tick length based on spacing
-                if abs(math.floor(xs / labelspacing + 1e-6) - xs / labelspacing) < 1e-3:
+                # Determine tick length and draw based on spacing level
+                if abs(xs) < 1e-10 or self.is_divisible(xs, labelspacing):
                     # Major tick with label
                     ticklen = 6
                     ypos = rect.height() - ticklen
 
                     # Format and draw label
-                    majortext = formatfunc(xs / divisor, units)
-                    majortext = majortext.strip()
-                    painter.setPen(text_pen)
-                    painter.drawText(
-                        int(widget_x - 15), int(ypos - 15), 30, 15,
-                        (Qt.AlignmentFlag.AlignCenter |
-                         Qt.AlignmentFlag.AlignBottom),
-                        majortext)
-                elif abs(math.floor(xs / majorspacing + 1e-6) - xs / majorspacing) < 1e-3:
+                    try:
+                        majortext = formatfunc(xs / divisor, units)
+                        majortext = majortext.strip()
+                        painter.setPen(text_pen)
+                        painter.drawText(
+                            int(widget_x - 15), int(ypos - 15), 30, 15,
+                            (Qt.AlignmentFlag.AlignCenter |
+                             Qt.AlignmentFlag.AlignBottom),
+                            majortext)
+                    except Exception as e:
+                        print(f"  Error formatting label for {xs}: {e}")
+                elif self.is_divisible(xs, majorspacing):
                     # Medium tick
                     ticklen = 4
                 else:
@@ -480,7 +542,10 @@ class RulerWidget(QWidget):
                 ypos = rect.height() - ticklen
                 painter.setPen(tick_pen)
                 painter.drawLine(
-                    int(widget_x), int(rect.height()), int(widget_x), int(ypos))
+                    int(widget_x), int(rect.height()),
+                    int(widget_x), int(ypos)
+                )
+                tick_count += 1
 
             xs += minorspacing
 
@@ -493,25 +558,23 @@ class RulerWidget(QWidget):
 
         if self.orientation == "vertical":
             # For vertical ruler, convert scene Y position to widget coordinates
-            # Use the same transformation as the visible scene area
-            if self.canvas and self.canvas.scene():
-                # Map the position from scene coordinates to widget coordinates
-                scene_point = self.canvas.mapFromScene(0, self.position)
-                widget_y = scene_point.y()
-                if 0 <= widget_y <= rect.height():
-                    painter.drawLine(0, int(widget_y), int(rect.width()), int(widget_y))
+            # Map scene position to view coordinates, then to widget coordinates
+            scene_y = self.position
+            widget_y = -scalemult * scene_y - sry0
+            
+            if 0 <= widget_y <= rect.height():
+                painter.drawLine(0, int(widget_y), int(rect.width()), int(widget_y))
         else:
             # For horizontal ruler, convert scene X position to widget coordinates
-            if self.canvas and self.canvas.scene():
-                # Map the position from scene coordinates to widget coordinates
-                scene_point = self.canvas.mapFromScene(self.position, 0)
-                widget_x = scene_point.x()
-                if 0 <= widget_x <= rect.width():
-                    painter.drawLine(int(widget_x), 0, int(widget_x), int(rect.height()))
+            scene_x = self.position
+            widget_x = scalemult * scene_x - srx0
+            
+            if 0 <= widget_x <= rect.width():
+                painter.drawLine(int(widget_x), 0, int(widget_x), int(rect.height()))
 
     def update_mouse_position(self, pos: float):
         """
-        Update the mouse position indicator (translated from ruler_update_mousepos).
+        Update the mouse position indicator.
 
         Args:
             pos: The position in scene coordinates
@@ -596,5 +659,11 @@ class RulerManager:
 
     def update_rulers(self):
         """Force update of both rulers."""
+        self.horizontal_ruler.update()
+        self.vertical_ruler.update()
+
+    def update_rulers_on_view_change(self):
+        """Update rulers when view position or zoom changes."""
+        # Update both rulers to reflect current view position
         self.horizontal_ruler.update()
         self.vertical_ruler.update()

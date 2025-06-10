@@ -9,8 +9,7 @@ progwin.tcl functionality.
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QProgressBar, QApplication, QWidget
 )
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, Signal
 
 from typing import Optional
 import time
@@ -34,9 +33,14 @@ class ProgressWindow(QDialog):
     """
 
     # Signals
-    cancelled = Signal()  # Emitted if user tries to close (though it's blocked)
+    cancelled = Signal()  # Emitted if user tries to close (blocked
 
-    def __init__(self, title: str, caption: str, parent: Optional[QWidget] = None):
+    def __init__(
+            self,
+            title: str,
+            caption: str,
+            parent: Optional[QWidget] = None
+    ):
         """
         Initialize the progress window.
 
@@ -67,7 +71,7 @@ class ProgressWindow(QDialog):
 
         # Create caption label
         self.caption_label = QLabel(self.caption)
-        self.caption_label.setAlignment(Qt.AlignLeft)
+        self.caption_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(self.caption_label)
 
         # Create progress bar
@@ -102,9 +106,9 @@ class ProgressWindow(QDialog):
 
         # Disable close button functionality (like the original TCL version)
         self.setWindowFlags(
-            Qt.Dialog |
-            Qt.WindowTitleHint |
-            Qt.CustomizeWindowHint
+            Qt.WindowType.Dialog |
+            Qt.WindowType.WindowTitleHint |
+            Qt.WindowType.CustomizeWindowHint
         )
 
         # Show and raise the window
@@ -115,7 +119,9 @@ class ProgressWindow(QDialog):
         QApplication.processEvents()
 
     def closeEvent(self, event):
-        """Override close event to prevent closing (like original TCL version)."""
+        """
+        Override close event to prevent closing (like original TCL version).
+        """
         # In the original TCL, WM_DELETE_WINDOW was set to "string tolower 0"
         # which effectively prevents closing. We'll ignore the close event.
         event.ignore()
@@ -186,7 +192,7 @@ class ProgressWindow(QDialog):
 
 
 def create_progress_window(title: str, caption: str,
-                         parent: Optional[QWidget] = None) -> ProgressWindow:
+                           parent: Optional[QWidget] = None) -> ProgressWindow:
     """
     Create and return a new progress window.
 
@@ -237,7 +243,12 @@ class ProgressContext:
                 time.sleep(0.1)
     """
 
-    def __init__(self, title: str, caption: str, parent: Optional[QWidget] = None):
+    def __init__(
+            self,
+            title: str,
+            caption: str,
+            parent: Optional[QWidget] = None
+    ):
         """
         Initialize progress context.
 
@@ -253,7 +264,8 @@ class ProgressContext:
 
     def __enter__(self) -> 'ProgressContext':
         """Enter context - create progress window."""
-        self.window = create_progress_window(self.title, self.caption, self.parent)
+        self.window = create_progress_window(
+            self.title, self.caption, self.parent)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -287,9 +299,10 @@ class ProgressContext:
 if __name__ == "__main__":
     """Test the progress window independently."""
     import sys
-    from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget
+    from PySide6.QtWidgets import (
+        QMainWindow, QPushButton, QWidget
+    )
     import threading
-    import time
 
     class TestWindow(QMainWindow):
         def __init__(self):
@@ -315,7 +328,8 @@ if __name__ == "__main__":
 
         def test_progress(self):
             """Test basic progress window functionality."""
-            progress = create_progress_window("Test Progress", "Processing items...")
+            progress = create_progress_window(
+                "Test Progress", "Processing items...")
 
             def update_progress():
                 for i in range(101):
@@ -331,7 +345,9 @@ if __name__ == "__main__":
         def test_context(self):
             """Test progress context manager."""
             def run_with_context():
-                with ProgressContext("Context Test", "Using context manager...") as progress:
+                with ProgressContext(
+                    "Context Test", "Using context manager..."
+                ) as progress:
                     for i in range(101):
                         progress.update(100, i)
                         if i == 50:

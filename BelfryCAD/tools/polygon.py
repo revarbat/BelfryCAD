@@ -615,7 +615,8 @@ class RegularPolygonTool(Tool):
 
                 # Add side count and radius text
                 radius_text_item = QGraphicsTextItem(f"R={radius:.1f}")
-                radius_text_item.setPos((center.x + point.x) / 2, (center.y + point.y) / 2)
+                radius_text_item.setPos(
+                    (center.x + point.x) / 2, (center.y + point.y) / 2)
                 radius_text_item.setDefaultTextColor("blue")
                 self.scene.addItem(radius_text_item)
                 self.temp_objects.append(radius_text_item)

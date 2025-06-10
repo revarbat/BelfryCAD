@@ -5,16 +5,16 @@ This module implements the main menu bar functionality, translated from the
 original TCL mainmenu.tcl implementation.
 """
 
-from PySide6.QtWidgets import QMenuBar, QMenu
-from PySide6.QtCore import QObject, Signal, Qt
-from PySide6.QtGui import QKeySequence, QActionGroup, QAction
-from typing import Optional, List, Dict, Any
+from PySide6.QtWidgets import QMenu
+from PySide6.QtCore import QObject, Signal
+from PySide6.QtGui import QKeySequence, QAction
 
 
 class RecentFilesManager(QObject):
     """Manages the recent files menu and functionality."""
 
-    file_selected = Signal(str)  # Signal emitted when a recent file is selected
+    # Signal emitted when a recent file is selected
+    file_selected = Signal(str)
 
     def __init__(self, preferences, parent=None):
         super().__init__(parent)
@@ -180,7 +180,8 @@ class MainMenuBar(QObject):
 
         # Initialize recent files manager
         self.recent_files_manager = RecentFilesManager(preferences, self)
-        self.recent_files_manager.file_selected.connect(self._handle_recent_file)
+        self.recent_files_manager.file_selected.connect(
+            self._handle_recent_file)
 
         # Store references to checkable actions
         self.show_origin_action = None
@@ -208,13 +209,13 @@ class MainMenuBar(QObject):
 
         # New
         new_action = QAction("&New", self.parent_window)
-        new_action.setShortcut(QKeySequence.New)
+        new_action.setShortcut(QKeySequence.StandardKey.New)
         new_action.triggered.connect(self.new_triggered.emit)
         file_menu.addAction(new_action)
 
         # Open
         open_action = QAction("&Open...", self.parent_window)
-        open_action.setShortcut(QKeySequence.Open)
+        open_action.setShortcut(QKeySequence.StandardKey.Open)
         open_action.triggered.connect(self.open_triggered.emit)
         file_menu.addAction(open_action)
 
@@ -226,19 +227,19 @@ class MainMenuBar(QObject):
 
         # Close
         close_action = QAction("&Close", self.parent_window)
-        close_action.setShortcut(QKeySequence.Close)
+        close_action.setShortcut(QKeySequence.StandardKey.Close)
         close_action.triggered.connect(self.close_triggered.emit)
         file_menu.addAction(close_action)
 
         # Save
         save_action = QAction("&Save", self.parent_window)
-        save_action.setShortcut(QKeySequence.Save)
+        save_action.setShortcut(QKeySequence.StandardKey.Save)
         save_action.triggered.connect(self.save_triggered.emit)
         file_menu.addAction(save_action)
 
         # Save As
         save_as_action = QAction("Save &As...", self.parent_window)
-        save_as_action.setShortcut(QKeySequence.SaveAs)
+        save_as_action.setShortcut(QKeySequence.StandardKey.SaveAs)
         save_as_action.triggered.connect(self.save_as_triggered.emit)
         file_menu.addAction(save_as_action)
 
@@ -266,7 +267,7 @@ class MainMenuBar(QObject):
 
         # Print
         print_action = QAction("&Print...", self.parent_window)
-        print_action.setShortcut(QKeySequence.Print)
+        print_action.setShortcut(QKeySequence.StandardKey.Print)
         print_action.triggered.connect(self.print_triggered.emit)
         file_menu.addAction(print_action)
 
@@ -276,13 +277,13 @@ class MainMenuBar(QObject):
 
         # Undo
         undo_action = QAction("&Undo", self.parent_window)
-        undo_action.setShortcut(QKeySequence.Undo)
+        undo_action.setShortcut(QKeySequence.StandardKey.Undo)
         undo_action.triggered.connect(self.undo_triggered.emit)
         edit_menu.addAction(undo_action)
 
         # Redo
         redo_action = QAction("&Redo", self.parent_window)
-        redo_action.setShortcut(QKeySequence.Redo)
+        redo_action.setShortcut(QKeySequence.StandardKey.Redo)
         redo_action.triggered.connect(self.redo_triggered.emit)
         edit_menu.addAction(redo_action)
 
@@ -290,19 +291,19 @@ class MainMenuBar(QObject):
 
         # Cut
         cut_action = QAction("Cu&t", self.parent_window)
-        cut_action.setShortcut(QKeySequence.Cut)
+        cut_action.setShortcut(QKeySequence.StandardKey.Cut)
         cut_action.triggered.connect(self.cut_triggered.emit)
         edit_menu.addAction(cut_action)
 
         # Copy
         copy_action = QAction("&Copy", self.parent_window)
-        copy_action.setShortcut(QKeySequence.Copy)
+        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
         copy_action.triggered.connect(self.copy_triggered.emit)
         edit_menu.addAction(copy_action)
 
         # Paste
         paste_action = QAction("&Paste", self.parent_window)
-        paste_action.setShortcut(QKeySequence.Paste)
+        paste_action.setShortcut(QKeySequence.StandardKey.Paste)
         paste_action.triggered.connect(self.paste_triggered.emit)
         edit_menu.addAction(paste_action)
 
@@ -310,13 +311,15 @@ class MainMenuBar(QObject):
 
         # Select All
         select_all_action = QAction("Select &All", self.parent_window)
-        select_all_action.setShortcut(QKeySequence.SelectAll)
+        select_all_action.setShortcut(QKeySequence.StandardKey.SelectAll)
         select_all_action.triggered.connect(self.select_all_triggered.emit)
         edit_menu.addAction(select_all_action)
 
         # Select All Similar
-        select_similar_action = QAction("Select All &Similar", self.parent_window)
-        select_similar_action.triggered.connect(self.select_similar_triggered.emit)
+        select_similar_action = QAction(
+            "Select All &Similar", self.parent_window)
+        select_similar_action.triggered.connect(
+            self.select_similar_triggered.emit)
         edit_menu.addAction(select_similar_action)
 
         # Deselect All
@@ -329,7 +332,7 @@ class MainMenuBar(QObject):
 
         # Clear
         clear_action = QAction("C&lear", self.parent_window)
-        clear_action.setShortcut(QKeySequence.Delete)
+        clear_action.setShortcut(QKeySequence.StandardKey.Delete)
         clear_action.triggered.connect(self.clear_triggered.emit)
         edit_menu.addAction(clear_action)
 
@@ -362,8 +365,10 @@ class MainMenuBar(QObject):
         lower_action.triggered.connect(self.lower_triggered.emit)
         arrange_menu.addAction(lower_action)
 
-        lower_to_bottom_action = QAction("Lower to &Bottom", self.parent_window)
-        lower_to_bottom_action.triggered.connect(self.lower_to_bottom_triggered.emit)
+        lower_to_bottom_action = QAction(
+            "Lower to &Bottom", self.parent_window)
+        lower_to_bottom_action.triggered.connect(
+            self.lower_to_bottom_triggered.emit)
         arrange_menu.addAction(lower_to_bottom_action)
 
         edit_menu.addSeparator()
@@ -393,17 +398,21 @@ class MainMenuBar(QObject):
 
         to_curves_action = QAction("Convert to C&urves", self.parent_window)
         to_curves_action.setShortcut(QKeySequence("Ctrl+B"))
-        to_curves_action.triggered.connect(self.convert_to_curves_triggered.emit)
+        to_curves_action.triggered.connect(
+            self.convert_to_curves_triggered.emit)
         edit_menu.addAction(to_curves_action)
 
-        simplify_curves_action = QAction("&Simplify Curves", self.parent_window)
+        simplify_curves_action = QAction(
+            "&Simplify Curves", self.parent_window)
         simplify_curves_action.setShortcut(QKeySequence("Alt+Ctrl+B"))
-        simplify_curves_action.triggered.connect(self.simplify_curves_triggered.emit)
+        simplify_curves_action.triggered.connect(
+            self.simplify_curves_triggered.emit)
         edit_menu.addAction(simplify_curves_action)
 
         smooth_curves_action = QAction("S&mooth Curves", self.parent_window)
         smooth_curves_action.setShortcut(QKeySequence("Shift+Ctrl+B"))
-        smooth_curves_action.triggered.connect(self.smooth_curves_triggered.emit)
+        smooth_curves_action.triggered.connect(
+            self.smooth_curves_triggered.emit)
         edit_menu.addAction(smooth_curves_action)
 
         join_curves_action = QAction("&Join Curves", self.parent_window)
@@ -412,7 +421,8 @@ class MainMenuBar(QObject):
         edit_menu.addAction(join_curves_action)
 
         vectorize_action = QAction("&Vectorize Bitmap", self.parent_window)
-        vectorize_action.triggered.connect(self.vectorize_bitmap_triggered.emit)
+        vectorize_action.triggered.connect(
+            self.vectorize_bitmap_triggered.emit)
         edit_menu.addAction(vectorize_action)
 
         edit_menu.addSeparator()
@@ -423,14 +433,18 @@ class MainMenuBar(QObject):
         union_action.triggered.connect(self.union_polygons_triggered.emit)
         edit_menu.addAction(union_action)
 
-        difference_action = QAction("&Difference of Polygons", self.parent_window)
+        difference_action = QAction(
+            "&Difference of Polygons", self.parent_window)
         difference_action.setShortcut(QKeySequence("Ctrl+Alt+Ctrl+D"))
-        difference_action.triggered.connect(self.difference_polygons_triggered.emit)
+        difference_action.triggered.connect(
+            self.difference_polygons_triggered.emit)
         edit_menu.addAction(difference_action)
 
-        intersection_action = QAction("&Intersection of Polygons", self.parent_window)
+        intersection_action = QAction(
+            "&Intersection of Polygons", self.parent_window)
         intersection_action.setShortcut(QKeySequence("Alt+Ctrl+I"))
-        intersection_action.triggered.connect(self.intersection_polygons_triggered.emit)
+        intersection_action.triggered.connect(
+            self.intersection_polygons_triggered.emit)
         edit_menu.addAction(intersection_action)
 
     def _create_view_menu(self):
@@ -456,13 +470,13 @@ class MainMenuBar(QObject):
 
         # Zoom In
         zoom_in_action = QAction("Zoom &In", self.parent_window)
-        zoom_in_action.setShortcut(QKeySequence.ZoomIn)
+        zoom_in_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
         zoom_in_action.triggered.connect(self.zoom_in_triggered.emit)
         view_menu.addAction(zoom_in_action)
 
         # Zoom Out
         zoom_out_action = QAction("Zoom &Out", self.parent_window)
-        zoom_out_action.setShortcut(QKeySequence.ZoomOut)
+        zoom_out_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
         zoom_out_action.triggered.connect(self.zoom_out_triggered.emit)
         view_menu.addAction(zoom_out_action)
 
@@ -493,7 +507,8 @@ class MainMenuBar(QObject):
         view_menu.addSeparator()
 
         # Palette visibility controls
-        self.show_info_panel_action = QAction("Show &Info Panel", self.parent_window)
+        self.show_info_panel_action = QAction(
+            "Show &Info Panel", self.parent_window)
         self.show_info_panel_action.setCheckable(True)
         self.show_info_panel_action.setChecked(
             self.preferences.get("show_info_panel", True)
@@ -503,7 +518,8 @@ class MainMenuBar(QObject):
         )
         view_menu.addAction(self.show_info_panel_action)
 
-        self.show_properties_action = QAction("Show &Properties", self.parent_window)
+        self.show_properties_action = QAction(
+            "Show &Properties", self.parent_window)
         self.show_properties_action.setCheckable(True)
         self.show_properties_action.setChecked(
             self.preferences.get("show_properties", True)
@@ -523,7 +539,8 @@ class MainMenuBar(QObject):
         )
         view_menu.addAction(self.show_layers_action)
 
-        self.show_snap_settings_action = QAction("Show &Snap Settings", self.parent_window)
+        self.show_snap_settings_action = QAction(
+            "Show &Snap Settings", self.parent_window)
         self.show_snap_settings_action.setCheckable(True)
         self.show_snap_settings_action.setChecked(
             self.preferences.get("show_snap_settings", False)
@@ -538,15 +555,19 @@ class MainMenuBar(QObject):
         cam_menu = self.menubar.addMenu("&CAM")
 
         # Configure Mill
-        configure_mill_action = QAction("Configure &Mill...", self.parent_window)
-        configure_mill_action.triggered.connect(self.configure_mill_triggered.emit)
+        configure_mill_action = QAction(
+            "Configure &Mill...", self.parent_window)
+        configure_mill_action.triggered.connect(
+            self.configure_mill_triggered.emit)
         cam_menu.addAction(configure_mill_action)
 
         cam_menu.addSeparator()
 
         # Speeds & Feeds Wizard
-        speeds_feeds_action = QAction("&Speeds && Feeds Wizard", self.parent_window)
-        speeds_feeds_action.triggered.connect(self.speeds_feeds_wizard_triggered.emit)
+        speeds_feeds_action = QAction(
+            "&Speeds && Feeds Wizard", self.parent_window)
+        speeds_feeds_action.triggered.connect(
+            self.speeds_feeds_wizard_triggered.emit)
         cam_menu.addAction(speeds_feeds_action)
 
         cam_menu.addSeparator()
@@ -660,7 +681,9 @@ class MainMenuBar(QObject):
             visible = palette_manager.is_palette_visible("snap_window")
             self.show_snap_settings_action.setChecked(visible)
 
-    def set_document_state(self, has_document: bool, is_modified: bool = False):
+    def set_document_state(
+            self, has_document: bool, is_modified: bool = False
+    ):
         """Update menu item states based on document availability."""
         # Find and update document-dependent menu items
         # This would typically enable/disable save, export, etc.

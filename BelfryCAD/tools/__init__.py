@@ -4,7 +4,6 @@ Tools Package
 Provides drawing and editing tools for the pyTkCAD application.
 """
 
-from .base import ToolManager
 from .line import LineTool
 from .linemp import LineMPTool
 from .polyline import PolylineTool
@@ -14,9 +13,13 @@ from .nodeselect import NodeSelectTool
 from .bezier import BezierTool, BezierQuadTool
 from .arcs import ArcCenterTool, Arc3PointTool, ArcTangentTool
 from .conic import Conic2PointTool, Conic3PointTool
-from .ellipse import (EllipseCenterTool, EllipseDiagonalTool,
-                      Ellipse3CornerTool, EllipseCenterTangentTool,
-                      EllipseOppositeTangentTool)
+from .ellipse import (
+    EllipseCenterTool,
+    EllipseDiagonalTool,
+    Ellipse3CornerTool,
+    EllipseCenterTangentTool,
+    EllipseOppositeTangentTool
+)
 from .polygon import RectangleTool, RegularPolygonTool
 from .text import TextTool
 from .point import PointTool

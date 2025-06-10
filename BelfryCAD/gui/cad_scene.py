@@ -59,8 +59,6 @@ class CadScene(QWidget):
         self.document = document
 
         # Initialize drawing context fields directly
-        self.dpi: float = 72.0
-        self.scale_factor: float = 1.0
         self.show_grid: bool = True
         self.show_origin: bool = True
         self.grid_color: str = "#00ffff"
@@ -70,6 +68,10 @@ class CadScene(QWidget):
         # Initialize tagging system
         self._tagged_items = {}  # tag -> [items]
         self._item_tags = {}     # item -> [tags]
+
+        # Initialize cursor position tracking
+        self._cursor_x = 0.0
+        self._cursor_y = 0.0
 
         self._setup_ui()
         self._connect_events()
@@ -99,6 +101,10 @@ class CadScene(QWidget):
 
         # Set drawing manager on canvas for coordinate transformations
         self.canvas.set_drawing_manager(self.drawing_manager)
+
+        # Connect view position changes to ruler updates
+        if hasattr(self.canvas, 'view_position_changed'):
+            self.canvas.view_position_changed.connect(self._on_view_position_changed)
 
         # Create ruler manager
         self.ruler_manager = RulerManager(self.canvas, self)
@@ -139,8 +145,18 @@ class CadScene(QWidget):
         """)
 
         # Initialize grid and axis
-        self._draw_grid_origin(self.dpi, 1.0)
+        self._draw_grid_origin(self.dpi, self.scale_factor)
         self.redraw_grid()
+
+    @property
+    def dpi(self) -> float:
+        """Get DPI from the canvas."""
+        return self.canvas.get_dpi()
+
+    @property
+    def scale_factor(self) -> float:
+        """Get scale factor from the canvas."""
+        return self.canvas.get_scale_factor()
 
     def _connect_events(self):
         """Connect internal events."""
@@ -166,6 +182,9 @@ class CadScene(QWidget):
 
             # Update ruler mouse position indicators
             scene_pos = self.canvas.mapToScene(event.pos())
+            print(f"Debug: Mouse move - scene pos: {scene_pos.x():.4f}, " +
+                  f"{scene_pos.y():.4f}")
+            # Pass scene coordinates directly - update_mouse_position will handle conversion
             self.update_mouse_position(scene_pos.x(), scene_pos.y())
 
         # Replace the mouse move event handler
@@ -188,8 +207,8 @@ class CadScene(QWidget):
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
         return horizontal_ruler.get_grid_info()
 
-    def _draw_grid_origin(self, dpi, linewidth):
-        """Draw origin lines"""
+    def _draw_grid_origin(self, dpi, scale_factor):
+        """Draw origin lines with consistent 1.0 pixel width"""
         # Get scene bounds
         scene_rect = self.scene.sceneRect()
         x0, y0 = scene_rect.left(), scene_rect.top()
@@ -199,11 +218,17 @@ class CadScene(QWidget):
         x_color = self.origin_color_x
         y_color = self.origin_color_y
 
+        # Calculate line width that will be 1.0 pixel after view scaling
+        # The view applies a scaling transform, so we need to compensate
+        view_scale = scale_factor
+        pixel_width = 1.0 / view_scale if view_scale > 0 else 1.0
+
         # Draw X-axis origin line (horizontal)
         y_scene = 0  # Origin Y in CAD coordinates becomes 0 in scene
         if y0 <= y_scene <= y1:  # Origin is visible
             pen = QPen(QColor(x_color))
-            pen.setWidthF(linewidth)
+            pen.setWidthF(pixel_width)
+            pen.setCosmetic(True)  # Maintain constant pixel width
             line_item = self.addLine(x0, y_scene, x1, y_scene, pen)
             line_item.setZValue(-5)  # Behind everything but grid lines
             self.addTags(line_item, [GridTags.GRID_ORIGIN])
@@ -212,7 +237,8 @@ class CadScene(QWidget):
         x_scene = 0  # Origin X in CAD coordinates becomes 0 in scene
         if x0 <= x_scene <= x1:  # Origin is visible
             pen = QPen(QColor(y_color))
-            pen.setWidthF(linewidth)
+            pen.setWidthF(pixel_width)
+            pen.setCosmetic(True)  # Maintain constant pixel width
             line_item = self.addLine(x_scene, y0, x_scene, y1, pen)
             line_item.setZValue(-5)  # Behind everything but grid lines
             self.addTags(line_item, [GridTags.GRID_ORIGIN])
@@ -221,9 +247,9 @@ class CadScene(QWidget):
             self, xstart, xend, ystart, yend,
             minorspacing, majorspacing,
             superspacing, labelspacing, scalemult,
-            linewidth, srx0, srx1, sry0, sry1
+            scale_factor, srx0, srx1, sry0, sry1
     ):
-        """Draw multi-level grid lines"""
+        """Draw multi-level grid lines with consistent 1.0 pixel width"""
 
         def quantize(value, spacing):
             """Quantize value to nearest multiple of spacing"""
@@ -241,6 +267,10 @@ class CadScene(QWidget):
         major_grid_color = Colors.adjust_saturation(super_grid_color, 0.75)
         minor_grid_color = Colors.adjust_saturation(major_grid_color, 0.4)
 
+        # Calculate line width that will be 1.0 pixel after view scaling
+        view_scale = scale_factor
+        pixel_width = 1.0 / view_scale if view_scale > 0 else 1.0
+
         # Minor grid lines (most frequent)
         if minorspacing > 0:
             # Vertical minor lines
@@ -252,23 +282,27 @@ class CadScene(QWidget):
                     if (superspacing > 0 and
                             approx(x, quantize(x, superspacing))):
                         pen = QPen(super_grid_color)
-                        pen.setWidthF(linewidth * 1.0)
+                        pen.setWidthF(pixel_width)
+                        pen.setCosmetic(True)  # Maintain constant pixel width
                         tags.append(GridTags.GRID_UNIT_LINE)
                         z_val = -6
                     elif (majorspacing > 0 and
                           approx(x, quantize(x, majorspacing))):
                         pen = QPen(major_grid_color)
-                        pen.setWidthF(linewidth * 1.0)
+                        pen.setWidthF(pixel_width)
+                        pen.setCosmetic(True)  # Maintain constant pixel width
                         tags.append(GridTags.GRID_UNIT_LINE)
                         z_val = -7
                     else:
                         pen = QPen(minor_grid_color)
-                        pen.setWidthF(linewidth * 1.0)
+                        pen.setWidthF(pixel_width)
+                        pen.setCosmetic(True)  # Maintain constant pixel width
                         tags.append(GridTags.GRID_LINE)
                         z_val = -8
 
                     line_item = self.addLine(
-                        x, sry0/scalemult, x, sry1/scalemult, pen, z=z_val, tags=tags)
+                        x, sry0/scalemult, x, sry1/scalemult,
+                        pen, z=z_val, tags=tags)
                 x += minorspacing
 
             # Horizontal minor lines
@@ -280,18 +314,21 @@ class CadScene(QWidget):
                     if (superspacing > 0 and
                             approx(y, quantize(y, superspacing))):
                         pen = QPen(super_grid_color)
-                        pen.setWidthF(linewidth * 1.0)
+                        pen.setWidthF(pixel_width)
+                        pen.setCosmetic(True)  # Maintain constant pixel width
                         tags.append(GridTags.GRID_UNIT_LINE)
                         z_val = -6
                     elif (majorspacing > 0 and
                             approx(y, quantize(y, majorspacing))):
                         pen = QPen(major_grid_color)
-                        pen.setWidthF(linewidth * 1.0)
+                        pen.setWidthF(pixel_width)
+                        pen.setCosmetic(True)  # Maintain constant pixel width
                         tags.append(GridTags.GRID_UNIT_LINE)
                         z_val = -7
                     else:
                         pen = QPen(minor_grid_color)
-                        pen.setWidthF(linewidth * 1.0)
+                        pen.setWidthF(pixel_width)
+                        pen.setCosmetic(True)  # Maintain constant pixel width
                         tags.append(GridTags.GRID_LINE)
                         z_val = -8
 
@@ -316,7 +353,6 @@ class CadScene(QWidget):
 
         dpi = self.dpi
         scalefactor = self.scale_factor
-        lwidth = 0.5
 
         scalemult = dpi * scalefactor / conversion
 
@@ -333,7 +369,7 @@ class CadScene(QWidget):
 
         # Draw origin if enabled
         if self.show_origin:
-            self._draw_grid_origin(dpi, lwidth)
+            self._draw_grid_origin(dpi, scalefactor)
 
         # Draw grid if enabled
         if self.show_grid:
@@ -341,7 +377,7 @@ class CadScene(QWidget):
                 xstart, xend, ystart, yend,
                 minorspacing, majorspacing,
                 superspacing, labelspacing, scalemult,
-                lwidth, srx0, srx1, sry0, sry1)
+                scalefactor, srx0, srx1, sry0, sry1)
 
     # Public API methods
 
@@ -367,16 +403,31 @@ class CadScene(QWidget):
 
     def set_dpi(self, dpi: float):
         """Set the DPI setting."""
-        self.dpi = dpi
+        self.canvas.set_dpi(dpi)
         self.redraw_grid()
         self.ruler_manager.set_dpi(dpi)
         self.ruler_manager.update_rulers()
 
-    def set_scale_factor(self, scale_factor: float):
-        """Set the scale factor (zoom level)."""
-        self.scale_factor = scale_factor
-        self.redraw_grid()
-        self.ruler_manager.set_scale_factor(self.scale_factor)
+    def set_scale_factor(
+            self,
+            scale_factor: float,
+            defer_grid_redraw: bool = False
+    ):
+        """Set the scale factor (zoom level).
+
+        Args:
+            scale_factor: The new scale factor
+            defer_grid_redraw: If True, skip grid redraw for performance
+                              during continuous operations
+        """
+        self.canvas.set_scale_factor(scale_factor)
+        
+        # Always redraw grid when scale changes to maintain 1.0 pixel width
+        # Only defer during continuous gestures for performance
+        if not defer_grid_redraw:
+            self.redraw_grid()
+        
+        self.ruler_manager.set_scale_factor(scale_factor)
         self.ruler_manager.update_rulers()
         self.scale_changed.emit(scale_factor)
 
@@ -390,14 +441,49 @@ class CadScene(QWidget):
         self.show_origin = visible
         self.redraw_grid()
 
+    def get_current_unit(self) -> str:
+        """
+        Get the current unit string for display.
+
+        Returns:
+            Unit string (e.g., "", "mm", "in")
+        """
+        grid_info = self._get_grid_info()
+        if grid_info:
+            # Extract units from grid info tuple
+            # (minorspacing, majorspacing, superspacing, labelspacing,
+            #  divisor, units, formatfunc, conversion)
+            return grid_info[5]  # units is at index 5
+        return ""
+
     def update_mouse_position(self, scene_x: float, scene_y: float):
-        """Update mouse position on rulers."""
+        """Update mouse position on rulers and store current coordinates."""
+        # Convert scene coordinates back to CAD coordinates
+        # Scene coordinates are already in the correct CAD coordinate system
+        # We just need to account for the Y-axis flip that was applied
+        cad_x = scene_x
+        cad_y = -scene_y  # Y-axis flip to convert from Qt (Y-down) to CAD (Y-up)
+
+        self._cursor_x = cad_x
+        self._cursor_y = cad_y
+        print("Debug: CadScene mouse position - scene: " +
+              f"({scene_x:.4f}, {scene_y:.4f}), " +
+              f"CAD: ({cad_x:.4f}, {cad_y:.4f})")
         self.ruler_manager.update_mouse_position(scene_x, scene_y)
-        self.mouse_position_changed.emit(scene_x, scene_y)
+        self.mouse_position_changed.emit(cad_x, cad_y)
 
     def redraw_all(self):
         """Redraw all scene content."""
         self.drawing_manager.redraw()
+
+    def get_cursor_coords(self) -> tuple[float, float]:
+        """
+        Get the current mouse cursor coordinates in CAD coordinates.
+
+        Returns:
+            Tuple of (cad_x, cad_y) coordinates
+        """
+        return (self._cursor_x, self._cursor_y)
 
     def clear_scene(self):
         """Clear all drawable content from the scene."""
@@ -701,40 +787,13 @@ class CadScene(QWidget):
 
         return len(items_to_transform)
 
-    # Coordinate scaling methods (moved from DrawingManager)
-    def scale_coords(self, coords: List[float]) -> List[float]:
-        """Scale coordinates based on DPI and scale factor with Y-axis flip
-        for CAD convention"""
-        # Convert CAD coordinates to canvas coordinates
-        # X: normal scaling, Y: negative scaling to flip from CAD convention
-        # (Y up) to Qt convention (Y down)
-        scaled_coords = []
-        for i in range(0, len(coords), 2):
-            x = coords[i] * self.dpi * self.scale_factor
-            # Negative Y for coordinate system flip
-            y = -coords[i + 1] * self.dpi * self.scale_factor
-            scaled_coords.extend([x, y])
-
-        return scaled_coords
-
-    def descale_coords(self, coords: List[float]) -> List[float]:
-        """Convert canvas coordinates back to CAD coordinates with
-        Y-axis flip"""
-        # Convert canvas coordinates to CAD coordinates
-        # X: normal descaling, Y: negative descaling to flip from
-        # Qt convention (Y down) to CAD convention (Y up)
-        descaled_coords = []
-        for i in range(0, len(coords), 2):
-            x = coords[i] / (self.dpi * self.scale_factor)
-            # Negative Y for coordinate system flip
-            y = coords[i + 1] / (-self.dpi * self.scale_factor)
-            descaled_coords.extend([x, y])
-
-        return descaled_coords
-
-    # Graphics item creation methods with automatic coordinate scaling
-    def addItem(self, item: QGraphicsItem, tags: Optional[List[str]] = None,
-                z: Optional[float] = None, data: Optional[Any] = None):
+    # Graphics item creation methods with direct CAD coordinates
+    def addItem(
+            self, item: QGraphicsItem,
+            tags: Optional[List[str]] = None,
+            z: Optional[float] = None,
+            data: Optional[Any] = None
+    ):
         """
         Add an item to the scene with optional tags.
 
@@ -749,11 +808,17 @@ class CadScene(QWidget):
             item.setZValue(z)
         if data is not None:
             item.setData(0, data)
-        self.addTags(item, tags)
+        if tags:
+            self.addTags(item, tags)
 
-    def addLine(self, x1, y1, x2, y2, pen=None,
-                tags: Optional[List[str]] = None, z: Optional[float] = None,
-                data: Optional[Any] = None):
+    def addLine(
+            self,
+            x1, y1, x2, y2,
+            pen=None,
+            tags: Optional[List[str]] = None,
+            z: Optional[float] = None,
+            data: Optional[Any] = None
+    ):
         """
         Add a line to the scene with optional tags.
 
@@ -766,20 +831,24 @@ class CadScene(QWidget):
         """
         if pen is None:
             pen = QPen()
-        # Scale coordinates from CAD space to canvas space
-        scaled_coords = self.scale_coords([x1, y1, x2, y2])
-        line = self.scene.addLine(scaled_coords[0], scaled_coords[1],
-                                  scaled_coords[2], scaled_coords[3], pen)
+        # Use direct CAD coordinates - view transform handles scaling/flipping
+        line = self.scene.addLine(x1, y1, x2, y2, pen)
         if z is not None:
             line.setZValue(z)
         if data is not None:
             line.setData(0, data)
-        self.addTags(line, tags)
+        if tags:
+            self.addTags(line, tags)
         return line
 
-    def addRect(self, *args, pen=None, brush=None,
-                tags: Optional[List[str]] = None, z: Optional[float] = None,
-                data: Optional[Any] = None):
+    def addRect(
+            self, *args,
+            pen=None, brush=None,
+            tags: Optional[List[str]] = None,
+            z: Optional[float] = None,
+            data: Optional[Any] = None,
+            rotation: float = 0.0
+    ):
         """
         Add a rectangle to the scene with optional tags.
 
@@ -790,6 +859,7 @@ class CadScene(QWidget):
             tags: Optional list of tag strings to associate with the rectangle
             z: Optional z-value for the rectangle (controls layering/depth)
             data: Optional data to associate with the rectangle
+            rotation: Rotation angle in degrees (positive = counterclockwise)
         """
         if pen is None:
             pen = QPen()
@@ -798,34 +868,35 @@ class CadScene(QWidget):
 
         if len(args) == 1:
             rect = args[0]
-            # Convert QRectF from CAD space to canvas space
-            scaled_coords = self.scale_coords([rect.x(), rect.y(),
-                                               rect.x() + rect.width(),
-                                               rect.y() + rect.height()])
-            rect = QRectF(scaled_coords[0], scaled_coords[1],
-                          scaled_coords[2] - scaled_coords[0],
-                          scaled_coords[3] - scaled_coords[1])
+            # Use direct CAD coordinates - view transform handles conversion
+            rectangle = self.scene.addRect(rect, pen, brush)
         elif len(args) == 4:
-            # Scale coordinates from CAD space to canvas space
+            # Use direct CAD coordinates - view transform handles conversion
             x, y, width, height = args
-            scaled_coords = self.scale_coords([x, y, x + width, y + height])
-            rect = QRectF(scaled_coords[0], scaled_coords[1],
-                          scaled_coords[2] - scaled_coords[0],
-                          scaled_coords[3] - scaled_coords[1])
+            rect = QRectF(x, y, width, height)
+            rectangle = self.scene.addRect(rect, pen, brush)
         else:
             raise ValueError("Invalid arguments for addRect")
 
-        rectangle = self.scene.addRect(rect, pen, brush)
+        # Apply rotation if specified
+        if rotation != 0.0:
+            rectangle.setRotation(rotation)
+
         if z is not None:
             rectangle.setZValue(z)
         if data is not None:
             rectangle.setData(0, data)
-        self.addTags(rectangle, tags)
+        if tags:
+            self.addTags(rectangle, tags)
         return rectangle
 
-    def addEllipse(self, *args, pen=None, brush=None,
-                   tags: Optional[List[str]] = None, z: Optional[float] = None,
-                   data: Optional[Any] = None):
+    def addEllipse(
+            self, *args, pen=None, brush=None,
+            tags: Optional[List[str]] = None,
+            z: Optional[float] = None,
+            data: Optional[Any] = None,
+            rotation: float = 0.0
+    ):
         """
         Add an ellipse to the scene with optional tags.
 
@@ -836,6 +907,7 @@ class CadScene(QWidget):
             tags: Optional list of tag strings to associate with the ellipse
             z: Optional z-value for the ellipse (controls layering/depth)
             data: Optional data to associate with the ellipse
+            rotation: Rotation angle in degrees (positive = counterclockwise)
         """
         if pen is None:
             pen = QPen()
@@ -844,34 +916,35 @@ class CadScene(QWidget):
 
         if len(args) == 1:
             rect = args[0]
-            # Convert QRectF from CAD space to canvas space
-            scaled_coords = self.scale_coords([rect.x(), rect.y(),
-                                               rect.x() + rect.width(),
-                                               rect.y() + rect.height()])
-            rect = QRectF(scaled_coords[0], scaled_coords[1],
-                          scaled_coords[2] - scaled_coords[0],
-                          scaled_coords[3] - scaled_coords[1])
+            # Use direct CAD coordinates - view transform handles conversion
+            ellipse = self.scene.addEllipse(rect, pen, brush)
         elif len(args) == 4:
-            # Scale coordinates from CAD space to canvas space
+            # Use direct CAD coordinates - view transform handles conversion
             x, y, width, height = args
-            scaled_coords = self.scale_coords([x, y, x + width, y + height])
-            rect = QRectF(scaled_coords[0], scaled_coords[1],
-                          scaled_coords[2] - scaled_coords[0],
-                          scaled_coords[3] - scaled_coords[1])
+            rect = QRectF(x, y, width, height)
+            ellipse = self.scene.addEllipse(rect, pen, brush)
         else:
             raise ValueError("Invalid arguments for addEllipse")
 
-        ellipse = self.scene.addEllipse(rect, pen, brush)
+        # Apply rotation if specified
+        if rotation != 0.0:
+            ellipse.setRotation(rotation)
+
         if z is not None:
             ellipse.setZValue(z)
         if data is not None:
             ellipse.setData(0, data)
-        self.addTags(ellipse, tags)
+        if tags:
+            self.addTags(ellipse, tags)
         return ellipse
 
-    def addPolygon(self, polygon: Union[QPolygonF, List], pen=None,
-                   brush=None, tags: Optional[List[str]] = None,
-                   z: Optional[float] = None, data: Optional[Any] = None):
+    def addPolygon(
+            self, polygon: Union[QPolygonF, List],
+            pen=None, brush=None,
+            tags: Optional[List[str]] = None,
+            z: Optional[float] = None,
+            data: Optional[Any] = None
+    ):
         """
         Add a polygon to the scene with optional tags.
 
@@ -890,60 +963,60 @@ class CadScene(QWidget):
             brush = QBrush()
 
         if isinstance(polygon, list):
-            # Convert list of points to flat coordinate list and scale
-            flat_coords = []
+            # Convert list of points to QPolygonF - use direct CAD coordinates
+            points = []
             for x, y in polygon:
-                flat_coords.extend([x, y])
-            scaled_coords = self.scale_coords(flat_coords)
-            # Convert back to QPolygonF
-            scaled_points = []
-            for i in range(0, len(scaled_coords), 2):
-                scaled_points.append(QPointF(scaled_coords[i],
-                                             scaled_coords[i+1]))
-            polygon = QPolygonF(scaled_points)
-        elif isinstance(polygon, QPolygonF):
-            # Convert QPolygonF to flat coordinates, scale, and convert back
-            flat_coords = []
-            for i in range(polygon.size()):
-                point = polygon.at(i)
-                flat_coords.extend([point.x(), point.y()])
-            scaled_coords = self.scale_coords(flat_coords)
-            scaled_points = []
-            for i in range(0, len(scaled_coords), 2):
-                scaled_points.append(QPointF(scaled_coords[i],
-                                             scaled_coords[i+1]))
-            polygon = QPolygonF(scaled_points)
+                points.append(QPointF(x, y))
+            polygon = QPolygonF(points)
+        # If already QPolygonF, use directly - view transform handles
+        # conversion
 
         poly_item = self.scene.addPolygon(polygon, pen, brush)
         if z is not None:
             poly_item.setZValue(z)
         if data is not None:
             poly_item.setData(0, data)
-        self.addTags(poly_item, tags)
+        if tags:
+            self.addTags(poly_item, tags)
         return poly_item
 
-    def addPixmap(self, pixmap: QPixmap, tags: Optional[List[str]] = None,
-                  z: Optional[float] = None, data: Optional[Any] = None):
+    def addPixmap(
+            self, pixmap: QPixmap,
+            tags: Optional[List[str]] = None,
+            z: Optional[float] = None,
+            data: Optional[Any] = None,
+            rotation: float = 0.0
+    ):
         """
-        Add a pixmap item to the scene with optional tags.
+        Add a pixmap item to the scene with optional tags and rotation.
 
         Args:
             pixmap: QPixmap to add
             tags: Optional list of tag strings to associate with the pixmap
             z: Optional z-value for the pixmap (controls layering/depth)
             data: Optional data to associate with the pixmap
+            rotation: Rotation angle in degrees (positive = counterclockwise)
         """
         pixmap_item = self.scene.addPixmap(pixmap)
+
+        # Apply rotation if specified
+        if rotation != 0.0:
+            pixmap_item.setRotation(rotation)
+
         if z is not None:
             pixmap_item.setZValue(z)
         if data is not None:
             pixmap_item.setData(0, data)
-        self.addTags(pixmap_item, tags)
+        if tags:
+            self.addTags(pixmap_item, tags)
         return pixmap_item
 
-    def addPath(self, path: QPainterPath, pen=None,
-                tags: Optional[List[str]] = None, z: Optional[float] = None,
-                data: Optional[Any] = None):
+    def addPath(
+            self, path: QPainterPath, pen=None,
+            tags: Optional[List[str]] = None,
+            z: Optional[float] = None,
+            data: Optional[Any] = None
+    ):
         """
         Add a painter path to the scene with optional tags.
 
@@ -961,13 +1034,19 @@ class CadScene(QWidget):
             path_item.setZValue(z)
         if data is not None:
             path_item.setData(0, data)
-        self.addTags(path_item, tags)
+        if tags:
+            self.addTags(path_item, tags)
         return path_item
 
-    def addText(self, text: str, font=None, tags: Optional[List[str]] = None,
-                z: Optional[float] = None, data: Optional[Any] = None):
+    def addText(
+            self, text: str, font=None,
+            tags: Optional[List[str]] = None,
+            z: Optional[float] = None,
+            data: Optional[Any] = None,
+            rotation: float = 0.0
+    ):
         """
-        Add a text item to the scene with optional tags.
+        Add a text item to the scene with optional tags and rotation.
 
         Args:
             text: The text string to add
@@ -975,16 +1054,23 @@ class CadScene(QWidget):
             tags: Optional list of tag strings to associate with the text
             z: Optional z-value for the text (controls layering/depth)
             data: Optional data to associate with the text
+            rotation: Rotation angle in degrees (positive = counterclockwise)
         """
         if font is not None:
             text_item = self.scene.addText(text, font)
         else:
             text_item = self.scene.addText(text)
+
+        # Apply rotation if specified
+        if rotation != 0.0:
+            text_item.setRotation(rotation)
+
         if z is not None:
             text_item.setZValue(z)
         if data is not None:
             text_item.setData(0, data)
-        self.addTags(text_item, tags)
+        if tags:
+            self.addTags(text_item, tags)
         return text_item
 
     # Example method to demonstrate tagged item retrieval
@@ -1032,3 +1118,12 @@ class CadScene(QWidget):
             "layer2": len(layer2_items),
             "construction": len(construction_items)
         }
+
+    def _on_view_position_changed(self, scene_x: float, scene_y: float):
+        """Handle view position changes from the graphics view."""
+        # Update rulers when view position changes
+        if hasattr(self, 'ruler_manager') and self.ruler_manager:
+            self.ruler_manager.update_rulers()
+        
+        # Note: Grid doesn't need to be redrawn on scroll/pan, only on zoom
+        # Grid lines are in scene coordinates and don't change with view position

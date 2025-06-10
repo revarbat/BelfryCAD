@@ -130,12 +130,14 @@ class LayerManager:
 
         # If this was the current layer, switch to another one
         if self._current_layer_id == layer_id:
-            remaining_layers = [lid for lid in self._layer_order if lid != layer_id]
+            remaining_layers = [
+                lid for lid in self._layer_order if lid != layer_id]
             if remaining_layers:
                 # Try to switch to the next layer, or first if we're deleting the last
                 try:
                     current_index = self._layer_order.index(layer_id)
-                    new_current = remaining_layers[min(current_index, len(remaining_layers) - 1)]
+                    new_current = remaining_layers[min(
+                        current_index, len(remaining_layers) - 1)]
                 except (ValueError, IndexError):
                     new_current = remaining_layers[0]
                 self.set_current_layer(new_current)
@@ -259,7 +261,7 @@ class LayerManager:
         """
         # Verify all layers exist and no duplicates
         if (len(new_order) != len(self._layer_order) or
-            set(new_order) != set(self._layer_order)):
+                set(new_order) != set(self._layer_order)):
             return False
 
         # Update the order
@@ -422,7 +424,8 @@ class LayerManager:
             new_pos = len(layer.objects)  # Append to end
         else:
             # Relative integer offset
-            new_pos = max(0, min(len(layer.objects), current_pos + int(relative_position)))
+            new_pos = max(0, min(len(layer.objects),
+                          current_pos + int(relative_position)))
 
         # Insert at new position
         layer.objects.insert(new_pos, object_id)
@@ -488,10 +491,12 @@ class LayerManager:
         Returns:
             Layer ID of the deserialized layer
         """
-        required_fields = ["layerid", "name", "visible", "locked", "color", "cutbit", "cutdepth", "pos"]
+        required_fields = ["layerid", "name", "visible",
+                           "locked", "color", "cutbit", "cutdepth", "pos"]
         for field in required_fields:
             if field not in layer_data:
-                raise ValueError(f"Serialization data missing required field: {field}")
+                raise ValueError(
+                    f"Serialization data missing required field: {field}")
 
         target_layer_id = layer_data["layerid"]
         if force_new:
@@ -502,7 +507,8 @@ class LayerManager:
             layer_id = self._create_layer_internal(layer_data["name"])
         elif not self.layer_exists(target_layer_id):
             # Create layer with specific ID
-            layer_id = self._create_layer_internal(layer_data["name"], target_layer_id)
+            layer_id = self._create_layer_internal(
+                layer_data["name"], target_layer_id)
         else:
             # Update existing layer
             layer_id = target_layer_id

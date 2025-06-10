@@ -7,6 +7,7 @@ from .layers import LayerManager
 
 class Document:
     """Manages the current CAD document, file I/O, and modification state."""
+
     def __init__(self):
         self._filename: Optional[str] = None
         self._modified: bool = False
@@ -87,7 +88,8 @@ class Document:
                 "object_id": obj.object_id,
                 "object_type": obj.object_type.value,  # Use .value for enum
                 "layer": obj.layer,
-                "coords": [{"x": pt.x, "y": pt.y} for pt in obj.coords],  # Serialize Points properly
+                # Serialize Points properly
+                "coords": [{"x": pt.x, "y": pt.y} for pt in obj.coords],
                 "attributes": obj.attributes,
                 "selected": obj.selected,
                 "visible": obj.visible,
@@ -122,7 +124,8 @@ class Document:
                 self.layers.set_current_layer(layers_data["current_layer"])
         else:
             # Old format - convert to new system
-            old_layers = data.get("layers", {0: ["Layer 0", "black", True, False]})
+            old_layers = data.get(
+                "layers", {0: ["Layer 0", "black", True, False]})
             for layer_id, layer_info in old_layers.items():
                 if isinstance(layer_info, list) and len(layer_info) >= 4:
                     name, color, visible, locked = layer_info[:4]

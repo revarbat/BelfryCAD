@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QPalette
+from PySide6.QtGui import QFont
 
 from typing import Optional
 
@@ -49,13 +49,14 @@ class InfoPaneWindow(QWidget):
 
     def _create_info_frame(self) -> QFrame:
         """
-        Create the information display frame with position and dimension labels.
+        Create the information display frame with position and dimension
+        labels.
 
         Returns:
             QFrame containing the info display widgets
         """
         frame = QFrame()
-        frame.setFrameStyle(QFrame.StyledPanel)
+        frame.setFrameStyle(QFrame.Shape.StyledPanel)
 
         # Create layout with specific spacing and alignment
         layout = QVBoxLayout()
@@ -72,7 +73,7 @@ class InfoPaneWindow(QWidget):
         self.xpos_value = QLabel("")
         self.xpos_value.setFont(font)
         self.xpos_value.setStyleSheet("color: #8B0000;")  # red3 equivalent
-        self.xpos_value.setAlignment(Qt.AlignRight)
+        self.xpos_value.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.ypos_label = QLabel("Y:")
         self.ypos_label.setFont(font)
@@ -81,7 +82,7 @@ class InfoPaneWindow(QWidget):
         self.ypos_value = QLabel("")
         self.ypos_value.setFont(font)
         self.ypos_value.setStyleSheet("color: #228B22;")  # green4 equivalent
-        self.ypos_value.setAlignment(Qt.AlignRight)
+        self.ypos_value.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         # Create dimension labels (W, H)
         self.wid_label = QLabel("W:")
@@ -89,19 +90,20 @@ class InfoPaneWindow(QWidget):
 
         self.wid_value = QLabel("")
         self.wid_value.setFont(font)
-        self.wid_value.setAlignment(Qt.AlignRight)
+        self.wid_value.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         self.hgt_label = QLabel("H:")
         self.hgt_label.setFont(font)
 
         self.hgt_value = QLabel("")
         self.hgt_value.setFont(font)
-        self.hgt_value.setAlignment(Qt.AlignRight)
+        self.hgt_value.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         # Create action label
         self.action_label = QLabel("")
         self.action_label.setFont(font)
-        self.action_label.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        self.action_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
 
         # Create horizontal layouts for label/value pairs
         x_layout = QHBoxLayout()
@@ -138,7 +140,7 @@ class InfoPaneWindow(QWidget):
             QFrame for configuration content
         """
         frame = QFrame()
-        frame.setFrameStyle(QFrame.StyledPanel)
+        frame.setFrameStyle(QFrame.Shape.StyledPanel)
 
         # Create layout
         layout = QVBoxLayout()
@@ -164,7 +166,12 @@ class InfoPaneWindow(QWidget):
         """
         return self.conf_frame
 
-    def update_mouse_pos(self, real_x: float, real_y: float, unit: str = ""):
+    def update_mouse_position(
+            self,
+            real_x: float,
+            real_y: float,
+            unit: str = ""
+    ):
         """
         Update the mouse position display.
 
@@ -181,7 +188,8 @@ class InfoPaneWindow(QWidget):
         self.wid_value.setText("")
         self.hgt_value.setText("")
 
-    def update_width_height(self, real_x: float, real_y: float, unit: str = ""):
+    def update_width_height(
+            self, real_x: float, real_y: float, unit: str = ""):
         """
         Update the width and height display.
 
@@ -211,7 +219,9 @@ def init_info_pane_window():
     pass
 
 
-def create_info_pane_window(parent: Optional[QWidget] = None) -> InfoPaneWindow:
+def create_info_pane_window(
+        parent: Optional[QWidget] = None
+) -> InfoPaneWindow:
     """
     Create and return a new info pane window.
 
@@ -240,7 +250,7 @@ if __name__ == "__main__":
     window.show()
 
     # Test the functionality
-    window.update_mouse_pos(123.4567, 987.6543, "mm")
+    window.update_mouse_position(123.4567, 987.6543, "mm")
     window.update_width_height(45.6789, 78.9012, "mm")
     window.update_action_str("Drawing line...")
 

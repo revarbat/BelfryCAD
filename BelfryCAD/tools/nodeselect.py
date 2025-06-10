@@ -172,8 +172,8 @@ class NodeSelectTool(Tool):
                 self._select_object(obj)
 
     def _find_node_near_point(self, x: float, y: float,
-                             tolerance: float = 8.0) -> Optional[
-                                 Tuple[str, int]]:
+                              tolerance: float = 8.0) -> Optional[
+            Tuple[str, int]]:
         """Find a control point near the given coordinates"""
         closest_distance = float('inf')
         closest_node = None

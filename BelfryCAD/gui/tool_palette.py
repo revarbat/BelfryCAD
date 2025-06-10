@@ -81,12 +81,15 @@ class ToolPalette(QFrame):
 
     def _setup_ui(self):
         """Set up the palette UI"""
-        self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
-        self.setFrameStyle(QFrame.StyledPanel | QFrame.Raised)
+        self.setWindowFlags(
+            Qt.WindowType.Popup |
+            Qt.WindowType.FramelessWindowHint
+        )
+        self.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
         self.setLineWidth(1)
 
         # Enable keyboard focus for the palette
-        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # Create horizontal layout for tool buttons (single row)
         layout = QHBoxLayout(self)
@@ -161,7 +164,7 @@ class ToolPalette(QFrame):
             return
 
         # Handle Escape key to close palette
-        if event.key() == Qt.Key_Escape:
+        if event.key() == Qt.Key.Key_Escape:
             self.hide()
             return
 

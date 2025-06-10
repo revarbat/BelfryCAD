@@ -7,13 +7,12 @@ snapswin.tcl functionality.
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QCheckBox, QLabel,
-    QFrame, QGroupBox
+    QWidget, QGridLayout, QCheckBox
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut, QFont
 
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Optional, List, Tuple
 
 
 class SnapWindowInfo:
@@ -73,13 +72,13 @@ class SnapWindow(QWidget):
         self.setContentsMargins(5, 8, 5, 8)
 
         # Create main layout
-        self.layout = QGridLayout()
-        self.setLayout(self.layout)
+        self.grid_layout = QGridLayout()
+        self.setLayout(self.grid_layout)
 
         # Configure grid columns
-        self.layout.setColumnMinimumWidth(0, 10)
-        self.layout.setColumnMinimumWidth(2, 10)
-        self.layout.setColumnStretch(4, 1)
+        self.grid_layout.setColumnMinimumWidth(0, 10)
+        self.grid_layout.setColumnMinimumWidth(2, 10)
+        self.grid_layout.setColumnStretch(4, 1)
 
         # Create "All Snaps" checkbox
         self.all_snaps_checkbox = QCheckBox("All Snaps")
@@ -87,7 +86,8 @@ class SnapWindow(QWidget):
         self.all_snaps_checkbox.setChecked(snap_window_info.snap_all)
         self.all_snaps_checkbox.toggled.connect(self._on_all_snaps_changed)
 
-        self.layout.addWidget(self.all_snaps_checkbox, 0, 0, 1, 2, Qt.AlignLeft)
+        self.grid_layout.addWidget(self.all_snaps_checkbox,
+                                   0, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
 
         # Initialize snap checkboxes
         self._create_snap_checkboxes()
@@ -102,7 +102,8 @@ class SnapWindow(QWidget):
         for snap_type, snap_name, default_val in snap_window_info.snap_types:
             accel = self._extract_accelerator(snap_name)
             if accel:
-                shortcut = QShortcut(QKeySequence(f"Alt+{accel.upper()}"), self)
+                shortcut = QShortcut(QKeySequence(
+                    f"Alt+{accel.upper()}"), self)
                 shortcut.activated.connect(
                     lambda st=snap_type: self._toggle_snap(st)
                 )
@@ -133,18 +134,20 @@ class SnapWindow(QWidget):
             checkbox.setFont(QFont("TkSmallCaptionFont"))
             checkbox.setChecked(snap_window_info.snap_states[snap_type])
             checkbox.toggled.connect(
-                lambda checked, st=snap_type: self._on_snap_changed(st, checked)
+                lambda checked, st=snap_type: self._on_snap_changed(
+                    st, checked)
             )
 
-            # Set underline if needed (Qt doesn't have direct underline support,
-            # but we can use HTML in setText if needed)
+            # Set underline if needed (Qt doesn't have direct underline
+            # support, but we can use HTML in setText if needed)
             if underline_pos >= 0:
                 html_name = display_name[:underline_pos] + \
-                           f"<u>{display_name[underline_pos]}</u>" + \
-                           display_name[underline_pos + 1:]
+                    f"<u>{display_name[underline_pos]}</u>" + \
+                    display_name[underline_pos + 1:]
                 checkbox.setText(html_name)
 
-            self.layout.addWidget(checkbox, row, col, Qt.AlignLeft)
+            self.grid_layout.addWidget(
+                checkbox, row, col, Qt.AlignmentFlag.AlignLeft)
             snap_window_info.checkboxes[snap_type] = checkbox
 
             # Move to next position
@@ -225,10 +228,11 @@ class SnapWindow(QWidget):
         snap_window_info.snap_states[snap_type] = default_val
 
         # If window is already created, add the checkbox
-        if hasattr(self, 'layout'):
+        if hasattr(self, 'grid_layout'):
             self._add_snap_checkbox(snap_type, snap_name, default_val)
 
-    def _add_snap_checkbox(self, snap_type: str, snap_name: str, default_val: bool):
+    def _add_snap_checkbox(
+            self, snap_type: str, snap_name: str, default_val: bool):
         """Add a checkbox for a new snap type."""
         # Extract display name and underline position
         display_name = snap_name.replace("&", "")
@@ -245,12 +249,14 @@ class SnapWindow(QWidget):
         # Set underline if needed
         if underline_pos >= 0:
             html_name = display_name[:underline_pos] + \
-                       f"<u>{display_name[underline_pos]}</u>" + \
-                       display_name[underline_pos + 1:]
+                f"<u>{display_name[underline_pos]}</u>" + \
+                display_name[underline_pos + 1:]
             checkbox.setText(html_name)
 
         # Add to layout at current position
-        self.layout.addWidget(checkbox, self.current_row, self.current_col, Qt.AlignLeft)
+        self.grid_layout.addWidget(
+            checkbox, self.current_row,
+            self.current_col, Qt.AlignmentFlag.AlignLeft)
         snap_window_info.checkboxes[snap_type] = checkbox
 
         # Update position for next checkbox
@@ -300,8 +306,8 @@ class SnapWindow(QWidget):
         Returns:
             List of enabled snap type identifiers
         """
-        return [snap_type for snap_type, enabled in snap_window_info.snap_states.items()
-                if enabled]
+        return [snap_type for snap_type, enabled in 
+                snap_window_info.snap_states.items() if enabled]
 
     def set_all_snaps_enabled(self, enabled: bool):
         """
@@ -315,7 +321,9 @@ class SnapWindow(QWidget):
         self._on_all_snaps_changed(enabled)
 
 
-def create_snap_window(canvas=None, parent: Optional[QWidget] = None) -> SnapWindow:
+def create_snap_window(
+        canvas=None, parent: Optional[QWidget] = None
+) -> SnapWindow:
     """
     Create and return a new snap window.
 

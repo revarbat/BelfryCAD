@@ -238,7 +238,7 @@ class ConnectTool(Tool):
             obj = self._find_object_near_point(point.x, point.y)
             if obj and obj != self.first_object:
                 self._connect_objects(self.first_object, self.points[0],
-                                    obj, self.points[1])
+                                      obj, self.points[1])
                 self.complete()
             else:
                 self.cancel()
@@ -258,7 +258,7 @@ class ConnectTool(Tool):
 
         # Create a preview line
         line_item = QGraphicsLineItem(start_point.x, start_point.y,
-                                     current_x, current_y)
+                                      current_x, current_y)
         line_item.setPen(QPen(QColor(0, 0, 255)))  # Blue preview
         self.scene.addItem(line_item)
         self.temp_objects.append(line_item)
@@ -269,7 +269,7 @@ class ConnectTool(Tool):
         return None
 
     def _connect_objects(self, obj1: CADObject, point1: Point,
-                        obj2: CADObject, point2: Point):
+                         obj2: CADObject, point2: Point):
         """Connect two objects with a line"""
         # TODO: Implement object connection
         pass
@@ -509,7 +509,8 @@ class RotateTool(Tool):
 
         # Calculate rotation angle
         angle1 = math.atan2(ref_point.y - center.y, ref_point.x - center.x)
-        angle2 = math.atan2(target_point.y - center.y, target_point.x - center.x)
+        angle2 = math.atan2(target_point.y - center.y,
+                            target_point.x - center.x)
         rotation_angle = math.degrees(angle2 - angle1)
 
         # Normalize angle
@@ -698,7 +699,7 @@ class ScaleTool(Tool):
             self._scale_object(obj, scale_x, scale_y, center.x, center.y)
 
     def _draw_scale_preview_box(self, bbox: QRectF, center: Point,
-                               scale_x: float, scale_y: float):
+                                scale_x: float, scale_y: float):
         """Draw a preview box showing the scaled position"""
         # Get corners of bounding box
         corners = [
@@ -736,7 +737,7 @@ class ScaleTool(Tool):
         return None
 
     def _scale_object(self, obj: CADObject, scale_x: float, scale_y: float,
-                     cx: float, cy: float):
+                      cx: float, cy: float):
         """Scale an object around the given center point"""
         # TODO: Implement object scaling
         pass
@@ -760,7 +761,8 @@ class FlipTool(Tool):
             cursor="crosshair",
             is_creator=False,
             secondary_key="F",
-            node_info=["Start of Line to Flip Across", "End of Line to Flip Across"]
+            node_info=["Start of Line to Flip Across",
+                "End of Line to Flip Across"]
         )]
 
     def _setup_bindings(self):
@@ -801,7 +803,7 @@ class FlipTool(Tool):
 
         # Check for valid flip line
         line_length = math.sqrt((current_x - start_point.x)**2 +
-                               (current_y - start_point.y)**2)
+                                (current_y - start_point.y)**2)
         if line_length < 1e-6:
             return
 
@@ -811,7 +813,7 @@ class FlipTool(Tool):
             bbox = self._get_objects_bbox(selected_objects)
             if bbox:
                 self._draw_flip_preview_box(bbox, start_point.x, start_point.y,
-                                           current_x, current_y)
+                                            current_x, current_y)
 
     def _flip_selected_objects(self):
         """Flip all selected objects across the defined line"""
@@ -825,10 +827,10 @@ class FlipTool(Tool):
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
             self._flip_object(obj, start_point.x, start_point.y,
-                             end_point.x, end_point.y)
+                              end_point.x, end_point.y)
 
     def _draw_flip_preview_box(self, bbox: QRectF, x1: float, y1: float,
-                              x2: float, y2: float):
+                               x2: float, y2: float):
         """Draw a preview box showing the flipped position"""
         # Create reflection matrix
         try:
@@ -862,7 +864,8 @@ class FlipTool(Tool):
                 # Original line in light blue
                 x_orig1, y_orig1 = preview_lines[i]
                 x_orig2, y_orig2 = preview_lines[i + 1]
-                line_item = QGraphicsLineItem(x_orig1, y_orig1, x_orig2, y_orig2)
+                line_item = QGraphicsLineItem(
+                    x_orig1, y_orig1, x_orig2, y_orig2)
                 line_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
                 self.scene.addItem(line_item)
                 self.temp_objects.append(line_item)
@@ -872,7 +875,7 @@ class FlipTool(Tool):
                 reflected_coords = matrix.transform_coords(coords)
                 if len(reflected_coords) >= 4:
                     line_item = QGraphicsLineItem(reflected_coords[0], reflected_coords[1],
-                                                 reflected_coords[2], reflected_coords[3])
+                                                  reflected_coords[2], reflected_coords[3])
                     line_item.setPen(QPen(QColor(0, 0, 255)))  # Blue
                     self.scene.addItem(line_item)
                     self.temp_objects.append(line_item)
@@ -888,7 +891,7 @@ class FlipTool(Tool):
         return None
 
     def _flip_object(self, obj: CADObject, x1: float, y1: float,
-                    x2: float, y2: float):
+                     x2: float, y2: float):
         """Flip an object across the given line"""
         # TODO: Implement object reflection
         pass
@@ -1015,7 +1018,7 @@ class ShearTool(Tool):
             self._shear_object(obj, shear_x, shear_y, center.x, center.y)
 
     def _draw_shear_preview_box(self, bbox: QRectF, center: Point,
-                               shear_x: float, shear_y: float):
+                                shear_x: float, shear_y: float):
         """Draw a preview box showing the sheared position"""
         # Create shear matrix
         try:
@@ -1039,7 +1042,7 @@ class ShearTool(Tool):
             sheared_coords = matrix.transform_coords(coords)
             if len(sheared_coords) >= 4:
                 line_item = QGraphicsLineItem(sheared_coords[0], sheared_coords[1],
-                                             sheared_coords[2], sheared_coords[3])
+                                              sheared_coords[2], sheared_coords[3])
                 line_item.setPen(QPen(QColor(0, 0, 255)))  # Blue preview
                 self.scene.addItem(line_item)
                 self.temp_objects.append(line_item)
@@ -1055,7 +1058,7 @@ class ShearTool(Tool):
         return None
 
     def _shear_object(self, obj: CADObject, shear_x: float, shear_y: float,
-                     cx: float, cy: float):
+                      cx: float, cy: float):
         """Shear an object around the given center point"""
         # TODO: Implement object shearing
         pass
@@ -1126,19 +1129,20 @@ class BendTool(Tool):
             # Show line from first point to cursor
             start_point = self.points[0]
             line_item = QGraphicsLineItem(start_point.x, start_point.y,
-                                         current_x, current_y)
+                                          current_x, current_y)
             line_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
         elif len(self.points) == 2:
             # Show arc defined by three points
             self._draw_bend_preview_arc(self.points[0], self.points[1],
-                                       Point(current_x, current_y))
+                                        Point(current_x, current_y))
 
     def _draw_bend_preview_arc(self, p1: Point, p2: Point, p3: Point):
         """Draw a preview arc through three points"""
         # Calculate arc center and radius
-        arc_info = self._find_arc_from_points(p1.x, p1.y, p3.x, p3.y, p2.x, p2.y)
+        arc_info = self._find_arc_from_points(
+            p1.x, p1.y, p3.x, p3.y, p2.x, p2.y)
         if not arc_info:
             return
 
@@ -1155,7 +1159,7 @@ class BendTool(Tool):
         self.temp_objects.append(ellipse_item)
 
     def _find_arc_from_points(self, x1: float, y1: float, x2: float, y2: float,
-                             x3: float, y3: float) -> Optional[Tuple[float, float, float, float, float]]:
+                              x3: float, y3: float) -> Optional[Tuple[float, float, float, float, float]]:
         """Find arc center and angles from three points"""
         # TODO: Implement arc calculation from three points
         # This is a complex geometric calculation
@@ -1169,7 +1173,8 @@ class BendTool(Tool):
         # Apply bend to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
-            self._bend_object(obj, self.points[0], self.points[1], self.points[2])
+            self._bend_object(
+                obj, self.points[0], self.points[1], self.points[2])
 
     def _get_selected_objects(self) -> List[CADObject]:
         """Get list of currently selected objects"""
@@ -1226,7 +1231,8 @@ class WrapTool(Tool):
                 center = self.points[0]
                 ref_point = self.points[1]
                 # Calculate perpendicular direction
-                angle = math.atan2(ref_point.y - center.y, ref_point.x - center.x) - math.pi/2
+                angle = math.atan2(ref_point.y - center.y,
+                                   ref_point.x - center.x) - math.pi/2
                 perp_x = ref_point.x + math.cos(angle)
                 perp_y = ref_point.y + math.sin(angle)
                 self.points.append(Point(perp_x, perp_y))
@@ -1251,7 +1257,8 @@ class WrapTool(Tool):
         if len(self.points) == 1:
             # Show line from center to cursor
             center = self.points[0]
-            line_item = QGraphicsLineItem(center.x, center.y, current_x, current_y)
+            line_item = QGraphicsLineItem(
+                center.x, center.y, current_x, current_y)
             line_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
@@ -1273,7 +1280,8 @@ class WrapTool(Tool):
         # Apply wrap to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
-            self._wrap_object(obj, self.points[0], self.points[1], self.points[2])
+            self._wrap_object(
+                obj, self.points[0], self.points[1], self.points[2])
 
     def _get_selected_objects(self) -> List[CADObject]:
         """Get list of currently selected objects"""
@@ -1281,7 +1289,7 @@ class WrapTool(Tool):
         return []
 
     def _wrap_object(self, obj: CADObject, center: Point, ref_point: Point,
-                    tangent_point: Point):
+                     tangent_point: Point):
         """Wrap an object around the defined center"""
         # TODO: Implement object wrapping
         pass
@@ -1330,7 +1338,8 @@ class UnwrapTool(Tool):
                 # Auto-calculate perpendicular point
                 center = self.points[0]
                 ref_point = self.points[1]
-                angle = math.atan2(ref_point.y - center.y, ref_point.x - center.x) - math.pi/2
+                angle = math.atan2(ref_point.y - center.y,
+                                   ref_point.x - center.x) - math.pi/2
                 perp_x = ref_point.x + math.cos(angle)
                 perp_y = ref_point.y + math.sin(angle)
                 self.points.append(Point(perp_x, perp_y))
@@ -1363,10 +1372,12 @@ class UnwrapTool(Tool):
         ref_point = self.points[1]
 
         # Calculate radius and draw reference circle/arc
-        radius = math.sqrt((ref_point.x - center.x)**2 + (ref_point.y - center.y)**2)
+        radius = math.sqrt((ref_point.x - center.x)**2 +
+                           (ref_point.y - center.y)**2)
 
         # Draw reference arc
-        rect = QRectF(center.x - radius, center.y - radius, 2 * radius, 2 * radius)
+        rect = QRectF(center.x - radius, center.y -
+                      radius, 2 * radius, 2 * radius)
         ellipse_item = QGraphicsEllipseItem(rect)
         ellipse_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
         ellipse_item.setBrush(QBrush(Qt.NoBrush))
@@ -1376,7 +1387,7 @@ class UnwrapTool(Tool):
         # Draw reference line
         if len(self.points) >= 2:
             line_item = QGraphicsLineItem(self.points[0].x, self.points[0].y,
-                                         self.points[1].x, self.points[1].y)
+                                          self.points[1].x, self.points[1].y)
             line_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
@@ -1389,7 +1400,8 @@ class UnwrapTool(Tool):
         # Apply unwrap to selected objects
         selected_objects = self._get_selected_objects()
         for obj in selected_objects:
-            self._unwrap_object(obj, self.points[0], self.points[1], self.points[2])
+            self._unwrap_object(
+                obj, self.points[0], self.points[1], self.points[2])
 
     def _get_selected_objects(self) -> List[CADObject]:
         """Get list of currently selected objects"""
@@ -1397,7 +1409,7 @@ class UnwrapTool(Tool):
         return []
 
     def _unwrap_object(self, obj: CADObject, center: Point, ref_point: Point,
-                      tangent_point: Point):
+                       tangent_point: Point):
         """Unwrap an object from the defined center"""
         # TODO: Implement object unwrapping
         pass

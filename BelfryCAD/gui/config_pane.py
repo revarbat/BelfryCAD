@@ -2,20 +2,20 @@
 Configuration Pane for PyTkCAD.
 
 This module provides a PySide6/Qt GUI configuration pane system for editing
-CAD object properties. It's a direct translation of the original TCL confpane.tcl
-functionality with validation, field management, and dynamic UI generation.
+CAD object properties. It's a direct translation of the original TCL
+confpane.tcl functionality with validation, field management, and dynamic
+UI generation.
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit,
-    QPushButton, QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox, QFrame,
-    QColorDialog, QFontComboBox, QApplication, QMessageBox
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
+    QPushButton, QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox,
+    QColorDialog, QFontComboBox, QApplication
 )
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QFont, QColor, QPalette, QValidator, QDoubleValidator, QIntValidator
+from PySide6.QtCore import Signal, QTimer
+from PySide6.QtGui import QPalette, QValidator
 
-from typing import Dict, Any, Optional, List, Callable, Union
-import math
+from typing import Dict, Any, Optional, List, Callable
 import re
 
 
@@ -50,8 +50,8 @@ class ConfigPaneValidator(QValidator):
     def validate(self, input_str: str, pos: int) -> tuple:
         """Validate input using the provided validation function."""
         if self.validate_func(input_str):
-            return (QValidator.Acceptable, input_str, pos)
-        return (QValidator.Invalid, input_str, pos)
+            return (QValidator.State.Acceptable, input_str, pos)
+        return (QValidator.State.Invalid, input_str, pos)
 
 
 class ConfigPane(QWidget):
@@ -79,25 +79,28 @@ class ConfigPane(QWidget):
 
     def _init_ui(self):
         """Initialize the user interface."""
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        main_layout = QVBoxLayout()
+        self.setLayout(main_layout)
+        self.main_layout = main_layout
 
     def validate_combobox(self, combo: QComboBox):
         """Validate combobox input."""
-        text = combo.currentText()
+        # text = combo.currentText()
         # Implementation would depend on specific validation needs
         pass
 
-    def invalid_cmd(self, canvas, name: str, datum: str, val_get_cb: Optional[Callable],
-                   default: Any, var_name: str):
+    def invalid_cmd(self, canvas, name: str, datum: str,
+                    val_get_cb: Optional[Callable],
+                    default: Any, var_name: str):
         """Handle invalid input by reverting to old value."""
         QApplication.beep()
         old_val = self.get_datum(canvas, name, datum, val_get_cb, default)
         # Schedule restoration of old value
         QTimer.singleShot(0, lambda: self._restore_value(var_name, old_val))
 
-    def invalid_cmd_point(self, canvas, name: str, datum: str, val_get_cb: Optional[Callable],
-                         default: Any, coord_num: int, var_name: str):
+    def invalid_cmd_point(self, canvas, name: str, datum: str,
+                          val_get_cb: Optional[Callable],
+                          default: Any, coord_num: int, var_name: str):
         """Handle invalid point input."""
         QApplication.beep()
         old_val = self.get_datum(canvas, name, datum, val_get_cb, default)
@@ -105,8 +108,9 @@ class ConfigPane(QWidget):
             old_val = old_val[coord_num]
         QTimer.singleShot(0, lambda: self._restore_value(var_name, old_val))
 
-    def invalid_cmd_fontsize(self, canvas, name: str, datum: str, val_get_cb: Optional[Callable],
-                           default: Any, var_name: str):
+    def invalid_cmd_fontsize(self, canvas, name: str, datum: str,
+                             val_get_cb: Optional[Callable],
+                             default: Any, var_name: str):
         """Handle invalid font size input."""
         QApplication.beep()
         old_val = self.get_datum(canvas, name, datum, val_get_cb, default)
@@ -127,8 +131,9 @@ class ConfigPane(QWidget):
             elif isinstance(widget, QComboBox):
                 widget.setCurrentText(str(value))
 
-    def validate_str(self, canvas, name: str, datum: str, val_set_cb: Optional[Callable],
-                    validate_cb: Optional[Callable], value: str) -> bool:
+    def validate_str(self, canvas, name: str, datum: str,
+                     val_set_cb: Optional[Callable],
+                     validate_cb: Optional[Callable], value: str) -> bool:
         """Validate string input."""
         if confpane_info.no_validate:
             return True
@@ -142,9 +147,11 @@ class ConfigPane(QWidget):
         self.set_datum(canvas, name, datum, val_set_cb, value)
         return True
 
-    def validate_int(self, canvas, name: str, datum: str, min_val: int, max_val: int,
-                    val_set_cb: Optional[Callable], validate_cb: Optional[Callable],
-                    value: str) -> bool:
+    def validate_int(self, canvas, name: str, datum: str,
+                     min_val: int, max_val: int,
+                     val_set_cb: Optional[Callable],
+                     validate_cb: Optional[Callable],
+                     value: str) -> bool:
         """Validate integer input."""
         if confpane_info.no_validate:
             return True
@@ -166,9 +173,11 @@ class ConfigPane(QWidget):
         self.set_datum(canvas, name, datum, val_set_cb, int_val)
         return True
 
-    def validate_float(self, canvas, name: str, datum: str, min_val: float, max_val: float,
-                      val_set_cb: Optional[Callable], validate_cb: Optional[Callable],
-                      is_length: bool, value: str) -> bool:
+    def validate_float(self, canvas, name: str, datum: str,
+                       min_val: float, max_val: float,
+                       val_set_cb: Optional[Callable],
+                       validate_cb: Optional[Callable],
+                       is_length: bool, value: str) -> bool:
         """Validate float input."""
         if confpane_info.no_validate:
             return True
@@ -194,8 +203,9 @@ class ConfigPane(QWidget):
         self.set_datum(canvas, name, datum, val_set_cb, float_val)
         return True
 
-    def validate_point(self, canvas, name: str, datum: str, val_set_cb: Optional[Callable],
-                      coord_num: int, value: str) -> bool:
+    def validate_point(self, canvas, name: str, datum: str,
+                       val_set_cb: Optional[Callable],
+                       coord_num: int, value: str) -> bool:
         """Validate point coordinate input."""
         if confpane_info.no_validate:
             return True
@@ -208,11 +218,13 @@ class ConfigPane(QWidget):
         except (ValueError, TypeError):
             return False
 
-        self.set_point_val(canvas, name, datum, val_set_cb, coord_num, float_val)
+        self.set_point_val(canvas, name, datum, val_set_cb,
+                           coord_num, float_val)
         return True
 
-    def validate_fontsize(self, canvas, name: str, datum: str, val_set_cb: Optional[Callable],
-                         base_widget: QWidget, value: str) -> bool:
+    def validate_fontsize(self, canvas, name: str, datum: str,
+                          val_set_cb: Optional[Callable],
+                          base_widget: QWidget, value: str) -> bool:
         """Validate font size input."""
         if confpane_info.no_validate:
             return True
@@ -231,27 +243,33 @@ class ConfigPane(QWidget):
         self.set_font_datum(canvas, name, datum, val_set_cb, base_widget)
         return True
 
-    def clear_color(self, canvas, name: str, datum: str, val_set_cb: Optional[Callable],
-                   color_button: QPushButton):
+    def clear_color(self, canvas, name: str, datum: str,
+                    val_set_cb: Optional[Callable],
+                    color_button: QPushButton):
         """Clear color selection."""
         color_button.setStyleSheet("background-color: white; color: black;")
         color_button.setText("None")
         self.set_datum(canvas, name, datum, val_set_cb, "none")
 
-    def edit_color(self, canvas, name: str, datum: str, val_set_cb: Optional[Callable],
-                  color_button: QPushButton):
+    def edit_color(self, canvas, name: str, datum: str,
+                   val_set_cb: Optional[Callable],
+                   color_button: QPushButton):
         """Open color selection dialog."""
-        current_color = color_button.palette().color(QPalette.Button)
-        color = QColorDialog.getColor(current_color, self, "Choose a new color")
+        current_color = color_button.palette().color(QPalette.ColorRole.Button)
+        color = QColorDialog.getColor(
+            current_color, self, "Choose a new color")
 
         if color.isValid():
-            color_button.setStyleSheet(f"background-color: {color.name()}; color: {color.name()};")
+            color_button.setStyleSheet(
+                f"background-color: {color.name()}; color: {color.name()};")
             color_button.setText("")
             self.set_datum(canvas, name, datum, val_set_cb, color.name())
 
-    def inc_datum(self, canvas, name: str, datum: str, min_val: float, max_val: float,
-                 val_set_cb: Optional[Callable], is_length: bool, fmt: str,
-                 spin_box: QDoubleSpinBox, direction: str):
+    def inc_datum(self, canvas, name: str, datum: str,
+                  min_val: float, max_val: float,
+                  val_set_cb: Optional[Callable],
+                  is_length: bool, fmt: str,
+                  spin_box: QDoubleSpinBox, direction: str):
         """Increment or decrement datum value."""
         increment = spin_box.singleStep()
         current_val = spin_box.value()
@@ -268,8 +286,10 @@ class ConfigPane(QWidget):
         spin_box.setValue(new_val)
         self.set_datum(canvas, name, datum, val_set_cb, new_val)
 
-    def set_font_datum(self, canvas, name: str, datum: str, val_set_cb: Optional[Callable],
-                      base_widget: QWidget, *args):
+    def set_font_datum(self, canvas, name: str, datum: str,
+                       val_set_cb: Optional[Callable],
+                       base_widget: Optional[QWidget],
+                       *args):
         """Set font datum from font controls."""
         # Get font control values
         family_key = f"FONTMB-{canvas}-{name}"
@@ -291,11 +311,13 @@ class ConfigPane(QWidget):
 
         self.set_datum(canvas, name, datum, val_set_cb, font_spec)
 
-    def set_point_val(self, canvas, name: str, datum: str, val_set_cb: Optional[Callable],
-                     coord_num: int, value: float):
+    def set_point_val(self, canvas, name: str, datum: str,
+                      val_set_cb: Optional[Callable],
+                      coord_num: int, value: float):
         """Set point coordinate value."""
         # Implementation would depend on tool/object system integration
-        self.field_changed.emit(name, datum, {"coord_num": coord_num, "value": value})
+        self.field_changed.emit(
+            name, datum, {"coord_num": coord_num, "value": value})
 
     def get_persistent(self, canvas, datum: str, default: Any) -> Any:
         """Get persistent value for datum."""
@@ -307,8 +329,9 @@ class ConfigPane(QWidget):
             confpane_info.persists[canvas].append(datum)
         return confpane_info.persist_vals[key]
 
-    def get_datum(self, canvas, name: str, datum: str, val_get_cb: Optional[Callable],
-                 default: Any = "") -> Any:
+    def get_datum(self, canvas, name: str, datum: str,
+                  val_get_cb: Optional[Callable],
+                  default: Any = "") -> Any:
         """Get datum value from selected objects or tool."""
         # This would integrate with the CAD object system
         # For now, return default or persistent value
@@ -316,7 +339,8 @@ class ConfigPane(QWidget):
             return self.get_persistent(canvas, datum, default)
         return default
 
-    def set_datum(self, canvas, name: str, datum: str, val_set_cb: Optional[Callable], value: Any):
+    def set_datum(self, canvas, name: str, datum: str,
+                  val_set_cb: Optional[Callable], value: Any):
         """Set datum value on selected objects or tool."""
         # Store persistent value
         key = f"{canvas}-{datum}"
@@ -349,7 +373,8 @@ class ConfigPane(QWidget):
     def populate(self):
         """Schedule population of configuration pane."""
         if confpane_info.populate_timer_id is None:
-            confpane_info.populate_timer_id = QTimer.singleShot(50, self.populate_really)
+            confpane_info.populate_timer_id = QTimer.singleShot(
+                50, self.populate_really)
             confpane_info.focus_field = ""
 
     def populate_really(self):
@@ -372,10 +397,11 @@ class ConfigPane(QWidget):
 
     def _clear_widgets(self):
         """Clear all existing widgets."""
-        while self.layout.count():
-            child = self.layout.takeAt(0)
+        while self.main_layout.count():
+            child = self.main_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
+        self.field_widgets.clear()
         self.field_widgets.clear()
 
     def _get_current_fields(self) -> List[Dict[str, Any]]:
@@ -422,8 +448,8 @@ class ConfigPane(QWidget):
 
         for field in fields:
             field_type = field.get('type', '')
-            name = field.get('name', '')
-            title = field.get('title', name)
+            # name = field.get('name', '')
+            # title = field.get('title', name)
 
             if field_type == 'COLOR':
                 self._create_color_field(row, field)
@@ -459,7 +485,8 @@ class ConfigPane(QWidget):
             button.setStyleSheet("background-color: white; color: black;")
             button.setText("None")
         else:
-            button.setStyleSheet(f"background-color: {default}; color: {default};")
+            button.setStyleSheet(
+                f"background-color: {default}; color: {default};")
             button.setText("")
 
         button.clicked.connect(
@@ -480,8 +507,7 @@ class ConfigPane(QWidget):
         layout.addWidget(clear_btn)
         layout.addStretch()
         widget.setLayout(layout)
-
-        self.layout.addWidget(widget)
+        self.main_layout.addWidget(widget)
         self.field_widgets[name] = button
 
     def _create_float_field(self, row: int, field: Dict[str, Any]):
@@ -512,7 +538,7 @@ class ConfigPane(QWidget):
         layout.addStretch()
         widget.setLayout(layout)
 
-        self.layout.addWidget(widget)
+        self.main_layout.addWidget(widget)
         self.field_widgets[name] = spinbox
 
     def _create_int_field(self, row: int, field: Dict[str, Any]):
@@ -540,7 +566,7 @@ class ConfigPane(QWidget):
         layout.addStretch()
         widget.setLayout(layout)
 
-        self.layout.addWidget(widget)
+        self.main_layout.addWidget(widget)
         self.field_widgets[name] = spinbox
 
     def _create_string_field(self, row: int, field: Dict[str, Any]):
@@ -565,7 +591,7 @@ class ConfigPane(QWidget):
         layout.addStretch()
         widget.setLayout(layout)
 
-        self.layout.addWidget(widget)
+        self.main_layout.addWidget(widget)
         self.field_widgets[name] = lineedit
 
     def _create_boolean_field(self, row: int, field: Dict[str, Any]):
@@ -578,11 +604,11 @@ class ConfigPane(QWidget):
         checkbox.setChecked(default)
 
         checkbox.toggled.connect(
-            lambda checked: self.set_datum(self.canvas, name, name, None, checked)
+            lambda checked: self.set_datum(
+                self.canvas, name, name, None, checked)
         )
-
-        self.layout.addWidget(checkbox)
-        self.field_widgets[name] = checkbox
+        self.main_layout.addWidget(checkbox)
+        self.main_layout.addWidget(checkbox)
 
     def _create_options_field(self, row: int, field: Dict[str, Any]):
         """Create options combobox field."""
@@ -609,7 +635,7 @@ class ConfigPane(QWidget):
 
         combobox.currentTextChanged.connect(
             lambda text: self.set_datum(self.canvas, name, name, None,
-                                       combobox.currentData())
+                                        combobox.currentData())
         )
 
         # Layout
@@ -620,7 +646,7 @@ class ConfigPane(QWidget):
         layout.addStretch()
         widget.setLayout(layout)
 
-        self.layout.addWidget(widget)
+        self.main_layout.addWidget(widget)
         self.field_widgets[name] = combobox
 
     def _create_font_field(self, row: int, field: Dict[str, Any]):
@@ -646,7 +672,8 @@ class ConfigPane(QWidget):
 
         # Italic checkbox
         italic_check = QCheckBox("Italic")
-        confpane_info.italic_checks[f"ITALCB-{self.canvas}-{name}"] = italic_check
+        confpane_info.italic_checks[f"ITALCB-{self.canvas}-{name}"] = \
+            italic_check
 
         # Connect signals
         font_combo.currentTextChanged.connect(
@@ -673,7 +700,7 @@ class ConfigPane(QWidget):
         layout.addStretch()
         widget.setLayout(layout)
 
-        self.layout.addWidget(widget)
+        self.main_layout.addWidget(widget)
         self.field_widgets[name] = font_combo
 
     def _create_button_field(self, row: int, field: Dict[str, Any]):
@@ -686,9 +713,7 @@ class ConfigPane(QWidget):
 
         if field.get('type') == 'EXEC':
             confpane_info.exec_buttons[f"EXECBTN-{self.canvas}"] = button
-
-        self.layout.addWidget(button)
-        self.field_widgets[name] = button
+        self.main_layout.addWidget(button)
 
     def _parse_length_value(self, value: str) -> float:
         """Parse length value with unit conversion."""
@@ -703,7 +728,10 @@ class ConfigPane(QWidget):
             raise ValueError(f"Cannot parse length value: {value}")
 
 
-def create_config_pane(canvas=None, parent: Optional[QWidget] = None) -> ConfigPane:
+def create_config_pane(
+        canvas=None,
+        parent: Optional[QWidget] = None
+) -> ConfigPane:
     """
     Create and return a new configuration pane.
 

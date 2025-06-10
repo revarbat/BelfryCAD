@@ -113,7 +113,8 @@ class TextTool(Tool):
         self.temp_objects.append(text_item)
 
         # Add a small marker at the position point
-        marker_item = QGraphicsRectItem(QRectF(position.x - 3, position.y - 3, 6, 6))
+        marker_item = QGraphicsRectItem(
+            QRectF(position.x - 3, position.y - 3, 6, 6))
         marker_item.setPen(QPen("red"))
         marker_item.setBrush(QBrush("red"))
         self.scene.addItem(marker_item)

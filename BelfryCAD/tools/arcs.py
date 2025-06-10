@@ -110,7 +110,7 @@ class ArcCenterTool(Tool):
             # Draw temporary line from center to current point
             line_item = QGraphicsLineItem(center.x, center.y, point.x, point.y)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             line_item.setPen(pen)
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
@@ -146,7 +146,7 @@ class ArcCenterTool(Tool):
                 center.x, center.y, start.x, start.y
             )
             pen1 = QPen(QColor("blue"))
-            pen1.setStyle(Qt.DashLine)
+            pen1.setStyle(Qt.PenStyle.DashLine)
             line1_item.setPen(pen1)
             self.scene.addItem(line1_item)
 
@@ -154,7 +154,7 @@ class ArcCenterTool(Tool):
                 center.x, center.y, point.x, point.y
             )
             pen2 = QPen(QColor("blue"))
-            pen2.setStyle(Qt.DashLine)
+            pen2.setStyle(Qt.PenStyle.DashLine)
             line2_item.setPen(pen2)
             self.scene.addItem(line2_item)
 
@@ -187,7 +187,7 @@ class ArcCenterTool(Tool):
 
             path_item = QGraphicsPathItem(path)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             path_item.setPen(pen)
             self.scene.addItem(path_item)
             self.temp_objects.append(path_item)
@@ -309,11 +309,12 @@ class Arc3PointTool(Tool):
             from PySide6.QtCore import Qt
             from PySide6.QtGui import QPen, QColor
 
-            line_item = QGraphicsLineItem(start.x, start.y, point.x, point.y)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
-            line_item.setPen(pen)
-            self.scene.addItem(line_item)
+            pen.setStyle(Qt.PenStyle.DashLine)
+            line_item = self.scene.addLine(
+                start.x, start.y, point.x, point.y,
+                pen=pen, tags=["ConstPreview"]
+            )
             self.temp_objects.append(line_item)
 
         elif len(self.points) == 2:
@@ -351,13 +352,13 @@ class Arc3PointTool(Tool):
 
                 line1_item = QGraphicsLineItem(center.x, center.y, p1.x, p1.y)
                 pen1 = QPen(QColor("gray"))
-                pen1.setStyle(Qt.DashLine)
+                pen1.setStyle(Qt.PenStyle.DashLine)
                 line1_item.setPen(pen1)
                 self.scene.addItem(line1_item)
 
                 line2_item = QGraphicsLineItem(center.x, center.y, p3.x, p3.y)
                 pen2 = QPen(QColor("gray"))
-                pen2.setStyle(Qt.DashLine)
+                pen2.setStyle(Qt.PenStyle.DashLine)
                 line2_item.setPen(pen2)
                 self.scene.addItem(line2_item)
 
@@ -456,7 +457,7 @@ class Arc3PointTool(Tool):
 
             path_item = QGraphicsPathItem(path)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             path_item.setPen(pen)
             self.scene.addItem(path_item)
             self.temp_objects.append(path_item)
@@ -567,7 +568,7 @@ class ArcTangentTool(Tool):
 
             line_item = QGraphicsLineItem(start.x, start.y, point.x, point.y)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             line_item.setPen(pen)
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
@@ -584,7 +585,7 @@ class ArcTangentTool(Tool):
                 tangent_point.x + 50, tangent_point.y + 50
             )
             pen_tangent = QPen(QColor("gray"))
-            pen_tangent.setStyle(Qt.DashLine)
+            pen_tangent.setStyle(Qt.PenStyle.DashLine)
             tangent_line_item.setPen(pen_tangent)
             self.scene.addItem(tangent_line_item)
             self.temp_objects.append(tangent_line_item)
@@ -612,7 +613,7 @@ class ArcTangentTool(Tool):
                     center.x, center.y, end_point.x, end_point.y
                 )
                 pen_gray = QPen(QColor("gray"))
-                pen_gray.setStyle(Qt.DashLine)
+                pen_gray.setStyle(Qt.PenStyle.DashLine)
                 line1_item.setPen(pen_gray)
                 line2_item.setPen(pen_gray)
                 self.scene.addItem(line1_item)
@@ -623,7 +624,7 @@ class ArcTangentTool(Tool):
     def _calculate_tangent_arc(self, start_point: Point, tangent_point: Point,
                                end_point: Point) -> Optional[
                                    Tuple[Point, float, float, float]
-                               ]:
+    ]:
         """Calculate arc params for arc tangent to line through tangent_pt."""
 
         # For simplicity, assume tangent line passes through tangent point

@@ -28,6 +28,7 @@ from .colors import Colors
 class ConstructionCADObject:
     """CAD-like object for construction items that don't have real
     CAD objects"""
+
     def __init__(self, object_id: str, object_type: ObjectType):
         self.object_id = object_id
         self.object_type = object_type
@@ -274,17 +275,17 @@ class DrawingManager:
         return 1.0  # Default scale factor
 
     def scale_coords(self, coords: List[float]) -> List[float]:
-        """Scale coordinates using CadScene scaling method"""
-        if self.cad_scene:
-            return self.cad_scene.scale_coords(coords)
-        # Fallback implementation if no CadScene available
+        """Scale coordinates using CadGraphicsView scaling method"""
+        if self.cad_scene and hasattr(self.cad_scene, 'view'):
+            return self.cad_scene.view.scale_coords(coords)
+        # Fallback implementation if no CadScene or view available
         return coords[:]
 
     def descale_coords(self, coords: List[float]) -> List[float]:
-        """Descale coordinates using CadScene scaling method"""
-        if self.cad_scene:
-            return self.cad_scene.descale_coords(coords)
-        # Fallback implementation if no CadScene available
+        """Descale coordinates using CadGraphicsView scaling method"""
+        if self.cad_scene and hasattr(self.cad_scene, 'view'):
+            return self.cad_scene.view.descale_coords(coords)
+        # Fallback implementation if no CadScene or view available
         return coords[:]
 
     def get_stroke_width(self, obj: CADObject) -> float:

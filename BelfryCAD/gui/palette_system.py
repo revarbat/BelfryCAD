@@ -1,19 +1,18 @@
 """
 Palette System for PyTkCAD.
 
-This module implements a modern relocatable palette system within the main window.
-Instead of separate floating windows, palettes can be docked/undocked and repositioned
-within the main window area.
+This module implements a modern relocatable palette system within the main
+window.  Instead of separate floating windows, palettes can be docked/undocked
+and repositioned within the main window area.
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QSplitter, QTabWidget,
-    QDockWidget, QApplication, QLabel, QPushButton, QToolButton, QSizePolicy
+    QWidget, QVBoxLayout, QTabWidget,
+    QDockWidget, QApplication, QLabel, QMainWindow
 )
-from PySide6.QtCore import Qt, Signal, QPoint, QSize, QTimer, QObject
-from PySide6.QtGui import QIcon, QPainter, QPen, QColor, QPixmap, QCursor
+from PySide6.QtCore import Qt, Signal, QPoint, QSize, QObject
 
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any
 from enum import Enum
 
 # Import the translated palette components
@@ -21,7 +20,6 @@ from .info_pane_window import InfoPaneWindow
 from .config_pane import ConfigPane
 from .snap_window import SnapWindow
 from .layer_window import LayerWindow
-from .progress_window import ProgressWindow
 
 
 class PaletteDockArea(Enum):
@@ -52,7 +50,13 @@ class DockablePalette(QDockWidget):
     palette_redocked = Signal(str, str)  # palette_id, dock_area
     palette_visibility_changed = Signal(str, bool)  # palette_id, visible
 
-    def __init__(self, palette_id: str, title: str, content_widget: QWidget, parent=None):
+    def __init__(
+            self,
+            palette_id: str,
+            title: str,
+            content_widget: QWidget,
+            parent=None
+    ):
         super().__init__(title, parent)
         self.palette_id = palette_id
         self.content_widget = content_widget
@@ -64,10 +68,10 @@ class DockablePalette(QDockWidget):
         """Setup the dockable palette UI."""
         # Configure dock widget properties
         self.setAllowedAreas(
-            Qt.LeftDockWidgetArea |
-            Qt.RightDockWidgetArea |
-            Qt.TopDockWidgetArea |
-            Qt.BottomDockWidgetArea
+            Qt.DockWidgetArea.LeftDockWidgetArea |
+            Qt.DockWidgetArea.RightDockWidgetArea |
+            Qt.DockWidgetArea.TopDockWidgetArea |
+            Qt.DockWidgetArea.BottomDockWidgetArea
         )
 
         # Enable floating
@@ -75,9 +79,9 @@ class DockablePalette(QDockWidget):
 
         # Set features
         self.setFeatures(
-            QDockWidget.DockWidgetMovable |
-            QDockWidget.DockWidgetFloatable |
-            QDockWidget.DockWidgetClosable
+            QDockWidget.DockWidgetFeature.DockWidgetMovable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetClosable
         )
 
         # Set content widget
@@ -98,10 +102,14 @@ class DockablePalette(QDockWidget):
     def _on_dock_location_changed(self, area: Qt.DockWidgetArea):
         """Handle dock location changes."""
         area_map = {
-            Qt.LeftDockWidgetArea: PaletteDockArea.LEFT.value,
-            Qt.RightDockWidgetArea: PaletteDockArea.RIGHT.value,
-            Qt.TopDockWidgetArea: PaletteDockArea.TOP.value,
-            Qt.BottomDockWidgetArea: PaletteDockArea.BOTTOM.value,
+            Qt.DockWidgetArea.LeftDockWidgetArea:
+                PaletteDockArea.LEFT.value,
+            Qt.DockWidgetArea.RightDockWidgetArea:
+                PaletteDockArea.RIGHT.value,
+            Qt.DockWidgetArea.TopDockWidgetArea:
+                PaletteDockArea.TOP.value,
+            Qt.DockWidgetArea.BottomDockWidgetArea:
+                PaletteDockArea.BOTTOM.value,
         }
 
         dock_area = area_map.get(area, PaletteDockArea.FLOATING.value)
@@ -117,13 +125,17 @@ class DockablePalette(QDockWidget):
             # Determine which area we're docked to
             if self.parent():
                 main_window = self.parent()
-                if hasattr(main_window, 'dockWidgetArea'):
+                if isinstance(main_window, QMainWindow):
                     area = main_window.dockWidgetArea(self)
                     area_map = {
-                        Qt.LeftDockWidgetArea: PaletteDockArea.LEFT.value,
-                        Qt.RightDockWidgetArea: PaletteDockArea.RIGHT.value,
-                        Qt.TopDockWidgetArea: PaletteDockArea.TOP.value,
-                        Qt.BottomDockWidgetArea: PaletteDockArea.BOTTOM.value,
+                        Qt.DockWidgetArea.LeftDockWidgetArea:
+                            PaletteDockArea.LEFT.value,
+                        Qt.DockWidgetArea.RightDockWidgetArea:
+                            PaletteDockArea.RIGHT.value,
+                        Qt.DockWidgetArea.TopDockWidgetArea:
+                            PaletteDockArea.TOP.value,
+                        Qt.DockWidgetArea.BottomDockWidgetArea:
+                            PaletteDockArea.BOTTOM.value,
                     }
                     dock_area = area_map.get(area, PaletteDockArea.LEFT.value)
                     self.palette_redocked.emit(self.palette_id, dock_area)
@@ -136,7 +148,7 @@ class PaletteTabWidget(QTabWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setTabPosition(QTabWidget.South)
+        self.setTabPosition(QTabWidget.TabPosition.South)
         self.setTabsClosable(False)  # Don't allow closing tabs
         self.setMovable(True)       # Allow tab reordering
 
@@ -213,7 +225,11 @@ class PaletteManager(QObject):
             },
         }
 
-    def create_palette(self, palette_type: PaletteType, content_widget: QWidget = None) -> str:
+    def create_palette(
+            self,
+            palette_type: PaletteType,
+            content_widget: Optional[QWidget] = None
+    ) -> str:
         """
         Create a new palette of the specified type.
 
@@ -232,14 +248,17 @@ class PaletteManager(QObject):
             content_widget = self._create_content_widget(palette_type)
 
         # Create the dockable palette
-        title = config.get('title', palette_type.value.replace('_', ' ').title())
-        palette = DockablePalette(palette_id, title, content_widget, self.main_window)
+        title = config.get(
+            'title', palette_type.value.replace('_', ' ').title())
+        palette = DockablePalette(
+            palette_id, title, content_widget, self.main_window)
 
         # Connect signals
         palette.palette_moved.connect(self._on_palette_moved)
         palette.palette_undocked.connect(self._on_palette_undocked)
         palette.palette_redocked.connect(self._on_palette_redocked)
-        palette.palette_visibility_changed.connect(self._on_palette_visibility_changed)
+        palette.palette_visibility_changed.connect(
+            self._on_palette_visibility_changed)
 
         # Set initial size
         width = config.get('width', 250)
@@ -278,19 +297,21 @@ class PaletteManager(QObject):
             widget.setLayout(layout)
             return widget
 
-    def _dock_palette(self, palette: DockablePalette, dock_area: PaletteDockArea):
+    def _dock_palette(
+            self, palette: DockablePalette, dock_area: PaletteDockArea):
         """Dock a palette to the specified area."""
         area_map = {
-            PaletteDockArea.LEFT: Qt.LeftDockWidgetArea,
-            PaletteDockArea.RIGHT: Qt.RightDockWidgetArea,
-            PaletteDockArea.TOP: Qt.TopDockWidgetArea,
-            PaletteDockArea.BOTTOM: Qt.BottomDockWidgetArea,
+            PaletteDockArea.LEFT: Qt.DockWidgetArea.LeftDockWidgetArea,
+            PaletteDockArea.RIGHT: Qt.DockWidgetArea.RightDockWidgetArea,
+            PaletteDockArea.TOP: Qt.DockWidgetArea.TopDockWidgetArea,
+            PaletteDockArea.BOTTOM: Qt.DockWidgetArea.BottomDockWidgetArea,
         }
 
         if dock_area == PaletteDockArea.FLOATING:
             palette.setFloating(True)
         else:
-            qt_area = area_map.get(dock_area, Qt.RightDockWidgetArea)
+            qt_area = area_map.get(
+                dock_area, Qt.DockWidgetArea.RightDockWidgetArea)
             self.main_window.addDockWidget(qt_area, palette)
 
     def _on_palette_moved(self, palette_id: str, new_dock_area: str):
@@ -361,10 +382,14 @@ class PaletteManager(QObject):
             else:
                 qt_area = self.main_window.dockWidgetArea(palette)
                 area_map = {
-                    Qt.LeftDockWidgetArea: PaletteDockArea.LEFT.value,
-                    Qt.RightDockWidgetArea: PaletteDockArea.RIGHT.value,
-                    Qt.TopDockWidgetArea: PaletteDockArea.TOP.value,
-                    Qt.BottomDockWidgetArea: PaletteDockArea.BOTTOM.value,
+                    Qt.DockWidgetArea.LeftDockWidgetArea:
+                        PaletteDockArea.LEFT.value,
+                    Qt.DockWidgetArea.RightDockWidgetArea:
+                        PaletteDockArea.RIGHT.value,
+                    Qt.DockWidgetArea.TopDockWidgetArea:
+                        PaletteDockArea.TOP.value,
+                    Qt.DockWidgetArea.BottomDockWidgetArea:
+                        PaletteDockArea.BOTTOM.value,
                 }
                 dock_area = area_map.get(qt_area, PaletteDockArea.RIGHT.value)
                 pos = None
@@ -388,6 +413,7 @@ class PaletteManager(QObject):
 
             # Restore dock area
             dock_area_str = data.get('dock_area', PaletteDockArea.RIGHT.value)
+            dock_area = PaletteDockArea.FLOATING
             try:
                 dock_area = PaletteDockArea(dock_area_str)
                 self._dock_palette(palette, dock_area)
@@ -443,7 +469,7 @@ def create_default_palettes(main_window) -> PaletteManager:
 if __name__ == "__main__":
     """Test the palette system independently."""
     import sys
-    from PySide6.QtWidgets import QApplication, QMainWindow, QTextEdit
+    from PySide6.QtWidgets import QTextEdit
 
     app = QApplication(sys.argv)
 
@@ -454,7 +480,8 @@ if __name__ == "__main__":
 
     # Add a central widget
     central_widget = QTextEdit()
-    central_widget.setText("Main content area\n\nTry docking and undocking the palettes!")
+    central_widget.setText(
+        "Main content area\n\nTry docking and undocking the palettes!")
     main_window.setCentralWidget(central_widget)
 
     # Create palette manager and default palettes

@@ -4,11 +4,15 @@ CADGraphicsView - Custom graphics view for CAD operations
 
 from PySide6.QtWidgets import QGraphicsView
 from PySide6.QtGui import QPainter
-from PySide6.QtCore import Qt, QEvent
+from PySide6.QtCore import Qt, QEvent, Signal
+from typing import List
 
 
 class CADGraphicsView(QGraphicsView):
     """Custom graphics view for CAD drawing operations."""
+    
+    # Signal emitted when view position changes (scrolling, etc.)
+    view_position_changed = Signal(float, float)  # x, y in scene coordinates
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,11 +37,32 @@ class CADGraphicsView(QGraphicsView):
         # Enable touch events for multitouch scrolling
         self.setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, True)
 
+        # Initialize drawing context fields
+        self.dpi: float = 96.0
+        self.scale_factor: float = 1.0
+
+        # Set default transform to invert Y-axis for CAD coordinate system
+        # This makes Y increase upward (CAD convention) instead of downward
+        # (Qt convention)
+        factor = self.dpi * self.scale_factor
+        self.scale(factor, -factor)
+
+        # Set transformation anchors to allow zooming and panning
+        # around the mouse cursor position
+        self.setTransformationAnchor(
+            QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setResizeAnchor(
+            QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+
         self.tool_manager = None  # Will be set by the main window
         self.drawing_manager = None  # Will be set by the main window
-        
+
         # Touch gesture state tracking
         self._last_pinch_distance = None
+
+        # Gesture state tracking for performance optimization
+        self._gesture_in_progress = False
+        self._native_gesture_active = False
 
     def _on_scale_changed(self, scale_factor):
         """Handle scale changes from CadScene to update visual zoom"""
@@ -54,14 +79,20 @@ class CADGraphicsView(QGraphicsView):
     def set_drawing_manager(self, drawing_manager):
         """Set the drawing manager for coordinate transformations"""
         self.drawing_manager = drawing_manager
-        
+
         # Connect to scale changes for visual zoom updates
-        if (self.drawing_manager and 
-            self.drawing_manager.cad_scene and 
-            hasattr(self.drawing_manager.cad_scene, 'scale_changed')):
+        if (self.drawing_manager and
+                self.drawing_manager.cad_scene and
+                hasattr(self.drawing_manager.cad_scene, 'scale_changed')):
             self.drawing_manager.cad_scene.scale_changed.connect(
                 self._on_scale_changed
             )
+
+        # Connect scroll bars to ruler updates
+        h_bar = self.horizontalScrollBar()
+        v_bar = self.verticalScrollBar()
+        h_bar.valueChanged.connect(self._update_rulers_on_scroll)
+        v_bar.valueChanged.connect(self._update_rulers_on_scroll)
 
     def wheelEvent(self, event):
         """Handle mouse wheel events for scrolling and zooming"""
@@ -119,105 +150,187 @@ class CADGraphicsView(QGraphicsView):
             new_value = v_bar.value() - scroll_amount
             v_bar.setValue(new_value)
 
+        # Update rulers after scrolling
+        self._update_rulers_on_scroll()
+
         # Accept the event to prevent it from being passed to parent
         event.accept()
 
     def event(self, event):
         """Override event handler to catch touch events for multitouch
         scrolling and pinch-to-zoom"""
-        # Handle multitouch gestures for two-finger scrolling and zooming
+        event_type = event.type()
+
+        # Handle macOS trackpad pinch gestures via QNativeGestureEvent
+        if (hasattr(QEvent.Type, 'NativeGesture') and
+                event_type == QEvent.Type.NativeGesture):
+            print("DEBUG: Native gesture event detected")
+            if hasattr(event, 'gestureType'):
+                gesture_type = event.gestureType()
+                print(f"DEBUG: Gesture type: {gesture_type}")
+
+                # Handle gesture begin - start deferred mode
+                if gesture_type == Qt.NativeGestureType.BeginNativeGesture:
+                    print("DEBUG: Begin native gesture")
+                    self._native_gesture_active = True
+                    self._gesture_in_progress = True
+                    event.accept()
+                    return True
+
+                # Handle gesture end - redraw grid and cleanup
+                elif gesture_type == Qt.NativeGestureType.EndNativeGesture:
+                    print("DEBUG: End native gesture")
+                    self._native_gesture_active = False
+                    self._gesture_in_progress = False
+                    # Redraw grid now that gesture is complete to ensure
+                    # 1.0 pixel line width
+                    if (self.drawing_manager and
+                            self.drawing_manager.cad_scene):
+                        self.drawing_manager.cad_scene.redraw_grid()
+                    event.accept()
+                    return True
+
+                # Handle pinch zoom gestures (macOS trackpad)
+                elif gesture_type == Qt.NativeGestureType.ZoomNativeGesture:
+                    if hasattr(event, 'value'):
+                        zoom_value = event.value()
+                        print(f"DEBUG: Zoom gesture value: {zoom_value}")
+
+                        if (self.drawing_manager and
+                                self.drawing_manager.cad_scene):
+                            # Get current scale factor
+                            current_scale = (self.drawing_manager.cad_scene
+                                             .scale_factor)
+
+                            # Convert native gesture value to zoom factor
+                            # Native gesture value represents the zoom delta
+                            # For pinch gestures:
+                            #   negative = zoom out,
+                            #   positive = zoom in
+                            # Convert to multiplicative factor: 1.0 + delta
+                            zoom_factor = 1.0 + zoom_value
+                            print(f"DEBUG: Applying zoom factor: "
+                                  f"{zoom_factor}")
+
+                            # Calculate new scale factor
+                            new_scale = current_scale * zoom_factor
+
+                            # Clamp zoom to reasonable limits (0.01x to 100x)
+                            new_scale = max(0.01, min(100.0, new_scale))
+
+                            # Apply the new scale factor with deferred grid
+                            # redraw during continuous gesture
+                            defer_redraw = self._native_gesture_active
+                            self.drawing_manager.cad_scene.set_scale_factor(
+                                new_scale, defer_grid_redraw=defer_redraw)
+
+                        event.accept()
+                        return True
+
+        # Handle touch events for touchscreen devices (non-macOS trackpad)
         if (hasattr(event, 'type') and
                 event.type() in [QEvent.Type.TouchBegin,
                                  QEvent.Type.TouchUpdate,
                                  QEvent.Type.TouchEnd]):
+            print(f"DEBUG: Touch event detected: {event.type()}")
+            if hasattr(event, 'touchPoints'):
+                print(f"DEBUG: Touch points count: {len(event.touchPoints())}")
 
-            if (hasattr(event, 'touchPoints') and
-                    len(event.touchPoints()) == 2):
-                return self._handle_two_finger_scroll(event)
+            # Handle touch begin - start gesture tracking
+            if event.type() == QEvent.Type.TouchBegin:
+                if (hasattr(event, 'touchPoints') and
+                        len(event.touchPoints()) == 2):
+                    print("DEBUG: Starting two-finger touch gesture")
+                    self._gesture_in_progress = True
+
+            # Handle touch update - process gestures with deferred redraw
+            elif event.type() == QEvent.Type.TouchUpdate:
+                if (hasattr(event, 'touchPoints') and
+                        len(event.touchPoints()) == 2):
+                    print("DEBUG: Handling two-finger touch")
+                    # Handle two-finger pinch-to-zoom for touchscreen devices
+                    touch_points = event.touchPoints()
+                    if len(touch_points) == 2:
+                        # Calculate distance between touch points
+                        point1 = touch_points[0].pos()
+                        point2 = touch_points[1].pos()
+                        current_distance = (
+                            (point1.x() - point2.x()) ** 2 +
+                            (point1.y() - point2.y()) ** 2
+                        ) ** 0.5
+
+                        if self._last_pinch_distance is not None:
+                            # Calculate zoom factor based on distance change
+                            distance_ratio = current_distance / self._last_pinch_distance
+                            if (self.drawing_manager and
+                                    self.drawing_manager.cad_scene):
+                                current_scale = self.drawing_manager.cad_scene.scale_factor
+                                new_scale = current_scale * distance_ratio
+                                new_scale = max(0.01, min(100.0, new_scale))
+                                # Use deferred redraw during continuous gesture
+                                self.drawing_manager.cad_scene.set_scale_factor(
+                                    new_scale, defer_grid_redraw=True)
+
+                        self._last_pinch_distance = current_distance
+                        event.accept()
+                        return True
+
+            # Handle touch end - cleanup and redraw grid
             elif event.type() == QEvent.Type.TouchEnd:
                 # Reset pinch tracking when touch ends
+                print("DEBUG: Touch end - resetting pinch distance")
                 self._last_pinch_distance = None
+                # End gesture and redraw grid if needed
+                if self._gesture_in_progress:
+                    print("DEBUG: Ending touch gesture, redrawing grid")
+                    self._gesture_in_progress = False
+                    if (self.drawing_manager and
+                            self.drawing_manager.cad_scene):
+                        self.drawing_manager.cad_scene.redraw_grid()
 
         return super().event(event)
 
-    def _handle_two_finger_scroll(self, event):
-        """Handle two-finger touch events for scrolling and pinch-to-zoom"""
-        touch_points = event.touchPoints()
-        if len(touch_points) != 2:
-            return False
+    def get_dpi(self) -> float:
+        """Get the current DPI setting."""
+        return self.dpi
 
-        # Calculate current distance between touch points for pinch detection
-        point1_pos = touch_points[0].pos()
-        point2_pos = touch_points[1].pos()
-        current_distance = ((point1_pos.x() - point2_pos.x()) ** 2 +
-                           (point1_pos.y() - point2_pos.y()) ** 2) ** 0.5
-        
-        # Handle pinch-to-zoom gesture
-        if event.type() == QEvent.Type.TouchUpdate:
-            if self._last_pinch_distance is not None:
-                # Calculate distance change for zoom
-                distance_change = (current_distance -
-                                   self._last_pinch_distance)
+    def set_dpi(self, dpi: float):
+        """Set the DPI setting."""
+        self.dpi = dpi
 
-                # Only handle zoom if distance change is significant enough
-                # This helps distinguish between intentional pinch and minor
-                # finger movement
-                if abs(distance_change) > 5.0:  # Minimum threshold in pixels
-                    if (self.drawing_manager and
-                            self.drawing_manager.cad_scene):
-                        # Get current scale factor
-                        current_scale = (self.drawing_manager.cad_scene
-                                         .scale_factor)
+    def get_scale_factor(self) -> float:
+        """Get the current scale factor."""
+        return self.scale_factor
 
-                        # Calculate zoom factor based on distance change
-                        # Normalize the distance change and apply sensitivity
-                        zoom_sensitivity = 0.005  # Adjust sensitivity
-                        zoom_factor = (1.0 +
-                                       (distance_change * zoom_sensitivity))
-                        # Calculate new scale factor
-                        new_scale = current_scale * zoom_factor
+    def set_scale_factor(self, scale_factor: float):
+        """Set the scale factor (zoom level)."""
+        self.scale_factor = scale_factor
 
-                        # Clamp zoom to reasonable limits (0.01x to 100x)
-                        new_scale = max(0.01, min(100.0, new_scale))
+    def scale_coords(self, coords: List[float]) -> List[float]:
+        """Convert CAD coordinates to view coordinates using Qt transforms"""
+        from PySide6.QtCore import QPointF
 
-                        # Apply the new scale factor
-                        self.drawing_manager.cad_scene.set_scale_factor(
-                            new_scale)
+        scaled_coords = []
+        for i in range(0, len(coords), 2):
+            # Create point in CAD coordinates
+            cad_point = QPointF(coords[i], coords[i + 1])
+            # Map to view coordinates using Qt's transform system
+            view_point = self.mapFromScene(cad_point)
+            scaled_coords.extend([view_point.x(), view_point.y()])
+        return scaled_coords
 
-        # Update the last pinch distance for next update
-        self._last_pinch_distance = current_distance
+    def descale_coords(self, coords: List[float]) -> List[float]:
+        """Convert view coordinates to CAD coordinates using Qt transforms"""
+        from PySide6.QtCore import QPointF
 
-        # Handle panning (scrolling) - calculate center point movement
-        current_center = ((touch_points[0].pos() +
-                          touch_points[1].pos()) / 2)
-        last_center = ((touch_points[0].lastPos() +
-                       touch_points[1].lastPos()) / 2)
-
-        # Calculate the delta movement for panning
-        delta = current_center - last_center
-
-        # Only apply panning if the movement is significant
-        # This prevents minor movements during pinch gestures from causing
-        # unwanted panning
-        if abs(delta.x()) > 1.0 or abs(delta.y()) > 1.0:
-            # Convert to scroll amounts (invert Y for natural scrolling)
-            scroll_speed = 3.0  # Adjust sensitivity as needed
-            scroll_x = int(delta.x() * scroll_speed)
-            scroll_y = int(-delta.y() * scroll_speed)  # Invert Y for natural
-
-            # Apply scrolling
-            if scroll_x != 0:
-                h_bar = self.horizontalScrollBar()
-                new_value = h_bar.value() + scroll_x
-                h_bar.setValue(new_value)
-
-            if scroll_y != 0:
-                v_bar = self.verticalScrollBar()
-                new_value = v_bar.value() + scroll_y
-                v_bar.setValue(new_value)
-
-        event.accept()
-        return True
+        descaled_coords = []
+        for i in range(0, len(coords), 2):
+            # Create point in view coordinates
+            view_point = QPointF(coords[i], coords[i + 1])
+            # Map to scene (CAD) coordinates using Qt's transform system
+            cad_point = self.mapToScene(view_point)
+            descaled_coords.extend([cad_point.x(), cad_point.y()])
+        return descaled_coords
 
     def mousePressEvent(self, event):
         """Handle mouse press events and forward to active tool"""
@@ -321,3 +434,29 @@ class CADGraphicsView(QGraphicsView):
                 active_tool.handle_drag(scene_event)
         else:
             super().mouseReleaseEvent(event)
+
+    def _update_rulers_on_scroll(self):
+        """Update rulers when the view is scrolled."""
+        if hasattr(self, 'drawing_manager') and self.drawing_manager:
+            cad_scene = self.drawing_manager.cad_scene
+            if cad_scene and hasattr(cad_scene, 'ruler_manager'):
+                # Update rulers with current view position
+                ruler_manager = cad_scene.ruler_manager
+                if hasattr(ruler_manager, 'update_rulers_on_view_change'):
+                    ruler_manager.update_rulers_on_view_change()
+                elif hasattr(ruler_manager, 'update_rulers'):
+                    ruler_manager.update_rulers()
+                
+                # Emit signal to notify other components of view change
+                if hasattr(self, 'view_position_changed'):
+                    # Get current view center in scene coordinates
+                    center = self.mapToScene(self.viewport().rect().center())
+                    self.view_position_changed.emit(center.x(), center.y())
+
+    def scrollContentsBy(self, dx, dy):
+        """Override scrollContentsBy to update rulers when scrolling."""
+        # Call parent implementation for actual scrolling
+        super().scrollContentsBy(dx, dy)
+
+        # Update rulers after scrolling
+        self._update_rulers_on_scroll()

@@ -358,7 +358,7 @@ class PreferencesDialog(QDialog):
         # Get preferences manager
         try:
             # Try to get config from parent if it has one
-            if hasattr(parent, 'config'):
+            if parent and hasattr(parent, 'config'):
                 config = parent.config
             else:
                 config = AppConfig()
@@ -394,16 +394,19 @@ class PreferencesDialog(QDialog):
 
         # Create button box
         self.button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel |
-            QDialogButtonBox.Apply
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel |
+            QDialogButtonBox.StandardButton.Apply
         )
         self.button_box.accepted.connect(self._ok_clicked)
         self.button_box.rejected.connect(self._cancel_clicked)
-        apply_btn = self.button_box.button(QDialogButtonBox.Apply)
+        apply_btn = self.button_box.button(
+            QDialogButtonBox.StandardButton.Apply)
         apply_btn.clicked.connect(self._apply_clicked)
 
         # Initially disable Apply button
-        self.button_box.button(QDialogButtonBox.Apply).setEnabled(False)
+        self.button_box.button(
+            QDialogButtonBox.StandardButton.Apply).setEnabled(False)
 
         layout.addWidget(self.button_box)
 
@@ -425,13 +428,15 @@ class PreferencesDialog(QDialog):
             # Create scroll area for the tab
             scroll_area = QScrollArea()
             scroll_area.setWidgetResizable(True)
-            scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-            scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            scroll_area.setVerticalScrollBarPolicy(
+                Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            scroll_area.setHorizontalScrollBarPolicy(
+                Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
             # Create content widget
             content_widget = QWidget()
             content_layout = QVBoxLayout(content_widget)
-            content_layout.setAlignment(Qt.AlignTop)
+            content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
             # Create preference widgets
             self._create_preference_widgets(content_widget, tab_name, prefs)
@@ -450,6 +455,8 @@ class PreferencesDialog(QDialog):
             self.widgets[tab_name] = {}
 
         layout = parent.layout()
+        if layout is None:
+            layout = QVBoxLayout(parent)
 
         for pref_name, pref_data in prefs.items():
             # Create widget based on type
@@ -482,7 +489,8 @@ class PreferencesDialog(QDialog):
     def _on_value_changed(self):
         """Handle value changes in preference widgets."""
         self.has_changes = True
-        self.button_box.button(QDialogButtonBox.Apply).setEnabled(True)
+        self.button_box.button(
+            QDialogButtonBox.StandardButton.Apply).setEnabled(True)
 
     def _load_preferences(self):
         """Load current preferences into widgets."""
@@ -522,7 +530,8 @@ class PreferencesDialog(QDialog):
 
             # Disable Apply button
             self.has_changes = False
-            self.button_box.button(QDialogButtonBox.Apply).setEnabled(False)
+            self.button_box.button(
+                QDialogButtonBox.StandardButton.Apply).setEnabled(False)
 
             return True
 
@@ -549,13 +558,15 @@ class PreferencesDialog(QDialog):
                 self,
                 "Unsaved Changes",
                 "You have unsaved changes. Do you want to save them?",
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+                (QMessageBox.StandardButton.Yes |
+                 QMessageBox.StandardButton.No |
+                 QMessageBox.StandardButton.Cancel)
             )
 
-            if reply == QMessageBox.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
                 if self._apply_changes():
                     self.reject()
-            elif reply == QMessageBox.No:
+            elif reply == QMessageBox.StandardButton.No:
                 self.reject()
             # Cancel - do nothing, stay open
         else:
@@ -584,7 +595,7 @@ if __name__ == "__main__":
     result = dialog.exec()
 
     print(f"Dialog result: {result}")
-    if result == QDialog.Accepted:
+    if result == QDialog.DialogCode.Accepted:
         print("Preferences were saved")
     else:
         print("Preferences were cancelled")

@@ -252,7 +252,7 @@ class XmlReader:
 
         # Parse element using regex (similar to TCL version)
         match = re.match(r'^<(/?[a-zA-Z_][a-zA-Z0-9_:-]*)\s*([^>]*>)$',
-                        elem_str, re.IGNORECASE)
+                         elem_str, re.IGNORECASE)
 
         if not match:
             raise ValueError("Malformed tag")
@@ -267,7 +267,7 @@ class XmlReader:
         while attr_str and not attr_str.endswith("/"):
             # Try quoted attribute value
             quoted_pattern = (r'^\s*([a-zA-Z_][a-zA-Z0-9_:-]*)='
-                             r'[\'"]([^\'"]*)[\'"](.*)$')
+                              r'[\'"]([^\'"]*)[\'"](.*)$')
             quoted_match = re.match(quoted_pattern, attr_str, re.IGNORECASE)
             if quoted_match:
                 attr_name = quoted_match.group(1)
@@ -276,9 +276,9 @@ class XmlReader:
             else:
                 # Try unquoted attribute value
                 unquoted_pattern = (r'^\s*([a-zA-Z_][a-zA-Z0-9_:-]*)='
-                                   r'([^\s]*)(.*)$')
+                                    r'([^\s]*)(.*)$')
                 unquoted_match = re.match(unquoted_pattern, attr_str,
-                                        re.IGNORECASE)
+                                          re.IGNORECASE)
                 if unquoted_match:
                     attr_name = unquoted_match.group(1)
                     attr_value = unquoted_match.group(2)
@@ -287,7 +287,7 @@ class XmlReader:
                     # Boolean attribute (no value)
                     bool_pattern = r'^\s*([a-zA-Z_][a-zA-Z0-9_:-]*)(.*)$'
                     bool_match = re.match(bool_pattern, attr_str,
-                                        re.IGNORECASE)
+                                          re.IGNORECASE)
                     if bool_match:
                         attr_name = bool_match.group(1)
                         attr_value = attr_name  # TCL behavior: value = name

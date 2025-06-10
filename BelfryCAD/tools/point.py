@@ -85,7 +85,8 @@ class PointTool(Tool):
         self.scene.addItem(v_line_item)
 
         # Draw small circle around the point
-        circle_item = QGraphicsEllipseItem(QRectF(x - size, y - size, 2 * size, 2 * size))
+        circle_item = QGraphicsEllipseItem(
+            QRectF(x - size, y - size, 2 * size, 2 * size))
         circle_item.setPen(pen)
         self.scene.addItem(circle_item)
 

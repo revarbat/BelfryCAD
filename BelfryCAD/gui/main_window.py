@@ -14,7 +14,8 @@ except ImportError:
     Image = None
     io = None
 
-from BelfryCAD.tools import available_tools, ToolManager
+from BelfryCAD.tools import available_tools
+from BelfryCAD.tools.base import ToolManager
 from BelfryCAD.gui.category_button import CategoryToolButton
 from BelfryCAD.gui.mainmenu import MainMenuBar
 from BelfryCAD.gui.cad_scene import CadScene
@@ -27,6 +28,14 @@ class MainWindow(QMainWindow):
         self.config = config
         self.preferences = preferences
         self.document = document
+
+        # Initialize undo/redo system
+        from BelfryCAD.core.undo_redo import UndoRedoManager
+        self.undo_manager = UndoRedoManager(max_undo_levels=50)
+        self.undo_manager.add_callback(self._on_undo_state_changed)
+
+        # Initialize print system
+        self.print_manager = None  # Will be initialized after scene creation
 
         # Track graphics items by object ID for updates/deletion
         self.graphics_items = {}  # object_id -> list of graphics items
@@ -242,6 +251,10 @@ class MainWindow(QMainWindow):
         self.main_menu.cycle_windows_triggered.connect(
             self.cycle_windows)
 
+        # Preferences menu connection
+        if hasattr(self.main_menu, 'preferences_triggered'):
+            self.main_menu.preferences_triggered.connect(self.show_preferences)
+
     def _create_toolbar(self):
         """Create a toolbar with drawing tools"""
         from PySide6.QtCore import Qt, QSize
@@ -288,10 +301,20 @@ class MainWindow(QMainWindow):
             self._on_mouse_position_changed)
         self.cad_scene.scale_changed.connect(self._on_scale_changed)
 
+        # Initialize print manager after scene is created
+        from .print_manager import CadPrintManager
+        self.print_manager = CadPrintManager(self, self.cad_scene, self.document)
+
     def _on_mouse_position_changed(self, scene_x: float, scene_y: float):
         """Handle mouse position changes from CadScene."""
-        # Update any UI elements that need mouse position updates
-        pass
+        # Update info panes with canvas coordinate position (backup method)
+        # Primary connection should be direct from CadScene to info pane
+        if hasattr(self, '_info_panes'):
+            for info_pane in self._info_panes:
+                if hasattr(info_pane, 'update_mouse_position'):
+                    # Only call if not already directly connected
+                    if not hasattr(info_pane, '_directly_connected'):
+                        info_pane.update_mouse_position(scene_x, scene_y)
 
     def _on_scale_changed(self, scale_factor: float):
         """Handle scale changes from CadScene."""
@@ -318,11 +341,11 @@ class MainWindow(QMainWindow):
 
     def _connect_palette_content(self):
         """Connect palette content widgets to the main window functionality."""
-        # Connect info pane to canvas for position updates
+        # Connect info pane to canvas for position updates and selection
         info_pane = self.palette_manager.get_palette_content("info_pane")
         if info_pane and hasattr(self, 'canvas'):
-            # TODO: Connect canvas mouse move events to info pane updates
-            pass
+            # Connect canvas mouse move events to info pane updates
+            self._connect_info_pane(info_pane)
 
         # Connect config pane to document and selection
         config_pane = self.palette_manager.get_palette_content("config_pane")
@@ -468,6 +491,7 @@ class MainWindow(QMainWindow):
             if current_selection != self._current_selection:
                 self._current_selection = current_selection
                 self._update_config_pane_for_selection(selected_objects)
+                self._update_info_panes_for_selection(selected_objects)
 
     def _update_config_pane_for_selection(self, selected_objects):
         """Update config pane based on current selection."""
@@ -739,16 +763,27 @@ class MainWindow(QMainWindow):
             self,
             "Export File",
             "",
-            "SVG files (*.svg);;DXF files (*.dxf);;"
-            "PDF files (*.pdf);;All files (*.*)"
+            "PDF files (*.pdf);;SVG files (*.svg);;DXF files (*.dxf);;"
+            "All files (*.*)"
         )
         if filename:
             try:
-                # TODO: Implement export functionality
-                QMessageBox.information(
-                    self, "Export",
-                    f"Export functionality not yet implemented for {filename}"
-                )
+                # Check file extension to determine export type
+                if filename.lower().endswith('.pdf'):
+                    # Use print manager for PDF export
+                    if hasattr(self, 'print_manager'):
+                        return self.print_manager.export_to_pdf(filename)
+                    else:
+                        QMessageBox.information(
+                            self, "Export",
+                            "PDF export not available"
+                        )
+                else:
+                    # TODO: Implement other export formats
+                    QMessageBox.information(
+                        self, "Export",
+                        f"Export format not yet implemented for {filename}"
+                    )
             except Exception as e:
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Icon.Critical)
@@ -758,58 +793,127 @@ class MainWindow(QMainWindow):
 
     def page_setup(self):
         """Handle Page Setup menu action."""
-        QMessageBox.information(
-            self, "Page Setup",
-            "Page setup functionality not yet implemented"
-        )
+        if hasattr(self, 'print_manager'):
+            self.print_manager.show_page_setup_dialog()
+        else:
+            # Fallback message
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self, "Page Setup",
+                "Page setup functionality not available"
+            )
 
     def print_file(self):
         """Handle Print menu action."""
-        QMessageBox.information(
-            self, "Print",
-            "Print functionality not yet implemented"
-        )
+        if hasattr(self, 'print_manager'):
+            self.print_manager.show_print_dialog()
+        else:
+            # Fallback message
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self, "Print",
+                "Print functionality not available"
+            )
+
+    def export_pdf(self):
+        """Export the current drawing to PDF."""
+        if hasattr(self, 'print_manager'):
+            return self.print_manager.export_to_pdf()
+        else:
+            # Fallback message
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self, "Export PDF",
+                "PDF export functionality not available"
+            )
+            return False
 
     # Edit menu handlers
     def undo(self):
         """Handle Undo menu action."""
-        # TODO: Implement undo functionality
-        QMessageBox.information(
-            self, "Undo",
-            "Undo functionality not yet implemented"
-        )
+        if hasattr(self, 'undo_manager') and self.undo_manager.undo():
+            self.draw_objects()  # Redraw to reflect changes
+            self.update_title()  # Update window title
 
     def redo(self):
         """Handle Redo menu action."""
-        # TODO: Implement redo functionality
-        QMessageBox.information(
-            self, "Redo",
-            "Redo functionality not yet implemented"
-        )
+        if hasattr(self, 'undo_manager') and self.undo_manager.redo():
+            self.draw_objects()  # Redraw to reflect changes
+            self.update_title()  # Update window title
 
     def cut(self):
         """Handle Cut menu action."""
-        # TODO: Implement cut functionality
-        QMessageBox.information(
-            self, "Cut",
-            "Cut functionality not yet implemented"
-        )
+        # Copy selected objects to clipboard, then delete them
+        if self.copy():
+            self._delete_selected_objects()
 
     def copy(self):
         """Handle Copy menu action."""
-        # TODO: Implement copy functionality
-        QMessageBox.information(
-            self, "Copy",
-            "Copy functionality not yet implemented"
-        )
+        selected_objects = self._get_selected_objects()
+        if not selected_objects:
+            return False
+            
+        # Store selected objects in clipboard format
+        self._clipboard_data = []
+        for obj in selected_objects:
+            # Create a deep copy of the object data
+            obj_data = {
+                'type': obj.object_type,
+                'coords': [{'x': coord.x, 'y': coord.y} for coord in obj.coords],
+                'attributes': dict(obj.attributes),
+                'layer': getattr(obj, 'layer', None)
+            }
+            self._clipboard_data.append(obj_data)
+        
+        return len(self._clipboard_data) > 0
 
     def paste(self):
         """Handle Paste menu action."""
-        # TODO: Implement paste functionality
-        QMessageBox.information(
-            self, "Paste",
-            "Paste functionality not yet implemented"
-        )
+        if not hasattr(self, '_clipboard_data') or not self._clipboard_data:
+            return
+            
+        # Get current mouse position or use origin as paste location
+        paste_offset_x = 10.0  # Default offset to avoid overlapping
+        paste_offset_y = 10.0
+        
+        # Clear current selection
+        self._clear_selection()
+        
+        # Create new objects from clipboard data
+        new_objects = []
+        for obj_data in self._clipboard_data:
+            # Create new object with offset coordinates
+            new_coords = []
+            for coord in obj_data['coords']:
+                from BelfryCAD.core.cad_objects import Coordinate
+                new_coords.append(Coordinate(
+                    coord['x'] + paste_offset_x,
+                    coord['y'] + paste_offset_y
+                ))
+            
+            # Create new object
+            from BelfryCAD.core.cad_objects import CADObject
+            new_obj = CADObject(
+                object_type=obj_data['type'],
+                coords=new_coords,
+                attributes=obj_data['attributes'].copy()
+            )
+            
+            # Set layer if specified
+            if obj_data['layer'] is not None:
+                new_obj.layer = obj_data['layer']
+            
+            # Add to document
+            if hasattr(self.document, 'objects'):
+                self.document.objects.add_object(new_obj)
+                new_objects.append(new_obj)
+        
+        # Select the newly pasted objects
+        if new_objects:
+            self._select_objects(new_objects)
+            self.draw_objects()  # Redraw to show new objects
+            
+        return len(new_objects) > 0
 
     def clear(self):
         """Handle Clear menu action."""
@@ -821,27 +925,138 @@ class MainWindow(QMainWindow):
 
     def select_all(self):
         """Handle Select All menu action."""
-        # TODO: Implement select all functionality
-        QMessageBox.information(
-            self, "Select All",
-            "Select All functionality not yet implemented"
-        )
+        if hasattr(self.document, 'objects'):
+            all_objects = list(self.document.objects.objects.values())
+            self._select_objects(all_objects)
 
     def select_similar(self):
         """Handle Select Similar menu action."""
-        # TODO: Implement select similar functionality
-        QMessageBox.information(
-            self, "Select Similar",
-            "Select Similar functionality not yet implemented"
-        )
+        selected_objects = self._get_selected_objects()
+        if not selected_objects:
+            return
+            
+        # Get the first selected object as reference
+        reference_obj = selected_objects[0]
+        similar_objects = []
+        
+        # Find objects with same type
+        if hasattr(self.document, 'objects'):
+            for obj_id, obj in self.document.objects.objects.items():
+                if obj.object_type == reference_obj.object_type:
+                    similar_objects.append(obj)
+        
+        # Select all similar objects
+        if similar_objects:
+            self._select_objects(similar_objects)
 
     def deselect_all(self):
         """Handle Deselect All menu action."""
-        # TODO: Implement deselect all functionality
-        QMessageBox.information(
-            self, "Deselect All",
-            "Deselect All functionality not yet implemented"
-        )
+        self._clear_selection()
+
+    def _get_selected_objects(self):
+        """Get currently selected objects from the active tool."""
+        if not hasattr(self, 'tool_manager'):
+            return []
+        
+        current_tool = self.tool_manager.get_active_tool()
+        # Check for different selector tool types and their selection attributes
+        if current_tool:
+            # Try different possible attribute names for selected objects
+            for attr_name in ['selected_objects', 'selection', 'objects']:
+                if hasattr(current_tool, attr_name):
+                    return getattr(current_tool, attr_name, [])
+        return []
+
+    def _select_objects(self, objects):
+        """Select the given objects using the selector tool."""
+        # Switch to selector tool if not already active
+        selector_tokens = ["OBJSEL", "SELECTOR", "SELECT"]
+        current_tool_token = None
+        
+        for token in selector_tokens:
+            if token in self.tools:
+                current_tool_token = token
+                break
+        
+        if current_tool_token:
+            self.activate_tool(current_tool_token)
+            
+        current_tool = self.tool_manager.get_active_tool()
+        if current_tool:
+            # Try to find the selection attribute
+            selection_attr = None
+            for attr_name in ['selected_objects', 'selection', 'objects']:
+                if hasattr(current_tool, attr_name):
+                    selection_attr = attr_name
+                    break
+            
+            if selection_attr:
+                # Clear current selection
+                selection_list = getattr(current_tool, selection_attr)
+                if hasattr(selection_list, 'clear'):
+                    selection_list.clear()
+                elif isinstance(selection_list, list):
+                    selection_list[:] = []
+                
+                # Add new objects to selection
+                for obj in objects:
+                    if hasattr(selection_list, 'append'):
+                        selection_list.append(obj)
+                    elif isinstance(selection_list, list):
+                        selection_list.append(obj)
+                    # Mark object as selected for visual feedback
+                    obj.selected = True
+                
+                # Redraw to show selection
+                self.draw_objects()
+
+    def _clear_selection(self):
+        """Clear all selected objects."""
+        current_tool = self.tool_manager.get_active_tool()
+        if current_tool:
+            # Try to find and clear selection
+            for attr_name in ['selected_objects', 'selection', 'objects']:
+                if hasattr(current_tool, attr_name):
+                    selection_list = getattr(current_tool, attr_name)
+                    
+                    # Clear selection state on objects first
+                    if hasattr(selection_list, '__iter__'):
+                        for obj in selection_list:
+                            if hasattr(obj, 'selected'):
+                                obj.selected = False
+                    
+                    # Clear selection list
+                    if hasattr(selection_list, 'clear'):
+                        selection_list.clear()
+                    elif isinstance(selection_list, list):
+                        selection_list[:] = []
+                    break
+            
+            # Redraw to remove selection visuals
+            self.draw_objects()
+
+    def _delete_selected_objects(self):
+        """Delete currently selected objects."""
+        selected_objects = self._get_selected_objects()
+        if not selected_objects:
+            return False
+            
+        # Remove objects from document
+        for obj in selected_objects:
+            if hasattr(self.document, 'objects'):
+                self.document.objects.remove_object(obj.object_id)
+        
+        # Clear selection
+        self._clear_selection()
+        
+        # Mark document as modified
+        if hasattr(self.document, 'set_modified'):
+            self.document.set_modified(True)
+        
+        # Redraw to remove deleted objects
+        self.draw_objects()
+        
+        return True
 
     def group_selection(self):
         """Handle Group menu action."""
@@ -1091,235 +1306,112 @@ class MainWindow(QMainWindow):
             "Window cycling functionality not yet implemented"
         )
 
-    # Helper methods for canvas setup and drawing
-    def _add_axis_lines(self):
-        """Add X=0 and Y=0 axis lines to the scene."""
-        from PySide6.QtGui import QPen, QColor
-        from PySide6.QtCore import Qt
+    def show_preferences(self):
+        """Show the preferences dialog."""
+        from .preferences_dialog import PreferencesDialog
+        
+        # Create and show preferences dialog
+        dialog = PreferencesDialog(self)
+        result = dialog.exec()
+        
+        if result == dialog.DialogCode.Accepted:
+            # Preferences were saved, you might want to apply changes here
+            # For example, update canvas settings, colors, etc.
+            self._apply_preference_changes()
 
-        # Get scene rectangle for full extent lines
-        scene_rect = self.scene.sceneRect()
+    def _apply_preference_changes(self):
+        """Apply preference changes to the current session."""
+        # Get updated preferences
+        antialiasing = self.preferences.get("antialiasing", True)
+        grid_visible = self.preferences.get("grid_visible", True)
+        
+        # Apply canvas settings
+        if hasattr(self, 'canvas'):
+            # Update canvas antialiasing
+            from PySide6.QtGui import QPainter
+            if antialiasing:
+                self.canvas.setRenderHint(QPainter.RenderHint.Antialiasing)
+            else:
+                self.canvas.setRenderHint(
+                    QPainter.RenderHint.Antialiasing, False)
+        
+        # Apply grid visibility
+        if hasattr(self, 'cad_scene'):
+            self.cad_scene.set_grid_visibility(grid_visible)
+        
+        # You can add more preference applications here as needed
 
-        # Create axis line pen (thin, dark gray)
-        axis_pen = QPen(QColor(64, 64, 64), 1)
-        axis_pen.setStyle(Qt.PenStyle.DashLine)
-
-        # Add X-axis (horizontal line at Y=0)
-        x_line = self.scene.addLine(
-            scene_rect.left(), 0, scene_rect.right(), 0, axis_pen
+    def _confirm_discard_changes(self):
+        """Ask user to confirm discarding unsaved changes."""
+        if not self.document.is_modified():
+            return True
+            
+        reply = QMessageBox.question(
+            self,
+            "Unsaved Changes",
+            "The document has been modified. Do you want to save your changes?",
+            QMessageBox.StandardButton.Save | 
+            QMessageBox.StandardButton.Discard | 
+            QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save
         )
-        x_line.setZValue(-100)  # Behind other objects
+        
+        if reply == QMessageBox.StandardButton.Save:
+            self.save_file()
+            return not self.document.is_modified()  # Return False if save failed
+        elif reply == QMessageBox.StandardButton.Discard:
+            return True
+        else:  # Cancel
+            return False
 
-        # Add Y-axis (vertical line at X=0)
-        y_line = self.scene.addLine(
-            0, scene_rect.top(), 0, scene_rect.bottom(), axis_pen
-        )
-        y_line.setZValue(-100)  # Behind other objects
+    def _on_undo_state_changed(self):
+        """Called when undo/redo state changes to update menu items."""
+        if hasattr(self, 'main_menu'):
+            # Update undo menu item
+            can_undo = self.undo_manager.can_undo()
+            undo_desc = self.undo_manager.get_undo_description()
+            undo_text = f"Undo {undo_desc}" if undo_desc else "Undo"
+            
+            # Update redo menu item  
+            can_redo = self.undo_manager.can_redo()
+            redo_desc = self.undo_manager.get_redo_description()
+            redo_text = f"Redo {redo_desc}" if redo_desc else "Redo"
+            
+            # Update menu items (if the menu supports it)
+            if hasattr(self.main_menu, 'update_undo_redo_state'):
+                self.main_menu.update_undo_redo_state(
+                    can_undo, undo_text, can_redo, redo_text)
 
-    def _add_grid_lines(self):
-        """Add dotted grid lines that align with ruler major tickmarks"""
-        # Skip if grid is not enabled
-        if not self.preferences.get("show_grid", True):
-            return
-
-        # Get grid information from the ruler system
-        horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
-        grid_info = horizontal_ruler.get_grid_info()
-        (minorspacing, majorspacing, superspacing, labelspacing,
-         divisor, units, formatfunc, conversion) = grid_info
-
-        # Calculate scale conversion (same as rulers)
-        dpi = horizontal_ruler.get_dpi()  # 96.0
-        scalefactor = horizontal_ruler.get_scale_factor()  # 1.0
-        scalemult = dpi * scalefactor / conversion  # 96.0
-
-        # Create a light gray dotted pen for grid lines
-        grid_pen = QPen(QColor(200, 200, 200))  # Light gray
-        grid_pen.setWidth(1)
-        grid_pen.setStyle(Qt.PenStyle.DotLine)  # Dotted line style
-
-        # Get the visible scene rectangle
-        scene_rect = self.scene.sceneRect()
-
-        # Convert scene coordinates to ruler coordinates for calculation
-        x_start_ruler = scene_rect.left() / scalemult
-        x_end_ruler = scene_rect.right() / scalemult
-        y_start_ruler = scene_rect.top() / scalemult
-        y_end_ruler = scene_rect.bottom() / scalemult
-
-        # Draw vertical grid lines
-        # Use EXACT same logic as horizontal ruler's _draw_horizontal_ruler
-        x = math.floor(x_start_ruler / minorspacing + 1e-6) * minorspacing
-
-        while x <= x_end_ruler:
-            # Test if this position would be a major tick with label
-            if abs(math.floor(x / labelspacing + 1e-6) -
-                   x / labelspacing) < 1e-3:
-                # Convert ruler coordinate back to scene coordinate
-                x_scene = x * scalemult
-                grid_line = self.scene.addLine(
-                    x_scene, scene_rect.top(),
-                    x_scene, scene_rect.bottom(),
-                    grid_pen
-                )
-                # Put grid lines behind axis lines
-                grid_line.setZValue(-1001)
-            x += minorspacing  # Iterate by minorspacing (ruler logic)
-
-        # Draw horizontal grid lines
-        # Use EXACT same logic as vertical ruler's _draw_vertical_ruler
-        y = math.floor(y_start_ruler / minorspacing + 1e-6) * minorspacing
-
-        while y <= y_end_ruler:
-            # Test if this position would be a major tick with label
-            if abs(math.floor(y / labelspacing + 1e-6) -
-                   y / labelspacing) < 1e-3:
-                # Convert ruler coordinate back to scene coordinate
-                y_scene = y * scalemult
-                grid_line = self.scene.addLine(
-                    scene_rect.left(), y_scene,
-                    scene_rect.right(), y_scene,
-                    grid_pen
-                )
-                # Put grid lines behind axis lines
-                grid_line.setZValue(-1001)
-            y += minorspacing  # Iterate by minorspacing (ruler logic)
-
-    def _connect_ruler_events(self):
-        """Connect canvas scroll and mouse events to rulers for updates."""
-        # Connect scroll events to update rulers when viewport changes
-        self.canvas.horizontalScrollBar().valueChanged.connect(
-            self._update_rulers_and_grid
-        )
-        self.canvas.verticalScrollBar().valueChanged.connect(
-            self._update_rulers_and_grid
-        )
-
-        # Override the canvas mouse move event to update ruler positions
-        original_mouse_move = self.canvas.mouseMoveEvent
-
-        def enhanced_mouse_move(event):
-            # Call the original mouse move handler first
-            original_mouse_move(event)
-
-            # Update ruler mouse position indicators
-            scene_pos = self.canvas.mapToScene(event.pos())
-            self.ruler_manager.update_mouse_position(
-                scene_pos.x(), scene_pos.y()
-            )
-
-        # Replace the mouse move event handler
-        self.canvas.mouseMoveEvent = enhanced_mouse_move
-
-        # Also connect scene changes to ruler updates
-        self.scene.sceneRectChanged.connect(self._update_rulers_and_grid)
-
-    def _update_rulers_and_grid(self):
-        """Update both rulers and grid when the view changes."""
-        if hasattr(self, 'ruler_manager') and self.ruler_manager:
-            self.ruler_manager.update_rulers()
-        # Redraw grid lines to match new view
-        self._redraw_grid()
-
-    def _redraw_grid(self):
-        """Remove existing grid lines and redraw them using DrawingManager."""
-        # Check if scene is still valid
-        if not self.scene or not hasattr(self.scene, 'items'):
-            return
-
-        # Use DrawingManager to redraw grid with TCL-compatible system
-        if hasattr(self, 'drawing_manager') and self.drawing_manager:
-            try:
-                self.drawing_manager.redraw_grid()
-            except Exception as e:
-                print(f"Error redrawing grid with DrawingManager: {e}")
-                # Fallback to original implementation if needed
-                self._redraw_grid_fallback()
+    def execute_command(self, command):
+        """Execute a command through the undo system."""
+        if hasattr(self, 'undo_manager'):
+            result = self.undo_manager.execute_command(command)
+            if result:
+                self.draw_objects()  # Redraw to show changes
+                self.update_title()   # Update window title
+            return result
         else:
-            self._redraw_grid_fallback()
-
-    def _redraw_grid_fallback(self):
-        """Fallback grid redraw using original implementation."""
-        try:
-            # Remove existing grid lines (z-value -1001)
-            items_to_remove = []
-            for item in self.scene.items():
-                if hasattr(item, 'zValue') and item.zValue() == -1001:
-                    items_to_remove.append(item)
-
-            for item in items_to_remove:
-                try:
-                    self.scene.removeItem(item)
-                except RuntimeError:
-                    # Item may have already been removed
-                    pass
-
-            # Add new grid lines
-            self._add_grid_lines()
-        except Exception as e:
-            print(f"Error redrawing grid: {e}")
-
-    def draw_objects(self):
-        """Draw all objects from the document to the scene."""
-        # Clear existing drawing objects (but keep grid and axes)
-        items_to_remove = []
-        for item in self.scene.items():
-            # Keep axis lines and grid lines (they have negative Z values)
-            if item.zValue() >= 0:
-                items_to_remove.append(item)
-
-        for item in items_to_remove:
-            try:
-                self.scene.removeItem(item)
-            except RuntimeError:
-                # Item may have already been removed
-                pass
-
-        # Draw objects from document
-        if (
-            hasattr(self.document, 'objects') and
-            hasattr(self.document.objects, 'objects')
-        ):
-            # CADObjectManager stores objects in a dictionary
-            for obj_id, obj in self.document.objects.objects.items():
-                self._draw_object(obj)
-
-    def _draw_object(self, obj):
-        """Draw a single object to the scene."""
-        obj_id = id(obj)
-
-        # Remove any existing graphics items for this object
-        if obj_id in self.graphics_items:
-            for item in self.graphics_items[obj_id]:
-                try:
-                    if item.scene() == self.scene:
-                        self.scene.removeItem(item)
-                except RuntimeError:
-                    # Item may have already been removed
-                    pass
-            del self.graphics_items[obj_id]
-
-        graphics_items = []
-
-        # Use the DrawingManager to draw objects with proper TCL
-        # translation
-        if hasattr(self, 'drawing_manager'):
-            graphics_items = self.drawing_manager.object_draw(obj)
-            # Store graphics items for this object if any were returned
-            if graphics_items:
-                self.graphics_items[obj_id] = graphics_items
-        else:
-            # Fallback to simple drawing if DrawingManager is not available
-            graphics_items = self._draw_object_simple(obj)
-            if graphics_items:
-                self.graphics_items[obj_id] = graphics_items
-
-        return graphics_items
+            # Fallback: execute directly if no undo manager
+            return command.execute()
 
     def on_object_created(self, obj):
         """Handle when a new object is created by a tool."""
+        # Create undo command for object creation
+        from BelfryCAD.core.undo_redo import CreateObjectCommand
+        command = CreateObjectCommand(
+            self.document, obj, f"Create {obj.object_type}")
+        
+        # Execute through undo system (this will add to document and undo stack)
+        if hasattr(self, 'undo_manager'):
+            self.undo_manager.execute_command(command)
+        else:
+            # Fallback: add directly if no undo manager
+            if hasattr(self.document, 'objects'):
+                self.document.objects.add_object(obj)
+        
         # Draw the new object
-        self._draw_object(obj)
+        if hasattr(self, '_draw_object'):
+            self._draw_object(obj)
 
         # Mark document as modified
         if hasattr(self.document, 'set_modified'):
@@ -1327,73 +1419,6 @@ class MainWindow(QMainWindow):
 
         # Update window title
         self.update_title()
-
-    def _confirm_discard_changes(self):
-        """Show dialog to confirm discarding unsaved changes."""
-        from PySide6.QtWidgets import QMessageBox
-
-        reply = QMessageBox.question(
-            self, "Unsaved Changes",
-            "The document has been modified. "
-            "Do you want to save your changes?",
-            (QMessageBox.StandardButton.Save |
-             QMessageBox.StandardButton.Discard |
-             QMessageBox.StandardButton.Cancel),
-            QMessageBox.StandardButton.Save
-        )
-
-        if reply == QMessageBox.StandardButton.Save:
-            self.save_file()
-            return True
-        elif reply == QMessageBox.StandardButton.Discard:
-            return True
-        else:  # Cancel
-            return False
-
-    def _load_tool_icon(self, icon_name):
-        """Load an icon for a tool, preferring SVG over PNG"""
-        if not icon_name:
-            return None
-
-        # Construct the path to the images directory
-        import os
-        from PySide6.QtGui import QIcon, QPixmap
-        from PySide6.QtCore import Qt
-
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        images_dir = os.path.join(base_dir, 'images')
-
-        # Try SVG first (from main images directory), then fall back to PNG
-        svg_path = os.path.join(images_dir, f"{icon_name}.svg")
-        png_path = os.path.join(images_dir, f"{icon_name}.png")
-
-        # Prefer SVG if available
-        if os.path.exists(svg_path):
-            try:
-                # Load SVG icon
-                icon = QIcon(svg_path)
-                if not icon.isNull():
-                    return icon
-            except Exception as e:
-                print(f"Failed to load SVG icon {svg_path}: {e}")
-
-        # Fall back to PNG if SVG not available or failed to load
-        if os.path.exists(png_path):
-            try:
-                # Load PNG and scale to 150% size (48x48 from original 32x32)
-                pixmap = QPixmap(png_path)
-                if not pixmap.isNull():
-                    # Scale PNG icons to 150% for better visibility
-                    scaled_pixmap = pixmap.scaled(
-                        48, 48,
-                        Qt.AspectRatioMode.KeepAspectRatio,
-                        Qt.TransformationMode.SmoothTransformation
-                    )
-                    return QIcon(scaled_pixmap)
-            except Exception as e:
-                print(f"Failed to load PNG icon {png_path}: {e}")
-
-        return None
 
     def closeEvent(self, event):
         """Handle window close event."""
@@ -1520,3 +1545,102 @@ class MainWindow(QMainWindow):
                 graphics_items.append(v_line)
 
         return graphics_items
+
+    def _update_info_panes_for_selection(self, selected_objects):
+        """Update all info panes with current selection information."""
+        if not hasattr(self, '_info_panes'):
+            return
+
+        # Create selection summary text
+        if not selected_objects:
+            action_text = "No selection"
+        elif len(selected_objects) == 1:
+            obj = selected_objects[0]
+            if hasattr(obj.object_type, 'name'):
+                obj_type = obj.object_type.name
+            else:
+                obj_type = str(obj.object_type)
+            action_text = f"Selected: {obj_type}"
+        else:
+            action_text = f"Selected: {len(selected_objects)} objects"
+
+        # Update all info panes
+        for info_pane in self._info_panes:
+            if hasattr(info_pane, 'update_action_str'):
+                info_pane.update_action_str(action_text)
+
+    def _load_tool_icon(self, icon_name):
+        """Load tool icon from resources or return None if not found."""
+        from PySide6.QtGui import QIcon
+        import os
+        
+        if not icon_name:
+            return None
+        
+        # Try to load icon from various possible locations
+        icon_paths = [
+            f"images/{icon_name}.svg",
+            f"images/{icon_name}.png",
+            f"images/{icon_name}.gif",
+            f"icons/{icon_name}.svg",
+            f"icons/{icon_name}.png",
+            f"icons/{icon_name}.gif",
+            f"resources/icons/{icon_name}.svg",
+            f"resources/icons/{icon_name}.png",
+            f"resources/icons/{icon_name}.gif",
+            f"BelfryCAD/resources/icons/{icon_name}.svg",
+            f"BelfryCAD/resources/icons/{icon_name}.png",
+            f"BelfryCAD/resources/icons/{icon_name}.gif",
+            icon_name  # Direct path
+        ]
+        
+        for icon_path in icon_paths:
+            if os.path.exists(icon_path):
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    return icon
+        
+        # Return empty icon if not found
+        return QIcon()
+
+    def _connect_info_pane(self, info_pane):
+        """Connect info pane to the canvas and selection system."""
+        # Connect mouse position updates directly from CadScene
+        if hasattr(self, 'cad_scene'):
+            def update_cursor_data():
+                # Get the current units and coords from the CAD scene
+                x, y = self.cad_scene.get_cursor_coords()
+                unit = self.cad_scene.get_current_unit()
+                info_pane.update_mouse_position(x, y, unit)
+            # Use a lambda to add the unit parameter
+            self.cad_scene.mouse_position_changed.connect(update_cursor_data)
+
+        # Add info pane to selection update system
+        if not hasattr(self, '_info_panes'):
+            self._info_panes = []
+        self._info_panes.append(info_pane)
+
+    def draw_objects(self):
+        """Draw all objects in the document."""
+        if hasattr(self, 'drawing_manager') and self.drawing_manager:
+            self.drawing_manager.redraw()
+        elif hasattr(self, 'cad_scene') and self.cad_scene:
+            self.cad_scene.redraw_all()
+
+    def _add_axis_lines(self):
+        """Add axis lines to the scene."""
+        if hasattr(self, 'cad_scene') and self.cad_scene:
+            self.cad_scene.set_origin_visibility(True)
+            self.cad_scene.redraw_grid()
+
+    def _redraw_grid(self):
+        """Redraw the grid."""
+        if hasattr(self, 'cad_scene') and self.cad_scene:
+            self.cad_scene.redraw_grid()
+
+    def _update_rulers_and_grid(self):
+        """Update rulers and grid."""
+        if hasattr(self, 'cad_scene') and self.cad_scene:
+            self.cad_scene.redraw_grid()
+            if hasattr(self.cad_scene, 'ruler_manager'):
+                self.cad_scene.ruler_manager.update_rulers()
