@@ -540,7 +540,7 @@ class MainMenuBar(QObject):
         view_menu.addAction(self.show_layers_action)
 
         self.show_snap_settings_action = QAction(
-            "Show &Snap Settings", self.parent_window)
+            "Show &Snaps", self.parent_window)
         self.show_snap_settings_action.setCheckable(True)
         self.show_snap_settings_action.setChecked(
             self.preferences.get("show_snap_settings", False)

@@ -902,10 +902,13 @@ class CadScene(QWidget):
             node: Optional[int] = None
     ):
         """
-        Add control point tags to an item.
-
+        Add "CP" and "Construction" tags to an item.  This is used to mark
+        items that are control points in a CAD object, such as vertices or
+        control points in a spline or polyline.
         Args:
-            item: The QGraphicsItem to tag as a control point
+            items: List of QGraphicsItem to tag as control points
+            obj: Optional CADObject to associate with the control points
+            node: Optional node index to associate with the control points
         """
         for item in items:
             self.addTag(item, "CP")
@@ -915,19 +918,21 @@ class CadScene(QWidget):
             if node is not None:
                 self.addTag(item, f"Node_{node}")
 
-    def tagAsControlLine(
+
+    def tagAsConstruction(
             self,
             items: List[QGraphicsItem],
             obj: Optional[CADObject] = None
     ):
         """
-        Add control point tags to an item.
-
+        Add "Construction" tags to an item.  This is used to mark items that
+        are used for construction lines or temporary items that are not part
+        of the final geometry.
         Args:
-            item: The QGraphicsItem to tag as a control point
+            items: List of QGraphicsItem to tag as construction
+            obj: Optional CADObject to associate with the construction items
         """
         for item in items:
-            self.addTag(item, "CL")
             self.addTag(item, "Construction")
             if obj:
                 self.addTag(item, f"Obj_{obj.object_id}")
@@ -938,15 +943,10 @@ class CadScene(QWidget):
             items: List[QGraphicsItem]
     ):
         """
-        Add "Actual" tags to an item.  This is used to mark items that
-        represent actual geometry in the scene, as opposed to construction
-        lines or other temporary items.
-        This is useful for distinguishing between visible geometry and
-        construction lines or other temporary items.
-        This method adds the "Actual", "Geometry", "Visible", and
-
+        Add "Actual" and object-specific tags to items associated with a CADObject.
         Args:
-            item: The QGraphicsItem to tag as actual geometry
+            obj: The CADObject to associate with the items
+            items: List of QGraphicsItem to tag as actual objects
         """
         for item in items:
             self.addTag(item, "Actual")

@@ -10,6 +10,8 @@ from typing import Optional, List
 
 from BelfryCAD.core.cad_objects import CADObject, ObjectType, Point
 from BelfryCAD.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPen
 
 
 class CircleObject(CADObject):
@@ -50,10 +52,6 @@ class CircleTool(Tool):
         # In Qt, event handling is done differently - these will be connected
         # in the main window or graphics view
         pass
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -83,6 +81,8 @@ class CircleTool(Tool):
         """Draw a preview of the circle being created"""
         # Clear previous preview
         self.clear_temp_objects()
+        print(f"DEBUG: Drawing preview at ({current_x}, {current_y})")
+        self.scene.removeItemsByTags("Construction")
 
         if len(self.points) == 1:
             # Get the snapped point based on current snap settings
@@ -93,22 +93,23 @@ class CircleTool(Tool):
             radius = math.sqrt((point.x - center_point.x)**2 +
                                (point.y - center_point.y)**2)
 
-            # Draw temporary circle using QGraphicsEllipseItem
-            from PySide6.QtWidgets import QGraphicsEllipseItem
-            from PySide6.QtCore import QRectF, Qt
-            from PySide6.QtGui import QPen
+            # Delete previous temporary objects
+            self.clear_temp_objects()
 
-            ellipse_item = QGraphicsEllipseItem(
-                QRectF(center_point.x - radius, center_point.y - radius,
-                       2 * radius, 2 * radius)
-            )
+            # Create temporary ellipse using CadScene's addEllipse method
             pen = QPen()
             pen.setColor("blue")
-            pen.setStyle(Qt.DashLine)
-            ellipse_item.setPen(pen)
+            pen.setWidthF(0.01)
+            pen.setStyle(Qt.PenStyle.DashLine)
+            ellipse_item = self.scene.addEllipse(
+                center_point.x - radius, center_point.y - radius,
+                2 * radius, 2 * radius,
+                pen=pen
+            )
 
             self.scene.addItem(ellipse_item)
             self.temp_objects.append(ellipse_item)
+            self.scene.tagAsConstruction(ellipse_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create a circle object from the collected points"""
@@ -169,9 +170,18 @@ class Circle2PTObject(CADObject):
 class Circle3PTObject(CADObject):
     """Circle object defined by 3 points on the circumference"""
 
-    def __init__(self, object_id: int, point1: Point, point2: Point, point3: Point, **kwargs):
+    def __init__(
+            self,
+            object_id: int,
+            point1: Point,
+            point2: Point,
+            point3: Point,
+            **kwargs
+    ):
         super().__init__(
-            object_id, ObjectType.CIRCLE, coords=[point1, point2, point3], **kwargs)
+            object_id, ObjectType.CIRCLE,
+            coords=[point1, point2, point3],
+            **kwargs)
         self._calculate_circle()
 
     @property
@@ -321,7 +331,7 @@ class Circle2PTTool(Tool):
             )
             pen = QPen()
             pen.setColor("blue")
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             ellipse_item.setPen(pen)
 
             self.scene.addItem(ellipse_item)
@@ -417,7 +427,7 @@ class Circle3PTTool(Tool):
                 line_item = QGraphicsLineItem(p1.x, p1.y, p3.x, p3.y)
                 pen = QPen()
                 pen.setColor("red")
-                pen.setStyle(Qt.DashLine)
+                pen.setStyle(Qt.PenStyle.DashLine)
                 line_item.setPen(pen)
 
                 self.scene.addItem(line_item)
@@ -460,7 +470,7 @@ class Circle3PTTool(Tool):
             )
             pen = QPen()
             pen.setColor("blue")
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             ellipse_item.setPen(pen)
 
             self.scene.addItem(ellipse_item)
@@ -475,7 +485,7 @@ class Circle3PTTool(Tool):
             line_item = QGraphicsLineItem(p1.x, p1.y, p2.x, p2.y)
             pen = QPen()
             pen.setColor("gray")
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             line_item.setPen(pen)
 
             self.scene.addItem(line_item)

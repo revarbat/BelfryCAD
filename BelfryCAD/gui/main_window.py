@@ -1455,7 +1455,7 @@ class MainWindow(QMainWindow):
         self._sync_palette_menu_states()
 
     def toggle_snap_settings(self, show):
-        """Handle Snap Settings panel visibility toggle."""
+        """Handle Snaps panel visibility toggle."""
         self.preferences.set("show_snap_settings", show)
         self.palette_manager.set_palette_visibility("snap_window", show)
         self._sync_palette_menu_states()

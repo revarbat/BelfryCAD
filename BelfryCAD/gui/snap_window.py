@@ -1,13 +1,17 @@
 """
-Snap Settings Window for PyTkCAD.
+Snaps Pane for PyTkCAD.
 
 This module provides a PySide6/Qt GUI window for managing snap settings
 in the CAD application. It's a direct translation of the original TCL
 snapswin.tcl functionality.
 """
 
+import sys
+
 from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QCheckBox
+    QWidget, QGridLayout, QCheckBox, QVBoxLayout,
+    QScrollArea, QSpacerItem, QSizePolicy,
+    QApplication
 )
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut, QFont
@@ -68,26 +72,35 @@ class SnapWindow(QWidget):
 
     def _init_ui(self):
         """Initialize the user interface."""
-        self.setWindowTitle("Snap Settings")
-        self.setContentsMargins(5, 8, 5, 8)
+        self.setWindowTitle("Snaps")
+        self.setContentsMargins(2, 2, 2, 2)
 
         # Create main layout
-        self.grid_layout = QGridLayout()
-        self.setLayout(self.grid_layout)
+        main_layout = QVBoxLayout()
+        self.setLayout(main_layout)
 
-        # Configure grid columns
-        self.grid_layout.setColumnMinimumWidth(0, 10)
-        self.grid_layout.setColumnMinimumWidth(2, 10)
-        self.grid_layout.setColumnStretch(4, 1)
-
-        # Create "All Snaps" checkbox
+        # Create "All Snaps" checkbox at the top
         self.all_snaps_checkbox = QCheckBox("All Snaps")
-        self.all_snaps_checkbox.setFont(QFont("TkSmallCaptionFont"))
         self.all_snaps_checkbox.setChecked(snap_window_info.snap_all)
         self.all_snaps_checkbox.toggled.connect(self._on_all_snaps_changed)
+        main_layout.addWidget(self.all_snaps_checkbox)
 
-        self.grid_layout.addWidget(self.all_snaps_checkbox,
-                                   0, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
+        # Create scroll area for snap checkboxes
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        main_layout.addWidget(self.scroll_area)
+
+        # Create scrollable content widget
+        self.scroll_content = QWidget()
+        self.scroll_layout = QGridLayout(self.scroll_content)
+        self.scroll_layout.setContentsMargins(5, 5, 5, 5)
+        self.scroll_layout.setSpacing(10)  # Increased from 3 to 6 pixels
+        self.scroll_area.setWidget(self.scroll_content)
+        self.scroll_area.setFrameShape(self.scroll_area.Shape.NoFrame)
 
         # Initialize snap checkboxes
         self._create_snap_checkboxes()
@@ -116,9 +129,9 @@ class SnapWindow(QWidget):
         return None
 
     def _create_snap_checkboxes(self):
-        """Create checkboxes for all snap types."""
-        col = self.current_col
-        row = self.current_row
+        """Create checkboxes for all snap types in two columns."""
+        row = 0
+        col = 0
 
         for snap_type, snap_name, default_val in snap_window_info.snap_types:
             # Initialize snap state
@@ -127,37 +140,31 @@ class SnapWindow(QWidget):
 
             # Extract display name and underline position
             display_name = snap_name.replace("&", "")
-            underline_pos = snap_name.find("&")
 
             # Create checkbox
             checkbox = QCheckBox(display_name)
-            checkbox.setFont(QFont("TkSmallCaptionFont"))
+            checkbox.setFont(QFont("Sans Serif", 9))
             checkbox.setChecked(snap_window_info.snap_states[snap_type])
             checkbox.toggled.connect(
                 lambda checked, st=snap_type: self._on_snap_changed(
                     st, checked)
             )
 
-            # Set underline if needed (Qt doesn't have direct underline
-            # support, but we can use HTML in setText if needed)
-            if underline_pos >= 0:
-                html_name = display_name[:underline_pos] + \
-                    f"<u>{display_name[underline_pos]}</u>" + \
-                    display_name[underline_pos + 1:]
-                checkbox.setText(html_name)
-
-            self.grid_layout.addWidget(
-                checkbox, row, col, Qt.AlignmentFlag.AlignLeft)
+            # Add to grid layout in two columns
+            self.scroll_layout.addWidget(checkbox, row, col)
             snap_window_info.checkboxes[snap_type] = checkbox
 
             # Move to next position
-            col += 2
-            if col >= 4:
-                col = 1
+            col += 1
+            if col >= 2:
+                col = 0
                 row += 1
 
-        self.current_col = col
-        self.current_row = row
+        # Add stretchy spacer at the bottom to push checkboxes to the top
+        spacer = QSpacerItem(
+            20, 40, QSizePolicy.Policy.Minimum,
+            QSizePolicy.Policy.Expanding)
+        self.scroll_layout.addItem(spacer, row + 1, 0, 1, 2)
 
     def _toggle_snap(self, snap_type: str):
         """Toggle a specific snap type."""
@@ -228,15 +235,14 @@ class SnapWindow(QWidget):
         snap_window_info.snap_states[snap_type] = default_val
 
         # If window is already created, add the checkbox
-        if hasattr(self, 'grid_layout'):
+        if hasattr(self, 'scroll_layout'):
             self._add_snap_checkbox(snap_type, snap_name, default_val)
 
     def _add_snap_checkbox(
             self, snap_type: str, snap_name: str, default_val: bool):
         """Add a checkbox for a new snap type."""
-        # Extract display name and underline position
+        # Extract display name
         display_name = snap_name.replace("&", "")
-        underline_pos = snap_name.find("&")
 
         # Create checkbox
         checkbox = QCheckBox(display_name)
@@ -246,24 +252,9 @@ class SnapWindow(QWidget):
             lambda checked: self._on_snap_changed(snap_type, checked)
         )
 
-        # Set underline if needed
-        if underline_pos >= 0:
-            html_name = display_name[:underline_pos] + \
-                f"<u>{display_name[underline_pos]}</u>" + \
-                display_name[underline_pos + 1:]
-            checkbox.setText(html_name)
-
-        # Add to layout at current position
-        self.grid_layout.addWidget(
-            checkbox, self.current_row,
-            self.current_col, Qt.AlignmentFlag.AlignLeft)
+        # Add to vertical scrollable layout
+        self.scroll_layout.addWidget(checkbox)
         snap_window_info.checkboxes[snap_type] = checkbox
-
-        # Update position for next checkbox
-        self.current_col += 2
-        if self.current_col >= 4:
-            self.current_col = 1
-            self.current_row += 1
 
         # Setup shortcut for new snap
         accel = self._extract_accelerator(snap_name)
@@ -388,9 +379,6 @@ def snap_is_enabled(snap_type: str) -> bool:
 
 if __name__ == "__main__":
     """Test the snap window independently."""
-    import sys
-    from PySide6.QtWidgets import QApplication
-
     app = QApplication(sys.argv)
 
     # Create and show the snap window

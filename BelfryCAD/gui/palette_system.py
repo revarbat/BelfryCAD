@@ -210,8 +210,8 @@ class PaletteManager(QObject):
                 'height': 400,
             },
             PaletteType.SNAP_WINDOW.value: {
-                'title': 'Snap Settings',
-                'default_area': PaletteDockArea.LEFT,
+                'title': 'Snaps',
+                'default_area': PaletteDockArea.RIGHT,  # Changed to right of info pane
                 'visible': False,  # Hidden by default
                 'width': 200,
                 'height': 200,
