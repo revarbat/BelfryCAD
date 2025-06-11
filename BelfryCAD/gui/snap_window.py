@@ -9,14 +9,15 @@ snapswin.tcl functionality.
 import sys
 
 from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QCheckBox, QVBoxLayout,
+    QWidget, QGridLayout, QPushButton, QCheckBox, QVBoxLayout,
     QScrollArea, QSpacerItem, QSizePolicy,
     QApplication
 )
-from PySide6.QtCore import Qt, Signal, QTimer
-from PySide6.QtGui import QKeySequence, QShortcut, QFont
+from PySide6.QtCore import Qt, Signal, QTimer, QSize
+from PySide6.QtGui import QKeySequence, QShortcut, QFont, QIcon
 
 from typing import Optional, List, Tuple
+import os
 
 
 class SnapWindowInfo:
@@ -24,18 +25,18 @@ class SnapWindowInfo:
 
     def __init__(self):
         self.snap_types = [
-            ("grid", "&Grid", True),
-            ("controlpoints", "Control &Points", True),
-            ("midpoints", "&Midpoints", True),
-            ("quadrants", "&Quadrants", True),
-            ("intersect", "In&tersections", False),
-            ("contours", "&Lines and Arcs", False),
-            ("centerlines", "&Centerlines", False),
-            ("tangents", "&Tangents", False),
+            ("grid", "&Grid", True, "snap-grid"),
+            ("controlpoints", "Control &Points", True, "snap-controlpoints"),
+            ("midpoints", "&Midpoints", True, "snap-midpoint"),
+            ("quadrants", "&Quadrants", True, "snap-quadrant"),
+            ("intersect", "In&tersections", False, "snap-intersection"),
+            ("contours", "&Lines and Arcs", False, "snap-contours"),
+            ("centerlines", "&Centerlines", False, "snap-centerlines"),
+            ("tangents", "&Tangents", False, "snap-tangent"),
         ]
         self.snap_states = {}
         self.snap_all = True
-        self.checkboxes = {}
+        self.snap_buttons = {}  # Changed from checkboxes to buttons
         self.update_timer = None
 
 
@@ -112,7 +113,7 @@ class SnapWindow(QWidget):
         all_shortcut.activated.connect(self.all_snaps_checkbox.toggle)
 
         # Setup shortcuts for individual snaps
-        for snap_type, snap_name, default_val in snap_window_info.snap_types:
+        for snap_type, snap_name, default_val, icon_name in snap_window_info.snap_types:
             accel = self._extract_accelerator(snap_name)
             if accel:
                 shortcut = QShortcut(QKeySequence(
@@ -129,38 +130,53 @@ class SnapWindow(QWidget):
         return None
 
     def _create_snap_checkboxes(self):
-        """Create checkboxes for all snap types in two columns."""
+        """Create buttons for all snap types in two columns."""
         row = 0
         col = 0
 
-        for snap_type, snap_name, default_val in snap_window_info.snap_types:
+        for snap_type, snap_name, default_val, icon_name in snap_window_info.snap_types:
             # Initialize snap state
             if snap_type not in snap_window_info.snap_states:
                 snap_window_info.snap_states[snap_type] = default_val
 
-            # Extract display name and underline position
+            # Extract display name
             display_name = snap_name.replace("&", "")
 
-            # Create checkbox
-            checkbox = QCheckBox(display_name)
-            checkbox.setFont(QFont("Sans Serif", 9))
-            checkbox.setChecked(snap_window_info.snap_states[snap_type])
-            checkbox.toggled.connect(
+            # Create toggle button instead of checkbox
+            button = QPushButton()
+            button.setCheckable(True)  # Make it toggleable
+            button.setChecked(snap_window_info.snap_states[snap_type])
+            button.setToolTip(display_name)
+            
+            # Set button size to 36x36 for icons with padding
+            button.setFixedSize(QSize(36, 36))
+            
+            # Load and set icon
+            icon = self._load_snap_icon(icon_name)
+            if not icon.isNull():
+                button.setIcon(icon)
+                button.setIconSize(QSize(24, 24))  # Smaller icon for padding
+            else:
+                # If no icon, use text on button
+                button.setText(display_name[:2].upper())  # Use first 2 letters
+                button.setFont(QFont("Sans Serif", 8))
+                
+            button.toggled.connect(
                 lambda checked, st=snap_type: self._on_snap_changed(
                     st, checked)
             )
 
             # Add to grid layout in two columns
-            self.scroll_layout.addWidget(checkbox, row, col)
-            snap_window_info.checkboxes[snap_type] = checkbox
+            self.scroll_layout.addWidget(button, row, col)
+            snap_window_info.snap_buttons[snap_type] = button
 
             # Move to next position
             col += 1
-            if col >= 2:
+            if col >= 4:
                 col = 0
                 row += 1
 
-        # Add stretchy spacer at the bottom to push checkboxes to the top
+        # Add stretchy spacer at the bottom to push buttons to the top
         spacer = QSpacerItem(
             20, 40, QSizePolicy.Policy.Minimum,
             QSizePolicy.Policy.Expanding)
@@ -168,17 +184,17 @@ class SnapWindow(QWidget):
 
     def _toggle_snap(self, snap_type: str):
         """Toggle a specific snap type."""
-        if snap_type in snap_window_info.checkboxes:
-            checkbox = snap_window_info.checkboxes[snap_type]
-            checkbox.toggle()
+        if snap_type in snap_window_info.snap_buttons:
+            button = snap_window_info.snap_buttons[snap_type]
+            button.toggle()
 
     def _on_all_snaps_changed(self, checked: bool):
         """Handle "All Snaps" checkbox change."""
         snap_window_info.snap_all = checked
 
-        # Enable/disable individual snap checkboxes
-        for snap_type, checkbox in snap_window_info.checkboxes.items():
-            checkbox.setEnabled(checked)
+        # Enable/disable individual snap buttons
+        for snap_type, button in snap_window_info.snap_buttons.items():
+            button.setEnabled(checked)
 
         self.all_snaps_changed.emit(checked)
 
@@ -188,25 +204,25 @@ class SnapWindow(QWidget):
         self.snap_changed.emit(snap_type, checked)
 
     def update_snaps(self):
-        """Update snap checkboxes based on current state."""
+        """Update snap buttons based on current state."""
         # Check if we have focus and a valid canvas
         if not self.canvas:
             QTimer.singleShot(1000, self.update_snaps)
             return
 
         # Update all snaps checkbox state
-        for snap_type, checkbox in snap_window_info.checkboxes.items():
+        for snap_type, button in snap_window_info.snap_buttons.items():
             if snap_window_info.snap_all:
-                checkbox.setEnabled(True)
+                button.setEnabled(True)
             else:
-                checkbox.setEnabled(False)
+                button.setEnabled(False)
 
-    def get_snap_types(self) -> List[Tuple[str, str, bool]]:
+    def get_snap_types(self) -> List[Tuple[str, str, bool, str]]:
         """
         Get list of snap types.
 
         Returns:
-            List of tuples (snap_type, snap_name, default_value)
+            List of tuples (snap_type, snap_name, default_value, icon_name)
         """
         return snap_window_info.snap_types.copy()
 
@@ -222,7 +238,8 @@ class SnapWindow(QWidget):
         """
         return snap_type in snap_window_info.snap_states
 
-    def add_snap(self, snap_type: str, snap_name: str, default_val: bool):
+    def add_snap(self, snap_type: str, snap_name: str, default_val: bool, 
+                 icon_name: str = ""):
         """
         Add a new snap type.
 
@@ -230,31 +247,46 @@ class SnapWindow(QWidget):
             snap_type: Internal snap type identifier
             snap_name: Display name for the snap
             default_val: Default enabled state
+            icon_name: Icon file name (without extension)
         """
-        snap_window_info.snap_types.append((snap_type, snap_name, default_val))
+        snap_window_info.snap_types.append((snap_type, snap_name, default_val, icon_name))
         snap_window_info.snap_states[snap_type] = default_val
 
-        # If window is already created, add the checkbox
+        # If window is already created, add the button
         if hasattr(self, 'scroll_layout'):
-            self._add_snap_checkbox(snap_type, snap_name, default_val)
+            self._add_snap_button(snap_type, snap_name, default_val, icon_name)
 
-    def _add_snap_checkbox(
-            self, snap_type: str, snap_name: str, default_val: bool):
-        """Add a checkbox for a new snap type."""
+    def _add_snap_button(
+            self, snap_type: str, snap_name: str, default_val: bool,
+            icon_name: str = ""):
+        """Add a button for a new snap type."""
         # Extract display name
         display_name = snap_name.replace("&", "")
 
-        # Create checkbox
-        checkbox = QCheckBox(display_name)
-        checkbox.setFont(QFont("TkSmallCaptionFont"))
-        checkbox.setChecked(default_val)
-        checkbox.toggled.connect(
+        # Create toggle button
+        button = QPushButton()
+        button.setCheckable(True)
+        button.setChecked(default_val)
+        button.setToolTip(display_name)
+        button.setFixedSize(QSize(36, 36))
+
+        # Load and set icon
+        icon = self._load_snap_icon(icon_name)
+        if not icon.isNull():
+            button.setIcon(icon)
+            button.setIconSize(QSize(24, 24))  # Icon with padding
+        else:
+            # If no icon, use text on button
+            button.setText(display_name[:2].upper())
+            button.setFont(QFont("Sans Serif", 8))
+
+        button.toggled.connect(
             lambda checked: self._on_snap_changed(snap_type, checked)
         )
 
-        # Add to vertical scrollable layout
-        self.scroll_layout.addWidget(checkbox)
-        snap_window_info.checkboxes[snap_type] = checkbox
+        # Add to grid layout
+        self.scroll_layout.addWidget(button)
+        snap_window_info.snap_buttons[snap_type] = button
 
         # Setup shortcut for new snap
         accel = self._extract_accelerator(snap_name)
@@ -286,9 +318,9 @@ class SnapWindow(QWidget):
         """
         if snap_type in snap_window_info.snap_states:
             snap_window_info.snap_states[snap_type] = enabled
-            if snap_type in snap_window_info.checkboxes:
-                checkbox = snap_window_info.checkboxes[snap_type]
-                checkbox.setChecked(enabled)
+            if snap_type in snap_window_info.snap_buttons:
+                button = snap_window_info.snap_buttons[snap_type]
+                button.setChecked(enabled)
 
     def get_enabled_snaps(self) -> List[str]:
         """
@@ -311,6 +343,29 @@ class SnapWindow(QWidget):
         self.all_snaps_checkbox.setChecked(enabled)
         self._on_all_snaps_changed(enabled)
 
+    def _load_snap_icon(self, icon_name: str) -> QIcon:
+        """Load snap icon from resources."""
+        if not icon_name:
+            return QIcon()
+
+        # Try different possible paths for the snap icons
+        icon_paths = [
+            f"BelfryCAD/resources/icons/{icon_name}.svg",
+            f"resources/icons/{icon_name}.svg", 
+            f"images/{icon_name}.svg",  # Legacy fallback
+            f"icons/{icon_name}.svg",   # Legacy fallback
+            icon_name  # Direct path
+        ]
+
+        for icon_path in icon_paths:
+            if os.path.exists(icon_path):
+                icon = QIcon(icon_path)
+                if not icon.isNull():
+                    return icon
+
+        # Return empty icon if not found
+        return QIcon()
+
 
 def create_snap_window(
         canvas=None, parent: Optional[QWidget] = None
@@ -328,12 +383,12 @@ def create_snap_window(
     return SnapWindow(canvas, parent)
 
 
-def snap_types() -> List[Tuple[str, str, bool]]:
+def snap_types() -> List[Tuple[str, str, bool, str]]:
     """
     Get list of snap types.
 
     Returns:
-        List of tuples (snap_type, snap_name, default_value)
+        List of tuples (snap_type, snap_name, default_value, icon_name)
     """
     return snap_window_info.snap_types.copy()
 
@@ -351,7 +406,8 @@ def snap_exists(snap_type: str) -> bool:
     return snap_type in snap_window_info.snap_states
 
 
-def snap_add(snap_type: str, snap_name: str, default_val: bool):
+def snap_add(snap_type: str, snap_name: str, default_val: bool, 
+             icon_name: str = ""):
     """
     Add a new snap type.
 
@@ -359,8 +415,9 @@ def snap_add(snap_type: str, snap_name: str, default_val: bool):
         snap_type: Internal snap type identifier
         snap_name: Display name for the snap
         default_val: Default enabled state
+        icon_name: Icon file name (without extension)
     """
-    snap_window_info.snap_types.append((snap_type, snap_name, default_val))
+    snap_window_info.snap_types.append((snap_type, snap_name, default_val, icon_name))
     snap_window_info.snap_states[snap_type] = default_val
 
 

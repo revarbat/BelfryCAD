@@ -448,7 +448,7 @@ class LayerWindow(QWidget):
 
         # New layer button
         self.new_button = QPushButton()
-        self.new_button.setIcon(QIcon("images/layer-new.svg"))
+        self.new_button.setIcon(QIcon("BelfryCAD/resources/icons/layer-new.svg"))
         self.new_button.setFixedSize(24, 24)
         self.new_button.setFlat(True)
         self.new_button.setToolTip("Create New Layer")
@@ -457,7 +457,7 @@ class LayerWindow(QWidget):
 
         # Delete layer button
         self.delete_button = QPushButton()
-        self.delete_button.setIcon(QIcon("images/layer-delete.svg"))
+        self.delete_button.setIcon(QIcon("BelfryCAD/resources/icons/layer-delete.svg"))
         self.delete_button.setFixedSize(24, 24)
         self.delete_button.setFlat(True)
         self.delete_button.setToolTip("Delete Current Layer")
@@ -482,7 +482,7 @@ class LayerWindow(QWidget):
             ]:
                 # Try to load actual icon file first, fallback to pixmap
                 try:
-                    icons[key] = QIcon(f"images/{filename}")
+                    icons[key] = QIcon(f"BelfryCAD/resources/icons/{filename}")
                     if icons[key].isNull():
                         raise FileNotFoundError()
                 except (FileNotFoundError, OSError):

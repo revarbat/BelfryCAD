@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="16"
+   height="16"
+   viewBox="0 0 16 16"
+   version="1.1"
+   id="svg8"
+   sodipodi:docname="snap_grid.svg"
+   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs8" />
+  <sodipodi:namedview
+     id="namedview8"
+     pagecolor="#ffffff"
+     bordercolor="#111111"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="26"
+     inkscape:cx="8"
+     inkscape:cy="8"
+     inkscape:window-width="1192"
+     inkscape:window-height="847"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg8" />
+  <!-- Grid lines -->
+  <g
+     id="g8">
+    <line
+       x1="4"
+       y1="2"
+       x2="4"
+       y2="14"
+       id="line1"
+       style="fill:none;stroke:#666666;stroke-width:0.5" />
+    <line
+       x1="8"
+       y1="2"
+       x2="8"
+       y2="14"
+       id="line2"
+       style="fill:none;stroke:#666666;stroke-width:0.5" />
+    <line
+       x1="12"
+       y1="2"
+       x2="12"
+       y2="14"
+       id="line3"
+       style="fill:none;stroke:#666666;stroke-width:0.5" />
+    <line
+       x1="2"
+       y1="4"
+       x2="14"
+       y2="4"
+       id="line4"
+       style="fill:none;stroke:#666666;stroke-width:0.5" />
+    <line
+       x1="2"
+       y1="8"
+       x2="14"
+       y2="8"
+       id="line5"
+       style="fill:none;stroke:#666666;stroke-width:0.5" />
+    <line
+       x1="2"
+       y1="12"
+       x2="14"
+       y2="12"
+       id="line6"
+       style="fill:none;stroke:#666666;stroke-width:0.5" />
+  </g>
+  <!-- Snap point crosshair -->
+  <circle
+     cx="8"
+     cy="8"
+     r="1"
+     fill="#ff0000"
+     id="circle8"
+     style="stroke:#ff0000;stroke-width:1" />
+</svg>

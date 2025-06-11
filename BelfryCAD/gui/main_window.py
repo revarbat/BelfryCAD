@@ -1573,33 +1573,33 @@ class MainWindow(QMainWindow):
         """Load tool icon from resources or return None if not found."""
         from PySide6.QtGui import QIcon
         import os
-        
+
         if not icon_name:
             return None
-        
+
         # Try to load icon from various possible locations
         icon_paths = [
-            f"images/{icon_name}.svg",
-            f"images/{icon_name}.png",
-            f"images/{icon_name}.gif",
-            f"icons/{icon_name}.svg",
-            f"icons/{icon_name}.png",
-            f"icons/{icon_name}.gif",
-            f"resources/icons/{icon_name}.svg",
-            f"resources/icons/{icon_name}.png",
-            f"resources/icons/{icon_name}.gif",
             f"BelfryCAD/resources/icons/{icon_name}.svg",
             f"BelfryCAD/resources/icons/{icon_name}.png",
             f"BelfryCAD/resources/icons/{icon_name}.gif",
+            f"resources/icons/{icon_name}.svg",
+            f"resources/icons/{icon_name}.png",
+            f"resources/icons/{icon_name}.gif",
+            f"images/{icon_name}.svg",  # Legacy fallback
+            f"images/{icon_name}.png",  # Legacy fallback
+            f"images/{icon_name}.gif",  # Legacy fallback
+            f"icons/{icon_name}.svg",   # Legacy fallback
+            f"icons/{icon_name}.png",   # Legacy fallback
+            f"icons/{icon_name}.gif",   # Legacy fallback
             icon_name  # Direct path
         ]
-        
+
         for icon_path in icon_paths:
             if os.path.exists(icon_path):
                 icon = QIcon(icon_path)
                 if not icon.isNull():
                     return icon
-        
+
         # Return empty icon if not found
         return QIcon()
 

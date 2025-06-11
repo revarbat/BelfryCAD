@@ -199,8 +199,8 @@ class PaletteManager(QObject):
                 'title': 'Info Panel',
                 'default_area': PaletteDockArea.TOP,
                 'visible': True,
-                'width': 300,
-                'height': 150,
+                'width': 600,
+                'height': 100,
             },
             PaletteType.CONFIG_PANE.value: {
                 'title': 'Properties',
@@ -212,9 +212,9 @@ class PaletteManager(QObject):
             PaletteType.SNAP_WINDOW.value: {
                 'title': 'Snaps',
                 'default_area': PaletteDockArea.RIGHT,  # Changed to right of info pane
-                'visible': False,  # Hidden by default
+                'visible': True,  # Hidden by default
                 'width': 200,
-                'height': 200,
+                'height': 100,
             },
             PaletteType.LAYER_WINDOW.value: {
                 'title': 'Layers',
