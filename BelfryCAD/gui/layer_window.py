@@ -19,7 +19,8 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QPushButton, QLineEdit, QDoubleSpinBox,
     QComboBox, QDialog, QMessageBox, QFrame, QColorDialog,
-    QApplication, QListWidget, QListWidgetItem, QToolBar, QSizePolicy, QGridLayout, QMainWindow
+    QApplication, QListWidget, QListWidgetItem, QToolBar, QSizePolicy, QGridLayout, QMainWindow,
+    QSpacerItem
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QMimeData, QPoint, QSize
 from PySide6.QtGui import (
@@ -382,9 +383,12 @@ class LayerItem(QFrame):
             if self.parent() and self.parent().parent():
                 scroll_area = self.parent().parent()
                 if isinstance(scroll_area, QScrollArea):
-                    # Calculate the position to scroll to
+                    # Get the item's position relative to the layer list
                     item_pos = self.mapTo(scroll_area.widget(), QPoint(0, 0))
-                    scroll_area.ensureVisible(0, item_pos.y(), 0, 0)
+                    # Add a small margin to ensure visibility
+                    scroll_pos = max(0, item_pos.y() - 20)  # 20 pixel margin
+                    # Set the scroll position
+                    scroll_area.verticalScrollBar().setValue(scroll_pos)
                     
         super().mousePressEvent(event)
 
@@ -531,14 +535,6 @@ class LayerWindow(QWidget):
         processed_layers = set()
         new_layer_item = None
 
-        # Remove any existing stretch widget
-        while self.layer_layout.count():
-            item = self.layer_layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
-            elif item.spacerItem():
-                self.layer_layout.removeItem(item)
-
         # Update or create layer items
         for layer in layers:
             if layer in self.layer_items:
@@ -561,20 +557,25 @@ class LayerWindow(QWidget):
                 layer_item.cam_settings_changed.connect(self.layer_cam_changed.emit)
                 self.layer_items[layer] = layer_item
                 new_layer_item = layer_item
+                # Add new item to layout
+                self.layer_layout.addWidget(layer_item)
 
-            # Add to layout
-            self.layer_layout.addWidget(layer_item)
             processed_layers.add(layer)
 
         # Remove layer items that are no longer in the layers list
         layers_to_remove = set(self.layer_items.keys()) - processed_layers
         for layer in layers_to_remove:
             layer_item = self.layer_items.pop(layer)
+            # Remove from layout
+            self.layer_layout.removeWidget(layer_item)
             layer_item.setParent(None)
             layer_item.deleteLater()
 
-        # Add stretch at the end
-        self.layer_layout.addStretch()
+        # Ensure stretch is at the end
+        if self.layer_layout.count() > 0:
+            last_item = self.layer_layout.itemAt(self.layer_layout.count() - 1)
+            if not isinstance(last_item, QSpacerItem):
+                self.layer_layout.addStretch()
 
         # If we created a new layer item, select it and make it visible
         if new_layer_item:
@@ -590,7 +591,7 @@ class LayerWindow(QWidget):
                     self.scroll_area.viewport().update()
                     
                     # Get the item's position relative to the layer list
-                    item_pos = new_layer_item.mapTo(self.layer_list, QPoint(0, 0))
+                    item_pos = new_layer_item.mapTo(self.scroll_area.widget(), QPoint(0, 0))
                     # Add a small margin to ensure visibility
                     scroll_pos = max(0, item_pos.y() - 20)  # 20 pixel margin
                     # Set the scroll position

@@ -41,6 +41,8 @@ class LayerManager:
     and object-to-layer associations.
     """
 
+    _next_id: int = 1
+    
     def __init__(self, canvas_id: str = "default"):
         """
         Initialize the layer manager.
@@ -73,7 +75,8 @@ class LayerManager:
             The newly created Layer object
         """
         if not name:
-            name = f"Layer {len(self._layers) + 1}"
+            name = f"Layer {self._next_id}"
+        self._next_id += 1
 
         layer = Layer(
             name=name,
