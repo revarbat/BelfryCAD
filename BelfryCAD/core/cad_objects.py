@@ -9,9 +9,13 @@ from TCL is replaced with a class-based approach.
 
 import math
 import logging
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from enum import Enum
+
+if TYPE_CHECKING:
+    from BelfryCAD.gui.main_window import MainWindow
+    from BelfryCAD.core.layers import Layer
 
 logger = logging.getLogger(__name__)
 
@@ -64,15 +68,20 @@ class Point:
     def __mul__(self, scalar: float) -> 'Point':
         return Point(self.x * scalar, self.y * scalar)
 
-
 @dataclass
 class CADObject:
     """Base CAD object - mirrors structure from cadobjects.tcl"""
+    mainwin: 'MainWindow'
     object_id: int
     object_type: ObjectType
-    layer: int = 0
+    layer: Optional['Layer'] = None  # Changed from int to Layer reference, made optional
     coords: List[Point] = field(default_factory=list)
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    stroke_width: float = 0.01
+    stroke_color: str = 'black'
+    stroke_opacity: float = 1.0
+    stroke_style: str = 'solid'
+    fill_color: str = 'transparent'
+    fill_opacity: float = 0.0
     selected: bool = False
     visible: bool = True
     locked: bool = False
@@ -81,13 +90,10 @@ class CADObject:
     def id(self) -> str:
         """Get object ID as string for compatibility"""
         return str(self.object_id)
-
+        
     def __post_init__(self):
         """Initialize object after creation"""
-        if 'color' not in self.attributes:
-            self.attributes['color'] = 'black'
-        if 'linewidth' not in self.attributes:
-            self.attributes['linewidth'] = 1
+        self.show_controls = False
 
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get bounding box (minx, miny, maxx, maxy)"""
@@ -107,6 +113,7 @@ class CADObject:
         for point in self.coords:
             point.x += dx
             point.y += dy
+        self.redraw()
 
     def rotate(self, angle: float, center: Point):
         """Rotate object around center point"""
@@ -126,6 +133,8 @@ class CADObject:
             point.x = new_x + center.x
             point.y = new_y + center.y
 
+        self.redraw()
+
     def scale(self, factor: float, center: Point):
         """Scale object around center point"""
         for point in self.coords:
@@ -141,6 +150,33 @@ class CADObject:
             point.x = x + center.x
             point.y = y + center.y
 
+        self.redraw()
+
+    @property
+    def show_controls(self) -> bool:
+        """Get the show controls flag"""
+        return self.show_controls
+
+    @show_controls.setter
+    def show_controls(self, value: bool):
+        """Set the show controls flag"""
+        self.show_controls = value
+        self.redraw()
+
+    def redraw(self):
+        """Redraw the object"""
+        self.draw_object()
+        if self.show_controls:
+            self.draw_controls()
+
+    def draw_object(self):
+        """Draw the object"""
+        pass
+
+    def draw_controls(self):
+        """Draw the controls"""
+        pass
+
 
 class CADObjectManager:
     """
@@ -155,10 +191,7 @@ class CADObjectManager:
         self.objects: Dict[int, CADObject] = {}
         self.next_id: int = 1
         self.selected_objects: List[int] = []
-        self.layers: Dict[int, List[Any]] = {
-            0: ["Layer 0", "black", True, False]
-        }
-        self.current_layer: int = 0
+        self.current_layer: Optional['Layer'] = None
 
     def create_object(
         self, object_type: ObjectType, *args, **kwargs
@@ -170,74 +203,65 @@ class CADObjectManager:
         # Set current layer if not specified
         layer = kwargs.pop('layer', self.current_layer)
 
-        # Create appropriate object type
+        # Prepare coords for each object type
         if object_type == ObjectType.LINE:
             if len(args) >= 2:
-                obj = CADObject(
-                    object_id, object_type, layer, [args[0], args[1]], **kwargs)
+                coords = [args[0], args[1]]
             else:
                 raise ValueError("Line requires start and end points")
 
         elif object_type == ObjectType.ARC:
-            if len(args) >= 4:
-                obj = CADObject(
-                    object_id, object_type, layer,
-                    [args[0], args[1], args[2], args[3]], **kwargs)
+            if len(args) >= 3:
+                coords = [args[0], args[1], args[2]]
             else:
-                raise ValueError(
-                    "Arc requires center, radius, start_angle, end_angle")
+                raise ValueError("Arc requires center, start, and end points")
 
         elif object_type == ObjectType.CIRCLE:
             if len(args) >= 2:
-                obj = CADObject(
-                    object_id, object_type, layer,
-                    [args[0], args[1]], **kwargs)
+                coords = [args[0], args[1]]
             else:
-                raise ValueError("Circle requires center and radius")
+                raise ValueError("Circle requires center and radius point")
 
         elif object_type == ObjectType.BEZIER:
-            if len(args) >= 1 and isinstance(args[0], list):
-                obj = CADObject(
-                    object_id, object_type, layer, args[0], **kwargs)
+            if len(args) >= 4:
+                coords = list(args[:4])
             else:
-                raise ValueError("Bezier requires list of control points")
+                raise ValueError("Bezier requires 4 control points")
 
         elif object_type == ObjectType.BEZIERQUAD:
-            if len(args) >= 1 and isinstance(args[0], list):
-                obj = CADObject(
-                    object_id, object_type, layer, args[0], **kwargs)
+            if len(args) >= 3:
+                coords = list(args[:3])
             else:
-                raise ValueError(
-                    "Quadratic Bezier requires list of control points")
+                raise ValueError("Quadratic Bezier requires 3 control points")
 
         elif object_type == ObjectType.POLYGON:
-            if len(args) >= 1 and isinstance(args[0], list):
-                obj = CADObject(
-                    object_id, object_type, layer, args[0], **kwargs)
+            if len(args) >= 3:
+                coords = list(args)
             else:
-                raise ValueError("Polygon requires list of vertices")
+                raise ValueError("Polygon requires at least 3 points")
 
         elif object_type == ObjectType.TEXT:
             if len(args) >= 2:
-                obj = CADObject(
-                    object_id, object_type, layer,
-                    [args[0], args[1]], **kwargs)
+                coords = [args[0], args[1]]
             else:
                 raise ValueError("Text requires position and text content")
 
         elif object_type == ObjectType.DIMENSION:
             if len(args) >= 3:
-                obj = CADObject(
-                    object_id, object_type, layer,
-                    [args[0], args[1], args[2]], **kwargs)
+                coords = [args[0], args[1], args[2]]
             else:
-                raise ValueError(
-                    "Dimension requires start, end, and text position")
+                raise ValueError("Dimension requires start, end, and text position")
 
         else:
-            # Generic CAD object
-            obj = CADObject(object_id, object_type, layer, **kwargs)
+            coords = list(args)
 
+        obj = CADObject(
+            object_id=object_id,
+            object_type=object_type,
+            layer=layer,
+            coords=coords,
+            **kwargs
+        )
         self.objects[object_id] = obj
         logger.debug(f"Created {object_type.value} object with ID {object_id}")
         return obj
@@ -273,7 +297,7 @@ class CADObjectManager:
         logger.debug(f"Added object with ID {object_id}")
         return object_id
 
-    def get_objects_on_layer(self, layer: int) -> List[CADObject]:
+    def get_objects_on_layer(self, layer: 'Layer') -> List[CADObject]:
         """Get all objects on a specific layer"""
         return [obj for obj in self.objects.values() if obj.layer == layer]
 
@@ -382,32 +406,6 @@ class CADObjectManager:
                 points.extend(obj.coords)
 
         return points
-
-    def create_layer(self, name: str, color: str = "black",
-                     visible: bool = True, locked: bool = False) -> int:
-        """Create a new layer"""
-        layer_id = max(self.layers.keys()) + 1 if self.layers else 0
-        self.layers[layer_id] = [name, color, visible, locked]
-        return layer_id
-
-    def set_current_layer(self, layer_id: int):
-        """Set current active layer"""
-        if layer_id in self.layers:
-            self.current_layer = layer_id
-
-    def get_layer_info(self, layer_id: int) -> Optional[List[Any]]:
-        """Get layer information"""
-        return self.layers.get(layer_id)
-
-    def set_layer_visible(self, layer_id: int, visible: bool):
-        """Set layer visibility"""
-        if layer_id in self.layers:
-            self.layers[layer_id][LayerInfo.VISIBLE.value] = visible
-
-    def set_layer_locked(self, layer_id: int, locked: bool):
-        """Set layer locked state"""
-        if layer_id in self.layers:
-            self.layers[layer_id][LayerInfo.LOCKED.value] = locked
 
     def get_object_count(self) -> int:
         """Get total number of objects"""

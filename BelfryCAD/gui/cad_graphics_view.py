@@ -164,14 +164,11 @@ class CADGraphicsView(QGraphicsView):
         # Handle macOS trackpad pinch gestures via QNativeGestureEvent
         if (hasattr(QEvent.Type, 'NativeGesture') and
                 event_type == QEvent.Type.NativeGesture):
-            print("DEBUG: Native gesture event detected")
             if hasattr(event, 'gestureType'):
                 gesture_type = event.gestureType()
-                print(f"DEBUG: Gesture type: {gesture_type}")
 
                 # Handle gesture begin - start deferred mode
                 if gesture_type == Qt.NativeGestureType.BeginNativeGesture:
-                    print("DEBUG: Begin native gesture")
                     self._native_gesture_active = True
                     self._gesture_in_progress = True
                     event.accept()
@@ -179,7 +176,6 @@ class CADGraphicsView(QGraphicsView):
 
                 # Handle gesture end - redraw grid and cleanup
                 elif gesture_type == Qt.NativeGestureType.EndNativeGesture:
-                    print("DEBUG: End native gesture")
                     self._native_gesture_active = False
                     self._gesture_in_progress = False
                     # Redraw grid now that gesture is complete to ensure
@@ -194,7 +190,6 @@ class CADGraphicsView(QGraphicsView):
                 elif gesture_type == Qt.NativeGestureType.ZoomNativeGesture:
                     if hasattr(event, 'value'):
                         zoom_value = event.value()
-                        print(f"DEBUG: Zoom gesture value: {zoom_value}")
 
                         if (self.drawing_manager and
                                 self.drawing_manager.cad_scene):
@@ -209,8 +204,6 @@ class CADGraphicsView(QGraphicsView):
                             #   positive = zoom in
                             # Convert to multiplicative factor: 1.0 + delta
                             zoom_factor = 1.0 + zoom_value
-                            print(f"DEBUG: Applying zoom factor: "
-                                  f"{zoom_factor}")
 
                             # Calculate new scale factor
                             new_scale = current_scale * zoom_factor
@@ -232,22 +225,16 @@ class CADGraphicsView(QGraphicsView):
                 event.type() in [QEvent.Type.TouchBegin,
                                  QEvent.Type.TouchUpdate,
                                  QEvent.Type.TouchEnd]):
-            print(f"DEBUG: Touch event detected: {event.type()}")
-            if hasattr(event, 'touchPoints'):
-                print(f"DEBUG: Touch points count: {len(event.touchPoints())}")
-
             # Handle touch begin - start gesture tracking
             if event.type() == QEvent.Type.TouchBegin:
                 if (hasattr(event, 'touchPoints') and
                         len(event.touchPoints()) == 2):
-                    print("DEBUG: Starting two-finger touch gesture")
                     self._gesture_in_progress = True
 
             # Handle touch update - process gestures with deferred redraw
             elif event.type() == QEvent.Type.TouchUpdate:
                 if (hasattr(event, 'touchPoints') and
                         len(event.touchPoints()) == 2):
-                    print("DEBUG: Handling two-finger touch")
                     # Handle two-finger pinch-to-zoom for touchscreen devices
                     touch_points = event.touchPoints()
                     if len(touch_points) == 2:
@@ -281,11 +268,9 @@ class CADGraphicsView(QGraphicsView):
             # Handle touch end - cleanup and redraw grid
             elif event.type() == QEvent.Type.TouchEnd:
                 # Reset pinch tracking when touch ends
-                print("DEBUG: Touch end - resetting pinch distance")
                 self._last_pinch_distance = None
                 # End gesture and redraw grid if needed
                 if self._gesture_in_progress:
-                    print("DEBUG: Ending touch gesture, redrawing grid")
                     self._gesture_in_progress = False
                     if (self.drawing_manager and
                             self.drawing_manager.cad_scene):

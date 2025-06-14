@@ -37,19 +37,13 @@
      inkscape:groupmode="layer"
      inkscape:label="Image"
      id="g1">
-    <g
-       id="g2"
-       transform="translate(-2.5e-7,0.01923095)"
-       style="fill:#fff9cd;fill-opacity:1">
-      <path
-         style="fill:#fff9cd;stroke:#000000;fill-opacity:1"
-         d="M 3.4615385,5.2692308 V 14.384615 H 12.538462 V 1.5769231 H 7.0769231 Z"
-         id="path1" />
-      <path
-         style="fill:#fff9cd;stroke:#000000;fill-opacity:1"
-         d="m 3.4615384,5.5384615 h 4 l -0.043614,-4"
-         id="path2"
-         sodipodi:nodetypes="ccc" />
-    </g>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.15767;stroke-dashoffset:1.5"
+       d="M 2.9999999,8 H 13"
+       id="path1" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1.15767;stroke-dashoffset:1.5"
+       d="M 8,3 V 13"
+       id="path1-4" />
   </g>
 </svg>

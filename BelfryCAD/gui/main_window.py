@@ -4,8 +4,7 @@ import math
 from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QMessageBox
 )
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPen, QColor
+from PySide6.QtCore import QTimer
 
 try:
     from PIL import Image
@@ -18,7 +17,7 @@ from BelfryCAD.tools import available_tools
 from BelfryCAD.tools.base import ToolManager
 from BelfryCAD.gui.category_button import CategoryToolButton
 from BelfryCAD.gui.mainmenu import MainMenuBar
-from BelfryCAD.gui.cad_scene import CadScene
+from BelfryCAD.gui.cad_scene import CadCanvas
 from .palette_system import create_default_palettes
 
 
@@ -269,7 +268,7 @@ class MainWindow(QMainWindow):
         # Apply custom stylesheet with 2px spacing
         self.toolbar.setStyleSheet("""
             QToolBar {
-                spacing: 2px 0 2px 0;
+                margin: 2px 0 2px 0;
                 border: none;
             }
             QToolButton {
@@ -283,9 +282,18 @@ class MainWindow(QMainWindow):
         # Store category buttons for reference
         self.category_buttons = {}
 
+    def get_scene(self):
+        return self.cad_scene
+
+    def get_canvas(self):
+        return self.cad_scene.get_canvas()
+    
+    def get_drawing_manager(self):
+        return self.cad_scene.get_drawing_manager()
+
     def _create_canvas(self):
         # Create the CAD scene component
-        self.cad_scene = CadScene(document=self.document, parent=self)
+        self.cad_scene = CadCanvas(self, document=self.document, parent=self)
 
         # Set the CAD scene as the central widget
         self.setCentralWidget(self.cad_scene)
@@ -385,78 +393,59 @@ class MainWindow(QMainWindow):
             return
 
         # Get all layer data from the layer manager
-        layers_data = self.document.layers.get_all_layers_data()
-        current_layer_id = str(self.document.layers.get_current_layer())
+        layers = self.document.layers.get_all_layers()
+        current_layer = self.document.layers.get_current_layer()
 
         # Update the layer window
-        if hasattr(layer_window, 'refresh_layers'):
-            refresh_method = getattr(layer_window, 'refresh_layers', None)
-            if callable(refresh_method):
-                refresh_method(layers_data, current_layer_id)
+        layer_window.refresh_layers(layers, current_layer)
 
     def _on_layer_created(self):
         """Handle layer creation request from layer window."""
         if hasattr(self.document, 'layers'):
-            new_layer_id = self.document.layers.create_layer()
-            self.document.layers.set_current_layer(new_layer_id)
+            new_layer = self.document.layers.create_layer()
+            self.document.layers.set_current_layer(new_layer)
             self._refresh_layer_window()
             self.draw_objects()  # Redraw to update layer visibility
 
-    def _on_layer_deleted(self, layer_id_str):
+    def _on_layer_deleted(self, layer):
         """Handle layer deletion request from layer window."""
-        if hasattr(self.document, 'layers'):
-            layer_id = int(layer_id_str)
-            if self.document.layers.delete_layer(layer_id):
-                self._refresh_layer_window()
-                self.draw_objects()  # Redraw to update layer visibility
-
-    def _on_layer_selected(self, layer_id_str):
-        """Handle layer selection from layer window."""
-        if hasattr(self.document, 'layers'):
-            layer_id = int(layer_id_str)
-            self.document.layers.set_current_layer(layer_id)
+        if self.document.layers.delete_layer(layer):
             self._refresh_layer_window()
-
-    def _on_layer_renamed(self, layer_id_str, new_name):
-        """Handle layer rename from layer window."""
-        if hasattr(self.document, 'layers'):
-            layer_id = int(layer_id_str)
-            self.document.layers.set_layer_name(layer_id, new_name)
-            self._refresh_layer_window()
-
-    def _on_layer_visibility_changed(self, layer_id_str, visible):
-        """Handle layer visibility change from layer window."""
-        if hasattr(self.document, 'layers'):
-            layer_id = int(layer_id_str)
-            self.document.layers.set_layer_visible(layer_id, visible)
             self.draw_objects()  # Redraw to update layer visibility
 
-    def _on_layer_lock_changed(self, layer_id_str, locked):
+    def _on_layer_selected(self, layer):
+        """Handle layer selection from layer window."""
+        self.document.layers.set_current_layer(layer)
+        self._refresh_layer_window()
+
+    def _on_layer_renamed(self, layer, new_name):
+        """Handle layer rename from layer window."""
+        self.document.layers.set_layer_name(layer, new_name)
+        self._refresh_layer_window()
+
+    def _on_layer_visibility_changed(self, layer, visible):
+        """Handle layer visibility change from layer window."""
+        self.document.layers.set_layer_visible(layer, visible)
+        self.draw_objects()  # Redraw to update layer visibility
+
+    def _on_layer_lock_changed(self, layer, locked):
         """Handle layer lock change from layer window."""
-        if hasattr(self.document, 'layers'):
-            layer_id = int(layer_id_str)
-            self.document.layers.set_layer_locked(layer_id, locked)
+        self.document.layers.set_layer_locked(layer, locked)
 
-    def _on_layer_color_changed(self, layer_id_str, color):
+    def _on_layer_color_changed(self, layer, color):
         """Handle layer color change from layer window."""
-        if hasattr(self.document, 'layers'):
-            layer_id = int(layer_id_str)
-            self.document.layers.set_layer_color(layer_id, color)
-            self.draw_objects()  # Redraw with new color
+        self.document.layers.set_layer_color(layer, color)
+        self.draw_objects()  # Redraw with new color
 
-    def _on_layer_cam_changed(self, layer_id_str, cut_bit, cut_depth):
+    def _on_layer_cam_changed(self, layer, cut_bit, cut_depth):
         """Handle layer CAM settings change from layer window."""
-        if hasattr(self.document, 'layers'):
-            layer_id = int(layer_id_str)
-            self.document.layers.set_layer_cut_bit(layer_id, cut_bit)
-            self.document.layers.set_layer_cut_depth(layer_id, cut_depth)
+        self.document.layers.set_layer_cut_bit(layer, cut_bit)
+        self.document.layers.set_layer_cut_depth(layer, cut_depth)
 
-    def _on_layer_reordered(self, layer_id_str, new_position):
+    def _on_layer_reordered(self, layer, new_position):
         """Handle layer reorder from layer window."""
-        if hasattr(self.document, 'layers'):
-            layer_id = int(layer_id_str)
-            self.document.layers.reorder_layer(layer_id, new_position)
-            self._refresh_layer_window()
+        self.document.layers.reorder_layer(layer, new_position)
+        self._refresh_layer_window()
 
     def _connect_config_pane(self, config_pane):
         """Connect config pane to the selection system for property editing."""
@@ -555,7 +544,7 @@ class MainWindow(QMainWindow):
         """Set up the tool system and register tools"""
         # Initialize tool manager
         self.tool_manager = ToolManager(
-            self.scene, self.document, self.preferences)
+            self, self.document, self.preferences)
 
         # Connect tool manager to graphics view
         self.canvas.set_tool_manager(self.tool_manager)
@@ -618,6 +607,13 @@ class MainWindow(QMainWindow):
         # Activate the selector tool by default
         if "OBJSEL" in self.tools:
             self.activate_tool("OBJSEL")
+
+    def get_dpi(self):
+        """Get the DPI from the main window."""
+        screen = self.screen()
+        if screen:
+            return screen.logicalDotsPerInch()
+        return 96.0  # Default DPI if screen info not available
 
     def activate_tool(self, tool_token):
         """Activate a tool by its token"""

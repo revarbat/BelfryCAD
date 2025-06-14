@@ -30,7 +30,7 @@ def test_cad_scene():
     window.setCentralWidget(cad_scene)
 
     # Test that all components are accessible
-    scene = cad_scene.get_scene()
+    scene = cad_scene
     canvas = cad_scene.get_canvas()
     drawing_manager = cad_scene.get_drawing_manager()
     ruler_manager = cad_scene.get_ruler_manager()

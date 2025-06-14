@@ -27,8 +27,8 @@
      inkscape:zoom="26"
      inkscape:cx="8"
      inkscape:cy="7.9038462"
-     inkscape:window-width="1224"
-     inkscape:window-height="816"
+     inkscape:window-width="1216"
+     inkscape:window-height="804"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="0"
@@ -38,37 +38,8 @@
      inkscape:label="Image"
      id="g1">
     <path
-       style="fill:none;stroke:#000000"
-       d="m 6.6730769,2.421797 c 0,-1.3076923 2.2692309,-1.3503645 2.2692309,0"
-       id="path5"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;fill:#cccccc;enable-background:accumulate;stop-color:#000000;fill-opacity:1"
-       d="M 3.9807695,4.6910276 H 12.019231 V 14.575644 H 3.9807695 Z"
-       id="path2" />
-    <path
-       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000"
-       d="M 3.4815205,4.1902766 V 15.075043 H 12.51863 V 4.1902766 Z m 0.9999999,1 H 11.51863 V 14.075043 H 4.4815204 Z"
-       id="path3" />
-    <path
-       style="fill:#ffffff;stroke:#000000"
-       d="m 6.0192308,6.787182 v 5.730764"
-       id="path4"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:#ffffff;stroke:#000000"
-       d="M 8.0384616,6.7871823 V 12.517945"
-       id="path4-9"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:#ffffff;stroke:#000000"
-       d="M 10.057692,6.7871823 V 12.517945"
-       id="path4-9-3"
-       sodipodi:nodetypes="cc" />
-    <path
-       id="rect4"
-       style="fill:#cccccc;stroke:#000000;fill-opacity:1"
-       d="M 3.2500001,2.7679507 H 12.75 l 0.307692,1.9230768 H 2.9423078 Z"
-       sodipodi:nodetypes="ccccc" />
+       style="fill:none;stroke:#000000;stroke-width:1.15767;stroke-dashoffset:1.5"
+       d="M 2.9999999,8 H 13"
+       id="path1" />
   </g>
 </svg>

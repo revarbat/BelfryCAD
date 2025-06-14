@@ -287,7 +287,7 @@ class PaletteManager(QObject):
         elif palette_type == PaletteType.SNAP_WINDOW:
             return SnapWindow()
         elif palette_type == PaletteType.LAYER_WINDOW:
-            return LayerWindow()
+            return LayerWindow(parent=self.main_window)
         else:
             # Fallback to empty widget
             widget = QWidget()

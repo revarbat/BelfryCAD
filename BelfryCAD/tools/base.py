@@ -14,6 +14,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 
 from BelfryCAD.core.cad_objects import CADObject, Point
+from BelfryCAD.gui.cad_scene import CadCanvas
 
 
 class ToolState(Enum):
@@ -82,15 +83,14 @@ class Tool(QObject):
     # Signal emitted when an object is created
     object_created = Signal(CADObject)
 
-    def __init__(self, scene: QGraphicsScene, document, preferences):
+    def __init__(self, main_window, document, preferences):
         """Initialize the tool"""
         super().__init__()
-        self.scene = scene
+        self.main_window = main_window
         self.document = document
         self.preferences = preferences
         self.state = ToolState.INIT
         self.points: List[Point] = []
-        self.temp_objects = []  # QGraphicsItems for temporary preview objects
 
         # Set up default definitions - subclasses should override this
         self.definitions = self._get_definition()
@@ -99,6 +99,16 @@ class Tool(QObject):
 
         # Set up mouse event bindings
         self._setup_bindings()
+
+    @property
+    def scene(self):
+        """Get the CAD graphics scene from the main window"""
+        return self.main_window.get_scene()
+
+    @property
+    def dpi(self):
+        """Get the DPI from the main window"""
+        return self.main_window.get_dpi()
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definitions - override in subclasses"""
@@ -152,9 +162,8 @@ class Tool(QObject):
 
     def clear_temp_objects(self):
         """Clear any temporary preview objects"""
-        for graphics_item in self.temp_objects:
-            self.scene.removeItem(graphics_item)
-        self.temp_objects = []
+        cad_scene = self.main_window.get_scene().scene
+        cad_scene.removeItemsByTags(["Construction"])
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
@@ -221,8 +230,9 @@ class Tool(QObject):
 class ToolManager:
     """Manages the creation, registration and activation of tools"""
 
-    def __init__(self, scene: QGraphicsScene, document, preferences):
-        self.scene = scene
+    def __init__(self, main_window, document, preferences):
+        print(f"ToolManager init: {main_window}, {document}, {preferences}")
+        self.main_window = main_window
         self.document = document
         self.preferences = preferences
         self.tools: Dict[str, Tool] = {}
@@ -231,7 +241,7 @@ class ToolManager:
 
     def register_tool(self, tool_class):
         """Register a tool with the manager"""
-        tool = tool_class(self.scene, self.document, self.preferences)
+        tool = tool_class(self.main_window, self.document, self.preferences)
         # Register all definitions from this tool
         for definition in tool.definitions:
             self.tools[definition.token] = tool

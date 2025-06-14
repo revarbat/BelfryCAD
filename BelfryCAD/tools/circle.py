@@ -10,25 +10,78 @@ from typing import Optional, List
 
 from BelfryCAD.core.cad_objects import CADObject, ObjectType, Point
 from BelfryCAD.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRectF
 from PySide6.QtGui import QPen
+from PySide6.QtWidgets import QGraphicsEllipseItem
+
 
 
 class CircleObject(CADObject):
     """Circle object - center and radius"""
 
-    def __init__(self, object_id: int, center: Point, radius: float, **kwargs):
-        super().__init__(
-            object_id, ObjectType.CIRCLE, coords=[center], **kwargs)
-        self.attributes['radius'] = radius
+    def __init__(
+            self,
+            mainwin: 'MainWindow',
+            object_id: int,
+            **kwargs
+    ):
+        super().__init__(mainwin, object_id, **kwargs)
+
+
+    def draw_object(self):
+        scene = self.mainwin.get_scene().scene
+        center = self.coords[0]
+        delta = self.coords[1] - center
+        radius = math.sqrt(delta.x**2 + delta.y**2)
+        obj = scene.addEllipse(
+            center.x - radius,
+            center.y - radius,
+            2 * radius,
+            2 * radius
+        )
+        scene.tagAsObject(obj)
+
+    def draw_controls(self):
+        scene = self.mainwin.get_scene().scene
+        center = self.coords[0]
+        radpt = self.coords[1]
+        cp1 = scene.addControlPoint(self.object_id, center.x, center.y, 0)
+        cp2 = scene.addControlPoint(self.object_id, radpt.x, radpt.y, 1)
+        scene.tagAsControlPoint(cp1)
+        scene.tagAsControlPoint(cp2)
 
     @property
     def center(self) -> Point:
         return self.coords[0]
+    
+    @center.setter
+    def center(self, value: Point):
+        self.coords[0] = value
+        self.draw_object()
+        self.draw_controls()
 
     @property
     def radius(self) -> float:
-        return self.attributes['radius']
+        delta = self.coords[1] - self.coords[0]
+        return math.sqrt(delta.x**2 + delta.y**2)
+    
+    @radius.setter
+    def radius(self, value: float):
+        delta = self.coords[1] - self.coords[0]
+        dist = math.sqrt(delta.x**2 + delta.y**2)
+        delta = delta / dist * value
+        self.coords[1] = self.coords[0] + delta
+        self.draw_object()
+        self.draw_controls()
+
+    @property
+    def diameter(self) -> float:
+        return 2 * self.radius
+    
+    @diameter.setter
+    def diameter(self, value: float):
+        self.radius = value / 2
+
 
 
 class CircleTool(Tool):
@@ -81,9 +134,7 @@ class CircleTool(Tool):
         """Draw a preview of the circle being created"""
         # Clear previous preview
         self.clear_temp_objects()
-        print(f"DEBUG: Drawing preview at ({current_x}, {current_y})")
-        self.scene.removeItemsByTags("Construction")
-
+        
         if len(self.points) == 1:
             # Get the snapped point based on current snap settings
             point = self.get_snap_point(current_x, current_y)
@@ -93,22 +144,16 @@ class CircleTool(Tool):
             radius = math.sqrt((point.x - center_point.x)**2 +
                                (point.y - center_point.y)**2)
 
-            # Delete previous temporary objects
-            self.clear_temp_objects()
-
             # Create temporary ellipse using CadScene's addEllipse method
             pen = QPen()
             pen.setColor("blue")
-            pen.setWidthF(0.01)
+            pen.setWidthF(0.1)
             pen.setStyle(Qt.PenStyle.DashLine)
             ellipse_item = self.scene.addEllipse(
                 center_point.x - radius, center_point.y - radius,
                 2 * radius, 2 * radius,
                 pen=pen
             )
-
-            self.scene.addItem(ellipse_item)
-            self.temp_objects.append(ellipse_item)
             self.scene.tagAsConstruction(ellipse_item)
 
     def create_object(self) -> Optional[CADObject]:
@@ -125,15 +170,15 @@ class CircleTool(Tool):
         )
 
         # Create a circle object
-        obj = CADObject(
+        obj = CircleObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.CIRCLE,
             layer=self.document.objects.current_layer,
-            coords=[center_point],  # Only need center point
+            coords=[center_point, radius_point],  # Only need center point
             attributes={
                 'color': 'black',  # Default color
-                'linewidth': 1,    # Default line width
-                'radius': radius   # Store the radius as an attribute
+                'linewidth': 1    # Default line width
             }
         )
         return obj
@@ -142,9 +187,9 @@ class CircleTool(Tool):
 class Circle2PTObject(CADObject):
     """Circle object defined by 2 points (diameter endpoints)"""
 
-    def __init__(self, object_id: int, point1: Point, point2: Point, **kwargs):
+    def __init__(self, mainwin: 'MainWindow', object_id: int, point1: Point, point2: Point, **kwargs):
         super().__init__(
-            object_id, ObjectType.CIRCLE, coords=[point1, point2], **kwargs)
+            mainwin, object_id, ObjectType.CIRCLE, coords=[point1, point2], **kwargs)
 
     @property
     def point1(self) -> Point:
@@ -172,6 +217,7 @@ class Circle3PTObject(CADObject):
 
     def __init__(
             self,
+            mainwin: 'MainWindow',
             object_id: int,
             point1: Point,
             point2: Point,
@@ -179,7 +225,7 @@ class Circle3PTObject(CADObject):
             **kwargs
     ):
         super().__init__(
-            object_id, ObjectType.CIRCLE,
+            mainwin, object_id, ObjectType.CIRCLE,
             coords=[point1, point2, point3],
             **kwargs)
         self._calculate_circle()
@@ -304,30 +350,25 @@ class Circle2PTTool(Tool):
         if self.state == ToolState.DRAWING and len(self.points) == 1:
             scene_pos = event.scenePos()
             current_point = Point(scene_pos.x(), scene_pos.y())
-            self.draw_preview([self.points[0], current_point])
+            self.draw_preview(scene_pos.x(), scene_pos.y())
 
-    def draw_preview(self, points):
+    def draw_preview(self, current_x, current_y):
         """Draw preview of the circle"""
-        # Clear previous preview
-        for item in self.temp_objects:
-            self.scene.removeItem(item)
-        self.temp_objects.clear()
+        self.clear_temp_objects()
 
         if len(points) == 2:
             # Calculate circle center and radius
-            p1, p2 = points
-            center_x = (p1.x + p2.x) / 2.0
-            center_y = (p1.y + p2.y) / 2.0
-            radius = math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2) / 2.0
-
-            # Draw preview circle
-            from PySide6.QtWidgets import QGraphicsEllipseItem
-            from PySide6.QtCore import QRectF
-            from PySide6.QtGui import QPen, Qt
+            p1 = self.points[0]
+            p2 = [current_x, current_y]
+            center_x = (p1.x + current_x) / 2.0
+            center_y = (p1.y + current_y) / 2.0
+            radius = math.sqrt(
+                (current_x - p1.x)**2 + (current_y - p1.y)**2
+            ) / 2.0
 
             ellipse_item = QGraphicsEllipseItem(
-                QRectF(center_x - radius, center_y -
-                       radius, 2 * radius, 2 * radius)
+                QRectF(center_x - radius, center_y - radius, 
+                       2 * radius, 2 * radius)
             )
             pen = QPen()
             pen.setColor("blue")
@@ -335,7 +376,7 @@ class Circle2PTTool(Tool):
             ellipse_item.setPen(pen)
 
             self.scene.addItem(ellipse_item)
-            self.temp_objects.append(ellipse_item)
+            self.scene.tagAsConstruction(ellipse_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create a circle object from the collected points"""
@@ -343,6 +384,7 @@ class Circle2PTTool(Tool):
             return None
 
         obj = Circle2PTObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             point1=self.points[0],
             point2=self.points[1],
@@ -408,9 +450,7 @@ class Circle3PTTool(Tool):
     def draw_preview(self, points):
         """Draw preview of the circle"""
         # Clear previous preview
-        for item in self.temp_objects:
-            self.scene.removeItem(item)
-        self.temp_objects.clear()
+        self.clear_temp_objects()
 
         if len(points) == 3:
             # Calculate circle from 3 points
@@ -431,7 +471,6 @@ class Circle3PTTool(Tool):
                 line_item.setPen(pen)
 
                 self.scene.addItem(line_item)
-                self.temp_objects.append(line_item)
                 return
 
             # Calculate center and radius
@@ -474,7 +513,6 @@ class Circle3PTTool(Tool):
             ellipse_item.setPen(pen)
 
             self.scene.addItem(ellipse_item)
-            self.temp_objects.append(ellipse_item)
 
         elif len(points) == 2:
             # Draw line preview between first two points
@@ -489,7 +527,6 @@ class Circle3PTTool(Tool):
             line_item.setPen(pen)
 
             self.scene.addItem(line_item)
-            self.temp_objects.append(line_item)
 
     def create_object(self) -> Optional[CADObject]:
         """Create a circle object from the collected points"""
@@ -497,6 +534,7 @@ class Circle3PTTool(Tool):
             return None
 
         obj = Circle3PTObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             point1=self.points[0],
             point2=self.points[1],

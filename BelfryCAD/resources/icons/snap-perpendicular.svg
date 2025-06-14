@@ -5,7 +5,7 @@
    viewBox="0 0 16 16"
    version="1.1"
    id="svg4"
-   sodipodi:docname="snap_perpendicular.svg"
+   sodipodi:docname="snap-perpendicular.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -42,12 +42,12 @@
      x1="8"
      y1="12"
      x2="8"
-     y2="0.34615391"
+     y2="2.2307694"
      stroke="#ff0000"
      stroke-width="1.5"
      stroke-dasharray="2,1"
      id="line2"
-     style="stroke:#808080;stroke-width:1.20695;stroke-dasharray:1.20695, 1.20695;stroke-dashoffset:0;stroke-opacity:1" />
+     style="stroke:#808080;stroke-width:1.10506;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
   <!-- Horizontal line -->
   <line
      x1="2"
@@ -61,8 +61,8 @@
   <!-- Perpendicular line to snap point -->
   <!-- Perpendicular crosshair -->
   <circle
-     cx="8"
-     cy="6.5769176"
+     cx="7.9615383"
+     cy="5.2307639"
      r="1"
      fill="#ff0000"
      id="circle4"

@@ -24,7 +24,7 @@ def test_grid_fix():
     cad_scene = CadScene()
 
     # Get the scene and drawing manager from CadScene
-    scene = cad_scene.get_scene()
+    scene = cad_scene
     drawing_manager = cad_scene.get_drawing_manager()
 
     # Set up scene rectangle (equivalent to viewport)

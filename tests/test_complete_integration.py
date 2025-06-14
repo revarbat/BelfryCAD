@@ -25,7 +25,7 @@ def test_complete_integration():
     print("✓ CadScene created successfully")
 
     # Test that all subsystems are working
-    scene = cad_scene.get_scene()
+    scene = cad_scene
     print(f"✓ Scene created: {scene}")
 
     canvas = cad_scene.get_canvas()

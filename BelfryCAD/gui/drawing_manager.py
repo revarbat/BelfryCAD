@@ -138,7 +138,7 @@ class DrawingManager:
     def get_items_by_tag(self, tag: str) -> List[QGraphicsItem]:
         """Get all graphics items with a specific tag"""
         if self.cad_scene:
-            return self.cad_scene.getItemsByTag(tag)
+            return self.cad_scene.scene.getItemsByTag(tag)
         else:
             return []
 

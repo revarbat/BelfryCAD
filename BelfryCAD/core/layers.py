@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 class Layer:
     """Represents a drawing layer with its properties and contained objects."""
 
-    layer_id: int
     name: str
     visible: bool = True
     locked: bool = False
@@ -22,6 +21,16 @@ class Layer:
     cut_bit: int = 0
     cut_depth: float = 0.0
     objects: List[int] = field(default_factory=list)
+
+    def __hash__(self) -> int:
+        """Make Layer hashable based on its instance identity."""
+        return id(self)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare Layer objects for equality based on instance identity."""
+        if not isinstance(other, Layer):
+            return NotImplemented
+        return self is other
 
 
 class LayerManager:
@@ -40,23 +49,19 @@ class LayerManager:
             canvas_id: Identifier for the canvas/document this manager serves
         """
         self.canvas_id = canvas_id
-        self._layer_counter = 0
-        self._layers: Dict[int, Layer] = {}
-        self._layer_order: List[int] = []
-        self._current_layer_id = -1
+        self._layers: List[Layer] = []
+        self._current_layer: Optional[Layer] = None
 
     def init_layers(self) -> None:
         """Initialize the layer system with a default layer."""
-        self._layer_counter = 0
         self._layers.clear()
-        self._layer_order.clear()
-        self._current_layer_id = -1
+        self._current_layer = None
 
         # Create and set the first layer as current
-        first_layer_id = self.create_layer()
-        self.set_current_layer(first_layer_id)
+        first_layer = self.create_layer()
+        self.set_current_layer(first_layer)
 
-    def create_layer(self, name: str = "", with_undo: bool = True) -> int:
+    def create_layer(self, name: str = "", with_undo: bool = True) -> Layer:
         """
         Create a new layer.
 
@@ -65,34 +70,12 @@ class LayerManager:
             with_undo: Whether to remember this action for undo (not implemented yet)
 
         Returns:
-            The ID of the newly created layer
+            The newly created Layer object
         """
-        return self._create_layer_internal(name, -1)
-
-    def _create_layer_internal(self, name: str = "", layer_id: int = -1) -> int:
-        """
-        Internal layer creation method.
-
-        Args:
-            name: Name for the new layer
-            layer_id: Specific ID to use (-1 for auto-increment)
-
-        Returns:
-            The ID of the newly created layer
-        """
-        if layer_id == -1:
-            self._layer_counter += 1
-            layer_id = self._layer_counter
-        else:
-            # Update counter if we're using a specific ID
-            if layer_id > self._layer_counter:
-                self._layer_counter = layer_id
-
         if not name:
-            name = f"Layer {layer_id}"
+            name = f"Layer {len(self._layers) + 1}"
 
         layer = Layer(
-            layer_id=layer_id,
             name=name,
             visible=True,
             locked=False,
@@ -102,289 +85,257 @@ class LayerManager:
             objects=[]
         )
 
-        self._layers[layer_id] = layer
-        self._layer_order.append(layer_id)
+        self._layers.append(layer)
+        return layer
 
-        return layer_id
-
-    def delete_layer(self, layer_id: int, with_undo: bool = True) -> bool:
+    def delete_layer(self, layer: Layer, with_undo: bool = True) -> bool:
         """
         Delete a layer and all its objects.
 
         Args:
-            layer_id: ID of the layer to delete
+            layer: Layer object to delete
             with_undo: Whether to remember this action for undo
 
         Returns:
             True if layer was deleted, False if it didn't exist
         """
-        if layer_id not in self._layers:
+        if layer not in self._layers:
             return False
 
-        layer = self._layers[layer_id]
-
-        # TODO: Delete all objects in this layer
-        # This would require integration with the object management system
-        # for objid in layer.objects:
-        #     delete_object(objid)
-
         # If this was the current layer, switch to another one
-        if self._current_layer_id == layer_id:
-            remaining_layers = [
-                lid for lid in self._layer_order if lid != layer_id]
+        if self._current_layer == layer:
+            remaining_layers = [l for l in self._layers if l != layer]
             if remaining_layers:
                 # Try to switch to the next layer, or first if we're deleting the last
                 try:
-                    current_index = self._layer_order.index(layer_id)
+                    current_index = self._layers.index(layer)
                     new_current = remaining_layers[min(
                         current_index, len(remaining_layers) - 1)]
                 except (ValueError, IndexError):
                     new_current = remaining_layers[0]
                 self.set_current_layer(new_current)
             else:
-                self._current_layer_id = -1
+                self._current_layer = None
 
         # Remove from data structures
-        del self._layers[layer_id]
-        self._layer_order.remove(layer_id)
-
-        # Reset counters if no layers remain
-        if not self._layers:
-            self._layer_counter = 0
-            self._current_layer_id = -1
+        self._layers.remove(layer)
 
         return True
 
-    def layer_exists(self, layer_id: int) -> bool:
+    def layer_exists(self, layer: Layer) -> bool:
         """Check if a layer exists."""
-        return layer_id in self._layers
+        return layer in self._layers
 
-    def get_layer_by_name(self, name: str) -> Optional[int]:
+    def get_layer_by_name(self, name: str) -> Optional[Layer]:
         """
-        Find a layer ID by name.
+        Find a layer by name.
 
         Args:
             name: Name to search for
 
         Returns:
-            Layer ID if found, None otherwise
+            Layer object if found, None otherwise
         """
-        for layer_id, layer in self._layers.items():
+        for layer in self._layers:
             if layer.name == name:
-                return layer_id
+                return layer
         return None
 
-    def get_layer_ids(self) -> List[int]:
-        """Get all layer IDs in order."""
-        return self._layer_order.copy()
+    def get_layers(self) -> List[Layer]:
+        """Get all layers in order."""
+        return self._layers.copy()
 
-    def get_current_layer(self) -> int:
+    def get_current_layer(self) -> Optional[Layer]:
         """
-        Get the current layer ID.
+        Get the current layer.
 
         Returns:
-            Current layer ID, or -1 if no layers exist
+            Current layer object, or None if no layers exist
         """
         if not self._layers:
-            return -1
+            return None
 
-        if self._current_layer_id == -1 or self._current_layer_id not in self._layers:
+        if self._current_layer is None or self._current_layer not in self._layers:
             # Auto-create a layer if none exist
             if not self._layers:
-                self._current_layer_id = self.create_layer()
+                self._current_layer = self.create_layer()
             else:
-                self._current_layer_id = self._layer_order[0]
+                self._current_layer = self._layers[0]
 
-        return self._current_layer_id
+        return self._current_layer
 
-    def set_current_layer(self, layer_id: int) -> bool:
+    def set_current_layer(self, layer: Layer) -> bool:
         """
         Set the current layer.
 
         Args:
-            layer_id: ID of layer to make current
+            layer: Layer object to make current
 
         Returns:
             True if successful, False if layer doesn't exist
         """
-        if layer_id not in self._layers:
+        if layer not in self._layers:
             return False
-        self._current_layer_id = layer_id
+        self._current_layer = layer
         return True
 
-    def get_layer_position(self, layer_id: int) -> int:
+    def get_layer_position(self, layer: Layer) -> int:
         """
         Get the position of a layer in the layer order.
 
         Args:
-            layer_id: Layer ID to find
+            layer: Layer object to find
 
         Returns:
             Position index, or -1 if not found
         """
         try:
-            return self._layer_order.index(layer_id)
+            return self._layers.index(layer)
         except ValueError:
             return -1
 
-    def reorder_layer(self, layer_id: int, new_position: int) -> bool:
+    def reorder_layer(self, layer: Layer, new_position: int) -> bool:
         """
         Move a layer to a new position in the layer order.
 
         Args:
-            layer_id: Layer to move
+            layer: Layer to move
             new_position: New position (0 = top)
 
         Returns:
             True if successful, False if layer doesn't exist
         """
-        if layer_id not in self._layers:
+        if layer not in self._layers:
             return False
 
         try:
-            old_position = self._layer_order.index(layer_id)
-            self._layer_order.pop(old_position)
-            self._layer_order.insert(new_position, layer_id)
+            old_position = self._layers.index(layer)
+            self._layers.pop(old_position)
+            self._layers.insert(new_position, layer)
             return True
         except ValueError:
             return False
 
-    def reorder_layers(self, new_order: List[int]) -> bool:
+    def reorder_layers(self, new_order: List[Layer]) -> bool:
         """
         Reorder all layers according to a new ordering.
 
         Args:
-            new_order: List of layer IDs in desired order
+            new_order: List of layers in desired order
 
         Returns:
             True if successful, False if invalid order provided
         """
         # Verify all layers exist and no duplicates
-        if (len(new_order) != len(self._layer_order) or
-                set(new_order) != set(self._layer_order)):
+        if (len(new_order) != len(self._layers) or
+                set(new_order) != set(self._layers)):
             return False
 
         # Update the order
-        self._layer_order = new_order.copy()
+        self._layers = new_order.copy()
         return True
 
     # Layer property getters and setters
-    def get_layer_name(self, layer_id: int) -> str:
+    def get_layer_name(self, layer: Layer) -> str:
         """Get layer name."""
-        if layer_id in self._layers:
-            return self._layers[layer_id].name
-        return ""
+        return layer.name
 
-    def set_layer_name(self, layer_id: int, name: str) -> bool:
+    def set_layer_name(self, layer: Layer, name: str) -> bool:
         """Set layer name."""
-        if layer_id in self._layers:
-            self._layers[layer_id].name = name
+        if layer in self._layers:
+            layer.name = name
             return True
         return False
 
-    def is_layer_visible(self, layer_id: int) -> bool:
+    def is_layer_visible(self, layer: Layer) -> bool:
         """Check if layer is visible."""
-        if layer_id in self._layers:
-            return self._layers[layer_id].visible
-        return False
+        return layer.visible
 
-    def set_layer_visible(self, layer_id: int, visible: bool) -> bool:
+    def set_layer_visible(self, layer: Layer, visible: bool) -> bool:
         """Set layer visibility."""
-        if layer_id in self._layers:
-            self._layers[layer_id].visible = visible
+        if layer in self._layers:
+            layer.visible = visible
             return True
         return False
 
-    def is_layer_locked(self, layer_id: int) -> bool:
+    def is_layer_locked(self, layer: Layer) -> bool:
         """Check if layer is locked."""
-        if layer_id in self._layers:
-            return self._layers[layer_id].locked
-        return False
+        return layer.locked
 
-    def set_layer_locked(self, layer_id: int, locked: bool) -> bool:
+    def set_layer_locked(self, layer: Layer, locked: bool) -> bool:
         """Set layer locked state."""
-        if layer_id in self._layers:
-            self._layers[layer_id].locked = locked
+        if layer in self._layers:
+            layer.locked = locked
             return True
         return False
 
-    def get_layer_color(self, layer_id: int) -> str:
+    def get_layer_color(self, layer: Layer) -> str:
         """Get layer color."""
-        if layer_id in self._layers:
-            return self._layers[layer_id].color
-        return "black"
+        return layer.color
 
-    def set_layer_color(self, layer_id: int, color: str) -> bool:
+    def set_layer_color(self, layer: Layer, color: str) -> bool:
         """Set layer color."""
-        if layer_id in self._layers:
-            self._layers[layer_id].color = color
+        if layer in self._layers:
+            layer.color = color
             return True
         return False
 
-    def get_layer_cut_bit(self, layer_id: int) -> int:
+    def get_layer_cut_bit(self, layer: Layer) -> int:
         """Get layer cut bit setting."""
-        if layer_id in self._layers:
-            return self._layers[layer_id].cut_bit
-        return 0
+        return layer.cut_bit
 
-    def set_layer_cut_bit(self, layer_id: int, cut_bit: int) -> bool:
+    def set_layer_cut_bit(self, layer: Layer, cut_bit: int) -> bool:
         """Set layer cut bit setting."""
-        if layer_id in self._layers:
-            self._layers[layer_id].cut_bit = cut_bit
+        if layer in self._layers:
+            layer.cut_bit = cut_bit
             return True
         return False
 
-    def get_layer_cut_depth(self, layer_id: int) -> float:
+    def get_layer_cut_depth(self, layer: Layer) -> float:
         """Get layer cut depth setting."""
-        if layer_id in self._layers:
-            return self._layers[layer_id].cut_depth
-        return 0.0
+        return layer.cut_depth
 
-    def set_layer_cut_depth(self, layer_id: int, cut_depth: float) -> bool:
+    def set_layer_cut_depth(self, layer: Layer, cut_depth: float) -> bool:
         """Set layer cut depth setting."""
-        if layer_id in self._layers:
-            self._layers[layer_id].cut_depth = cut_depth
+        if layer in self._layers:
+            layer.cut_depth = cut_depth
             return True
         return False
 
     # Object management methods
-    def get_layer_objects(self, layer_id: int) -> List[int]:
+    def get_layer_objects(self, layer: Layer) -> List[int]:
         """Get list of object IDs in a layer."""
-        if layer_id in self._layers:
-            return self._layers[layer_id].objects.copy()
-        return []
+        return layer.objects.copy()
 
-    def add_object_to_layer(self, layer_id: int, object_id: int) -> bool:
+    def add_object_to_layer(self, layer: Layer, object_id: int) -> bool:
         """
         Add an object to a layer.
 
         Args:
-            layer_id: Layer to add object to
+            layer: Layer to add object to
             object_id: Object ID to add
 
         Returns:
             True if successful, False if layer doesn't exist
         """
-        if layer_id in self._layers:
-            layer = self._layers[layer_id]
+        if layer in self._layers:
             if object_id not in layer.objects:
                 layer.objects.append(object_id)
             return True
         return False
 
-    def remove_object_from_layer(self, layer_id: int, object_id: int) -> bool:
+    def remove_object_from_layer(self, layer: Layer, object_id: int) -> bool:
         """
         Remove an object from a layer.
 
         Args:
-            layer_id: Layer to remove object from
+            layer: Layer to remove object from
             object_id: Object ID to remove
 
         Returns:
             True if successful, False if layer doesn't exist or object not in layer
         """
-        if layer_id in self._layers:
-            layer = self._layers[layer_id]
+        if layer in self._layers:
             try:
                 layer.objects.remove(object_id)
                 return True
@@ -392,22 +343,20 @@ class LayerManager:
                 pass  # Object wasn't in the layer
         return False
 
-    def arrange_object_in_layer(self, layer_id: int, object_id: int, relative_position: Union[str, int]) -> bool:
+    def arrange_object_in_layer(self, layer: Layer, object_id: int, relative_position: Union[str, int]) -> bool:
         """
         Arrange an object's position within its layer.
 
         Args:
-            layer_id: Layer containing the object
+            layer: Layer containing the object
             object_id: Object to move
             relative_position: Either "top", "bottom", or integer offset
 
         Returns:
             True if successful, False otherwise
         """
-        if layer_id not in self._layers:
+        if layer not in self._layers:
             return False
-
-        layer = self._layers[layer_id]
 
         try:
             current_pos = layer.objects.index(object_id)
@@ -431,47 +380,45 @@ class LayerManager:
         layer.objects.insert(new_pos, object_id)
         return True
 
-    def move_object_to_layer(self, object_id: int, from_layer_id: int, to_layer_id: int) -> bool:
+    def move_object_to_layer(self, object_id: int, from_layer: Layer, to_layer: Layer) -> bool:
         """
         Move an object from one layer to another.
 
         Args:
             object_id: Object to move
-            from_layer_id: Source layer
-            to_layer_id: Destination layer
+            from_layer: Source layer
+            to_layer: Destination layer
 
         Returns:
             True if successful, False if either layer doesn't exist or object not found
         """
         # Check both layers exist
-        if from_layer_id not in self._layers or to_layer_id not in self._layers:
+        if from_layer not in self._layers or to_layer not in self._layers:
             return False
 
         # Remove from source layer
-        if not self.remove_object_from_layer(from_layer_id, object_id):
+        if not self.remove_object_from_layer(from_layer, object_id):
             return False
 
         # Add to destination layer
-        return self.add_object_to_layer(to_layer_id, object_id)
+        return self.add_object_to_layer(to_layer, object_id)
 
     # Serialization methods
-    def serialize_layer(self, layer_id: int) -> Dict[str, Any]:
+    def serialize_layer(self, layer: Layer) -> Dict[str, Any]:
         """
         Serialize a layer to a dictionary.
 
         Args:
-            layer_id: Layer ID to serialize
+            layer: Layer object to serialize
 
         Returns:
             Dictionary containing layer data
         """
-        if layer_id not in self._layers:
+        if layer not in self._layers:
             return {}
 
-        layer = self._layers[layer_id]
         return {
-            "layerid": layer_id,
-            "pos": self.get_layer_position(layer_id),
+            "pos": self.get_layer_position(layer),
             "name": layer.name,
             "visible": layer.visible,
             "locked": layer.locked,
@@ -480,42 +427,26 @@ class LayerManager:
             "cutdepth": layer.cut_depth
         }
 
-    def deserialize_layer(self, layer_data: Dict[str, Any], force_new: bool = False) -> int:
+    def deserialize_layer(self, layer_data: Dict[str, Any], force_new: bool = False) -> Layer:
         """
         Deserialize a layer from a dictionary.
 
         Args:
             layer_data: Dictionary containing layer data
-            force_new: If True, always create a new layer ID
+            force_new: If True, always create a new layer
 
         Returns:
-            Layer ID of the deserialized layer
+            Layer object of the deserialized layer
         """
-        required_fields = ["layerid", "name", "visible",
-                           "locked", "color", "cutbit", "cutdepth", "pos"]
+        required_fields = ["name", "visible", "locked", "color", "cutbit", "cutdepth", "pos"]
         for field in required_fields:
             if field not in layer_data:
-                raise ValueError(
-                    f"Serialization data missing required field: {field}")
+                raise ValueError(f"Serialization data missing required field: {field}")
 
-        target_layer_id = layer_data["layerid"]
-        if force_new:
-            target_layer_id = -1
-
-        if target_layer_id == -1:
-            # Create new layer
-            layer_id = self._create_layer_internal(layer_data["name"])
-        elif not self.layer_exists(target_layer_id):
-            # Create layer with specific ID
-            layer_id = self._create_layer_internal(
-                layer_data["name"], target_layer_id)
-        else:
-            # Update existing layer
-            layer_id = target_layer_id
-            self._layers[layer_id].name = layer_data["name"]
+        # Create new layer
+        layer = self.create_layer(layer_data["name"])
 
         # Set all properties
-        layer = self._layers[layer_id]
         layer.visible = layer_data["visible"]
         layer.locked = layer_data["locked"]
         layer.color = layer_data["color"]
@@ -523,42 +454,41 @@ class LayerManager:
         layer.cut_depth = layer_data["cutdepth"]
 
         # Reorder to correct position
-        self.reorder_layer(layer_id, layer_data["pos"])
+        self.reorder_layer(layer, layer_data["pos"])
 
-        return layer_id
+        return layer
 
-    def get_layer_info(self, layer_id: int) -> Optional[Layer]:
+    def get_layer_info(self, layer: Layer) -> Optional[Layer]:
         """
         Get complete layer information.
 
         Args:
-            layer_id: Layer ID to get info for
+            layer: Layer object to get info for
 
         Returns:
             Layer object if exists, None otherwise
         """
-        return self._layers.get(layer_id)
+        return layer if layer in self._layers else None
 
-    def get_all_layers(self) -> Dict[int, Layer]:
-        """Get all layers as a dictionary."""
+    def get_all_layers(self) -> List[Layer]:
+        """Get all layers as a list."""
         return self._layers.copy()
 
-    def get_layer_data(self, layer_id: int) -> Optional[Dict[str, Any]]:
+    def get_layer_data(self, layer: Layer) -> Optional[Dict[str, Any]]:
         """
         Get layer data in a format compatible with the drawing system.
 
         Args:
-            layer_id: Layer ID to get data for
+            layer: Layer object to get data for
 
         Returns:
             Dictionary with layer data or None if layer doesn't exist
         """
-        if layer_id not in self._layers:
+        if layer not in self._layers:
             return None
 
-        layer = self._layers[layer_id]
         return {
-            'id': str(layer_id),  # Convert to string for UI compatibility
+            'id': str(self.get_layer_position(layer)),  # Convert position to string for UI compatibility
             'name': layer.name,
             'color': layer.color,
             'visible': layer.visible,
@@ -576,8 +506,8 @@ class LayerManager:
             List of layer data dictionaries
         """
         layers_data = []
-        for layer_id in self._layer_order:
-            layer_data = self.get_layer_data(layer_id)
+        for layer in self._layers:
+            layer_data = self.get_layer_data(layer)
             if layer_data:
                 layers_data.append(layer_data)
         return layers_data

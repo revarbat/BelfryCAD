@@ -26,13 +26,17 @@ class SnapWindowInfo:
     def __init__(self):
         self.snap_types = [
             ("grid", "&Grid", True, "snap-grid"),
-            ("controlpoints", "Control &Points", True, "snap-controlpoints"),
+            ("controlpoints", "Contro&l Points", True, "snap-controlpoints"),
+            ("endpoint", "&Endpoints", False, "snap-endpoint"),
             ("midpoints", "&Midpoints", True, "snap-midpoint"),
+            ("center", "&Centers", False, "snap-center"),
             ("quadrants", "&Quadrants", True, "snap-quadrant"),
-            ("intersect", "In&tersections", False, "snap-intersection"),
-            ("contours", "&Lines and Arcs", False, "snap-contours"),
-            ("centerlines", "&Centerlines", False, "snap-centerlines"),
+            ("centerlines", "Centerline&s", False, "snap-centerlines"),
             ("tangents", "&Tangents", False, "snap-tangent"),
+            ("contours", "C&ontours", False, "snap-contours"),
+            ("perpendicular", "&Perpendicular", False, "snap-perpendicular"),
+            ("intersect", "&Intersections", False, "snap-intersection"),
+            ("nearest", "&Nearest", False, "snap-nearest"),
         ]
         self.snap_states = {}
         self.snap_all = True
@@ -74,10 +78,15 @@ class SnapWindow(QWidget):
     def _init_ui(self):
         """Initialize the user interface."""
         self.setWindowTitle("Snaps")
-        self.setContentsMargins(2, 2, 2, 2)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setMaximumHeight(160)
+        self.setMinimumHeight(160)
+        self.setMinimumWidth(250)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         # Create main layout
         main_layout = QVBoxLayout()
+        main_layout.setSpacing(3)
         self.setLayout(main_layout)
 
         # Create "All Snaps" checkbox at the top
@@ -98,8 +107,8 @@ class SnapWindow(QWidget):
         # Create scrollable content widget
         self.scroll_content = QWidget()
         self.scroll_layout = QGridLayout(self.scroll_content)
-        self.scroll_layout.setContentsMargins(5, 5, 5, 5)
-        self.scroll_layout.setSpacing(10)  # Increased from 3 to 6 pixels
+        self.scroll_layout.setContentsMargins(5, 5, 0, 0)
+        self.scroll_layout.setSpacing(3)
         self.scroll_area.setWidget(self.scroll_content)
         self.scroll_area.setFrameShape(self.scroll_area.Shape.NoFrame)
 
@@ -130,7 +139,7 @@ class SnapWindow(QWidget):
         return None
 
     def _create_snap_checkboxes(self):
-        """Create buttons for all snap types in two columns."""
+        """Create buttons for all snap types in columns."""
         row = 0
         col = 0
 
@@ -141,16 +150,33 @@ class SnapWindow(QWidget):
 
             # Extract display name
             display_name = snap_name.replace("&", "")
+            accel = self._extract_accelerator(snap_name)
+            if accel:
+                display_name = f"Snap to {display_name} ({accel.upper()})"
 
             # Create toggle button instead of checkbox
             button = QPushButton()
             button.setCheckable(True)  # Make it toggleable
             button.setChecked(snap_window_info.snap_states[snap_type])
             button.setToolTip(display_name)
+            button.setContentsMargins(0, 0, 0, 0)
             
             # Set button size to 36x36 for icons with padding
             button.setFixedSize(QSize(36, 36))
-            
+            button.setStyleSheet("""
+                QPushButton {
+                    border: 0;
+                    margin: 0;
+                    padding: 0;
+                    border: 1px solid #aaaaaa;
+                    border-radius: 5px;
+                    background-color: #dddddd;
+                }
+                QPushButton:checked {
+                    background-color: #bbbbbb;
+                }
+            """)
+
             # Load and set icon
             icon = self._load_snap_icon(icon_name)
             if not icon.isNull():
@@ -172,7 +198,7 @@ class SnapWindow(QWidget):
 
             # Move to next position
             col += 1
-            if col >= 4:
+            if col >= 5:
                 col = 0
                 row += 1
 
@@ -262,6 +288,9 @@ class SnapWindow(QWidget):
         """Add a button for a new snap type."""
         # Extract display name
         display_name = snap_name.replace("&", "")
+        accel = self._extract_accelerator(snap_name)
+        if accel:
+            display_name = display_name + f" ({accel.upper()})"
 
         # Create toggle button
         button = QPushButton()
@@ -269,6 +298,10 @@ class SnapWindow(QWidget):
         button.setChecked(default_val)
         button.setToolTip(display_name)
         button.setFixedSize(QSize(36, 36))
+        button.setStyleSheet("""
+            QPushButton { border: 0; margin: 0; padding: 0; }
+            QPushButton:checked { background-color: lightblue; }
+        """)
 
         # Load and set icon
         icon = self._load_snap_icon(icon_name)
@@ -278,7 +311,7 @@ class SnapWindow(QWidget):
         else:
             # If no icon, use text on button
             button.setText(display_name[:2].upper())
-            button.setFont(QFont("Sans Serif", 8))
+            button.setFont(QFont("Sans Serif", 10))
 
         button.toggled.connect(
             lambda checked: self._on_snap_changed(snap_type, checked)
@@ -289,7 +322,6 @@ class SnapWindow(QWidget):
         snap_window_info.snap_buttons[snap_type] = button
 
         # Setup shortcut for new snap
-        accel = self._extract_accelerator(snap_name)
         if accel:
             shortcut = QShortcut(QKeySequence(f"Alt+{accel.upper()}"), self)
             shortcut.activated.connect(

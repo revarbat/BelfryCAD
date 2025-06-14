@@ -5,7 +5,7 @@
    viewBox="0 0 16 16"
    version="1.1"
    id="svg4"
-   sodipodi:docname="snap_lines_arcs.svg"
+   sodipodi:docname="snap-contours.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -33,7 +33,7 @@
      inkscape:current-layer="svg4" />
   <path
      style="fill:none;stroke:#000000;stroke-dashoffset:1.5"
-     d="m 2.5384616,11.307692 c 0,0 2.1538461,-1.8076922 5.1153846,-4.4615382 C 10.615385,4.1923077 14.384616,6.3076923 14.384616,6.3076923"
+     d="m 1.1153847,6.3461535 c 0,0 2.4438121,5.0457295 6.5384615,0.5000003 C 11.956083,2.069969 14.384616,6.3076923 14.384616,6.3076923"
      id="path4"
      sodipodi:nodetypes="csc" />
   <!-- Combined line and arc -->

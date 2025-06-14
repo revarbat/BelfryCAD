@@ -1,666 +1,831 @@
 """
-Geometry utility functions for pyTkCAD.
+Geometry utility classes and functions for BelfryCAD.
 
-This module provides geometric computation functions including:
-- Point and path operations
-- Line and polygon intersections
-- Boolean operations on polygons
-- Circle and arc operations
-- Bounding box calculations
+This module provides comprehensive geometric operations including:
+- Point2D and Point3D classes for point operations
+- Vector2D and Vector3D classes for vector mathematics
+- Line2D and Line3D classes for line operations
+- Circle and Arc classes for circular geometry
+- Polygon class for polygon operations
+- Utility functions for geometric calculations
 
-Translated from geometry.tcl
+Refactored from geometry.py to use object-oriented design.
 """
 
 import math
-from typing import List, Tuple, Optional
-import pyclipper
+from typing import List, Tuple, Optional, Union, Iterator
 
 
 # Constants
-PI = math.pi
-DEG_TO_RAD = PI / 180.0
-RAD_TO_DEG = 180.0 / PI
-EPSILON = 1e-6
+EPSILON = 1e-10
 
 
-def sign(x: float) -> int:
-    """Return the sign of a number."""
-    if x > 0:
-        return 1
-    elif x < 0:
-        return -1
-    else:
-        return 0
+class Point2D:
+    """2D point with coordinate operations."""
 
+    def __init__(self, x: float = 0.0, y: float = 0.0):
+        """Initialize a 2D point."""
+        self.x = float(x)
+        self.y = float(y)
 
-def frac(x: float) -> float:
-    """Return the fractional part of a number."""
-    return x - math.floor(x)
+    def __repr__(self) -> str:
+        return f"Point2D({self.x}, {self.y})"
 
+    def __str__(self) -> str:
+        return f"({self.x:.3f}, {self.y:.3f})"
 
-def normang(angle: float) -> float:
-    """Normalize angle to range [0, 2*pi)."""
-    while angle >= 2 * PI:
-        angle -= 2 * PI
-    while angle < 0:
-        angle += 2 * PI
-    return angle
-
-
-def geometry_path_is_closed(path: List[float]) -> bool:
-    """Check if a path is closed (first and last points are the same)."""
-    if len(path) < 4:
-        return False
-
-    return (abs(path[0] - path[-2]) < EPSILON and
-            abs(path[1] - path[-1]) < EPSILON)
-
-
-def geometry_points_are_collinear(
-    x1: float,
-    y1: float,
-    x2: float,
-    y2: float,
-    x3: float,
-    y3: float,
-    tol: float = EPSILON
-) -> bool:
-    """Test if three points are collinear within tolerance."""
-    # Calculate cross product to test collinearity
-    cross_product = abs((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1))
-    return cross_product < tol
-
-
-def geometry_points_are_in_box(x1: float, y1: float, x2: float, y2: float,
-                               points: List[float]) -> bool:
-    """Check if points are within the bounding box defined by corners."""
-    minx = min(x1, x2)
-    maxx = max(x1, x2)
-    miny = min(y1, y2)
-    maxy = max(y1, y2)
-
-    for i in range(0, len(points), 2):
-        x, y = points[i], points[i + 1]
-        if not (minx <= x <= maxx and miny <= y <= maxy):
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Point2D):
             return False
-    return True
+        return \
+            abs(self.x - other.x) < EPSILON and \
+            abs(self.y - other.y) < EPSILON
+
+    def __add__(self, other) -> 'Point2D':
+        if isinstance(other, Point2D):
+            return Point2D(self.x + other.x, self.y + other.y)
+        elif isinstance(other, Vector2D):
+            return Point2D(self.x + other.dx, self.y + other.dy)
+        else:
+            raise TypeError(f"Cannot add Point2D with {type(other)}")
+
+    def __sub__(self, other) -> Union['Point2D', 'Vector2D']:
+        if isinstance(other, Point2D):
+            return Vector2D(self.x - other.x, self.y - other.y)
+        elif isinstance(other, Vector2D):
+            return Point2D(self.x - other.dx, self.y - other.dy)
+        else:
+            raise TypeError(f"Cannot subtract {type(other)} from Point2D")
+
+    def __mul__(self, scalar: float) -> 'Point2D':
+        return Point2D(self.x * scalar, self.y * scalar)
+
+    def __rmul__(self, scalar: float) -> 'Point2D':
+        return self.__mul__(scalar)
+
+    def distance_to(self, other: 'Point2D') -> float:
+        """Calculate distance to another point."""
+        return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
+
+    def distance_squared_to(self, other: 'Point2D') -> float:
+        """
+        Calculate squared distance to another point.
+        (faster when comparison only)
+        """
+        return (self.x - other.x) ** 2 + (self.y - other.y) ** 2
+
+    def midpoint_to(self, other: 'Point2D') -> 'Point2D':
+        """Calculate midpoint to another point."""
+        return Point2D((self.x + other.x) / 2, (self.y + other.y) / 2)
+
+    def rotate_around(self, center: 'Point2D', angle: float) -> 'Point2D':
+        """Rotate point around a center point by angle in radians."""
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
+
+        dx = self.x - center.x
+        dy = self.y - center.y
+
+        new_x = dx * cos_a - dy * sin_a + center.x
+        new_y = dx * sin_a + dy * cos_a + center.y
+
+        return Point2D(new_x, new_y)
+
+    def scale_around(
+            self,
+            center: 'Point2D',
+            sx: float, sy: float
+    ) -> 'Point2D':
+        """Scale point around a center point."""
+        dx = self.x - center.x
+        dy = self.y - center.y
+
+        new_x = dx * sx + center.x
+        new_y = dy * sy + center.y
+
+        return Point2D(new_x, new_y)
+
+    def to_tuple(self) -> Tuple[float, float]:
+        """Convert to tuple."""
+        return (self.x, self.y)
+
+    @classmethod
+    def from_tuple(cls, coords: Tuple[float, float]) -> 'Point2D':
+        """Create from tuple."""
+        return cls(coords[0], coords[1])
+
+    @classmethod
+    def origin(cls) -> 'Point2D':
+        """Create origin point (0, 0)."""
+        return cls(0.0, 0.0)
 
 
-def geometry_boxes_intersect(x1: float, y1: float, x2: float, y2: float,
-                             x3: float, y3: float, x4: float,
-                             y4: float) -> bool:
-    """Test if two bounding boxes intersect."""
-    minx1, maxx1 = min(x1, x2), max(x1, x2)
-    miny1, maxy1 = min(y1, y2), max(y1, y2)
-    minx2, maxx2 = min(x3, x4), max(x3, x4)
-    miny2, maxy2 = min(y3, y4), max(y3, y4)
+class Vector2D:
+    """2D vector with vector operations."""
 
-    return not (maxx1 < minx2 or maxx2 < minx1 or
-                maxy1 < miny2 or maxy2 < miny1)
+    def __init__(self, dx: float = 0.0, dy: float = 0.0):
+        """Initialize a 2D vector."""
+        self.dx = float(dx)
+        self.dy = float(dy)
 
+    def __repr__(self) -> str:
+        return f"Vector2D({self.dx}, {self.dy})"
 
-def geometry_points_are_on_line_segment(x1: float, y1: float, x2: float,
-                                        y2: float, points: List[float],
-                                        tol: float = EPSILON) -> bool:
-    """Check if points lie on a line segment within tolerance."""
-    for i in range(0, len(points), 2):
-        x, y = points[i], points[i + 1]
+    def __str__(self) -> str:
+        return f"<{self.dx:.3f}, {self.dy:.3f}>"
 
-        # Check if point is collinear with line segment
-        if not geometry_points_are_collinear(x1, y1, x2, y2, x, y, tol):
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Vector2D):
             return False
+        return \
+            abs(self.dx - other.dx) < EPSILON and \
+            abs(self.dy - other.dy) < EPSILON
 
-        # Check if point is within the line segment bounds
-        if not geometry_points_are_in_box(x1, y1, x2, y2, [x, y]):
-            return False
+    def __add__(self, other: 'Vector2D') -> 'Vector2D':
+        return Vector2D(self.dx + other.dx, self.dy + other.dy)
 
-    return True
+    def __sub__(self, other: 'Vector2D') -> 'Vector2D':
+        return Vector2D(self.dx - other.dx, self.dy - other.dy)
+
+    def __mul__(self, scalar: float) -> 'Vector2D':
+        return Vector2D(self.dx * scalar, self.dy * scalar)
+
+    def __rmul__(self, scalar: float) -> 'Vector2D':
+        return self.__mul__(scalar)
+
+    def __neg__(self) -> 'Vector2D':
+        return Vector2D(-self.dx, -self.dy)
+
+    @property
+    def magnitude(self) -> float:
+        """Calculate vector magnitude."""
+        return math.sqrt(self.dx ** 2 + self.dy ** 2)
+
+    @property
+    def magnitude_squared(self) -> float:
+        """Calculate squared magnitude (faster when comparison only)."""
+        return self.dx ** 2 + self.dy ** 2
+
+    @property
+    def angle(self) -> float:
+        """Calculate angle in radians."""
+        return math.atan2(self.dy, self.dx)
+
+    def normalized(self) -> 'Vector2D':
+        """Return normalized vector."""
+        mag = self.magnitude
+        if mag < EPSILON:
+            return Vector2D(0, 0)
+        return Vector2D(self.dx / mag, self.dy / mag)
+
+    def dot(self, other: 'Vector2D') -> float:
+        """Calculate dot product."""
+        return self.dx * other.dx + self.dy * other.dy
+
+    def cross(self, other: 'Vector2D') -> float:
+        """Calculate cross product (z-component in 2D)."""
+        return self.dx * other.dy - self.dy * other.dx
+
+    def perpendicular(self) -> 'Vector2D':
+        """
+        Return perpendicular vector (rotated 90 degrees counterclockwise).
+        """
+        return Vector2D(-self.dy, self.dx)
+
+    def angle_to(self, other: 'Vector2D') -> float:
+        """Calculate angle to another vector."""
+        return math.atan2(self.cross(other), self.dot(other))
+
+    def project_onto(self, other: 'Vector2D') -> 'Vector2D':
+        """Project this vector onto another vector."""
+        other_mag_sq = other.magnitude_squared
+        if other_mag_sq < EPSILON:
+            return Vector2D(0, 0)
+
+        projection_length = self.dot(other) / other_mag_sq
+        return other * projection_length
+
+    def reflect(self, normal: 'Vector2D') -> 'Vector2D':
+        """Reflect vector about a normal vector."""
+        normal_unit = normal.normalized()
+        return self - 2 * self.dot(normal_unit) * normal_unit
+
+    def rotate(self, angle: float) -> 'Vector2D':
+        """Rotate vector by angle in radians."""
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
+
+        new_dx = self.dx * cos_a - self.dy * sin_a
+        new_dy = self.dx * sin_a + self.dy * cos_a
+
+        return Vector2D(new_dx, new_dy)
+
+    @classmethod
+    def from_points(cls, start: Point2D, end: Point2D) -> 'Vector2D':
+        """Create vector from two points."""
+        return cls(end.x - start.x, end.y - start.y)
+
+    @classmethod
+    def from_angle(cls, angle: float, magnitude: float = 1.0) -> 'Vector2D':
+        """Create vector from angle and magnitude."""
+        return cls(magnitude * math.cos(angle), magnitude * math.sin(angle))
+
+    @classmethod
+    def zero(cls) -> 'Vector2D':
+        """Create zero vector."""
+        return cls(0.0, 0.0)
 
 
-def geometry_polyline_add_vertex(polyline: List[float], x: float, y: float,
-                                 tol: float = EPSILON) -> List[float]:
-    """Add a vertex to a polyline, avoiding duplicates within tolerance."""
-    if len(polyline) >= 2:
-        last_x, last_y = polyline[-2], polyline[-1]
-        if abs(x - last_x) < tol and abs(y - last_y) < tol:
-            return polyline[:]  # Don't add duplicate point
+class Line2D:
+    """2D line segment with line operations."""
 
-    result = polyline[:]
-    result.extend([x, y])
-    return result
+    def __init__(self, start: Point2D, end: Point2D):
+        """Initialize a 2D line segment."""
+        self.start = start
+        self.end = end
+
+    def __repr__(self) -> str:
+        return f"Line2D({self.start}, {self.end})"
+
+    def __str__(self) -> str:
+        return f"Line from {self.start} to {self.end}"
+
+    @property
+    def vector(self) -> Vector2D:
+        """Get the direction vector of the line."""
+        return Vector2D.from_points(self.start, self.end)
+
+    @property
+    def length(self) -> float:
+        """Get the length of the line segment."""
+        return self.start.distance_to(self.end)
+
+    @property
+    def midpoint(self) -> Point2D:
+        """Get the midpoint of the line segment."""
+        return self.start.midpoint_to(self.end)
+
+    def point_at_parameter(self, t: float) -> Point2D:
+        """Get point at parameter t (0 = start, 1 = end)."""
+        return Point2D(
+            self.start.x + t * (self.end.x - self.start.x),
+            self.start.y + t * (self.end.y - self.start.y)
+        )
+
+    def distance_to_point(self, point: Point2D) -> float:
+        """Calculate shortest distance from line to a point."""
+        if self.length < EPSILON:
+            return self.start.distance_to(point)
+
+        # Project point onto line
+        line_vec = self.vector
+        point_vec = Vector2D.from_points(self.start, point)
+
+        t = point_vec.dot(line_vec) / line_vec.magnitude_squared
+        t = max(0, min(1, t))  # Clamp to line segment
+
+        closest_point = self.point_at_parameter(t)
+        return point.distance_to(closest_point)
+
+    def closest_point_to(self, point: Point2D) -> Point2D:
+        """Find closest point on line to given point."""
+        if self.length < EPSILON:
+            return self.start
+
+        line_vec = self.vector
+        point_vec = Vector2D.from_points(self.start, point)
+
+        t = point_vec.dot(line_vec) / line_vec.magnitude_squared
+        t = max(0, min(1, t))  # Clamp to line segment
+
+        return self.point_at_parameter(t)
+
+    def intersect_line(self, other: 'Line2D') -> Optional[Point2D]:
+        """Find intersection point with another line."""
+        # Line 1: P1 + t1 * (P2 - P1)
+        # Line 2: P3 + t2 * (P4 - P3)
+
+        x1, y1 = self.start.x, self.start.y
+        x2, y2 = self.end.x, self.end.y
+        x3, y3 = other.start.x, other.start.y
+        x4, y4 = other.end.x, other.end.y
+
+        denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+
+        if abs(denom) < EPSILON:
+            return None  # Lines are parallel
+
+        t1 = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
+        t2 = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom
+
+        # Check if intersection is within both line segments
+        if 0 <= t1 <= 1 and 0 <= t2 <= 1:
+            return Point2D(x1 + t1 * (x2 - x1), y1 + t1 * (y2 - y1))
+
+        return None
+
+    def is_parallel_to(
+            self,
+            other: 'Line2D',
+            tolerance: float = EPSILON
+    ) -> bool:
+        """Check if line is parallel to another line."""
+        vec1 = self.vector.normalized()
+        vec2 = other.vector.normalized()
+
+        # Check if cross product is near zero
+        return abs(vec1.cross(vec2)) < tolerance
+
+    def is_perpendicular_to(
+            self,
+            other: 'Line2D',
+            tolerance: float = EPSILON
+    ) -> bool:
+        """Check if line is perpendicular to another line."""
+        vec1 = self.vector.normalized()
+        vec2 = other.vector.normalized()
+
+        # Check if dot product is near zero
+        return abs(vec1.dot(vec2)) < tolerance
+
+    def extend(self, start_distance: float, end_distance: float) -> 'Line2D':
+        """Extend line by given distances at start and end."""
+        direction = self.vector.normalized()
+
+        new_start = Point2D(
+            self.start.x - direction.dx * start_distance,
+            self.start.y - direction.dy * start_distance
+        )
+        new_end = Point2D(
+            self.end.x + direction.dx * end_distance,
+            self.end.y + direction.dy * end_distance
+        )
+
+        return Line2D(new_start, new_end)
+
+    def translate(self, vector: Vector2D) -> 'Line2D':
+        """Translate line by vector."""
+        return Line2D(self.start + vector, self.end + vector)
+
+    def rotate_around(self, center: Point2D, angle: float) -> 'Line2D':
+        """Rotate line around a center point."""
+        new_start = self.start.rotate_around(center, angle)
+        new_end = self.end.rotate_around(center, angle)
+        return Line2D(new_start, new_end)
 
 
-def geometry_find_polyline_line_segment_intersections(
-    polyline: List[float],
-    x1: float, y1: float,
-    x2: float, y2: float
-) -> List[float]:
-    """Find intersections between a polyline and a line segment."""
-    intersections = []
+class Circle:
+    """Circle with geometric operations."""
 
-    if len(polyline) < 4:
+    def __init__(self, center: Point2D, radius: float):
+        """Initialize a circle."""
+        self.center = center
+        self.radius = abs(radius)
+
+    def __repr__(self) -> str:
+        return f"Circle({self.center}, {self.radius})"
+
+    def __str__(self) -> str:
+        return f"Circle at {self.center} with radius {self.radius:.3f}"
+
+    @property
+    def area(self) -> float:
+        """Calculate circle area."""
+        return math.pi * self.radius ** 2
+
+    @property
+    def circumference(self) -> float:
+        """Calculate circle circumference."""
+        return 2 * math.pi * self.radius
+
+    @property
+    def diameter(self) -> float:
+        """Get circle diameter."""
+        return 2 * self.radius
+
+    def contains_point(self, point: Point2D) -> bool:
+        """Check if point is inside circle."""
+        return self.center.distance_squared_to(point) <= self.radius ** 2
+
+    def point_on_circle(self, angle: float) -> Point2D:
+        """Get point on circle at given angle (radians)."""
+        return Point2D(
+            self.center.x + self.radius * math.cos(angle),
+            self.center.y + self.radius * math.sin(angle)
+        )
+
+    def tangent_points_from_point(self, point: Point2D) -> List[Point2D]:
+        """Find tangent points from external point to circle."""
+        dist_to_center = self.center.distance_to(point)
+
+        if dist_to_center < self.radius:
+            return []  # Point is inside circle
+
+        if dist_to_center == self.radius:
+            return [point]  # Point is on circle
+
+        # Calculate tangent points
+        angle_to_center = math.atan2(point.y - self.center.y, point.x - self.center.x)
+        tangent_angle = math.asin(self.radius / dist_to_center)
+
+        angle1 = angle_to_center + tangent_angle
+        angle2 = angle_to_center - tangent_angle
+
+        # Distance from external point to tangent points
+        tangent_dist = math.sqrt(dist_to_center ** 2 - self.radius ** 2)
+
+        tangent1 = Point2D(
+            point.x + tangent_dist * math.cos(angle1),
+            point.y + tangent_dist * math.sin(angle1)
+        )
+        tangent2 = Point2D(
+            point.x + tangent_dist * math.cos(angle2),
+            point.y + tangent_dist * math.sin(angle2)
+        )
+
+        return [tangent1, tangent2]
+
+    def intersect_line(self, line: Line2D) -> List[Point2D]:
+        """Find intersection points with a line."""
+        # Vector from line start to circle center
+        to_center = Vector2D.from_points(line.start, self.center)
+        line_vec = line.vector
+
+        # Project center onto line
+        line_length_sq = line_vec.magnitude_squared
+        if line_length_sq < EPSILON:
+            # Line is a point
+            if self.contains_point(line.start):
+                return [line.start]
+            return []
+
+        t = to_center.dot(line_vec) / line_length_sq
+
+        # Find closest point on line to circle center
+        closest_point = line.point_at_parameter(t)
+        dist_to_center = self.center.distance_to(closest_point)
+
+        if dist_to_center > self.radius:
+            return []  # No intersection
+
+        if dist_to_center == self.radius:
+            # Tangent - one intersection
+            if 0 <= t <= 1:
+                return [closest_point]
+            return []
+
+        # Two intersections
+        chord_half_length = math.sqrt(self.radius ** 2 - dist_to_center ** 2)
+        line_unit = line_vec.normalized()
+
+        intersection1 = Point2D(
+            closest_point.x - line_unit.dx * chord_half_length,
+            closest_point.y - line_unit.dy * chord_half_length
+        )
+        intersection2 = Point2D(
+            closest_point.x + line_unit.dx * chord_half_length,
+            closest_point.y + line_unit.dy * chord_half_length
+        )
+
+        # Check if intersections are within line segment
+        intersections = []
+
+        # Check intersection1
+        t1 = Vector2D.from_points(
+            line.start, intersection1).dot(line_vec) / line_length_sq
+        if 0 <= t1 <= 1:
+            intersections.append(intersection1)
+
+        # Check intersection2
+        t2 = Vector2D.from_points(
+            line.start, intersection2).dot(line_vec) / line_length_sq
+        if 0 <= t2 <= 1:
+            intersections.append(intersection2)
+
         return intersections
 
-    for i in range(0, len(polyline) - 2, 2):
-        px1, py1 = polyline[i], polyline[i + 1]
-        px2, py2 = polyline[i + 2], polyline[i + 3]
+    def intersect_circle(self, other: 'Circle') -> List[Point2D]:
+        """Find intersection points with another circle."""
+        dist = self.center.distance_to(other.center)
 
-        # Find intersection between line segments
-        intersection = _line_segment_intersection(px1, py1, px2, py2,
-                                                  x1, y1, x2, y2)
-        if intersection:
-            intersections.extend(intersection)
+        # Check for no intersection cases
+        if dist > self.radius + other.radius:  # Too far apart
+            return []
+        if dist < abs(self.radius - other.radius):  # One inside the other
+            return []
+        if dist == 0 and self.radius == other.radius:  # Same circle
+            return []  # Infinite intersections
 
-    return intersections
+        # One intersection (tangent circles)
+        if (
+            dist == self.radius + other.radius or
+            dist == abs(self.radius - other.radius)
+        ):
+            direction = Vector2D.from_points(
+                self.center, other.center).normalized()
+            point = self.center + direction * self.radius
+            return [point]
+
+        # Two intersections
+        a = (self.radius ** 2 - other.radius ** 2 + dist ** 2) / (2 * dist)
+        h = math.sqrt(self.radius ** 2 - a ** 2)
+
+        # Point on line between centers
+        direction = Vector2D.from_points(
+            self.center, other.center
+        ).normalized()
+        midpoint = Point2D(
+            self.center.x + direction.dx * a,
+            self.center.y + direction.dy * a
+        )
+
+        # Perpendicular direction
+        perp = direction.perpendicular()
+
+        intersection1 = Point2D(
+            midpoint.x + perp.dx * h,
+            midpoint.y + perp.dy * h
+        )
+        intersection2 = Point2D(
+            midpoint.x - perp.dx * h,
+            midpoint.y - perp.dy * h
+        )
+
+        return [intersection1, intersection2]
+
+    def translate(self, vector: Vector2D) -> 'Circle':
+        """Translate circle by vector."""
+        return Circle(self.center + vector, self.radius)
+
+    def scale(self, factor: float, center: Optional[Point2D] = None) -> 'Circle':
+        """Scale circle around a point."""
+        if center is None:
+            center = self.center
+
+        new_center = self.center.scale_around(center, factor, factor)
+        new_radius = self.radius * abs(factor)
+
+        return Circle(new_center, new_radius)
 
 
-def _line_segment_intersection(x1: float, y1: float, x2: float, y2: float,
-                               x3: float, y3: float, x4: float,
-                               y4: float) -> Optional[List[float]]:
-    """Find intersection point between two line segments."""
-    denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+class Polygon:
+    """Polygon with geometric operations."""
 
-    if abs(denom) < EPSILON:
-        return None  # Lines are parallel
+    def __init__(self, vertices: List[Point2D]):
+        """Initialize a polygon from vertices."""
+        if len(vertices) < 3:
+            raise ValueError("Polygon must have at least 3 vertices")
+        self.vertices = vertices[:]
 
-    t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
-    u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom
+    def __repr__(self) -> str:
+        return f"Polygon({len(self.vertices)} vertices)"
 
-    if 0 <= t <= 1 and 0 <= u <= 1:
-        x = x1 + t * (x2 - x1)
-        y = y1 + t * (y2 - y1)
-        return [x, y]
+    def __str__(self) -> str:
+        return f"Polygon with {len(self.vertices)} vertices"
 
+    def __len__(self) -> int:
+        return len(self.vertices)
+
+    def __iter__(self) -> Iterator[Point2D]:
+        return iter(self.vertices)
+
+    def __getitem__(self, index: int) -> Point2D:
+        return self.vertices[index]
+
+    @property
+    def edges(self) -> List[Line2D]:
+        """Get polygon edges as line segments."""
+        edges = []
+        for i in range(len(self.vertices)):
+            start = self.vertices[i]
+            end = self.vertices[(i + 1) % len(self.vertices)]
+            edges.append(Line2D(start, end))
+        return edges
+
+    @property
+    def area(self) -> float:
+        """Calculate polygon area using shoelace formula."""
+        if len(self.vertices) < 3:
+            return 0.0
+
+        area = 0.0
+        for i in range(len(self.vertices)):
+            j = (i + 1) % len(self.vertices)
+            area += self.vertices[i].x * self.vertices[j].y
+            area -= self.vertices[j].x * self.vertices[i].y
+
+        return abs(area) / 2.0
+
+    @property
+    def perimeter(self) -> float:
+        """Calculate polygon perimeter."""
+        perimeter = 0.0
+        for edge in self.edges:
+            perimeter += edge.length
+        return perimeter
+
+    @property
+    def centroid(self) -> Point2D:
+        """Calculate polygon centroid."""
+        if len(self.vertices) < 3:
+            return Point2D(0, 0)
+
+        area = self.area
+        if area == 0:
+            # Degenerate polygon, return average of vertices
+            sum_x = sum(v.x for v in self.vertices)
+            sum_y = sum(v.y for v in self.vertices)
+            return Point2D(sum_x / len(self.vertices), sum_y / len(self.vertices))
+
+        cx = cy = 0.0
+        for i in range(len(self.vertices)):
+            j = (i + 1) % len(self.vertices)
+            cross = self.vertices[i].x * self.vertices[j].y - self.vertices[j].x * self.vertices[i].y
+            cx += (self.vertices[i].x + self.vertices[j].x) * cross
+            cy += (self.vertices[i].y + self.vertices[j].y) * cross
+
+        factor = 1.0 / (6.0 * area)
+        return Point2D(cx * factor, cy * factor)
+
+    @property
+    def bounds(self) -> Tuple[Point2D, Point2D]:
+        """Get bounding box as (min_point, max_point)."""
+        if not self.vertices:
+            return Point2D(0, 0), Point2D(0, 0)
+
+        min_x = min(v.x for v in self.vertices)
+        max_x = max(v.x for v in self.vertices)
+        min_y = min(v.y for v in self.vertices)
+        max_y = max(v.y for v in self.vertices)
+
+        return Point2D(min_x, min_y), Point2D(max_x, max_y)
+
+    def is_clockwise(self) -> bool:
+        """Check if polygon vertices are ordered clockwise."""
+        if len(self.vertices) < 3:
+            return False
+
+        # Calculate signed area (positive = counterclockwise, negative = clockwise)
+        signed_area = 0.0
+        for i in range(len(self.vertices)):
+            j = (i + 1) % len(self.vertices)
+            signed_area += (self.vertices[j].x - self.vertices[i].x) * (self.vertices[j].y + self.vertices[i].y)
+
+        return signed_area > 0
+
+    def is_convex(self) -> bool:
+        """Check if polygon is convex."""
+        if len(self.vertices) < 3:
+            return False
+
+        if len(self.vertices) == 3:
+            return True
+
+        # Check if all cross products have the same sign
+        cross_products = []
+        for i in range(len(self.vertices)):
+            p1 = self.vertices[i]
+            p2 = self.vertices[(i + 1) % len(self.vertices)]
+            p3 = self.vertices[(i + 2) % len(self.vertices)]
+
+            v1 = Vector2D.from_points(p1, p2)
+            v2 = Vector2D.from_points(p2, p3)
+            cross = v1.cross(v2)
+
+            if abs(cross) > EPSILON:
+                cross_products.append(cross)
+
+        if not cross_products:
+            return False
+
+        # All cross products should have the same sign
+        first_sign = cross_products[0] > 0
+        return all((cp > 0) == first_sign for cp in cross_products)
+
+    def contains_point(self, point: Point2D) -> bool:
+        """Check if point is inside polygon using ray casting algorithm."""
+        if len(self.vertices) < 3:
+            return False
+
+        x, y = point.x, point.y
+        inside = False
+
+        j = len(self.vertices) - 1
+        for i in range(len(self.vertices)):
+            xi, yi = self.vertices[i].x, self.vertices[i].y
+            xj, yj = self.vertices[j].x, self.vertices[j].y
+
+            if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+                inside = not inside
+            j = i
+
+        return inside
+
+    def translate(self, vector: Vector2D) -> 'Polygon':
+        """Translate polygon by vector."""
+        new_vertices = [v + vector for v in self.vertices]
+        return Polygon(new_vertices)
+
+    def rotate_around(self, center: Point2D, angle: float) -> 'Polygon':
+        """Rotate polygon around a center point."""
+        new_vertices = [v.rotate_around(center, angle) for v in self.vertices]
+        return Polygon(new_vertices)
+
+    def scale_around(self, center: Point2D, sx: float, sy: float) -> 'Polygon':
+        """Scale polygon around a center point."""
+        new_vertices = [v.scale_around(center, sx, sy) for v in self.vertices]
+        return Polygon(new_vertices)
+
+    @classmethod
+    def rectangle(cls, center: Point2D, width: float, height: float) -> 'Polygon':
+        """Create a rectangle polygon."""
+        half_w = width / 2
+        half_h = height / 2
+
+        vertices = [
+            Point2D(center.x - half_w, center.y - half_h),
+            Point2D(center.x + half_w, center.y - half_h),
+            Point2D(center.x + half_w, center.y + half_h),
+            Point2D(center.x - half_w, center.y + half_h)
+        ]
+
+        return cls(vertices)
+
+    @classmethod
+    def regular_polygon(cls, center: Point2D, radius: float, sides: int) -> 'Polygon':
+        """Create a regular polygon."""
+        if sides < 3:
+            raise ValueError("Regular polygon must have at least 3 sides")
+
+        vertices = []
+        angle_step = 2 * math.pi / sides
+
+        for i in range(sides):
+            angle = i * angle_step
+            x = center.x + radius * math.cos(angle)
+            y = center.y + radius * math.sin(angle)
+            vertices.append(Point2D(x, y))
+
+        return cls(vertices)
+
+
+# Utility functions for backward compatibility
+
+def geometry_points_are_collinear(x0: float, y0: float, x1: float, y1: float,
+                                 x2: float, y2: float, tolerance: float = 1e-4) -> bool:
+    """Check if three points are collinear within tolerance."""
+    p0 = Point2D(x0, y0)
+    p1 = Point2D(x1, y1)
+    p2 = Point2D(x2, y2)
+
+    v1 = Vector2D.from_points(p0, p1)
+    v2 = Vector2D.from_points(p0, p2)
+
+    # Check if cross product is near zero
+    return abs(v1.cross(v2)) < tolerance
+
+
+def geometry_distance_point_to_line(px: float, py: float,
+                                   x1: float, y1: float,
+                                   x2: float, y2: float) -> float:
+    """Calculate distance from point to line segment."""
+    point = Point2D(px, py)
+    line = Line2D(Point2D(x1, y1), Point2D(x2, y2))
+    return line.distance_to_point(point)
+
+
+def geometry_line_intersection(x1: float, y1: float, x2: float, y2: float,
+                              x3: float, y3: float, x4: float, y4: float) -> Optional[Tuple[float, float]]:
+    """Find intersection of two line segments."""
+    line1 = Line2D(Point2D(x1, y1), Point2D(x2, y2))
+    line2 = Line2D(Point2D(x3, y3), Point2D(x4, y4))
+
+    intersection = line1.intersect_line(line2)
+    if intersection:
+        return intersection.to_tuple()
     return None
 
 
-def geometry_polyline_strip_duplicates(polyline: List[float],
-                                       tol: float = EPSILON) -> List[float]:
-    """Remove duplicate consecutive points from a polyline."""
-    if len(polyline) < 4:
-        return polyline[:]
-
-    result = [polyline[0], polyline[1]]
-
-    for i in range(2, len(polyline), 2):
-        x, y = polyline[i], polyline[i + 1]
-        last_x, last_y = result[-2], result[-1]
-
-        if abs(x - last_x) >= tol or abs(y - last_y) >= tol:
-            result.extend([x, y])
-
-    return result
-
-
-def geometry_find_polylines_intersections(polyline1: List[float],
-                                          polyline2: List[float]
-                                          ) -> List[float]:
-    """Find all intersections between two polylines."""
-    intersections = []
-
-    if len(polyline1) < 4 or len(polyline2) < 4:
-        return intersections
-
-    for i in range(0, len(polyline1) - 2, 2):
-        x1, y1 = polyline1[i], polyline1[i + 1]
-        x2, y2 = polyline1[i + 2], polyline1[i + 3]
-
-        for j in range(0, len(polyline2) - 2, 2):
-            x3, y3 = polyline2[j], polyline2[j + 1]
-            x4, y4 = polyline2[j + 2], polyline2[j + 3]
-
-            intersection = _line_segment_intersection(x1, y1, x2, y2,
-                                                      x3, y3, x4, y4)
-            if intersection:
-                intersections.extend(intersection)
-
-    return intersections
-
-
-def geometry_closest_point_on_arc(cx: float, cy: float, radius: float,
-                                  start_angle: float, end_angle: float,
-                                  px: float, py: float) -> Tuple[float, float]:
-    """Find the closest point on an arc to a given point."""
-    # Convert point to polar coordinates relative to arc center
-    dx = px - cx
-    dy = py - cy
-    distance = math.sqrt(dx * dx + dy * dy)
-
-    if distance < EPSILON:
-        # Point is at center, return any point on arc
-        return (cx + radius * math.cos(start_angle),
-                cy + radius * math.sin(start_angle))
-
-    angle = math.atan2(dy, dx)
-    angle = normang(angle)
-    start_angle = normang(start_angle)
-    end_angle = normang(end_angle)
-
-    # Check if angle is within arc range
-    if start_angle <= end_angle:
-        if start_angle <= angle <= end_angle:
-            closest_angle = angle
-        else:
-            # Choose closer endpoint
-            d1 = abs(angle - start_angle)
-            d2 = abs(angle - end_angle)
-            closest_angle = start_angle if d1 < d2 else end_angle
-    else:
-        # Arc crosses 0 angle
-        if angle >= start_angle or angle <= end_angle:
-            closest_angle = angle
-        else:
-            d1 = abs(angle - start_angle)
-            d2 = abs(angle - end_angle)
-            closest_angle = start_angle if d1 < d2 else end_angle
-
-    return (cx + radius * math.cos(closest_angle),
-            cy + radius * math.sin(closest_angle))
-
-
-def geometry_join_polylines(polylines: List[List[float]],
-                            tol: float = EPSILON) -> List[List[float]]:
-    """Join polylines that share endpoints within tolerance."""
-    if not polylines:
-        return []
-
-    result = []
-    remaining = [p[:] for p in polylines]  # Copy all polylines
-
-    while remaining:
-        current = remaining.pop(0)
-        changed = True
-
-        while changed:
-            changed = False
-            for i, candidate in enumerate(remaining):
-                # Check if we can join at the end of current
-                if (abs(current[-2] - candidate[0]) < tol and
-                        abs(current[-1] - candidate[1]) < tol):
-                    current.extend(candidate[2:])
-                    remaining.pop(i)
-                    changed = True
-                    break
-                # Check if we can join at the beginning of current
-                elif (abs(current[0] - candidate[-2]) < tol and
-                      abs(current[1] - candidate[-1]) < tol):
-                    current = candidate[:-2] + current
-                    remaining.pop(i)
-                    changed = True
-                    break
-                # Check reverse connections
-                elif (abs(current[-2] - candidate[-2]) < tol and
-                      abs(current[-1] - candidate[-1]) < tol):
-                    # Reverse candidate and join
-                    reversed_candidate = []
-                    for j in range(len(candidate) - 2, -1, -2):
-                        reversed_candidate.extend([candidate[j],
-                                                  candidate[j + 1]])
-                    current.extend(reversed_candidate[2:])
-                    remaining.pop(i)
-                    changed = True
-                    break
-                elif (abs(current[0] - candidate[0]) < tol and
-                      abs(current[1] - candidate[1]) < tol):
-                    # Reverse candidate and join at beginning
-                    reversed_candidate = []
-                    for j in range(len(candidate) - 2, -1, -2):
-                        reversed_candidate.extend([candidate[j],
-                                                  candidate[j + 1]])
-                    current = reversed_candidate[:-2] + current
-                    remaining.pop(i)
-                    changed = True
-                    break
-
-        result.append(current)
-
-    return result
-
-
-def geometry_polygon_circumscribed_by_polygon(inner_polygon: List[float],
-                                              outer_polygon: List[float]
-                                              ) -> bool:
-    """Test if one polygon is completely contained within another."""
-    if len(inner_polygon) < 6 or len(outer_polygon) < 6:
-        return False
-
-    # Check if all vertices of inner polygon are inside outer polygon
-    for i in range(0, len(inner_polygon), 2):
-        x, y = inner_polygon[i], inner_polygon[i + 1]
-        if not _point_in_polygon(x, y, outer_polygon):
-            return False
-
-    return True
-
-
-def _point_in_polygon(x: float, y: float, polygon: List[float]) -> bool:
-    """Test if a point is inside a polygon using ray casting algorithm."""
-    if len(polygon) < 6:
-        return False
-
-    inside = False
-    j = len(polygon) - 2
-
-    for i in range(0, len(polygon), 2):
-        xi, yi = polygon[i], polygon[i + 1]
-        xj, yj = polygon[j], polygon[j + 1]
-
-        if (((yi > y) != (yj > y)) and
-                (x < (xj - xi) * (y - yi) / (yj - yi) + xi)):
-            inside = not inside
-
-        j = i
-
-    return inside
-
-
-def coords_to_points(coords):
-    """Convert flat coordinate list to list of point tuples."""
-    return [(coords[i], coords[i+1]) for i in range(0, len(coords), 2)]
-
-
-def points_to_coords(points):
-    """Convert list of point tuples to flat coordinate list."""
-    coords = []
-    for point in points:
-        coords.extend([point[0], point[1]])
-    return coords
-
-
-def geometry_polygons_union(poly1: List[float],
-                            poly2: List[float]) -> List[List[float]]:
-    """Compute the union of two polygons using pyclipper."""
-    # Convert input polygons
-    subject = [coords_to_points(poly1)]
-    clip = [coords_to_points(poly2)]
-
-    # Perform union operation
-    pc = pyclipper.Pyclipper()
-    pc.AddPaths(subject, pyclipper.PT_SUBJECT, True)
-    pc.AddPaths(clip, pyclipper.PT_CLIP, True)
-
-    solution = pc.Execute(pyclipper.CT_UNION, pyclipper.PFT_EVENODD,
-                          pyclipper.PFT_EVENODD)
-
-    # Convert result back to flat coordinate lists
-    result = []
-    for polygon in solution:
-        if len(polygon) >= 3:  # Valid polygon needs at least 3 points
-            result.append(points_to_coords(polygon))
-
-    return result
-
-
-def geometry_polygons_diff(poly1: List[float],
-                           poly2: List[float]) -> List[List[float]]:
-    """Compute the difference of two polygons (poly1 - poly2)."""
-    # Convert input polygons
-    subject = [coords_to_points(poly1)]
-    clip = [coords_to_points(poly2)]
-
-    # Perform difference operation
-    pc = pyclipper.Pyclipper()
-    pc.AddPaths(subject, pyclipper.PT_SUBJECT, True)
-    pc.AddPaths(clip, pyclipper.PT_CLIP, True)
-
-    solution = pc.Execute(pyclipper.CT_DIFFERENCE, pyclipper.PFT_EVENODD,
-                          pyclipper.PFT_EVENODD)
-
-    # Convert result back to flat coordinate lists
-    result = []
-    for polygon in solution:
-        if len(polygon) >= 3:  # Valid polygon needs at least 3 points
-            result.append(points_to_coords(polygon))
-
-    return result
-
-
-def geometry_polygons_intersection(poly1: List[float],
-                                   poly2: List[float]) -> List[List[float]]:
-    """Compute the intersection of two polygons using pyclipper."""
-    # Convert input polygons
-    subject = [coords_to_points(poly1)]
-    clip = [coords_to_points(poly2)]
-
-    # Perform intersection operation
-    pc = pyclipper.Pyclipper()
-    pc.AddPaths(subject, pyclipper.PT_SUBJECT, True)
-    pc.AddPaths(clip, pyclipper.PT_CLIP, True)
-
-    solution = pc.Execute(pyclipper.CT_INTERSECTION, pyclipper.PFT_EVENODD,
-                          pyclipper.PFT_EVENODD)
-
-    # Convert result back to flat coordinate lists
-    result = []
-    for polygon in solution:
-        if len(polygon) >= 3:  # Valid polygon needs at least 3 points
-            result.append(points_to_coords(polygon))
-
-    return result
-
-
-def geometry_find_closest_point_in_list(x: float, y: float,
-                                        points: List[float]
-                                        ) -> Tuple[int, float]:
-    """Find the index and distance of the closest point in a list."""
-    if len(points) < 2:
-        return -1, float('inf')
-
-    min_dist = float('inf')
-    min_index = -1
-
-    for i in range(0, len(points), 2):
-        px, py = points[i], points[i + 1]
-        dist = math.sqrt((x - px) ** 2 + (y - py) ** 2)
-
-        if dist < min_dist:
-            min_dist = dist
-            min_index = i // 2
-
-    return min_index, min_dist
-
-
-def geometry_find_circles_intersections(cx1: float, cy1: float, r1: float,
-                                        cx2: float, cy2: float,
-                                        r2: float) -> List[float]:
-    """Find intersection points between two circles."""
-    # Distance between centers
-    d = math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2)
-
-    # Check for no intersection cases
-    if d > r1 + r2 or d < abs(r1 - r2) or d == 0:
-        return []
-
-    # Check for single intersection (circles are tangent)
-    if (abs(d - (r1 + r2)) < EPSILON or
-            abs(d - abs(r1 - r2)) < EPSILON):
-        # Single intersection point
-        a = r1
-        x = cx1 + a * (cx2 - cx1) / d
-        y = cy1 + a * (cy2 - cy1) / d
-        return [x, y]
-
-    # Two intersection points
-    a = (r1 * r1 - r2 * r2 + d * d) / (2 * d)
-    h = math.sqrt(r1 * r1 - a * a)
-
-    # Point on line between centers
-    px = cx1 + a * (cx2 - cx1) / d
-    py = cy1 + a * (cy2 - cy1) / d
-
-    # Two intersection points
-    x1 = px + h * (cy2 - cy1) / d
-    y1 = py - h * (cx2 - cx1) / d
-    x2 = px - h * (cy2 - cy1) / d
-    y2 = py + h * (cx2 - cx1) / d
-
-    return [x1, y1, x2, y2]
-
-
-def geometry_find_circle_polyline_intersections(cx: float, cy: float,
-                                                radius: float,
-                                                polyline: List[float]
-                                                ) -> List[float]:
-    """Find intersections between a circle and a polyline."""
-    intersections = []
-
-    if len(polyline) < 4:
-        return intersections
-
-    for i in range(0, len(polyline) - 2, 2):
-        x0, y0 = polyline[i], polyline[i + 1]
-        x1, y1 = polyline[i + 2], polyline[i + 3]
-
-        points = geometry_find_circle_lineseg_intersections(cx, cy, radius,
-                                                            x0, y0, x1, y1)
-        intersections.extend(points)
-
-    return intersections
-
-
-def geometry_find_circle_lineseg_intersections(cx: float, cy: float,
-                                               radius: float, x0: float,
-                                               y0: float, x1: float,
-                                               y1: float) -> List[float]:
-    """Find intersections between a circle and a line segment."""
-    intersections = []
-
-    # Handle vertical line case
-    if abs(x1 - x0) < EPSILON:
-        if abs(cx - x0) > radius:
-            return intersections
-        elif abs(cx - x0) == radius:
-            if geometry_points_are_in_box(x0, y0, x1, y1, [x0, cy]):
-                intersections.extend([x0, cy])
-            return intersections
-
-        # Two intersections for vertical line
-        a = x0 - cx
-        b = math.sqrt(radius * radius - a * a)
-        ny0 = cy + b
-        ny1 = cy - b
-
-        if geometry_points_are_in_box(x0, y0, x1, y1, [x0, ny0]):
-            intersections.extend([x0, ny0])
-        if geometry_points_are_in_box(x0, y0, x1, y1, [x0, ny1]):
-            intersections.extend([x0, ny1])
-
-        return intersections
-
-    # Non-vertical line
-    dx = x1 - x0
-    dy = y1 - y0
-    dr = math.sqrt(dx * dx + dy * dy)
-
-    # Translate line to origin
-    lx0 = x0 - cx
-    ly0 = y0 - cy
-    lx1 = x1 - cx
-    ly1 = y1 - cy
-
-    d = lx0 * ly1 - lx1 * ly0
-    sgn = -1 if dy < 0 else 1
-
-    h = radius * radius * dr * dr - d * d
-
-    if h < 0:
-        return intersections
-
-    sqrt_h = math.sqrt(h)
-    dr_sq = dr * dr
-
-    nx0 = cx + (d * dy + sgn * dx * sqrt_h) / dr_sq
-    ny0 = cy + (-d * dx + abs(dy) * sqrt_h) / dr_sq
-    nx1 = cx + (d * dy - sgn * dx * sqrt_h) / dr_sq
-    ny1 = cy + (-d * dx - abs(dy) * sqrt_h) / dr_sq
-
-    if geometry_points_are_in_box(x0, y0, x1, y1, [nx0, ny0]):
-        intersections.extend([nx0, ny0])
-    if h > 0 and geometry_points_are_in_box(x0, y0, x1, y1, [nx1, ny1]):
-        intersections.extend([nx1, ny1])
-
-    return intersections
-
-
-def geometry_pointlist_bbox(points: List[float]) -> List[float]:
-    """Calculate bounding box of a list of points."""
-    if len(points) < 2:
-        return [0, 0, 0, 0]
-
-    minx = maxx = points[0]
-    miny = maxy = points[1]
-
-    for i in range(2, len(points), 2):
-        x, y = points[i], points[i + 1]
-        minx = min(minx, x)
-        maxx = max(maxx, x)
-        miny = min(miny, y)
-        maxy = max(maxy, y)
-
-    return [minx, miny, maxx, maxy]
-
-
-def geometry_line_offset(x0: float, y0: float, x1: float, y1: float,
-                         offset: float) -> List[float]:
-    """Offset a line segment. Positive offset is to the left."""
-    angle = math.atan2(y1 - y0, x1 - x0)
-    perp_angle = angle + PI / 2.0
-
-    nx0 = x0 + offset * math.cos(perp_angle)
-    ny0 = y0 + offset * math.sin(perp_angle)
-    nx1 = x1 + offset * math.cos(perp_angle)
-    ny1 = y1 + offset * math.sin(perp_angle)
-
-    return [nx0, ny0, nx1, ny1]
-
-
-def geometry_line_rot_point(x0: float, y0: float, x1: float, y1: float,
-                            radius: float, offset_angle: float) -> List[float]:
-    """Get point at radius distance from (x0,y0) in direction offset."""
-    angle = math.atan2(y1 - y0, x1 - x0)
-    x2 = radius * math.cos(angle + offset_angle * DEG_TO_RAD) + x0
-    y2 = radius * math.sin(angle + offset_angle * DEG_TO_RAD) + y0
-
-    return [x2, y2]
-
-
-# Utility functions for compatibility with CAD operations
-def distance_point_to_point(x1: float, y1: float, x2: float,
-                            y2: float) -> float:
-    """Calculate distance between two points."""
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-
-
-def distance_point_to_line(px: float, py: float, x1: float, y1: float,
-                           x2: float, y2: float) -> float:
-    """Calculate distance from a point to a line."""
-    # Line equation: ax + by + c = 0
-    a = y2 - y1
-    b = x1 - x2
-    c = x2 * y1 - x1 * y2
-
-    # Distance formula
-    return abs(a * px + b * py + c) / math.sqrt(a * a + b * b)
-
-
-def angle_between_points(x1: float, y1: float, x2: float, y2: float) -> float:
-    """Calculate angle from point 1 to point 2 in radians."""
-    return math.atan2(y2 - y1, x2 - x1)
-
-
-def rotate_point(x: float, y: float, cx: float, cy: float,
-                 angle: float) -> Tuple[float, float]:
-    """Rotate a point around a center point by angle (in radians)."""
-    cos_a = math.cos(angle)
-    sin_a = math.sin(angle)
-
-    # Translate to origin
-    dx = x - cx
-    dy = y - cy
-
-    # Rotate
-    new_x = dx * cos_a - dy * sin_a
-    new_y = dx * sin_a + dy * cos_a
-
-    # Translate back
-    return (new_x + cx, new_y + cy)
+def geometry_circle_line_intersection(cx: float, cy: float, radius: float,
+                                     x1: float, y1: float, x2: float, y2: float) -> List[Tuple[float, float]]:
+    """Find intersections between circle and line segment."""
+    circle = Circle(Point2D(cx, cy), radius)
+    line = Line2D(Point2D(x1, y1), Point2D(x2, y2))
+
+    intersections = circle.intersect_line(line)
+    return [p.to_tuple() for p in intersections]
+
+
+def geometry_polygon_area(vertices: List[Tuple[float, float]]) -> float:
+    """Calculate polygon area from vertex list."""
+    points = [Point2D.from_tuple(v) for v in vertices]
+    polygon = Polygon(points)
+    return polygon.area
+
+
+def geometry_point_in_polygon(px: float, py: float, vertices: List[Tuple[float, float]]) -> bool:
+    """Check if point is inside polygon."""
+    point = Point2D(px, py)
+    points = [Point2D.from_tuple(v) for v in vertices]
+    polygon = Polygon(points)
+    return polygon.contains_point(point)
