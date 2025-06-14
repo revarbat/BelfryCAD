@@ -39,7 +39,7 @@ def main():
             app = QApplication(sys.argv)
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
-            msg.setWindowTitle("PyTkCAD Error")
+            msg.setWindowTitle("BelfryCAD Error")
             msg.setText(error_msg)
             msg.exec()
         except Exception:

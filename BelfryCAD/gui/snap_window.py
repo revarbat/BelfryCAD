@@ -7,6 +7,7 @@ snapswin.tcl functionality.
 """
 
 import sys
+import platform
 
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QPushButton, QCheckBox, QVBoxLayout,
@@ -152,7 +153,10 @@ class SnapWindow(QWidget):
             display_name = snap_name.replace("&", "")
             accel = self._extract_accelerator(snap_name)
             if accel:
-                display_name = f"Snap to {display_name} ({accel.upper()})"
+                if platform.system() == "Darwin":
+                    display_name = f"Snap to {display_name} (⌥{accel.upper()})"
+                else:
+                    display_name = f"Snap to {display_name} (Alt+{accel.upper()})"
 
             # Create toggle button instead of checkbox
             button = QPushButton()
