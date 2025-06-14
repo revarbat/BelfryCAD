@@ -399,15 +399,26 @@ class LayerItem(QFrame):
                 (event.pos() - self.drag_start_pos).manhattanLength() >
                 QApplication.startDragDistance()
             ):
-                start_drag = getattr(self.parent(), 'start_drag', None)
-                if start_drag:
-                    start_drag(self.layer, event.pos())
+                # Start drag operation
+                drag = QDrag(self)
+                mime_data = QMimeData()
+                mime_data.setData("application/x-layer", str(self.id).encode())
+                drag.setMimeData(mime_data)
+                
+                # Create a pixmap of the item for drag preview
+                pixmap = QPixmap(self.size())
+                self.render(pixmap)
+                drag.setPixmap(pixmap)
+                
+                # Start the drag
+                drag.exec(Qt.DropAction.MoveAction)
+                self.is_dragging = False
 
     def mouseReleaseEvent(self, event):
         """Handle mouse release events."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.is_dragging = False
-            self.drag_start_pos = None
+        self.drag_start_pos = None
         super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
@@ -481,6 +492,7 @@ class LayerWindow(QWidget):
         self.layer_items: Dict['Layer', 'LayerItem'] = {}  # layer -> LayerItem
         self.current_layer: Optional['Layer'] = None
         self.main_window = self.parent()
+        self.drag_item = None
 
         # Register with global info
         layerwin_info.register_window(self.base_id, self)
@@ -510,8 +522,8 @@ class LayerWindow(QWidget):
 
     def start_drag(self, layer: 'Layer', pos: QPoint):
         """Start dragging a layer."""
-        # Implementation for drag and drop
-        pass
+        if layer in self.layer_items:
+            self.drag_item = self.layer_items[layer]
 
     def _on_layer_selected(self, layer: 'Layer'):
         """Handle layer selection."""
@@ -709,11 +721,37 @@ class LayerWindow(QWidget):
     def _drag_move_event(self, event):
         """Handle drag move event."""
         if event.mimeData().hasFormat("application/x-layer"):
+            # Get the position in the layer list
+            pos = event.position().toPoint()
+            target_item = self.layer_list.childAt(pos)
+            
+            # Find the target position in the layout
+            if target_item:
+                target_index = self.layer_layout.indexOf(target_item)
+                if target_index >= 0:
+                    # Move the dragged item in the layout
+                    if self.drag_item:
+                        self.layer_layout.removeWidget(self.drag_item)
+                        self.layer_layout.insertWidget(target_index, self.drag_item)
             event.acceptProposedAction()
 
     def _drop_event(self, event):
         """Handle drop event."""
         if event.mimeData().hasFormat("application/x-layer"):
+            # Get the position in the layer list
+            pos = event.position().toPoint()
+            target_item = self.layer_list.childAt(pos)
+            
+            if target_item and self.drag_item:
+                # Get the target position in the layout
+                target_index = self.layer_layout.indexOf(target_item)
+                if target_index >= 0:
+                    # Move the dragged item in the layout
+                    self.layer_layout.removeWidget(self.drag_item)
+                    self.layer_layout.insertWidget(target_index, self.drag_item)
+                    
+                    # Emit reorder signal
+                    self.layer_reordered.emit(self.drag_item.layer, target_index)
+            
+            self.drag_item = None
             event.acceptProposedAction()
-            # Handle layer reordering
-            self._on_layers_reordered(None, 0, 0, None, 0)  # TODO: Implement proper reordering
