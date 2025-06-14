@@ -377,6 +377,15 @@ class LayerItem(QFrame):
             self.drag_start_pos = event.pos()
             self.setSelected(True)
             self.selected.emit(self.layer)
+            
+            # Ensure the selected item is visible in the scroll area
+            if self.parent() and self.parent().parent():
+                scroll_area = self.parent().parent()
+                if isinstance(scroll_area, QScrollArea):
+                    # Calculate the position to scroll to
+                    item_pos = self.mapTo(scroll_area.widget(), QPoint(0, 0))
+                    scroll_area.ensureVisible(0, item_pos.y(), 0, 0)
+                    
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -518,39 +527,77 @@ class LayerWindow(QWidget):
         """
         self.current_layer = current_layer
 
-        # Clear existing layer items
-        for layer, item in self.layer_items.items():
-            item.setParent(None)
-            item.deleteLater()
-        self.layer_items.clear()
+        # Track which layers we've processed
+        processed_layers = set()
+        new_layer_item = None
 
-        # Clear layout
+        # Remove any existing stretch widget
         while self.layer_layout.count():
-            child = self.layer_layout.takeAt(0)
-            if child.widget():
-                child.widget().setParent(None)
+            item = self.layer_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+            elif item.spacerItem():
+                self.layer_layout.removeItem(item)
 
-        # Create new layer items
+        # Update or create layer items
         for layer in layers:
-            layer_item = LayerItem(layer)
+            if layer in self.layer_items:
+                # Reuse existing layer item
+                layer_item = self.layer_items[layer]
+                layer_item.update_data(layer)
+                if layer == current_layer:
+                    layer_item.setSelected(True)
+                else:
+                    layer_item.setSelected(False)
+            else:
+                # Create new layer item
+                layer_item = LayerItem(layer)
+                # Connect signals
+                layer_item.selected.connect(self._on_layer_selected)
+                layer_item.renamed.connect(self.layer_renamed.emit)
+                layer_item.visibility_changed.connect(self.layer_visibility_changed.emit)
+                layer_item.lock_changed.connect(self.layer_lock_changed.emit)
+                layer_item.color_changed.connect(self.layer_color_changed.emit)
+                layer_item.cam_settings_changed.connect(self.layer_cam_changed.emit)
+                self.layer_items[layer] = layer_item
+                new_layer_item = layer_item
 
-            # Connect signals
-            layer_item.selected.connect(self._on_layer_selected)
-            layer_item.renamed.connect(self.layer_renamed.emit)
-            layer_item.visibility_changed.connect(self.layer_visibility_changed.emit)
-            layer_item.lock_changed.connect(self.layer_lock_changed.emit)
-            layer_item.color_changed.connect(self.layer_color_changed.emit)
-            layer_item.cam_settings_changed.connect(self.layer_cam_changed.emit)
-
-            self.layer_items[layer] = layer_item
+            # Add to layout
             self.layer_layout.addWidget(layer_item)
+            processed_layers.add(layer)
 
-            # Set initial selection state
-            if layer == current_layer:
-                layer_item.setSelected(True)
+        # Remove layer items that are no longer in the layers list
+        layers_to_remove = set(self.layer_items.keys()) - processed_layers
+        for layer in layers_to_remove:
+            layer_item = self.layer_items.pop(layer)
+            layer_item.setParent(None)
+            layer_item.deleteLater()
 
         # Add stretch at the end
         self.layer_layout.addStretch()
+
+        # If we created a new layer item, select it and make it visible
+        if new_layer_item:
+            new_layer_item.setSelected(True)
+            self.current_layer = new_layer_item.layer
+            self.layer_selected.emit(new_layer_item.layer)
+            
+            # Use a timer to scroll to the new item after layout is complete
+            def scroll_to_new_item():
+                if self.scroll_area and new_layer_item:
+                    # Force layout update
+                    self.layer_list.updateGeometry()
+                    self.scroll_area.viewport().update()
+                    
+                    # Get the item's position relative to the layer list
+                    item_pos = new_layer_item.mapTo(self.layer_list, QPoint(0, 0))
+                    # Add a small margin to ensure visibility
+                    scroll_pos = max(0, item_pos.y() - 20)  # 20 pixel margin
+                    # Set the scroll position
+                    self.scroll_area.verticalScrollBar().setValue(scroll_pos)
+            
+            # Use a longer delay to ensure layout is complete
+            QTimer.singleShot(100, scroll_to_new_item)
 
     def _delete_current_layer(self):
         """Delete the current layer."""
@@ -610,12 +657,19 @@ class LayerWindow(QWidget):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
 
-        # Create layer list
+        # Create scroll area for layer list
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.main_layout.addWidget(self.scroll_area)
+
+        # Create layer list container
         self.layer_list = QWidget()
         self.layer_layout = QVBoxLayout(self.layer_list)
         self.layer_layout.setContentsMargins(0, 0, 0, 0)
         self.layer_layout.setSpacing(0)
-        self.main_layout.addWidget(self.layer_list)
+        self.scroll_area.setWidget(self.layer_list)
 
         # Create toolbar at the bottom
         self.toolbar = QToolBar()
