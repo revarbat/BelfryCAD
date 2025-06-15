@@ -11,6 +11,7 @@ import copy
 from dataclasses import dataclass
 
 from BelfryCAD.core.cad_objects import CADObject
+from BelfryCAD.core.layer_types import Layer
 
 
 @dataclass
@@ -319,3 +320,201 @@ class UndoRedoManager:
                 callback()
             except Exception as e:
                 print(f"Error in undo/redo callback: {e}")
+
+
+class CreateLayerCommand(Command):
+    """Command to create a new layer."""
+    
+    def __init__(self, layer_manager, name: str = "", description: str = "Create Layer"):
+        super().__init__(description)
+        self.layer_manager = layer_manager
+        self.name = name
+        self.layer: Optional[Layer] = None
+    
+    def execute(self) -> bool:
+        """Create the layer."""
+        try:
+            self.layer = self.layer_manager.create_layer(self.name, with_undo=False)
+            return True
+        except Exception as e:
+            print(f"Error executing CreateLayerCommand: {e}")
+            return False
+    
+    def undo(self) -> bool:
+        """Delete the created layer."""
+        try:
+            if self.layer:
+                return self.layer_manager.delete_layer(self.layer, with_undo=False)
+        except Exception as e:
+            print(f"Error undoing CreateLayerCommand: {e}")
+        return False
+
+
+class DeleteLayerCommand(Command):
+    """Command to delete a layer."""
+    
+    def __init__(self, layer_manager, layer, description: str = "Delete Layer"):
+        super().__init__(description)
+        self.layer_manager = layer_manager
+        self.layer = layer
+        self.layer_data = None
+        self.layer_position = None
+    
+    def _capture_layer_state(self, layer) -> dict:
+        """Capture the complete state of a layer."""
+        return {
+            'name': layer.name,
+            'visible': layer.visible,
+            'locked': layer.locked,
+            'color': layer.color,
+            'cut_bit': layer.cut_bit,
+            'cut_depth': layer.cut_depth,
+            'objects': layer.objects.copy()
+        }
+    
+    def execute(self) -> bool:
+        """Delete the layer."""
+        try:
+            # Capture layer state before deletion
+            self.layer_data = self._capture_layer_state(self.layer)
+            self.layer_position = self.layer_manager.get_layer_position(self.layer)
+            
+            # Delete the layer
+            return self.layer_manager.delete_layer(self.layer, with_undo=False)
+        except Exception as e:
+            print(f"Error executing DeleteLayerCommand: {e}")
+            return False
+    
+    def undo(self) -> bool:
+        """Restore the deleted layer."""
+        try:
+            if self.layer_data and self.layer_position is not None:
+                # Create new layer with same properties
+                new_layer = self.layer_manager.create_layer(
+                    self.layer_data['name'], with_undo=False)
+                
+                # Restore properties
+                new_layer.visible = self.layer_data['visible']
+                new_layer.locked = self.layer_data['locked']
+                new_layer.color = self.layer_data['color']
+                new_layer.cut_bit = self.layer_data['cut_bit']
+                new_layer.cut_depth = self.layer_data['cut_depth']
+                new_layer.objects = self.layer_data['objects'].copy()
+                
+                # Restore position
+                self.layer_manager.reorder_layer(new_layer, self.layer_position)
+                
+                self.layer = new_layer
+                return True
+        except Exception as e:
+            print(f"Error undoing DeleteLayerCommand: {e}")
+        return False
+
+
+class ModifyLayerCommand(Command):
+    """Command to modify layer properties."""
+    
+    def __init__(self, layer_manager, layer, new_properties: dict, description: str = "Modify Layer"):
+        super().__init__(description)
+        self.layer_manager = layer_manager
+        self.layer = layer
+        self.new_properties = new_properties
+        self.old_properties = None
+    
+    def _capture_layer_properties(self, layer) -> dict:
+        """Capture the current properties of a layer."""
+        return {
+            'name': layer.name,
+            'visible': layer.visible,
+            'locked': layer.locked,
+            'color': layer.color,
+            'cut_bit': layer.cut_bit,
+            'cut_depth': layer.cut_depth
+        }
+    
+    def execute(self) -> bool:
+        """Apply the new properties to the layer."""
+        try:
+            # Capture old properties
+            self.old_properties = self._capture_layer_properties(self.layer)
+            
+            # Apply new properties
+            if 'name' in self.new_properties:
+                self.layer_manager.set_layer_name(self.layer, self.new_properties['name'])
+            if 'visible' in self.new_properties:
+                self.layer_manager.set_layer_visible(self.layer, self.new_properties['visible'])
+            if 'locked' in self.new_properties:
+                self.layer_manager.set_layer_locked(self.layer, self.new_properties['locked'])
+            if 'color' in self.new_properties:
+                self.layer_manager.set_layer_color(self.layer, self.new_properties['color'])
+            if 'cut_bit' in self.new_properties:
+                self.layer_manager.set_layer_cut_bit(self.layer, self.new_properties['cut_bit'])
+            if 'cut_depth' in self.new_properties:
+                self.layer_manager.set_layer_cut_depth(self.layer, self.new_properties['cut_depth'])
+            
+            return True
+        except Exception as e:
+            print(f"Error executing ModifyLayerCommand: {e}")
+            return False
+    
+    def undo(self) -> bool:
+        """Restore the old properties."""
+        try:
+            if self.old_properties:
+                # Restore old properties
+                self.layer_manager.set_layer_name(self.layer, self.old_properties['name'])
+                self.layer_manager.set_layer_visible(self.layer, self.old_properties['visible'])
+                self.layer_manager.set_layer_locked(self.layer, self.old_properties['locked'])
+                self.layer_manager.set_layer_color(self.layer, self.old_properties['color'])
+                self.layer_manager.set_layer_cut_bit(self.layer, self.old_properties['cut_bit'])
+                self.layer_manager.set_layer_cut_depth(self.layer, self.old_properties['cut_depth'])
+                return True
+        except Exception as e:
+            print(f"Error undoing ModifyLayerCommand: {e}")
+        return False
+
+
+class ReorderLayerCommand(Command):
+    """Command to reorder layers."""
+    
+    def __init__(self, layer_manager, layer, new_position: int, description: str = "Reorder Layer"):
+        super().__init__(description)
+        self.layer_manager = layer_manager
+        self.layer = layer
+        self.new_position = new_position
+        self.old_position = None
+    
+    def execute(self) -> bool:
+        """Move the layer to its new position."""
+        old_layers = self.layer_manager._layers.copy()
+        try:
+            self.old_position = self.layer_manager.get_layer_position(self.layer)
+            # Remove layer from old position
+            self.layer_manager._layers.pop(self.old_position)
+            # Insert at new position
+            self.layer_manager._layers.insert(self.new_position, self.layer)
+            return True
+        except Exception as e:
+            print(f"Error executing ReorderLayerCommand: {e}")
+            # Restore original order if something went wrong
+            if self.old_position is not None:
+                self.layer_manager._layers = old_layers
+            return False
+    
+    def undo(self) -> bool:
+        """Restore the layer to its old position."""
+        old_layers = self.layer_manager._layers.copy()
+        try:
+            if self.old_position is not None:
+                # Remove layer from current position
+                current_pos = self.layer_manager.get_layer_position(self.layer)
+                self.layer_manager._layers.pop(current_pos)
+                # Insert at old position
+                self.layer_manager._layers.insert(self.old_position, self.layer)
+                return True
+        except Exception as e:
+            print(f"Error undoing ReorderLayerCommand: {e}")
+            # Restore original order if something went wrong
+            if self.old_position is not None:
+                self.layer_manager._layers = old_layers
+        return False

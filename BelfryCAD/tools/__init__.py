@@ -49,6 +49,9 @@ from .duplicators import (
     RadialCopyTool,
     OffsetCopyTool
 )
+from .image import ImageTool
+from .screw_hole import ScrewHoleTool
+from .gear import GearTool
 
 
 # A list of all available tools for easy registration
@@ -69,6 +72,11 @@ available_tools = [
     BendTool,
     WrapTool,
     UnwrapTool,
+    # Duplicator tools
+    LinearCopyTool,
+    RadialCopyTool,
+    GridCopyTool,
+    OffsetCopyTool,
     # Line & Bezier tools
     LineTool,
     LineMPTool,
@@ -95,16 +103,17 @@ available_tools = [
     # Polygon tools
     RectangleTool,
     RegularPolygonTool,
-    TextTool,
+
+    # Miscellaneous tools
     PointTool,
+    TextTool,
+    ImageTool,
+    # CAM tools
+    ScrewHoleTool,
+    GearTool,
     # Dimension tools
     HorizontalDimensionTool,
     VerticalDimensionTool,
     LinearDimensionTool,
     ArcDimensionTool,
-    # Duplicator tools
-    LinearCopyTool,
-    RadialCopyTool,
-    GridCopyTool,
-    OffsetCopyTool,
 ]

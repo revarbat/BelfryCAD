@@ -819,8 +819,12 @@ class CadCanvas(QWidget):
 
     def redraw_grid(self):
         """Redraw the grid - main grid drawing method"""
-        # Remove existing grid items (both tagged and old Z-value items)
-        self.scene.removeItemsByTags([GridTags.GRID])
+        try:
+            # Remove existing grid items (both tagged and old Z-value items)
+            self.scene.removeItemsByTags([GridTags.GRID])
+        except RuntimeError:
+            # If items are already deleted, just continue
+            pass
 
         # Get grid info
         grid_info = self._get_grid_info()

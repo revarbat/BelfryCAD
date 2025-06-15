@@ -42,7 +42,8 @@ class ToolCategory(Enum):
     LAYOUT = "Layout"
     DUPLICATORS = "Duplicators"
     POINTS = "Points"
-    SCREWHOLES = "ScrewHoles"
+    CAM = "CAM"
+    MISC = "Miscellaneous"
 
 
 class SnapType(Enum):

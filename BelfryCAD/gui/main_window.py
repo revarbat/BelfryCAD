@@ -33,6 +33,10 @@ class MainWindow(QMainWindow):
         self.undo_manager = UndoRedoManager(max_undo_levels=50)
         self.undo_manager.add_callback(self._on_undo_state_changed)
 
+        # Connect layer manager to undo system
+        if hasattr(self.document, 'layers'):
+            self.document.layers.set_undo_manager(self.undo_manager)
+
         # Initialize print system
         self.print_manager = None  # Will be initialized after scene creation
 
@@ -87,18 +91,15 @@ class MainWindow(QMainWindow):
         self.category_key_mappings = {
             'Space': ToolCategory.SELECTOR,  # Spacebar for Selector
             'N': ToolCategory.NODES,         # N for Nodes
+            'T': ToolCategory.TRANSFORMS,    # T for Transform
+            'D': ToolCategory.DUPLICATORS,   # D for Duplicators
             'L': ToolCategory.LINES,         # L for Lines
             'A': ToolCategory.ARCS,          # A for Arcs
             'E': ToolCategory.ELLIPSES,      # E for Ellipses
             'P': ToolCategory.POLYGONS,      # P for Polygons
-            'T': ToolCategory.TEXT,          # T for Text
-            'I': ToolCategory.IMAGES,        # I for Images
-            'D': ToolCategory.DIMENSIONS,    # D for Dimensions
-            'F': ToolCategory.TRANSFORMS,    # F for transForm
-            'Y': ToolCategory.LAYOUT,        # LaYout
-            'U': ToolCategory.DUPLICATORS,   # dUplicators
-            'O': ToolCategory.POINTS,        # pOints
-            'H': ToolCategory.SCREWHOLES,    # H for screw Holes
+            'M': ToolCategory.MISC,          # M for Miscellaneous
+            'C': ToolCategory.CAM,           # C for CAM
+            'I': ToolCategory.DIMENSIONS,    # I for dImensions
         }
 
         # Create shortcuts for each category

@@ -36,7 +36,7 @@ class NodeSelectTool(Tool):
             icon="tool-nodesel",
             cursor="top_left_arrow",
             is_creator=False,
-            secondary_key="S",
+            secondary_key="N",
             show_controls=True
         )]
 

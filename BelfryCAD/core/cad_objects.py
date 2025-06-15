@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class ObjectType(Enum):
-    """CAD object types based on original TCL implementation"""
+    """Enumeration of object types"""
     LINE = "line"
     ARC = "arc"
     CIRCLE = "circle"
@@ -35,6 +35,7 @@ class ObjectType(Enum):
     DIMENSION = "dimension"
     POINT = "point"
     IMAGE = "image"
+    SCREW_HOLE = "screw_hole"
 
 
 class LayerInfo(Enum):
@@ -85,6 +86,7 @@ class CADObject:
     selected: bool = False
     visible: bool = True
     locked: bool = False
+    attributes: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def id(self) -> str:

@@ -52,9 +52,10 @@ class TextTool(Tool):
         return [ToolDefinition(
             token="TEXT",
             name="Text",
-            category=ToolCategory.TEXT,
+            category=ToolCategory.MISC,
             icon="tool-text",
             cursor="text",
+            secondary_key="T",
             is_creator=True,
             node_info=["Position"]
         )]

@@ -19,10 +19,11 @@ class PointTool(Tool):
         return [ToolDefinition(
             token="POINT",
             name="Point",
-            category=ToolCategory.POINTS,
+            category=ToolCategory.MISC,
             icon="tool-point",
             cursor="crosshair",
             is_creator=True,
+            secondary_key="P",
             node_info=["Point Location"]
         )]
 

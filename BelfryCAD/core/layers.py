@@ -7,30 +7,10 @@ Translated from the original layers.tcl file.
 """
 
 from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, field
-
-
-@dataclass
-class Layer:
-    """Represents a drawing layer with its properties and contained objects."""
-
-    name: str
-    visible: bool = True
-    locked: bool = False
-    color: str = "black"
-    cut_bit: int = 0
-    cut_depth: float = 0.0
-    objects: List[int] = field(default_factory=list)
-
-    def __hash__(self) -> int:
-        """Make Layer hashable based on its instance identity."""
-        return id(self)
-
-    def __eq__(self, other: object) -> bool:
-        """Compare Layer objects for equality based on instance identity."""
-        if not isinstance(other, Layer):
-            return NotImplemented
-        return self is other
+from .layer_types import Layer
+from BelfryCAD.core.undo_redo import (
+    CreateLayerCommand, DeleteLayerCommand, ModifyLayerCommand, ReorderLayerCommand
+)
 
 
 class LayerManager:
@@ -53,6 +33,11 @@ class LayerManager:
         self.canvas_id = canvas_id
         self._layers: List[Layer] = []
         self._current_layer: Optional[Layer] = None
+        self._undo_manager = None
+
+    def set_undo_manager(self, undo_manager):
+        """Set the undo manager for this layer manager."""
+        self._undo_manager = undo_manager
 
     def init_layers(self) -> None:
         """Initialize the layer system with a default layer."""
@@ -69,7 +54,7 @@ class LayerManager:
 
         Args:
             name: Name for the new layer. If empty, auto-generates a name.
-            with_undo: Whether to remember this action for undo (not implemented yet)
+            with_undo: Whether to remember this action for undo
 
         Returns:
             The newly created Layer object
@@ -77,6 +62,12 @@ class LayerManager:
         if not name:
             name = f"Layer {self._next_id}"
         self._next_id += 1
+
+        if with_undo and self._undo_manager:
+            command = CreateLayerCommand(self, name)
+            if self._undo_manager.execute_command(command) and command.layer is not None:
+                return command.layer
+            # If command execution failed or layer is None, fall through to direct creation
 
         layer = Layer(
             name=name,
@@ -104,6 +95,10 @@ class LayerManager:
         """
         if layer not in self._layers:
             return False
+
+        if with_undo and self._undo_manager:
+            command = DeleteLayerCommand(self, layer)
+            return self._undo_manager.execute_command(command)
 
         # If this was the current layer, switch to another one
         if self._current_layer == layer:
@@ -197,19 +192,24 @@ class LayerManager:
         except ValueError:
             return -1
 
-    def reorder_layer(self, layer: Layer, new_position: int) -> bool:
+    def reorder_layer(self, layer: Layer, new_position: int, with_undo: bool = True) -> bool:
         """
         Move a layer to a new position in the layer order.
 
         Args:
             layer: Layer to move
             new_position: New position (0 = top)
+            with_undo: Whether to remember this action for undo
 
         Returns:
             True if successful, False if layer doesn't exist
         """
         if layer not in self._layers:
             return False
+
+        if with_undo and self._undo_manager:
+            command = ReorderLayerCommand(self, layer, new_position)
+            return self._undo_manager.execute_command(command)
 
         try:
             old_position = self._layers.index(layer)
@@ -243,9 +243,12 @@ class LayerManager:
         """Get layer name."""
         return layer.name
 
-    def set_layer_name(self, layer: Layer, name: str) -> bool:
+    def set_layer_name(self, layer: Layer, name: str, with_undo: bool = True) -> bool:
         """Set layer name."""
         if layer in self._layers:
+            if with_undo and self._undo_manager:
+                command = ModifyLayerCommand(self, layer, {'name': name})
+                return self._undo_manager.execute_command(command)
             layer.name = name
             return True
         return False
@@ -254,9 +257,12 @@ class LayerManager:
         """Check if layer is visible."""
         return layer.visible
 
-    def set_layer_visible(self, layer: Layer, visible: bool) -> bool:
+    def set_layer_visible(self, layer: Layer, visible: bool, with_undo: bool = True) -> bool:
         """Set layer visibility."""
         if layer in self._layers:
+            if with_undo and self._undo_manager:
+                command = ModifyLayerCommand(self, layer, {'visible': visible})
+                return self._undo_manager.execute_command(command)
             layer.visible = visible
             return True
         return False
@@ -265,9 +271,12 @@ class LayerManager:
         """Check if layer is locked."""
         return layer.locked
 
-    def set_layer_locked(self, layer: Layer, locked: bool) -> bool:
+    def set_layer_locked(self, layer: Layer, locked: bool, with_undo: bool = True) -> bool:
         """Set layer locked state."""
         if layer in self._layers:
+            if with_undo and self._undo_manager:
+                command = ModifyLayerCommand(self, layer, {'locked': locked})
+                return self._undo_manager.execute_command(command)
             layer.locked = locked
             return True
         return False
@@ -276,9 +285,12 @@ class LayerManager:
         """Get layer color."""
         return layer.color
 
-    def set_layer_color(self, layer: Layer, color: str) -> bool:
+    def set_layer_color(self, layer: Layer, color: str, with_undo: bool = True) -> bool:
         """Set layer color."""
         if layer in self._layers:
+            if with_undo and self._undo_manager:
+                command = ModifyLayerCommand(self, layer, {'color': color})
+                return self._undo_manager.execute_command(command)
             layer.color = color
             return True
         return False
@@ -287,9 +299,12 @@ class LayerManager:
         """Get layer cut bit setting."""
         return layer.cut_bit
 
-    def set_layer_cut_bit(self, layer: Layer, cut_bit: int) -> bool:
+    def set_layer_cut_bit(self, layer: Layer, cut_bit: int, with_undo: bool = True) -> bool:
         """Set layer cut bit setting."""
         if layer in self._layers:
+            if with_undo and self._undo_manager:
+                command = ModifyLayerCommand(self, layer, {'cut_bit': cut_bit})
+                return self._undo_manager.execute_command(command)
             layer.cut_bit = cut_bit
             return True
         return False
@@ -298,9 +313,12 @@ class LayerManager:
         """Get layer cut depth setting."""
         return layer.cut_depth
 
-    def set_layer_cut_depth(self, layer: Layer, cut_depth: float) -> bool:
+    def set_layer_cut_depth(self, layer: Layer, cut_depth: float, with_undo: bool = True) -> bool:
         """Set layer cut depth setting."""
         if layer in self._layers:
+            if with_undo and self._undo_manager:
+                command = ModifyLayerCommand(self, layer, {'cut_depth': cut_depth})
+                return self._undo_manager.execute_command(command)
             layer.cut_depth = cut_depth
             return True
         return False
