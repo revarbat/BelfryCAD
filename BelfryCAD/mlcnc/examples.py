@@ -65,7 +65,7 @@ def demonstrate_cutting_calculator():
         diameter=0.5,
         length=3.0,
         flute_count=2,
-        geometry=ToolGeometry.END_MILL_SQUARE,
+        geometry=ToolGeometry.SQUARE_END_MILL,
         material="Carbide",
         coating="TiAlN"
     )

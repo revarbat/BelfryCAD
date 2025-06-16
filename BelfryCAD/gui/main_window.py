@@ -1,10 +1,17 @@
 # filepath: /Users/gminette/dev/git-repos/pyTkCAD/src/gui/main_window.py
 """Main window for the PyTkCAD application."""
 import math
+import os
+
+from PySide6.QtCore import (
+    Qt, QSize, QTimer
+)
+from PySide6.QtGui import (
+    QShortcut, QKeySequence, QPainter, QPen, QBrush, QColor, QIcon
+)
 from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QMessageBox
 )
-from PySide6.QtCore import QTimer
 
 try:
     from PIL import Image
@@ -13,12 +20,19 @@ except ImportError:
     Image = None
     io = None
 
-from BelfryCAD.tools import available_tools
-from BelfryCAD.tools.base import ToolManager
-from BelfryCAD.gui.category_button import CategoryToolButton
-from BelfryCAD.gui.mainmenu import MainMenuBar
-from BelfryCAD.gui.cad_scene import CadCanvas
+from ..core.undo_redo import UndoRedoManager, CreateObjectCommand
+from ..core.cad_objects import Point, CADObject, ObjectType
+from ..tools.base import ToolCategory, ToolManager
+from ..tools import available_tools
+
+from .mainmenu import MainMenuBar
 from .palette_system import create_default_palettes
+from .category_button import CategoryToolButton
+from .cad_scene import CadCanvas
+from .print_manager import CadPrintManager
+from .feed_wizard import FeedWizardDialog
+from .tool_table_dialog import ToolTableDialog
+from .preferences_dialog import PreferencesDialog
 
 
 class MainWindow(QMainWindow):
@@ -29,7 +43,6 @@ class MainWindow(QMainWindow):
         self.document = document
 
         # Initialize undo/redo system
-        from BelfryCAD.core.undo_redo import UndoRedoManager
         self.undo_manager = UndoRedoManager(max_undo_levels=50)
         self.undo_manager.add_callback(self._on_undo_state_changed)
 
@@ -84,8 +97,6 @@ class MainWindow(QMainWindow):
 
     def _setup_category_shortcuts(self):
         """Set up keyboard shortcuts for tool category activation"""
-        from PySide6.QtGui import QShortcut, QKeySequence
-        from BelfryCAD.tools.base import ToolCategory
 
         # Define key mappings for tool categories
         self.category_key_mappings = {
@@ -195,26 +206,17 @@ class MainWindow(QMainWindow):
         )
 
         # Conversion connections
-        self.main_menu.convert_to_lines_triggered.connect(
-            self.convert_to_lines)
-        self.main_menu.convert_to_curves_triggered.connect(
-            self.convert_to_curves)
-        self.main_menu.simplify_curves_triggered.connect(
-            self.simplify_curves)
-        self.main_menu.smooth_curves_triggered.connect(
-            self.smooth_curves)
-        self.main_menu.join_curves_triggered.connect(
-            self.join_curves)
-        self.main_menu.vectorize_bitmap_triggered.connect(
-            self.vectorize_bitmap)
+        self.main_menu.convert_to_lines_triggered.connect(self.convert_to_lines)
+        self.main_menu.convert_to_curves_triggered.connect(self.convert_to_curves)
+        self.main_menu.simplify_curves_triggered.connect(self.simplify_curves)
+        self.main_menu.smooth_curves_triggered.connect(self.smooth_curves)
+        self.main_menu.join_curves_triggered.connect(self.join_curves)
+        self.main_menu.vectorize_bitmap_triggered.connect(self.vectorize_bitmap)
 
         # Boolean operations connections
-        self.main_menu.union_polygons_triggered.connect(
-            self.union_polygons)
-        self.main_menu.difference_polygons_triggered.connect(
-            self.difference_polygons)
-        self.main_menu.intersection_polygons_triggered.connect(
-            self.intersection_polygons)
+        self.main_menu.union_polygons_triggered.connect(self.union_polygons)
+        self.main_menu.difference_polygons_triggered.connect(self.difference_polygons)
+        self.main_menu.intersection_polygons_triggered.connect(self.intersection_polygons)
 
         # View menu connections
         self.main_menu.redraw_triggered.connect(self.redraw)
@@ -228,28 +230,22 @@ class MainWindow(QMainWindow):
         # Palette visibility connections
         self.main_menu.show_info_panel_toggled.connect(self.toggle_info_panel)
         self.main_menu.show_properties_toggled.connect(self.toggle_properties)
-        self.main_menu.show_snap_settings_toggled.connect(
-            self.toggle_snap_settings)
         self.main_menu.show_layers_toggled.connect(self.toggle_layers)
+        self.main_menu.show_snap_settings_toggled.connect(self.toggle_snap_settings)
 
         # CAM menu connections
-        self.main_menu.configure_mill_triggered.connect(
-            self.configure_mill)
-        self.main_menu.speeds_feeds_wizard_triggered.connect(
-            self.speeds_feeds_wizard)
-        self.main_menu.generate_gcode_triggered.connect(
-            self.generate_gcode)
-        self.main_menu.backtrace_gcode_triggered.connect(
-            self.backtrace_gcode)
+        self.main_menu.configure_mill_triggered.connect(self.configure_mill)
+        self.main_menu.tool_table_triggered.connect(self.tool_table)
+        self.main_menu.speeds_feeds_wizard_triggered.connect(self.speeds_feeds_wizard)
+        self.main_menu.generate_gcode_triggered.connect(self.generate_gcode)
+        self.main_menu.backtrace_gcode_triggered.connect(self.backtrace_gcode)
         self.main_menu.make_worm_triggered.connect(self.make_worm)
-        self.main_menu.make_worm_gear_triggered.connect(
-            self.make_worm_gear)
+        self.main_menu.make_worm_gear_triggered.connect(self.make_worm_gear)
         self.main_menu.make_gear_triggered.connect(self.make_gear)
 
         # Window menu connections
         self.main_menu.minimize_triggered.connect(self.showMinimized)
-        self.main_menu.cycle_windows_triggered.connect(
-            self.cycle_windows)
+        self.main_menu.cycle_windows_triggered.connect(self.cycle_windows)
 
         # Preferences menu connection
         if hasattr(self.main_menu, 'preferences_triggered'):
@@ -257,7 +253,6 @@ class MainWindow(QMainWindow):
 
     def _create_toolbar(self):
         """Create a toolbar with drawing tools"""
-        from PySide6.QtCore import Qt, QSize
         self.toolbar = self.addToolBar("Tools")
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
         # Set the icon size to 48x48 for 150% size visibility
@@ -288,7 +283,7 @@ class MainWindow(QMainWindow):
 
     def get_canvas(self):
         return self.cad_scene.get_canvas()
-    
+
     def get_drawing_manager(self):
         return self.cad_scene.get_drawing_manager()
 
@@ -311,7 +306,6 @@ class MainWindow(QMainWindow):
         self.cad_scene.scale_changed.connect(self._on_scale_changed)
 
         # Initialize print manager after scene is created
-        from .print_manager import CadPrintManager
         self.print_manager = CadPrintManager(self, self.cad_scene, self.document)
 
     def _on_mouse_position_changed(self, scene_x: float, scene_y: float):
@@ -794,7 +788,6 @@ class MainWindow(QMainWindow):
             self.print_manager.show_page_setup_dialog()
         else:
             # Fallback message
-            from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(
                 self, "Page Setup",
                 "Page setup functionality not available"
@@ -806,7 +799,6 @@ class MainWindow(QMainWindow):
             self.print_manager.show_print_dialog()
         else:
             # Fallback message
-            from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(
                 self, "Print",
                 "Print functionality not available"
@@ -818,7 +810,6 @@ class MainWindow(QMainWindow):
             return self.print_manager.export_to_pdf()
         else:
             # Fallback message
-            from PySide6.QtWidgets import QMessageBox
             QMessageBox.information(
                 self, "Export PDF",
                 "PDF export functionality not available"
@@ -849,7 +840,7 @@ class MainWindow(QMainWindow):
         selected_objects = self._get_selected_objects()
         if not selected_objects:
             return False
-            
+
         # Store selected objects in clipboard format
         self._clipboard_data = []
         for obj in selected_objects:
@@ -861,55 +852,55 @@ class MainWindow(QMainWindow):
                 'layer': getattr(obj, 'layer', None)
             }
             self._clipboard_data.append(obj_data)
-        
+
         return len(self._clipboard_data) > 0
 
     def paste(self):
         """Handle Paste menu action."""
         if not hasattr(self, '_clipboard_data') or not self._clipboard_data:
             return
-            
+
         # Get current mouse position or use origin as paste location
         paste_offset_x = 10.0  # Default offset to avoid overlapping
         paste_offset_y = 10.0
-        
+
         # Clear current selection
         self._clear_selection()
-        
+
         # Create new objects from clipboard data
         new_objects = []
         for obj_data in self._clipboard_data:
             # Create new object with offset coordinates
             new_coords = []
             for coord in obj_data['coords']:
-                from BelfryCAD.core.cad_objects import Coordinate
-                new_coords.append(Coordinate(
+                new_coords.append(Point(
                     coord['x'] + paste_offset_x,
                     coord['y'] + paste_offset_y
                 ))
-            
+
             # Create new object
-            from BelfryCAD.core.cad_objects import CADObject
             new_obj = CADObject(
+                mainwin=self,
+                object_id=self.document.objects.get_next_id(),
                 object_type=obj_data['type'],
                 coords=new_coords,
                 attributes=obj_data['attributes'].copy()
             )
-            
+
             # Set layer if specified
             if obj_data['layer'] is not None:
                 new_obj.layer = obj_data['layer']
-            
+
             # Add to document
             if hasattr(self.document, 'objects'):
                 self.document.objects.add_object(new_obj)
                 new_objects.append(new_obj)
-        
+
         # Select the newly pasted objects
         if new_objects:
             self._select_objects(new_objects)
             self.draw_objects()  # Redraw to show new objects
-            
+
         return len(new_objects) > 0
 
     def clear(self):
@@ -931,17 +922,17 @@ class MainWindow(QMainWindow):
         selected_objects = self._get_selected_objects()
         if not selected_objects:
             return
-            
+
         # Get the first selected object as reference
         reference_obj = selected_objects[0]
         similar_objects = []
-        
+
         # Find objects with same type
         if hasattr(self.document, 'objects'):
             for obj_id, obj in self.document.objects.objects.items():
                 if obj.object_type == reference_obj.object_type:
                     similar_objects.append(obj)
-        
+
         # Select all similar objects
         if similar_objects:
             self._select_objects(similar_objects)
@@ -954,7 +945,7 @@ class MainWindow(QMainWindow):
         """Get currently selected objects from the active tool."""
         if not hasattr(self, 'tool_manager'):
             return []
-        
+
         current_tool = self.tool_manager.get_active_tool()
         # Check for different selector tool types and their selection attributes
         if current_tool:
@@ -969,15 +960,15 @@ class MainWindow(QMainWindow):
         # Switch to selector tool if not already active
         selector_tokens = ["OBJSEL", "SELECTOR", "SELECT"]
         current_tool_token = None
-        
+
         for token in selector_tokens:
             if token in self.tools:
                 current_tool_token = token
                 break
-        
+
         if current_tool_token:
             self.activate_tool(current_tool_token)
-            
+
         current_tool = self.tool_manager.get_active_tool()
         if current_tool:
             # Try to find the selection attribute
@@ -986,7 +977,7 @@ class MainWindow(QMainWindow):
                 if hasattr(current_tool, attr_name):
                     selection_attr = attr_name
                     break
-            
+
             if selection_attr:
                 # Clear current selection
                 selection_list = getattr(current_tool, selection_attr)
@@ -994,7 +985,7 @@ class MainWindow(QMainWindow):
                     selection_list.clear()
                 elif isinstance(selection_list, list):
                     selection_list[:] = []
-                
+
                 # Add new objects to selection
                 for obj in objects:
                     if hasattr(selection_list, 'append'):
@@ -1003,7 +994,7 @@ class MainWindow(QMainWindow):
                         selection_list.append(obj)
                     # Mark object as selected for visual feedback
                     obj.selected = True
-                
+
                 # Redraw to show selection
                 self.draw_objects()
 
@@ -1015,20 +1006,20 @@ class MainWindow(QMainWindow):
             for attr_name in ['selected_objects', 'selection', 'objects']:
                 if hasattr(current_tool, attr_name):
                     selection_list = getattr(current_tool, attr_name)
-                    
+
                     # Clear selection state on objects first
                     if hasattr(selection_list, '__iter__'):
                         for obj in selection_list:
                             if hasattr(obj, 'selected'):
                                 obj.selected = False
-                    
+
                     # Clear selection list
                     if hasattr(selection_list, 'clear'):
                         selection_list.clear()
                     elif isinstance(selection_list, list):
                         selection_list[:] = []
                     break
-            
+
             # Redraw to remove selection visuals
             self.draw_objects()
 
@@ -1037,22 +1028,22 @@ class MainWindow(QMainWindow):
         selected_objects = self._get_selected_objects()
         if not selected_objects:
             return False
-            
+
         # Remove objects from document
         for obj in selected_objects:
             if hasattr(self.document, 'objects'):
                 self.document.objects.remove_object(obj.object_id)
-        
+
         # Clear selection
         self._clear_selection()
-        
+
         # Mark document as modified
         if hasattr(self.document, 'set_modified'):
             self.document.set_modified(True)
-        
+
         # Redraw to remove deleted objects
         self.draw_objects()
-        
+
         return True
 
     def group_selection(self):
@@ -1248,7 +1239,6 @@ class MainWindow(QMainWindow):
 
     def speeds_feeds_wizard(self):
         """Handle Speeds & Feeds Wizard menu action."""
-        from BelfryCAD.tools.feed_wizard import FeedWizardDialog
         dialog = FeedWizardDialog(self)
         dialog.exec()
 
@@ -1303,12 +1293,10 @@ class MainWindow(QMainWindow):
 
     def show_preferences(self):
         """Show the preferences dialog."""
-        from .preferences_dialog import PreferencesDialog
-        
         # Create and show preferences dialog
         dialog = PreferencesDialog(self)
         result = dialog.exec()
-        
+
         if result == dialog.DialogCode.Accepted:
             # Preferences were saved, you might want to apply changes here
             # For example, update canvas settings, colors, etc.
@@ -1319,38 +1307,37 @@ class MainWindow(QMainWindow):
         # Get updated preferences
         antialiasing = self.preferences.get("antialiasing", True)
         grid_visible = self.preferences.get("grid_visible", True)
-        
+
         # Apply canvas settings
         if hasattr(self, 'canvas'):
             # Update canvas antialiasing
-            from PySide6.QtGui import QPainter
             if antialiasing:
                 self.canvas.setRenderHint(QPainter.RenderHint.Antialiasing)
             else:
                 self.canvas.setRenderHint(
                     QPainter.RenderHint.Antialiasing, False)
-        
+
         # Apply grid visibility
         if hasattr(self, 'cad_scene'):
             self.cad_scene.set_grid_visibility(grid_visible)
-        
+
         # You can add more preference applications here as needed
 
     def _confirm_discard_changes(self):
         """Ask user to confirm discarding unsaved changes."""
         if not self.document.is_modified():
             return True
-            
+
         reply = QMessageBox.question(
             self,
             "Unsaved Changes",
             "The document has been modified. Do you want to save your changes?",
-            QMessageBox.StandardButton.Save | 
-            QMessageBox.StandardButton.Discard | 
+            QMessageBox.StandardButton.Save |
+            QMessageBox.StandardButton.Discard |
             QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Save
         )
-        
+
         if reply == QMessageBox.StandardButton.Save:
             self.save_file()
             return not self.document.is_modified()  # Return False if save failed
@@ -1366,12 +1353,12 @@ class MainWindow(QMainWindow):
             can_undo = self.undo_manager.can_undo()
             undo_desc = self.undo_manager.get_undo_description()
             undo_text = f"Undo {undo_desc}" if undo_desc else "Undo"
-            
-            # Update redo menu item  
+
+            # Update redo menu item
             can_redo = self.undo_manager.can_redo()
             redo_desc = self.undo_manager.get_redo_description()
             redo_text = f"Redo {redo_desc}" if redo_desc else "Redo"
-            
+
             # Update menu items (if the menu supports it)
             if hasattr(self.main_menu, 'update_undo_redo_state'):
                 self.main_menu.update_undo_redo_state(
@@ -1392,10 +1379,9 @@ class MainWindow(QMainWindow):
     def on_object_created(self, obj):
         """Handle when a new object is created by a tool."""
         # Create undo command for object creation
-        from BelfryCAD.core.undo_redo import CreateObjectCommand
         command = CreateObjectCommand(
             self.document, obj, f"Create {obj.object_type}")
-        
+
         # Execute through undo system (this will add to document and undo stack)
         if hasattr(self, 'undo_manager'):
             self.undo_manager.execute_command(command)
@@ -1403,7 +1389,7 @@ class MainWindow(QMainWindow):
             # Fallback: add directly if no undo manager
             if hasattr(self.document, 'objects'):
                 self.document.objects.add_object(obj)
-        
+
         # Draw the new object
         if hasattr(self, '_draw_object'):
             self._draw_object(obj)
@@ -1476,10 +1462,6 @@ class MainWindow(QMainWindow):
 
     def _draw_object_simple(self, obj):
         """Fallback method for drawing objects without DrawingManager."""
-        from PySide6.QtGui import QPen, QBrush, QColor
-        from PySide6.QtCore import Qt
-        from BelfryCAD.core.cad_objects import ObjectType
-
         # Skip invisible objects
         if not getattr(obj, 'visible', True):
             return []
@@ -1566,9 +1548,6 @@ class MainWindow(QMainWindow):
 
     def _load_tool_icon(self, icon_name):
         """Load tool icon from resources or return None if not found."""
-        from PySide6.QtGui import QIcon
-        import os
-
         if not icon_name:
             return None
 
@@ -1639,3 +1618,8 @@ class MainWindow(QMainWindow):
             self.cad_scene.redraw_grid()
             if hasattr(self.cad_scene, 'ruler_manager'):
                 self.cad_scene.ruler_manager.update_rulers()
+
+    def tool_table(self):
+        """Handle Tool Table menu action."""
+        dialog = ToolTableDialog(tool_specs=[], parent=self)
+        dialog.exec()

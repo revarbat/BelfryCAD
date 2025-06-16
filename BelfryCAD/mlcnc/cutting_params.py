@@ -16,39 +16,63 @@ from .feed_optimizer import MaterialType
 
 class OperationType(Enum):
     """Types of machining operations."""
-    ROUGHING = "roughing"
-    FINISHING = "finishing"
-    PROFILING = "profiling"
-    DRILLING = "drilling"
-    TAPPING = "tapping"
-    BORING = "boring"
-    SLOTTING = "slotting"
+    ROUGHING = "Roughing"
+    FINISHING = "Finishing"
+    PROFILING = "Profiling"
+    DRILLING = "Drilling"
+    TAPPING = "Tapping"
+    BORING = "Boring"
+    SLOTTING = "Slotting"
 
 
 class ToolGeometry(Enum):
     """Tool geometry types."""
-    END_MILL_SQUARE = "end_mill_square"
-    END_MILL_BALL = "end_mill_ball"
-    END_MILL_CORNER_RADIUS = "end_mill_corner_radius"
-    FACE_MILL = "face_mill"
-    DRILL = "drill"
-    TAP = "tap"
-    BORING_BAR = "boring_bar"
-    FLY_CUTTER = "fly_cutter"
+    EMPTY_SLOT = "Empty Slot"
+    SQUARE_END_MILL = "Square End Mill"
+    BALL_END_MILL = "Ball End Mill"
+    CORNER_RADIUS_END_MILL = "Corner Radius End Mill"
+    FACE_MILL = "Face Mill"
+    DRILL = "Drill"
+    TAP = "Tap"
+    BORING_BAR = "Boring Bar"
+    FLY_CUTTER = "Fly Cutter"
 
+class ToolMaterial(Enum):
+    """Tool material types."""
+    HSS = "HSS"
+    CARBIDE = "Carbide"
+    COBALT = "Cobalt"
+    CERAMIC = "Ceramic"
+    CBN = "CBN"
+
+class ToolCoating(Enum):
+    """Tool coating types."""
+    NONE = "None"
+    WC = "Tungsten Carbide (WC)"
+    Al2O3 = "Aluminum Oxide (Al2O3)"
+    TiN = "Titanium Nitride (TiN)"
+    TiCN = "Titanium Carbonitride (TiCN)"
+    TiAlN = "Titanium Aluminum Nitride (TiAlN)"
+    AlTiN = "Aluminum Titanium Nitride (AlTiN)"
+    AlCrN = "Aluminum Chromium Nitride (AlCrN)"
+    TiB2 = "Titanium Boron Nitride (TiB2)"
+    ZrN = "Zirconium Nitride (ZrN)"
+    DIAMOND = "Diamond"
 
 @dataclass
 class ToolSpecification:
     """Tool specification parameters."""
     diameter: float
     length: float
-    flute_count: int
-    geometry: ToolGeometry
-    material: str  # HSS, Carbide, etc.
-    coating: Optional[str] = None
-    corner_radius: Optional[float] = None
+    flute_count: int = 2
+    geometry: ToolGeometry = ToolGeometry.SQUARE_END_MILL
+    material: ToolMaterial = ToolMaterial.HSS
+    coating: ToolCoating = ToolCoating.NONE
+    corner_radius: float = 0.0
+    chamfer_angle: float = 0.0
     helix_angle: Optional[float] = None
     rake_angle: Optional[float] = None
+    tool_id: Optional[int] = None
 
 
 @dataclass
@@ -401,7 +425,7 @@ class CuttingParameterCalculator:
                     (condition.spindle_speed * condition.tool.flute_count))
         
         # Tool geometry factor
-        if condition.tool.geometry == ToolGeometry.END_MILL_BALL:
+        if condition.tool.geometry == ToolGeometry.BALL_END_MILL:
             geometry_factor = 0.5
         elif condition.tool.corner_radius:
             geometry_factor = 0.7

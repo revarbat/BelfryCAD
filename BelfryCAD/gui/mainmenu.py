@@ -153,14 +153,9 @@ class MainMenuBar(QObject):
     show_layers_toggled = Signal(bool)
     show_snap_settings_toggled = Signal(bool)
 
-    # Palette visibility signals
-    show_info_panel_toggled = Signal(bool)
-    show_properties_toggled = Signal(bool)
-    show_layers_toggled = Signal(bool)
-    show_snap_settings_toggled = Signal(bool)
-
     # CAM menu signals
     configure_mill_triggered = Signal()
+    tool_table_triggered = Signal()
     speeds_feeds_wizard_triggered = Signal()
     generate_gcode_triggered = Signal()
     backtrace_gcode_triggered = Signal()
@@ -560,6 +555,13 @@ class MainMenuBar(QObject):
         configure_mill_action.triggered.connect(
             self.configure_mill_triggered.emit)
         cam_menu.addAction(configure_mill_action)
+
+        # Tool Table
+        tool_table_action = QAction(
+            "&Tool Table...", self.parent_window)
+        tool_table_action.triggered.connect(
+            self.tool_table_triggered.emit)
+        cam_menu.addAction(tool_table_action)
 
         cam_menu.addSeparator()
 
