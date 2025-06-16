@@ -39,9 +39,10 @@ class TkCADApplication:
 
     def setup_application(self):
         """Set up the application properties."""
-        self.app.setApplicationName(self.config.APP_NAME)
-        self.app.setApplicationVersion(self.config.VERSION)
-        self.app.setOrganizationName("PyTkCAD")
+        if self.app is not None:
+            self.app.setApplicationName(self.config.APP_NAME)
+            self.app.setApplicationVersion(self.config.VERSION)
+            self.app.setOrganizationName("PyTkCAD")
 
     def run(self):
         """Run the main application."""

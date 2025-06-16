@@ -5,8 +5,9 @@ This module implements the feed wizard functionality for calculating
 speeds and feeds based on tool and material parameters.
 """
 
-from typing import Optional, List
+from typing import Optional, List, cast, TYPE_CHECKING
 from dataclasses import dataclass
+import logging
 
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                               QComboBox, QCheckBox, QFrame, QLineEdit,
@@ -19,6 +20,11 @@ from BelfryCAD.mlcnc.cutting_params import (
     CuttingCondition
 )
 from .tool_table_dialog import ToolTableDialog
+
+if TYPE_CHECKING:
+    from .main_window import MainWindow
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class MillDefinition:
@@ -164,6 +170,7 @@ class FeedWizardDialog(QDialog):
         self._setup_ui()
         self._connect_signals()
         self._update_calculations()
+        logger.info(f"Initialized FeedWizardDialog with parent: {parent}")
 
     def _setup_ui(self):
         """Set up the dialog UI."""
@@ -182,9 +189,16 @@ class FeedWizardDialog(QDialog):
         # Tool selection
         tool_layout = QHBoxLayout()
         tool_layout.addWidget(QLabel("Tool:"))
-        self.tool_button = QPushButton("Select Tool...")
-        self.tool_button.clicked.connect(self._select_tool)
-        tool_layout.addWidget(self.tool_button)
+        self.tool_combo = QComboBox()
+        self.tool_combo.setMinimumWidth(300)  # Make it wide enough to show tool details
+        self.tool_combo.currentIndexChanged.connect(self._on_tool_changed)
+        tool_layout.addWidget(self.tool_combo)
+        
+        # Add tool table button
+        tool_table_button = QPushButton("Tool Table...")
+        tool_table_button.clicked.connect(self._open_tool_table)
+        tool_layout.addWidget(tool_table_button)
+        
         layout.addLayout(tool_layout)
         
         # Mill horsepower
@@ -245,6 +259,9 @@ class FeedWizardDialog(QDialog):
         
         # Update visibility based on discrete speeds setting
         self._update_speed_visibility()
+        
+        # Load tools into combo box
+        self._load_tools()
 
     def _connect_signals(self):
         """Connect UI signals."""
@@ -255,26 +272,58 @@ class FeedWizardDialog(QDialog):
         self.max_rpm.textChanged.connect(self._on_speed_changed)
         self.speed_list.itemChanged.connect(self._on_speed_list_changed)
 
-    def _select_tool(self):
-        """Open tool table dialog to select a tool."""
-        dialog = ToolTableDialog()
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            tool_specs = dialog.get_tool_specs()
-            if tool_specs:
-                self.info.tool_spec = tool_specs[0]  # Use first selected tool
-                self._update_tool_button()
+    def _load_tools(self):
+        """Load tools from preferences into the combo box."""
+        self.tool_combo.clear()
+        
+        # Get tools from preferences
+        if self.parent():
+            main_window = cast('MainWindow', self.parent())
+            tool_dicts = main_window.preferences.get('tool_table', [])
+            
+            # Convert tool dicts to ToolSpecification objects
+            for tool_dict in tool_dicts:
+                try:
+                    tool_dict['geometry'] = ToolGeometry(tool_dict['geometry'])
+                    tool_dict['material'] = ToolMaterial(tool_dict['material'])
+                    tool_dict['coating'] = ToolCoating(tool_dict['coating'])
+                    tool = ToolSpecification(**tool_dict)
+                    self.tool_combo.addItem(self._format_tool_info(tool), tool)
+                except (ValueError, KeyError) as e:
+                    logger.error(f"Error converting tool dict to ToolSpecification: {e}")
+                    continue
+
+    def _format_tool_info(self, tool: ToolSpecification) -> str:
+        """Format tool information for display in the combo box."""
+        if (
+            tool.diameter == 0.0 or
+            tool.geometry == ToolGeometry.EMPTY_SLOT
+        ):  # Empty slot
+            return f"Tool {tool.tool_id:02d} - Empty Slot"
+        return (f"Tool {tool.tool_id:02d} - {tool.diameter:.3f}\" {tool.geometry.value} "
+                f"({tool.flute_count} flutes, {tool.material.value})")
+
+    def _on_tool_changed(self, index: int):
+        """Handle tool selection change."""
+        if index >= 0:
+            tool = self.tool_combo.itemData(index)
+            if tool:
+                self.info.tool_spec = tool
                 self._update_calculations()
 
-    def _update_tool_button(self):
-        """Update the tool button text with current tool info."""
-        if self.info.tool_spec:
-            tool = self.info.tool_spec
-            self.tool_button.setText(
-                f"Tool {tool.tool_id}: {tool.diameter:.3f}\" {tool.geometry.value} "
-                f"({tool.flute_count} flutes, {tool.material.value})"
-            )
-        else:
-            self.tool_button.setText("Select Tool...")
+    def _open_tool_table(self):
+        """Open the tool table dialog."""
+        dialog = ToolTableDialog.load_from_preferences(parent=self.parent())
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            # Reload tools after tool table is closed
+            self._load_tools()
+            # Try to select the same tool if it still exists
+            if self.info.tool_spec:
+                for i in range(self.tool_combo.count()):
+                    tool = self.tool_combo.itemData(i)
+                    if tool and tool.tool_id == self.info.tool_spec.tool_id:
+                        self.tool_combo.setCurrentIndex(i)
+                        break
 
     def _update_speed_visibility(self):
         """Update visibility of speed controls based on discrete setting."""
@@ -342,6 +391,11 @@ class FeedWizardDialog(QDialog):
     def _update_calculations(self):
         """Update speed and feed calculations."""
         if not self.info.tool_spec:
+            # Clear results if no tool selected
+            self.rpm_label.setText("RPM Speed: --")
+            self.plunge_label.setText("Plunge Rate: --")
+            self.feed_label.setText("Feed Rate: --")
+            self.depth_label.setText("Cut Depth: --")
             return
 
         # Create mill definition
@@ -353,14 +407,51 @@ class FeedWizardDialog(QDialog):
             horsepower=float(self.info.mill_horsepower)
         )
 
-        # Get recommended values
-        rpm = mill.get_rpm()
-        feed = mill.get_feed()
-        plunge = mill.get_feed(plunge=True)
-        depth = mill.get_cut_depth(self.info.tool_spec.diameter)
+        # Get material type from combo box
+        material_map = {
+            "Aluminum": MaterialType.ALUMINUM,
+            "Steel": MaterialType.STEEL,
+            "Stainless Steel": MaterialType.STAINLESS_STEEL,
+            "Brass": MaterialType.BRASS,
+            "Copper": MaterialType.COPPER,
+            "Plastic": MaterialType.PLASTIC,
+            "Wood": MaterialType.WOOD,
+            "Titanium": MaterialType.TITANIUM,
+            "Carbon Fiber": MaterialType.CARBON_FIBER
+        }
+        material = material_map.get(self.material_combo.currentText(), MaterialType.ALUMINUM)
+
+        # Create cutting condition with selected tool and material
+        condition = CuttingCondition(
+            tool=self.info.tool_spec,
+            material=material,
+            operation=OperationType.ROUGHING,
+            depth_of_cut=self.info.tool_spec.diameter * 0.5,  # Initial depth
+            width_of_cut=self.info.tool_spec.diameter * 0.8,  # Initial width
+            spindle_speed=mill.get_rpm(),
+            feed_rate=10.0  # Initial feed rate
+        )
+
+        # Calculate optimal values
+        calculator = CuttingParameterCalculator()
+        forces = calculator.calculate_cutting_forces(condition)
+        power = calculator.calculate_power_consumption(condition)
+
+        # Adjust feed rate based on power and forces
+        feed_rate = condition.feed_rate
+        if power['total'] > mill.horsepower * 746:  # Convert HP to watts
+            feed_rate *= 0.8  # Reduce feed rate if power exceeds machine capacity
+
+        # Calculate plunge rate (typically half of feed rate)
+        plunge_rate = feed_rate * 0.5
+
+        # Calculate depth of cut (1/2 to 1/4 of tool diameter)
+        depth = min(self.info.tool_spec.diameter * 0.5, self.info.tool_spec.diameter * 0.25)
+        if power['total'] > mill.horsepower * 746:
+            depth *= 0.8  # Reduce depth if power exceeds machine capacity
 
         # Update labels
-        self.rpm_label.setText(f"RPM Speed: {rpm}")
-        self.plunge_label.setText(f"Plunge Rate: {plunge:.1f} IPM")
-        self.feed_label.setText(f"Feed Rate: {feed:.1f} IPM")
+        self.rpm_label.setText(f"RPM Speed: {mill.get_rpm()}")
+        self.plunge_label.setText(f"Plunge Rate: {plunge_rate:.1f} IPM")
+        self.feed_label.setText(f"Feed Rate: {feed_rate:.1f} IPM")
         self.depth_label.setText(f"Cut Depth: {depth:.3f}\"") 

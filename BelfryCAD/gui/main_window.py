@@ -2,6 +2,7 @@
 """Main window for the PyTkCAD application."""
 import math
 import os
+import logging
 
 from PySide6.QtCore import (
     Qt, QSize, QTimer
@@ -10,7 +11,7 @@ from PySide6.QtGui import (
     QShortcut, QKeySequence, QPainter, QPen, QBrush, QColor, QIcon
 )
 from PySide6.QtWidgets import (
-    QMainWindow, QFileDialog, QMessageBox
+    QMainWindow, QFileDialog, QMessageBox, QDialog
 )
 
 try:
@@ -33,6 +34,8 @@ from .print_manager import CadPrintManager
 from .feed_wizard import FeedWizardDialog
 from .tool_table_dialog import ToolTableDialog
 from .preferences_dialog import PreferencesDialog
+
+logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
@@ -1239,7 +1242,7 @@ class MainWindow(QMainWindow):
 
     def speeds_feeds_wizard(self):
         """Handle Speeds & Feeds Wizard menu action."""
-        dialog = FeedWizardDialog(self)
+        dialog = FeedWizardDialog(parent=self)
         dialog.exec()
 
     def generate_gcode(self):
@@ -1403,18 +1406,17 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handle window close event."""
-        if self.document.is_modified():
-            if not self._confirm_discard_changes():
-                event.ignore()
-                return
-
         # Save window geometry to preferences
         geometry = self.geometry()
-        geometry_str = (f"{geometry.width()}x{geometry.height()}+"
-                        f"{geometry.x()}+{geometry.y()}")
-        self.preferences.set("window_geometry", geometry_str)
-
-        event.accept()
+        self.preferences.set("window_geometry",
+                           f"{geometry.width()}x{geometry.height()}+"
+                           f"{geometry.x()}+{geometry.y()}")
+        
+        # Save preferences
+        self.preferences.save()
+        
+        # Call parent's closeEvent
+        super().closeEvent(event)
 
     # Palette visibility handlers
     def toggle_info_panel(self, show):
@@ -1621,5 +1623,10 @@ class MainWindow(QMainWindow):
 
     def tool_table(self):
         """Handle Tool Table menu action."""
-        dialog = ToolTableDialog(tool_specs=[], parent=self)
-        dialog.exec()
+        logger.info("Opening tool table dialog")
+        dialog = ToolTableDialog.load_from_preferences(parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            logger.info("Tool table dialog accepted")
+            # Preferences are saved in the dialog's accept() method
+        else:
+            logger.info("Tool table dialog cancelled")

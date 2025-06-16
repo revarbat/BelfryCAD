@@ -1,5 +1,5 @@
 """
-Application configuration and constants for PyTkCAD.
+Application configuration and constants for BelfryCAD.
 """
 
 
@@ -12,7 +12,7 @@ class AppConfig:
 
     # Application information
     APP_NAME = "BelfryCAD"
-    VERSION = "0.228"  # Matching the original TCL version
+    VERSION = "0.1.0"
 
     # Precision settings
     PRECISION = 16
@@ -44,19 +44,22 @@ class AppConfig:
         if self.platform == "darwin":
             self.windowing_system = "aqua"
             # macOS preferences location
-            self.prefs_dir = Path.home() / "Library" / "Preferences"
+            self.prefs_dir = Path.home() / "Library" / "Application Support" / self.APP_NAME
         elif self.platform == "win32":
             self.windowing_system = "win32"
             # Windows preferences location
-            self.prefs_dir = Path.home()
+            self.prefs_dir = Path.home() / "AppData" / "Local" / self.APP_NAME
         else:
             self.windowing_system = "x11"
             # Unix/Linux preferences location
-            self.prefs_dir = Path.home()
+            self.prefs_dir = Path.home() / ".config" / self.APP_NAME
+
+        # Create preferences directory if it doesn't exist
+        self.prefs_dir.mkdir(parents=True, exist_ok=True)
 
     def setup_preferences(self):
         """Set up preferences configuration."""
-        self.prefs_file = self.prefs_dir / f".{self.APP_NAME.lower()}_prefs"
+        self.prefs_file = self.prefs_dir / "preferences.json"
 
         # Default preferences
         self.default_prefs = {
@@ -73,6 +76,7 @@ class AppConfig:
             "canvas_bg_color": "#ffffff",
             "grid_color": "#cccccc",
             "selection_color": "#0080ff",
+            "tool_table": [],  # Add default empty tool table
         }
 
 

@@ -4,8 +4,9 @@ Tool Table Dialog
 This module provides a dialog for managing a list of tool specifications.
 """
 
-from typing import List, Optional
-from dataclasses import dataclass
+from typing import List, Optional, cast, TYPE_CHECKING
+from dataclasses import dataclass, asdict
+import logging
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -13,8 +14,15 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from ..mlcnc.cutting_params import ToolSpecification, ToolGeometry
+from BelfryCAD.mlcnc.cutting_params import (
+    ToolSpecification, ToolGeometry, ToolMaterial, ToolCoating
+)
 from .tool_spec_dialog import ToolSpecDialog
+
+if TYPE_CHECKING:
+    from .main_window import MainWindow
+
+logger = logging.getLogger(__name__)
 
 class ToolTableDialog(QDialog):
     """Dialog for managing a list of tool specifications."""
@@ -22,6 +30,7 @@ class ToolTableDialog(QDialog):
     def __init__(self, tool_specs: Optional[List[ToolSpecification]] = None, parent=None):
         super().__init__(parent)
         self.tool_specs = tool_specs or []
+        logger.info(f"Initializing ToolTableDialog with {len(self.tool_specs)} tools")
         self._setup_ui()
         self._load_tools()
 
@@ -255,4 +264,53 @@ class ToolTableDialog(QDialog):
 
     def get_tool_specs(self) -> List[ToolSpecification]:
         """Get the list of tool specifications."""
-        return self.tool_specs 
+        return self.tool_specs
+
+    def accept(self):
+        """Save tools to preferences before accepting."""
+        # Convert tool specs to dictionaries for storage
+        tool_dicts = []
+        for tool in self.tool_specs:
+            tool_dict = asdict(tool)
+            # Convert enum values to strings
+            tool_dict['geometry'] = tool_dict['geometry'].value
+            tool_dict['material'] = tool_dict['material'].value
+            tool_dict['coating'] = tool_dict['coating'].value
+            tool_dicts.append(tool_dict)
+            
+        logger.info(f"Saving {len(tool_dicts)} tools to preferences: {tool_dicts}")
+        # Get preferences from main window
+        main_window = cast('MainWindow', self.parent())
+        if main_window:
+            main_window.preferences.set('tool_table', tool_dicts)
+            main_window.preferences.save()
+            logger.info("Tools saved to preferences")
+        else:
+            logger.warning("No main window found, tools not saved")
+        super().accept()
+
+    @classmethod
+    def load_from_preferences(cls, parent=None) -> 'ToolTableDialog':
+        """Create a tool table dialog with tools loaded from preferences."""
+        # Load tool specs from preferences
+        tool_dicts = []
+        if parent:
+            main_window = cast('MainWindow', parent)
+            tool_dicts = main_window.preferences.get('tool_table', [])
+            logger.info(f"Loaded {len(tool_dicts)} tools from preferences: {tool_dicts}")
+        else:
+            logger.warning("No parent window provided, loading empty tool table")
+            
+        # Convert string values back to enums
+        tool_specs = []
+        for tool_dict in tool_dicts:
+            try:
+                tool_dict['geometry'] = ToolGeometry(tool_dict['geometry'])
+                tool_dict['material'] = ToolMaterial(tool_dict['material'])
+                tool_dict['coating'] = ToolCoating(tool_dict['coating'])
+                tool_specs.append(ToolSpecification(**tool_dict))
+            except (ValueError, KeyError) as e:
+                logger.error(f"Error converting tool dict to ToolSpecification: {e}")
+                continue
+                
+        return cls(tool_specs=tool_specs, parent=parent) 

@@ -4,6 +4,7 @@ Preferences management for PyTkCAD.
 
 import json
 from typing import Any, Dict
+import logging
 
 try:
     from ..config import AppConfig
@@ -29,6 +30,7 @@ class PreferencesManager:
         self.config = config
         self.logger = get_logger(self.__class__.__name__)
         self.preferences: Dict[str, Any] = config.default_prefs.copy()
+        self.logger.info(f"Initialized preferences with defaults: {self.preferences}")
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a preference value.
@@ -40,7 +42,9 @@ class PreferencesManager:
         Returns:
             Preference value
         """
-        return self.preferences.get(key, default)
+        value = self.preferences.get(key, default)
+        self.logger.debug(f"Getting preference '{key}': {value}")
+        return value
 
     def set(self, key: str, value: Any) -> None:
         """Set a preference value.
@@ -49,6 +53,7 @@ class PreferencesManager:
             key: Preference key
             value: Preference value
         """
+        self.logger.debug(f"Setting preference '{key}': {value}")
         self.preferences[key] = value
 
     def load(self) -> None:
@@ -62,12 +67,12 @@ class PreferencesManager:
                 self.preferences.update(loaded_prefs)
 
                 self.logger.info(
-                    f"Loaded preferences from {self.config.prefs_file}")
+                    f"Loaded preferences from {self.config.prefs_file}: {loaded_prefs}")
             else:
-                self.logger.info("No preferences file found, using defaults")
+                self.logger.info(f"No preferences file found at {self.config.prefs_file}, using defaults")
 
         except Exception as e:
-            self.logger.error(f"Error loading preferences: {e}")
+            self.logger.error(f"Error loading preferences from {self.config.prefs_file}: {e}")
             # Continue with default preferences
 
     def save(self) -> None:
@@ -79,10 +84,10 @@ class PreferencesManager:
             with open(self.config.prefs_file, 'w') as f:
                 json.dump(self.preferences, f, indent=2)
 
-            self.logger.info(f"Saved preferences to {self.config.prefs_file}")
+            self.logger.info(f"Saved preferences to {self.config.prefs_file}: {self.preferences}")
 
         except Exception as e:
-            self.logger.error(f"Error saving preferences: {e}")
+            self.logger.error(f"Error saving preferences to {self.config.prefs_file}: {e}")
 
     def reset_to_defaults(self) -> None:
         """Reset all preferences to default values."""
