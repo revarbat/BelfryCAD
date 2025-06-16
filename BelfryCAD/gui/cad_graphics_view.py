@@ -38,13 +38,12 @@ class CADGraphicsView(QGraphicsView):
         self.setAttribute(Qt.WidgetAttribute.WA_AcceptTouchEvents, True)
 
         # Initialize drawing context fields
-        self.dpi: float = 96.0
         self.scale_factor: float = 1.0
 
         # Set default transform to invert Y-axis for CAD coordinate system
         # This makes Y increase upward (CAD convention) instead of downward
         # (Qt convention)
-        factor = self.dpi * self.scale_factor
+        factor = self.logicalDpiX() * self.scale_factor
         self.scale(factor, -factor)
 
         # Set transformation anchors to allow zooming and panning
@@ -69,8 +68,17 @@ class CADGraphicsView(QGraphicsView):
         # Calculate the appropriate view transform scale
         # The QGraphicsView transform should reflect the CadScene scale
         # to provide visual feedback for zoom operations
+        from PySide6.QtCore import QPoint
+        if scale_factor != 1.0:
+            print(f"new scale factor: {scale_factor}")
+            print(f"  before @0,0: {self.mapToScene(QPoint(0, 0))}")
         self.resetTransform()
-        self.scale(scale_factor, scale_factor)
+        if scale_factor != 1.0:
+            print(f"  reset @0,0: {self.mapToScene(QPoint(0, 0))}")
+        self.scale(scale_factor, -scale_factor)
+        if scale_factor != 1.0:
+            print(f"  after @0,0: {self.mapToScene(QPoint(0, 0))}")
+            import sys; sys.exit()
 
     def set_tool_manager(self, tool_manager):
         """Set the tool manager for handling events"""
@@ -277,14 +285,6 @@ class CADGraphicsView(QGraphicsView):
                         self.drawing_manager.cad_scene.redraw_grid()
 
         return super().event(event)
-
-    def get_dpi(self) -> float:
-        """Get the current DPI setting."""
-        return self.dpi
-
-    def set_dpi(self, dpi: float):
-        """Set the DPI setting."""
-        self.dpi = dpi
 
     def get_scale_factor(self) -> float:
         """Get the current scale factor."""

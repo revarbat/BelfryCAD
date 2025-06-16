@@ -351,10 +351,11 @@ class RulerWidget(QWidget):
         if self.canvas and self.canvas.scene():
             # Get the viewport rectangle in view coordinates
             view_rect = self.canvas.viewport().rect()
-            
+            scene_rect = self.canvas.sceneRect()
             # Map viewport corners to scene coordinates
             top_left = self.canvas.mapToScene(view_rect.topLeft())
             bottom_right = self.canvas.mapToScene(view_rect.bottomRight())
+            print(f"view: {view_rect.topLeft()}, scene: {top_left} scene_rect: {scene_rect}")
             
             # Extract scene bounds
             srx0 = top_left.x()
@@ -468,7 +469,6 @@ class RulerWidget(QWidget):
         # Convert scene bounds to CAD coordinates for tick calculation
         xstart = srx0  # Scene coordinates are already in CAD units
         xend = srx1    # Scene coordinates are already in CAD units
-
         # Draw border lines
         bw = math.floor(rect.width() + 0.5)
         bh = math.floor(rect.height() + 0.5)

@@ -34,6 +34,8 @@ from .print_manager import CadPrintManager
 from .feed_wizard import FeedWizardDialog
 from .tool_table_dialog import ToolTableDialog
 from .preferences_dialog import PreferencesDialog
+from .gear_wizard_dialog import GearWizardDialog
+from .gcode_backtracer_dialog import GCodeBacktracerDialog
 
 logger = logging.getLogger(__name__)
 
@@ -242,17 +244,14 @@ class MainWindow(QMainWindow):
         self.main_menu.speeds_feeds_wizard_triggered.connect(self.speeds_feeds_wizard)
         self.main_menu.generate_gcode_triggered.connect(self.generate_gcode)
         self.main_menu.backtrace_gcode_triggered.connect(self.backtrace_gcode)
-        self.main_menu.make_worm_triggered.connect(self.make_worm)
-        self.main_menu.make_worm_gear_triggered.connect(self.make_worm_gear)
-        self.main_menu.make_gear_triggered.connect(self.make_gear)
+        self.main_menu.gear_wizard_triggered.connect(self.gear_wizard)
 
         # Window menu connections
         self.main_menu.minimize_triggered.connect(self.showMinimized)
         self.main_menu.cycle_windows_triggered.connect(self.cycle_windows)
 
         # Preferences menu connection
-        if hasattr(self.main_menu, 'preferences_triggered'):
-            self.main_menu.preferences_triggered.connect(self.show_preferences)
+        self.main_menu.preferences_triggered.connect(self.show_preferences)
 
     def _create_toolbar(self):
         """Create a toolbar with drawing tools"""
@@ -267,11 +266,11 @@ class MainWindow(QMainWindow):
         # Apply custom stylesheet with 2px spacing
         self.toolbar.setStyleSheet("""
             QToolBar {
-                margin: 2px 0 2px 0;
+                margin: 2px;
                 border: none;
             }
             QToolButton {
-                margin: 0px;
+                margin: 2px;
                 padding: 0px;
                 border: none;
             }
@@ -313,14 +312,8 @@ class MainWindow(QMainWindow):
 
     def _on_mouse_position_changed(self, scene_x: float, scene_y: float):
         """Handle mouse position changes from CadScene."""
-        # Update info panes with canvas coordinate position (backup method)
-        # Primary connection should be direct from CadScene to info pane
-        if hasattr(self, '_info_panes'):
-            for info_pane in self._info_panes:
-                if hasattr(info_pane, 'update_mouse_position'):
-                    # Only call if not already directly connected
-                    if not hasattr(info_pane, '_directly_connected'):
-                        info_pane.update_mouse_position(scene_x, scene_y)
+        # Update any UI elements that need cursor position updates
+        pass
 
     def _on_scale_changed(self, scale_factor: float):
         """Handle scale changes from CadScene."""
@@ -1255,35 +1248,24 @@ class MainWindow(QMainWindow):
 
     def backtrace_gcode(self):
         """Handle Backtrace G-Code menu action."""
-        # TODO: Implement G-code backtracing
-        QMessageBox.information(
-            self, "Backtrace G-Code",
-            "G-Code backtracing functionality not yet implemented"
-        )
+        dialog = GCodeBacktracerDialog(parent=self)
+        dialog.exec()
 
-    def make_worm(self):
-        """Handle Make a Worm menu action."""
-        # TODO: Implement worm creation wizard
-        QMessageBox.information(
-            self, "Make a Worm",
-            "Worm creation functionality not yet implemented"
-        )
-
-    def make_worm_gear(self):
-        """Handle Make a WormGear menu action."""
-        # TODO: Implement worm gear creation wizard
-        QMessageBox.information(
-            self, "Make a WormGear",
-            "WormGear creation functionality not yet implemented"
-        )
-
-    def make_gear(self):
-        """Handle Make a Gear menu action."""
-        # TODO: Implement gear creation wizard
-        QMessageBox.information(
-            self, "Make a Gear",
-            "Gear creation functionality not yet implemented"
-        )
+    def gear_wizard(self):
+        """Handle Gear Wizard menu action."""
+        logger.info("Opening Gear Wizard dialog")
+        try:
+            dialog = GearWizardDialog(parent=self)
+            logger.info("Gear Wizard dialog created")
+            result = dialog.exec()
+            logger.info(f"Gear Wizard dialog closed with result: {result}")
+        except Exception as e:
+            logger.error(f"Error opening Gear Wizard dialog: {e}", exc_info=True)
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Failed to open Gear Wizard: {str(e)}"
+            )
 
     # Window menu handlers
     def cycle_windows(self):

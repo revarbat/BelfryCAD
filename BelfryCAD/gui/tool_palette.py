@@ -42,18 +42,7 @@ class ToolPalette(QFrame):
 
         # Map the tools from this palette to their secondary keys
         for tool_def in self.tools:
-            # Special case for ellipses
-            if (self.category == ToolCategory.ELLIPSES and
-                    tool_def.token == "ELLIPSEOPTAN"):
-                key = "O"
-                if key in mappings:
-                    # Record the conflict for error reporting
-                    if key not in key_conflicts:
-                        key_conflicts[key] = [mappings[key]]
-                    key_conflicts[key].append(tool_def.token)
-                else:
-                    mappings[key] = tool_def.token
-            elif tool_def.secondary_key:
+            if tool_def.secondary_key:
                 key = tool_def.secondary_key
                 if key in mappings:
                     # Record the conflict for error reporting
@@ -100,7 +89,7 @@ class ToolPalette(QFrame):
         for tool_def in self.tools:
             button = QToolButton()
             button.setFixedSize(48, 48)
-            button.setIconSize(QSize(48, 48))  # Ensure icons are 48x48
+            button.setIconSize(QSize(40, 40))  # Ensure icons are 48x48
 
             # Create tooltip with secondary shortcut if available
             tooltip = tool_def.name

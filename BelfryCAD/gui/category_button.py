@@ -50,8 +50,8 @@ class CategoryToolButton(QToolButton):
 
     def _setup_ui(self):
         """Set up the button UI"""
-        self.setFixedSize(48, 48)
-        self.setIconSize(QSize(48, 48))  # Ensure icons are 48x48
+        self.setFixedSize(32, 32)
+        self.setIconSize(QSize(40, 40))  # Ensure icons are 48x48
 
         # Update tooltip based on whether category has one or multiple tools
         if len(self.tools) == 1:

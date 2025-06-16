@@ -5,6 +5,8 @@ This module implements the main menu bar functionality, translated from the
 original TCL mainmenu.tcl implementation.
 """
 
+import platform
+
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QKeySequence, QAction
@@ -90,6 +92,8 @@ class RecentFilesManager(QObject):
 class MainMenuBar(QObject):
     """Main menu bar implementation for PyTkCAD."""
 
+    preferences_triggered = Signal()
+
     # File menu signals
     new_triggered = Signal()
     open_triggered = Signal()
@@ -159,9 +163,7 @@ class MainMenuBar(QObject):
     speeds_feeds_wizard_triggered = Signal()
     generate_gcode_triggered = Signal()
     backtrace_gcode_triggered = Signal()
-    make_worm_triggered = Signal()
-    make_worm_gear_triggered = Signal()
-    make_gear_triggered = Signal()
+    gear_wizard_triggered = Signal()
 
     # Window menu signals
     minimize_triggered = Signal()
@@ -207,7 +209,6 @@ class MainMenuBar(QObject):
         new_action.setShortcut(QKeySequence.StandardKey.New)
         new_action.triggered.connect(self.new_triggered.emit)
         file_menu.addAction(new_action)
-
         # Open
         open_action = QAction("&Open...", self.parent_window)
         open_action.setShortcut(QKeySequence.StandardKey.Open)
@@ -265,6 +266,18 @@ class MainMenuBar(QObject):
         print_action.setShortcut(QKeySequence.StandardKey.Print)
         print_action.triggered.connect(self.print_triggered.emit)
         file_menu.addAction(print_action)
+
+
+        # Preferences
+        if platform.system() == "Windows":
+            file_menu.addSeparator()
+            prefs_name = "Settings..."
+        else:
+            prefs_name = "Preferences..."
+        prefs_action = QAction(prefs_name, self.parent_window)
+        prefs_action.setShortcut(QKeySequence.StandardKey.Preferences)
+        prefs_action.triggered.connect(self.preferences_triggered.emit)
+        file_menu.addAction(prefs_action)
 
     def _create_edit_menu(self):
         """Create the Edit menu."""
@@ -550,34 +563,26 @@ class MainMenuBar(QObject):
         cam_menu = self.menubar.addMenu("&CAM")
 
         # Configure Mill
-        configure_mill_action = QAction(
-            "Configure &Mill...", self.parent_window)
-        configure_mill_action.triggered.connect(
-            self.configure_mill_triggered.emit)
-        cam_menu.addAction(configure_mill_action)
+        #configure_action = QAction("Configure &Mill...", self.parent_window)
+        #configure_action.triggered.connect(self.configure_mill_triggered.emit)
+        #cam_menu.addAction(configure_action)
 
         # Tool Table
-        tool_table_action = QAction(
-            "&Tool Table...", self.parent_window)
-        tool_table_action.triggered.connect(
-            self.tool_table_triggered.emit)
+        tool_table_action = QAction("&Tool Table...", self.parent_window)
+        tool_table_action.triggered.connect(self.tool_table_triggered.emit)
         cam_menu.addAction(tool_table_action)
 
-        cam_menu.addSeparator()
-
         # Speeds & Feeds Wizard
-        speeds_feeds_action = QAction(
-            "&Speeds && Feeds Wizard", self.parent_window)
-        speeds_feeds_action.triggered.connect(
-            self.speeds_feeds_wizard_triggered.emit)
+        speeds_feeds_action = QAction("Speeds & Feeds &Wizard...", self.parent_window)
+        speeds_feeds_action.triggered.connect(self.speeds_feeds_wizard_triggered.emit)
         cam_menu.addAction(speeds_feeds_action)
 
         cam_menu.addSeparator()
 
         # Generate G-Code
-        gcode_action = QAction("&Generate G-Code...", self.parent_window)
-        gcode_action.triggered.connect(self.generate_gcode_triggered.emit)
-        cam_menu.addAction(gcode_action)
+        generate_action = QAction("&Generate G-Code...", self.parent_window)
+        generate_action.triggered.connect(self.generate_gcode_triggered.emit)
+        cam_menu.addAction(generate_action)
 
         # Backtrace G-Code
         backtrace_action = QAction("&Backtrace G-Code...", self.parent_window)
@@ -586,18 +591,13 @@ class MainMenuBar(QObject):
 
         cam_menu.addSeparator()
 
-        # Wizards
-        worm_action = QAction("Make a &Worm...", self.parent_window)
-        worm_action.triggered.connect(self.make_worm_triggered.emit)
-        cam_menu.addAction(worm_action)
+        cam_menu.addSeparator()
 
-        worm_gear_action = QAction("Make a Worm&Gear...", self.parent_window)
-        worm_gear_action.triggered.connect(self.make_worm_gear_triggered.emit)
-        cam_menu.addAction(worm_gear_action)
+        # Gear Wizard
+        gear_wizard_action = QAction("&Gear Wizard...", self.parent_window)
+        gear_wizard_action.triggered.connect(self.gear_wizard_triggered.emit)
+        cam_menu.addAction(gear_wizard_action)
 
-        gear_action = QAction("Make a &Gear...", self.parent_window)
-        gear_action.triggered.connect(self.make_gear_triggered.emit)
-        cam_menu.addAction(gear_action)
 
     def _create_window_menu(self):
         """Create the Window menu."""

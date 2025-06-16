@@ -612,11 +612,6 @@ class CadCanvas(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Create mouse position label
-        self.mouse_pos_label = QLabel()
-        self.mouse_pos_label.setStyleSheet("background-color: white; padding: 2px;")
-        layout.addWidget(self.mouse_pos_label, 2, 1)  # Add below canvas
-
         # Create graphics scene with large virtual area
         self.scene = CadGraphicsScene()
         self.scene.setSceneRect(-5000, -5000, 10000, 10000)
@@ -656,13 +651,20 @@ class CadCanvas(QWidget):
             "background-color: white; border: 1px solid black;"
         )
 
+        # Create mouse position label
+        self.mouse_pos_label = QLabel()
+        self.mouse_pos_label.setStyleSheet(
+            "background-color: white; padding: 2px;")
+
         # Layout rulers and canvas:
-        # [corner] [horizontal_ruler]
-        # [vertical_ruler] [canvas]
+        # [corner]   [h-ruler]
+        # [v-ruler]  [canvas]
+        #            [mouse pos]
         layout.addWidget(corner_widget, 0, 0)
         layout.addWidget(horizontal_ruler, 0, 1)
         layout.addWidget(vertical_ruler, 1, 0)
         layout.addWidget(self.canvas, 1, 1)
+        layout.addWidget(self.mouse_pos_label, 2, 1)
 
     def _connect_events(self):
         """Connect event handlers."""
@@ -677,7 +679,7 @@ class CadCanvas(QWidget):
 
         # Update mouse position display
         self.mouse_pos_label.setText(
-            f"{scene_pos.x():.3f}, {scene_pos.y():.3f}"
+            f"X: {scene_pos.x():.3f}, Y: {scene_pos.y():.3f}      {self.scale_factor:.3f}"
         )
 
         # Emit signal with mouse position
