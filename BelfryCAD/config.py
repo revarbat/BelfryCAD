@@ -11,7 +11,7 @@ class AppConfig:
     """Application configuration class."""
 
     # Application information
-    APP_NAME = "PyTkCAD"
+    APP_NAME = "BelfryCAD"
     VERSION = "0.228"  # Matching the original TCL version
 
     # Precision settings
