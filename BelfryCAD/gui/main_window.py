@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
             'E': ToolCategory.ELLIPSES,      # E for Ellipses
             'P': ToolCategory.POLYGONS,      # P for Polygons
             'M': ToolCategory.MISC,          # M for Miscellaneous
-            'C': ToolCategory.CAM,           # C for CAM
+            'C': ToolCategory.CAM,           # C for Cam
             'I': ToolCategory.DIMENSIONS,    # I for dImensions
         }
 
@@ -1248,11 +1248,9 @@ class MainWindow(QMainWindow):
 
     def speeds_feeds_wizard(self):
         """Handle Speeds & Feeds Wizard menu action."""
-        # TODO: Implement speeds & feeds wizard
-        QMessageBox.information(
-            self, "Speeds & Feeds Wizard",
-            "Speeds & Feeds Wizard functionality not yet implemented"
-        )
+        from BelfryCAD.tools.feed_wizard import FeedWizardDialog
+        dialog = FeedWizardDialog(self)
+        dialog.exec()
 
     def generate_gcode(self):
         """Handle Generate G-Code menu action."""

@@ -643,7 +643,6 @@ class CadCanvas(QWidget):
 
         # Create ruler manager
         self.ruler_manager = RulerManager(self.canvas, self)
-        self.ruler_manager.set_dpi(self.dpi)
         self.ruler_manager.set_scale_factor(self.scale_factor)
 
         # Get ruler widgets
@@ -750,11 +749,6 @@ class CadCanvas(QWidget):
         return self.ruler_manager
 
     @property
-    def dpi(self) -> float:
-        """Get DPI from the main window."""
-        return self.main_window.get_dpi()
-
-    @property
     def scale_factor(self) -> float:
         """Get scale factor from the canvas."""
         return self.canvas.get_scale_factor()
@@ -762,12 +756,6 @@ class CadCanvas(QWidget):
     def set_tool_manager(self, tool_manager):
         """Set the tool manager for the canvas."""
         self.canvas.set_tool_manager(tool_manager)
-
-    def set_dpi(self, dpi: float):
-        """Set the DPI setting."""
-        self.canvas.set_dpi(dpi)
-        self.ruler_manager.set_dpi(dpi)
-        self.ruler_manager.update_rulers()
 
     def set_scale_factor(
             self,
@@ -834,7 +822,7 @@ class CadCanvas(QWidget):
         (minorspacing, majorspacing, superspacing, labelspacing,
          divisor, units, formatfunc, conversion) = grid_info
 
-        dpi = self.dpi
+        dpi = self.physicalDpiX()
         scalefactor = self.scale_factor
 
         scalemult = dpi * scalefactor / conversion
@@ -852,7 +840,7 @@ class CadCanvas(QWidget):
 
         # Draw origin if enabled
         if self.show_origin:
-            self._draw_grid_origin(dpi, scalefactor)
+            self._draw_grid_origin(scalefactor)
 
         # Draw grid if enabled
         if self.show_grid:
@@ -867,7 +855,7 @@ class CadCanvas(QWidget):
         horizontal_ruler = self.ruler_manager.get_horizontal_ruler()
         return horizontal_ruler.get_grid_info()
 
-    def _draw_grid_origin(self, dpi, scale_factor):
+    def _draw_grid_origin(self, scale_factor):
         """Draw origin lines with consistent 1.0 pixel width"""
         # Get scene bounds
         scene_rect = self.scene.sceneRect()

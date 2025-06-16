@@ -23,7 +23,7 @@ class RulerWidget(QWidget):
 
     def __init__(self, canvas: QGraphicsView,
                  orientation: str, parent=None,
-                 dpi=96.0, scale_factor=1.0):
+                 scale_factor=1.0):
         """
         Initialize the ruler widget.
 
@@ -34,7 +34,6 @@ class RulerWidget(QWidget):
         """
         super().__init__(parent)
         self.canvas = canvas
-        self.dpi = dpi
         self.scale_factor = scale_factor
         self.orientation = orientation
         self.ruler_width = 32.0
@@ -181,17 +180,12 @@ class RulerWidget(QWidget):
 
         This method replicates the logic from cadobjects_grid_info in the TCL
         implementation, providing adaptive grid spacing based on current zoom
-        and DPI settings.
+        settings.
 
         Returns:
             Tuple of (minorspacing, majorspacing, superspacing, labelspacing,
                      divisor, units, formatfunc, conversion)
         """
-
-        # Get DPI and scale factor
-        dpi = self.get_dpi()
-        scalefactor = self.get_scale_factor()
-
         # Get unit system information
         # For now, using default unit system - this would come from preferences
         unittype = "Inches"
@@ -269,10 +263,12 @@ class RulerWidget(QWidget):
             elif unittype == "Meters":
                 unit = "m"
 
-        # Calculate scale multiplier - this is the key issue!
-        # Scene coordinates are already in CAD units, so we don't need DPI scaling
+        # Get DPI
+        dpi = self.physicalDpiX()
+
+        # Calculate scale multiplier
         # scalemult should represent pixels per CAD unit for tick spacing calculations
-        scalemult = self.dpi * self.scale_factor / conversion # Remove DPI from calculation
+        scalemult = dpi * self.scale_factor / conversion
         
         # Initialize spacing values
         minorspacing = 0
@@ -317,17 +313,6 @@ class RulerWidget(QWidget):
         return (minorspacing, majorspacing, superspacing, labelspacing,
                 divisor, unit, formatfunc, conversion)
 
-    def get_dpi(self) -> float:
-        """Get DPI setting from scene or use default."""
-        if self.canvas:
-            return self.dpi
-        return 96.0  # Standard screen DPI fallback
-
-    def set_dpi(self, dpi: float):
-        """Set DPI for the ruler widget."""
-        self.dpi = dpi
-        self.update()
-
     def get_scale_factor(self) -> float:
         """Get current scale factor from scene or use default."""
         if self.canvas:
@@ -358,7 +343,7 @@ class RulerWidget(QWidget):
         (minorspacing, majorspacing, superspacing, labelspacing,
          divisor, units, formatfunc, conversion) = self.get_grid_info()
 
-        dpi = self.get_dpi()
+        dpi = self.physicalDpiX()
         scalefactor = self.get_scale_factor()
         scalemult = dpi * scalefactor / conversion
 
@@ -371,7 +356,7 @@ class RulerWidget(QWidget):
             top_left = self.canvas.mapToScene(view_rect.topLeft())
             bottom_right = self.canvas.mapToScene(view_rect.bottomRight())
             
-            # Extract scene bounds (accounting for Y-axis flip in CAD coordinates)
+            # Extract scene bounds
             srx0 = top_left.x()
             sry0 = top_left.y()
             srx1 = bottom_right.x()
@@ -380,11 +365,6 @@ class RulerWidget(QWidget):
             painter.end()
             return  # No canvas available, skip drawing
 
-        # minorspacing *= scalemult
-        # majorspacing *= scalemult
-        # superspacing *= scalemult
-        # labelspacing *= scalemult
-        
         # Set up drawing tools
         painter.setFont(self.ruler_font)
         tick_pen = QPen(self.ruler_fg)
@@ -416,15 +396,14 @@ class RulerWidget(QWidget):
     ):
         """Draw vertical ruler ticks and labels."""
         # Convert scene bounds to CAD coordinates for tick calculation
-        # Fix the same DPI issue as horizontal ruler
         ystart = sry1  # Bottom of view in scene coordinates (CAD units)  
         yend = sry0    # Top of view in scene coordinates (CAD units)
         
         # Draw border lines
-        bw = math.floor(rect.width() - 1 + 0.5)
+        bw = math.floor(rect.width() + 0.5)
         bh = math.floor(rect.height() + 0.5)
         painter.setPen(tick_pen)
-        painter.drawLine(int(bw), 0, int(bw), int(bh))
+        #painter.drawLine(int(bw), 0, int(bw), int(bh))
         painter.drawLine(int(bw), int(bh), 0, int(bh))
         painter.drawLine(0, int(bh), 0, 0)
 
@@ -454,7 +433,7 @@ class RulerWidget(QWidget):
                         majortext = majortext.strip()
                         painter.setPen(text_pen)
                         painter.drawText(
-                            int(xpos - 30), int(widget_y - 5), 30, 10,
+                            int(xpos - 30), int(widget_y - 10), 30, 20,
                             (Qt.AlignmentFlag.AlignRight |
                              Qt.AlignmentFlag.AlignVCenter),
                             majortext)
@@ -487,17 +466,16 @@ class RulerWidget(QWidget):
     ):
         """Draw horizontal ruler ticks and labels."""
         # Convert scene bounds to CAD coordinates for tick calculation
-        # The issue is here - we need to account for the DPI scaling correctly
         xstart = srx0  # Scene coordinates are already in CAD units
         xend = srx1    # Scene coordinates are already in CAD units
 
         # Draw border lines
+        bw = math.floor(rect.width() + 0.5)
+        bh = math.floor(rect.height() + 0.5)
         painter.setPen(tick_pen)
-        painter.drawLine(0, int(rect.height() - 1), int(rect.width()),
-                         int(rect.height() - 1))
-        painter.drawLine(int(rect.width()), int(rect.height() - 1),
-                         int(rect.width()), 0)
-        painter.drawLine(int(rect.width()), 0, 0, 0)
+        #painter.drawLine(0, int(bh), int(bw), int(bh))
+        painter.drawLine(int(bw), int(bh), int(bw), 0)
+        painter.drawLine(int(bw), 0, 0, 0)
 
         # Ensure we have valid spacing
         if minorspacing <= 0:
@@ -517,15 +495,19 @@ class RulerWidget(QWidget):
                 if abs(xs) < 1e-10 or self.is_divisible(xs, labelspacing):
                     # Major tick with label
                     ticklen = 6
-                    ypos = rect.height() - ticklen
 
                     # Format and draw label
                     try:
                         majortext = formatfunc(xs / divisor, units)
                         majortext = majortext.strip()
+                        if self.is_divisible(xs, majorspacing):
+                            ticklen += 4
+                        ypos = rect.height() - ticklen
+
                         painter.setPen(text_pen)
-                        painter.drawText(
-                            int(widget_x - 15), int(ypos - 15), 30, 15,
+                        for line in majortext:
+                            painter.drawText(
+                                int(widget_x - 15), int(ypos - 20), 30, 20,
                             (Qt.AlignmentFlag.AlignCenter |
                              Qt.AlignmentFlag.AlignBottom),
                             majortext)
@@ -615,16 +597,6 @@ class RulerManager:
     def get_vertical_ruler(self) -> RulerWidget:
         """Get the vertical ruler widget."""
         return self.vertical_ruler
-
-    def set_dpi(self, dpi: float):
-        """
-        Set DPI for both rulers.
-
-        Args:
-            dpi: The new DPI value
-        """
-        self.horizontal_ruler.set_dpi(dpi)
-        self.vertical_ruler.set_dpi(dpi)
 
     def set_scale_factor(self, scale_factor: float):
         """
