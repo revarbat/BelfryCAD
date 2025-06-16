@@ -569,6 +569,11 @@ class RulerWidget(QWidget):
         self.canvas = canvas
         self.update()
 
+    def wheelEvent(self, event):
+        """Pass wheel events to the canvas."""
+        # Forward the wheel event to the canvas
+        self.canvas.wheelEvent(event)
+
 
 class RulerManager:
     """

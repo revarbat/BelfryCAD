@@ -49,7 +49,7 @@ class ToolTableDialog(QDialog):
         add_button.clicked.connect(self._add_tool)
         button_layout.addWidget(add_button)
         
-        delete_button = QPushButton("–")
+        delete_button = QPushButton("-")
         delete_button.clicked.connect(self._delete_tool)
         button_layout.addWidget(delete_button)
 
