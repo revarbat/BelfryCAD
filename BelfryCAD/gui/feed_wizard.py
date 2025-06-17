@@ -5,9 +5,10 @@ This module implements the feed wizard functionality for calculating
 speeds and feeds based on tool and material parameters.
 """
 
+import logging
+
 from typing import Optional, List, cast, TYPE_CHECKING
 from dataclasses import dataclass
-import logging
 
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                               QComboBox, QCheckBox, QFrame, QLineEdit,

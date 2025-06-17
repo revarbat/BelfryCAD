@@ -5,11 +5,13 @@ A toolbar button that represents a tool category and can change its icon
 to show the currently selected tool in that category.
 """
 
+from typing import List, Optional
+
 from PySide6.QtWidgets import QToolButton
 from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtGui import QMouseEvent
-from typing import List, Optional
-from BelfryCAD.tools.base import ToolDefinition, ToolCategory
+
+from ..tools.base import ToolDefinition, ToolCategory
 from .tool_palette import ToolPalette
 
 

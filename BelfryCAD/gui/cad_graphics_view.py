@@ -2,10 +2,11 @@
 CADGraphicsView - Custom graphics view for CAD operations
 """
 
+from typing import List
+
 from PySide6.QtWidgets import QGraphicsView
 from PySide6.QtGui import QPainter
 from PySide6.QtCore import Qt, QEvent, Signal
-from typing import List
 
 
 class CADGraphicsView(QGraphicsView):

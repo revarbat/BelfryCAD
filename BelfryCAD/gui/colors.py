@@ -6,8 +6,9 @@ operations including HSV conversions, color parsing, and color manipulation
 functions.
 """
 
-from PySide6.QtGui import QColor
 from typing import Tuple, Union
+
+from PySide6.QtGui import QColor
 
 
 class Colors:

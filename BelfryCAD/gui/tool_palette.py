@@ -4,13 +4,15 @@ Floating Tool Palette
 A popup widget that shows all tools in a specific category
 """
 
+from typing import List, Dict
+
 from PySide6.QtWidgets import (
     QHBoxLayout, QToolButton, QFrame
 )
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QKeyEvent
-from typing import List, Dict
-from BelfryCAD.tools.base import ToolDefinition, ToolCategory
+
+from ..tools.base import ToolDefinition, ToolCategory
 
 
 class ToolPalette(QFrame):

@@ -5,6 +5,8 @@ This module provides a PySide6/Qt GUI dialog for managing application
 preferences, compatible with the main Qt-based application framework.
 """
 
+from typing import Dict, Any, Optional
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
     QWidget, QLabel, QLineEdit, QPushButton, QCheckBox, QSpinBox,
@@ -14,7 +16,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 
-from typing import Dict, Any, Optional
 
 try:
     from ..core.preferences import PreferencesManager

@@ -14,13 +14,6 @@ from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QMessageBox, QDialog
 )
 
-try:
-    from PIL import Image
-    import io
-except ImportError:
-    Image = None
-    io = None
-
 from ..core.undo_redo import UndoRedoManager, CreateObjectCommand
 from ..core.cad_objects import Point, CADObject, ObjectType
 from ..tools.base import ToolCategory, ToolManager

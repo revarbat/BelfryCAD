@@ -15,6 +15,7 @@ Author: Converted from TCL to Python
 """
 
 from typing import Dict, List, Optional, Any, TYPE_CHECKING, Type, Sequence
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
     QLabel, QPushButton, QLineEdit, QDoubleSpinBox,

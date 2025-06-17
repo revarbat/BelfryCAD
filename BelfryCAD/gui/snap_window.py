@@ -6,8 +6,11 @@ in the CAD application. It's a direct translation of the original TCL
 snapswin.tcl functionality.
 """
 
+import os
 import sys
 import platform
+
+from typing import Optional, List, Tuple
 
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QPushButton, QCheckBox, QVBoxLayout,
@@ -16,9 +19,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QTimer, QSize
 from PySide6.QtGui import QKeySequence, QShortcut, QFont, QIcon
-
-from typing import Optional, List, Tuple
-import os
 
 
 class SnapWindowInfo:

@@ -5,7 +5,6 @@ This module provides a dialog for creating and editing ToolSpecification objects
 """
 
 from typing import Optional
-from dataclasses import dataclass
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QDoubleSpinBox,
@@ -16,6 +15,7 @@ from PySide6.QtCore import Qt
 from BelfryCAD.mlcnc.cutting_params import (
     ToolSpecification, ToolGeometry, ToolMaterial, ToolCoating
 )
+
 
 class ToolSpecDialog(QDialog):
     """Dialog for editing tool specifications."""

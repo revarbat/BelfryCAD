@@ -6,6 +6,7 @@ including print dialog, page setup, and PDF export capabilities.
 """
 
 from typing import Optional
+
 from PySide6.QtCore import QRectF, Qt, QPointF
 from PySide6.QtGui import QPainter, QTransform, QPen, QBrush, QColor
 from PySide6.QtWidgets import QFileDialog

@@ -11,6 +11,7 @@ while leveraging Qt's powerful graphics system.
 import math
 import os
 from enum import Enum
+
 from typing import Dict, List, Tuple, Any, Optional
 
 from PySide6.QtCore import Qt, QPointF, QRectF

@@ -7,6 +7,10 @@ confpane.tcl functionality with validation, field management, and dynamic
 UI generation.
 """
 
+import re
+
+from typing import Dict, Any, Optional, List, Callable
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox,
@@ -14,9 +18,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal, QTimer
 from PySide6.QtGui import QPalette, QValidator
-
-from typing import Dict, Any, Optional, List, Callable
-import re
 
 
 class ConfigPaneInfo:

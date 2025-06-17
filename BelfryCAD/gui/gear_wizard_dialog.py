@@ -14,11 +14,11 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from BelfryCAD.mlcnc.gear_generator import (
+from ..mlcnc.gear_generator import (
     GearParameters, WormParameters, GearGenerator,
     WormGearGenerator, WormGenerator, Handedness, TableOrientation
 )
-from BelfryCAD.mlcnc.cutting_params import (
+from ..mlcnc.cutting_params import (
     ToolSpecification, ToolGeometry, ToolMaterial, ToolCoating
 )
 from .tool_spec_dialog import ToolSpecDialog

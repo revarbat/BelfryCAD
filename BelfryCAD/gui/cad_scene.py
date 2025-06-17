@@ -7,6 +7,7 @@ component.
 """
 
 from typing import List, Union, Optional, Any, Dict
+
 from PySide6.QtWidgets import (
     QWidget, QGridLayout, QGraphicsScene, QGraphicsItem, QGraphicsRectItem,
     QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsPolygonItem, QGraphicsPixmapItem, QGraphicsPathItem, QLabel

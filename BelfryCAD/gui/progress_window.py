@@ -6,13 +6,13 @@ progress with a progress bar. It's a direct translation of the original TCL
 progwin.tcl functionality.
 """
 
+import time
+from typing import Optional
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QProgressBar, QApplication, QWidget
 )
 from PySide6.QtCore import Qt, Signal
-
-from typing import Optional
-import time
 
 
 class ProgressWindowInfo:

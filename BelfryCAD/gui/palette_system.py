@@ -6,14 +6,14 @@ window.  Instead of separate floating windows, palettes can be docked/undocked
 and repositioned within the main window area.
 """
 
+from typing import Dict, Optional, Any
+from enum import Enum
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTabWidget,
     QDockWidget, QApplication, QLabel, QMainWindow
 )
 from PySide6.QtCore import Qt, Signal, QPoint, QSize, QObject
-
-from typing import Dict, Optional, Any
-from enum import Enum
 
 # Import the translated palette components
 from .info_pane_window import InfoPaneWindow

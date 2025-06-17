@@ -6,13 +6,14 @@ dimensions, and action information. It's a direct translation of the original
 TCL infopanewin.tcl functionality.
 """
 
+from typing import Optional
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 
-from typing import Optional
 
 
 class InfoPaneWindow(QWidget):

@@ -4,9 +4,10 @@ Tool Table Dialog
 This module provides a dialog for managing a list of tool specifications.
 """
 
+import logging
+
 from typing import List, Optional, cast, TYPE_CHECKING
 from dataclasses import dataclass, asdict
-import logging
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -14,13 +15,14 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from BelfryCAD.mlcnc.cutting_params import (
+from ..mlcnc.cutting_params import (
     ToolSpecification, ToolGeometry, ToolMaterial, ToolCoating
 )
 from .tool_spec_dialog import ToolSpecDialog
 
 if TYPE_CHECKING:
     from .main_window import MainWindow
+
 
 logger = logging.getLogger(__name__)
 
