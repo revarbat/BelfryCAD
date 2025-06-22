@@ -1,7 +1,7 @@
 """
 Tools Package
 
-Provides drawing and editing tools for the pyTkCAD application.
+Provides drawing and editing tools for the pyBelfryCad application.
 """
 
 from .line import LineTool

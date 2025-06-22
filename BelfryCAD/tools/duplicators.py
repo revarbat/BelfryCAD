@@ -1,6 +1,6 @@
 """
-Duplicator tools for PyTkCAD - Grid, Linear, Radial, and Offset copy.
-Translated from the original TkCAD TCL codebase.
+Duplicator tools for BelfryCad - Grid, Linear, Radial, and Offset copy.
+Translated from the original BelfryCad TCL codebase.
 """
 
 import copy

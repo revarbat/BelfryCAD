@@ -1,5 +1,5 @@
 """
-Progress Window for PyTkCAD.
+Progress Window for BelfryCad.
 
 This module provides a PySide6/Qt GUI progress window for displaying operation
 progress with a progress bar. It's a direct translation of the original TCL

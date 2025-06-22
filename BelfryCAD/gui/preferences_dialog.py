@@ -1,5 +1,5 @@
 """
-Qt-based Preferences Dialog for PyTkCAD.
+Qt-based Preferences Dialog for BelfryCad.
 
 This module provides a PySide6/Qt GUI dialog for managing application
 preferences, compatible with the main Qt-based application framework.

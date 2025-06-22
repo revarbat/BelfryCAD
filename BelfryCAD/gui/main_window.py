@@ -1,5 +1,5 @@
-# filepath: /Users/gminette/dev/git-repos/pyTkCAD/src/gui/main_window.py
-"""Main window for the PyTkCAD application."""
+# filepath: /Users/gminette/dev/git-repos/pyBelfryCad/src/gui/main_window.py
+"""Main window for the BelfryCad application."""
 import math
 import os
 import logging
@@ -8,27 +8,33 @@ from PySide6.QtCore import (
     Qt, QSize, QTimer
 )
 from PySide6.QtGui import (
-    QShortcut, QKeySequence, QPainter, QPen, QBrush, QColor, QIcon
+    QShortcut, QKeySequence, QIcon
 )
 from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QMessageBox, QDialog
 )
 
-from ..core.undo_redo import UndoRedoManager, CreateObjectCommand
-from ..core.cad_objects import Point, CADObject, ObjectType
+from ..core.undo_redo import UndoRedoManager
+from ..core.cad_objects import CADObject
 from ..tools.base import ToolCategory, ToolManager
 from ..tools import available_tools
 
 from .mainmenu import MainMenuBar
+from .grid_info import GridInfo, GridUnits
+from .grid_graphics_items import GridBackground, RulersForeground
 from .palette_system import create_default_palettes
-from .category_button import CategoryToolButton
-from .cad_scene import CadCanvas
+from .panes.category_button import CategoryToolButton
+from .cad_scene import CadScene
+from .cad_view import CadView
+from .icon_manager import get_icon
+from .cad_item import CadItem
 from .print_manager import CadPrintManager
 from .feed_wizard import FeedWizardDialog
 from .tool_table_dialog import ToolTableDialog
 from .preferences_dialog import PreferencesDialog
 from .gear_wizard_dialog import GearWizardDialog
 from .gcode_backtracer_dialog import GCodeBacktracerDialog
+from .zoom_edit_widget import ZoomEditWidget
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +98,25 @@ class MainWindow(QMainWindow):
         self._setup_tools()
         self._setup_category_shortcuts()
         self._update_shortcut_tooltips()
+        self._setup_shortcuts()
+
+    def _setup_shortcuts(self):
+        """Set up keyboard shortcuts for the main window."""
+        zoom_in_shortcut = QShortcut(QKeySequence("Ctrl+="), self)
+        zoom_in_shortcut.activated.connect(self._zoom_in)
+        zoom_out_shortcut = QShortcut(QKeySequence("Ctrl+-"), self)
+        zoom_out_shortcut.activated.connect(self._zoom_out)
+        reset_shortcut = QShortcut(QKeySequence("Ctrl+1"), self)
+        reset_shortcut.activated.connect(self._reset_zoom)
+        zoom_fit_shortcut = QShortcut(QKeySequence("Ctrl+0"), self)
+        zoom_fit_shortcut.activated.connect(self._zoom_to_fit)
+        deselect_shortcut = QShortcut(QKeySequence("Escape"), self)
+        deselect_shortcut.activated.connect(self._clear_selection)
+        select_all_shortcut = QShortcut(QKeySequence("Ctrl+A"), self)
+        select_all_shortcut.activated.connect(self._select_all)
 
     def _setup_category_shortcuts(self):
         """Set up keyboard shortcuts for tool category activation"""
-
         # Define key mappings for tool categories
         self.category_key_mappings = {
             'Space': ToolCategory.SELECTOR,  # Spacebar for Selector
@@ -180,9 +201,9 @@ class MainWindow(QMainWindow):
         self.main_menu.copy_triggered.connect(self.copy)
         self.main_menu.paste_triggered.connect(self.paste)
         self.main_menu.clear_triggered.connect(self.clear)
-        self.main_menu.select_all_triggered.connect(self.select_all)
-        self.main_menu.select_similar_triggered.connect(self.select_similar)
-        self.main_menu.deselect_all_triggered.connect(self.deselect_all)
+        self.main_menu.select_all_triggered.connect(self._select_all)
+        self.main_menu.select_similar_triggered.connect(self._select_similar)
+        self.main_menu.deselect_all_triggered.connect(self._clear_selection)
         self.main_menu.group_triggered.connect(self.group_selection)
         self.main_menu.ungroup_triggered.connect(self.ungroup_selection)
 
@@ -217,11 +238,10 @@ class MainWindow(QMainWindow):
         self.main_menu.intersection_polygons_triggered.connect(self.intersection_polygons)
 
         # View menu connections
-        self.main_menu.redraw_triggered.connect(self.redraw)
-        self.main_menu.actual_size_triggered.connect(self.actual_size)
-        self.main_menu.zoom_to_fit_triggered.connect(self.zoom_to_fit)
-        self.main_menu.zoom_in_triggered.connect(self.zoom_in)
-        self.main_menu.zoom_out_triggered.connect(self.zoom_out)
+        self.main_menu.actual_size_triggered.connect(self._reset_zoom)
+        self.main_menu.zoom_to_fit_triggered.connect(self._zoom_to_fit)
+        self.main_menu.zoom_in_triggered.connect(self._zoom_in)
+        self.main_menu.zoom_out_triggered.connect(self._zoom_out)
         self.main_menu.show_origin_toggled.connect(self.toggle_show_origin)
         self.main_menu.show_grid_toggled.connect(self.toggle_show_grid)
 
@@ -276,42 +296,28 @@ class MainWindow(QMainWindow):
     def get_scene(self):
         return self.cad_scene
 
-    def get_canvas(self):
-        return self.cad_scene.get_canvas()
-
-    def get_drawing_manager(self):
-        return self.cad_scene.get_drawing_manager()
+    def get_view(self):
+        return self.cad_view
 
     def _create_canvas(self):
         # Create the CAD scene component
-        self.cad_scene = CadCanvas(self, document=self.document, parent=self)
+        self.grid_info = GridInfo(GridUnits.INCHES_DECIMAL)
+        self.cad_scene = CadScene(self)
+        self.cad_view = CadView(self.cad_scene)
+        self.print_manager = CadPrintManager(
+            self, self.cad_scene, self.document)
+        self.cad_view.mouseMoveEvent = self._mouse_move_event
+
+        # Add grid background
+        self.grid = GridBackground(self.grid_info)
+        self.cad_scene.addItem(self.grid)
+
+        # Add rulers
+        self.rulers = RulersForeground(self.grid_info)
+        self.cad_scene.addItem(self.rulers)
 
         # Set the CAD scene as the central widget
-        self.setCentralWidget(self.cad_scene)
-
-        # Get references to components for backward compatibility
-        self.scene = self.cad_scene.get_scene()
-        self.canvas = self.cad_scene.get_canvas()
-        self.drawing_manager = self.cad_scene.get_drawing_manager()
-        self.ruler_manager = self.cad_scene.get_ruler_manager()
-
-        # Connect CadScene signals
-        self.cad_scene.mouse_position_changed.connect(
-            self._on_mouse_position_changed)
-        self.cad_scene.scale_changed.connect(self._on_scale_changed)
-
-        # Initialize print manager after scene is created
-        self.print_manager = CadPrintManager(self, self.cad_scene, self.document)
-
-    def _on_mouse_position_changed(self, scene_x: float, scene_y: float):
-        """Handle mouse position changes from CadScene."""
-        # Update any UI elements that need cursor position updates
-        pass
-
-    def _on_scale_changed(self, scale_factor: float):
-        """Handle scale changes from CadScene."""
-        # Update any UI elements that need scale factor updates
-        pass
+        self.setCentralWidget(self.cad_view)
 
     def _setup_palettes(self):
         """Setup the palette system with dockable windows."""
@@ -335,9 +341,9 @@ class MainWindow(QMainWindow):
         """Connect palette content widgets to the main window functionality."""
         # Connect info pane to canvas for position updates and selection
         info_pane = self.palette_manager.get_palette_content("info_pane")
-        if info_pane and hasattr(self, 'canvas'):
+        #if info_pane and hasattr(self, 'canvas'):
             # Connect canvas mouse move events to info pane updates
-            self._connect_info_pane(info_pane)
+            #self._connect_info_pane(info_pane)
 
         # Connect config pane to document and selection
         config_pane = self.palette_manager.get_palette_content("config_pane")
@@ -345,72 +351,69 @@ class MainWindow(QMainWindow):
             # Connect the config pane to selection changes
             self._connect_config_pane(config_pane)
 
-        # Connect layer window to document layer management
-        layer_window = self.palette_manager.get_palette_content(
-            "layer_window")
-        if (layer_window and hasattr(self, 'document') and
+        # Connect layer pane to document layer management
+        layer_pane = self.palette_manager.get_palette_content(
+            "layer_pane")
+        if (layer_pane and hasattr(self, 'document') and
                 hasattr(self.document, 'layers')):
-            self._connect_layer_window(layer_window)
+            self._connect_layer_pane(layer_pane)
 
-    def _connect_layer_window(self, layer_window):
-        """Connect the layer window to the document's layer manager."""
-        # Connect layer window signals to document layer manager
-        layer_window.layer_created.connect(self._on_layer_created)
-        layer_window.layer_deleted.connect(self._on_layer_deleted)
-        layer_window.layer_selected.connect(self._on_layer_selected)
-        layer_window.layer_renamed.connect(self._on_layer_renamed)
-        layer_window.layer_visibility_changed.connect(
+    def _connect_layer_pane(self, layer_pane):
+        """Connect the layer pane to the document's layer manager."""
+        # Connect layer pane signals to document layer manager
+        layer_pane.layer_created.connect(self._on_layer_created)
+        layer_pane.layer_deleted.connect(self._on_layer_deleted)
+        layer_pane.layer_selected.connect(self._on_layer_selected)
+        layer_pane.layer_renamed.connect(self._on_layer_renamed)
+        layer_pane.layer_visibility_changed.connect(
             self._on_layer_visibility_changed)
-        layer_window.layer_lock_changed.connect(self._on_layer_lock_changed)
-        layer_window.layer_color_changed.connect(self._on_layer_color_changed)
-        layer_window.layer_cam_changed.connect(self._on_layer_cam_changed)
-        layer_window.layer_reordered.connect(self._on_layer_reordered)
+        layer_pane.layer_lock_changed.connect(self._on_layer_lock_changed)
+        layer_pane.layer_color_changed.connect(self._on_layer_color_changed)
+        layer_pane.layer_cam_changed.connect(self._on_layer_cam_changed)
+        layer_pane.layer_reordered.connect(self._on_layer_reordered)
 
-        # Initialize layer window with current layer data
-        self._refresh_layer_window()
+        # Initialize layer pane with current layer data
+        self._refresh_layer_pane()
 
-    def _refresh_layer_window(self):
-        """Refresh the layer window with current layer data."""
-        layer_window = self.palette_manager.get_palette_content(
-            "layer_window")
-        if not layer_window or not hasattr(self.document, 'layers'):
+    def _refresh_layer_pane(self):
+        """Refresh the layer pane with current layer data."""
+        layer_pane = self.palette_manager.get_palette_content(
+            "layer_pane")
+        if not layer_pane or not hasattr(self.document, 'layers'):
             return
 
         # Get all layer data from the layer manager
         layers = self.document.layers.get_all_layers()
         current_layer = self.document.layers.get_current_layer()
 
-        # Update the layer window
-        layer_window.refresh_layers(layers, current_layer)
+        # Update the layer pane
+        layer_pane.refresh_layers(layers, current_layer)
 
     def _on_layer_created(self):
         """Handle layer creation request from layer window."""
         if hasattr(self.document, 'layers'):
             new_layer = self.document.layers.create_layer()
             self.document.layers.set_current_layer(new_layer)
-            self._refresh_layer_window()
-            self.draw_objects()  # Redraw to update layer visibility
+            self._refresh_layer_pane()
 
     def _on_layer_deleted(self, layer):
-        """Handle layer deletion request from layer window."""
+        """Handle layer deletion request from layer pane."""
         if self.document.layers.delete_layer(layer):
-            self._refresh_layer_window()
-            self.draw_objects()  # Redraw to update layer visibility
+            self._refresh_layer_pane()
 
     def _on_layer_selected(self, layer):
-        """Handle layer selection from layer window."""
+        """Handle layer selection from layer pane."""
         self.document.layers.set_current_layer(layer)
-        self._refresh_layer_window()
+        self._refresh_layer_pane()
 
     def _on_layer_renamed(self, layer, new_name):
-        """Handle layer rename from layer window."""
+        """Handle layer rename from layer pane."""
         self.document.layers.set_layer_name(layer, new_name)
-        self._refresh_layer_window()
+        self._refresh_layer_pane()
 
     def _on_layer_visibility_changed(self, layer, visible):
         """Handle layer visibility change from layer window."""
         self.document.layers.set_layer_visible(layer, visible)
-        self.draw_objects()  # Redraw to update layer visibility
 
     def _on_layer_lock_changed(self, layer, locked):
         """Handle layer lock change from layer window."""
@@ -419,7 +422,6 @@ class MainWindow(QMainWindow):
     def _on_layer_color_changed(self, layer, color):
         """Handle layer color change from layer window."""
         self.document.layers.set_layer_color(layer, color)
-        self.draw_objects()  # Redraw with new color
 
     def _on_layer_cam_changed(self, layer, cut_bit, cut_depth):
         """Handle layer CAM settings change from layer window."""
@@ -427,9 +429,9 @@ class MainWindow(QMainWindow):
         self.document.layers.set_layer_cut_depth(layer, cut_depth)
 
     def _on_layer_reordered(self, layer, new_position):
-        """Handle layer reorder from layer window."""
+        """Handle layer reorder from layer pane."""
         self.document.layers.reorder_layer(layer, new_position)
-        self._refresh_layer_window()
+        self._refresh_layer_pane()
 
     def _connect_config_pane(self, config_pane):
         """Connect config pane to the selection system for property editing."""
@@ -464,7 +466,6 @@ class MainWindow(QMainWindow):
             if current_selection != self._current_selection:
                 self._current_selection = current_selection
                 self._update_config_pane_for_selection(selected_objects)
-                self._update_info_panes_for_selection(selected_objects)
 
     def _update_config_pane_for_selection(self, selected_objects):
         """Update config pane based on current selection."""
@@ -521,21 +522,11 @@ class MainWindow(QMainWindow):
                 print(f"Error updating property {field_name} on object "
                       f"{obj.object_id}: {e}")
 
-        # Redraw objects to show changes
-        self.draw_objects()
-
     def _setup_tools(self):
         """Set up the tool system and register tools"""
         # Initialize tool manager
         self.tool_manager = ToolManager(
             self, self.document, self.preferences)
-
-        # Connect tool manager to graphics view
-        self.canvas.set_tool_manager(self.tool_manager)
-
-        # Connect drawing manager to graphics view for coordinate
-        # transformations
-        self.canvas.set_drawing_manager(self.drawing_manager)
 
         # Register all available tools and group by category
         self.tools = {}
@@ -545,7 +536,7 @@ class MainWindow(QMainWindow):
             tool = self.tool_manager.register_tool(tool_class)
             self.tools[tool.definition.token] = tool
             # Connect tool signals to redraw
-            tool.object_created.connect(self.on_object_created)
+            #tool.object_created.connect(self.on_object_created)
 
             # Group tools by category
             category = tool.definition.category
@@ -577,7 +568,7 @@ class MainWindow(QMainWindow):
             category_button = CategoryToolButton(
                 category,
                 tool_definitions,
-                self._load_tool_icon,
+                get_icon,
                 parent=self.toolbar
             )
 
@@ -630,10 +621,7 @@ class MainWindow(QMainWindow):
                 return
         self.document.new()
         self.update_title()
-        # Clear the scene but keep axis lines
-        self.scene.clear()
-        self._add_axis_lines()
-        self.draw_objects()
+        self.cad_scene.clear()
 
     def open_file(self):
         if self.document.is_modified():
@@ -643,15 +631,14 @@ class MainWindow(QMainWindow):
             self,
             "Open Document",
             "",
-            "TkCAD files (*.tkcad);;SVG files (*.svg);;"
+            "BelfryCad files (*.tkcad);;SVG files (*.svg);;"
             "DXF files (*.dxf);;All files (*.*)"
         )
         if filename:
             try:
                 self.document.load(filename)
                 self.update_title()
-                self.scene.clear()
-                self.draw_objects()
+                self.cad_scene.clear()
             except Exception as e:
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Icon.Critical)
@@ -665,7 +652,7 @@ class MainWindow(QMainWindow):
                 self,
                 "Save Document",
                 "",
-                "TkCAD files (*.tkcad);;SVG files (*.svg);;"
+                "BelfryCad files (*.tkcad);;SVG files (*.svg);;"
                 "DXF files (*.dxf);;All files (*.*)"
             )
             if not filename:
@@ -687,7 +674,7 @@ class MainWindow(QMainWindow):
             self,
             "Save Document As",
             "",
-            "TkCAD files (*.tkcad);;SVG files (*.svg);;"
+            "BelfryCad files (*.tkcad);;SVG files (*.svg);;"
             "DXF files (*.dxf);;All files (*.*)"
         )
         if filename:
@@ -709,10 +696,7 @@ class MainWindow(QMainWindow):
             if not self._confirm_discard_changes():
                 return
         self.document.new()  # Reset to new document
-        self.scene.clear()
-        self._add_axis_lines()
-        self._redraw_grid()
-        self.draw_objects()
+        self.cad_scene.clear()
         self.update_title()
 
     def import_file(self):
@@ -900,141 +884,6 @@ class MainWindow(QMainWindow):
             "Clear functionality not yet implemented"
         )
 
-    def select_all(self):
-        """Handle Select All menu action."""
-        if hasattr(self.document, 'objects'):
-            all_objects = list(self.document.objects.objects.values())
-            self._select_objects(all_objects)
-
-    def select_similar(self):
-        """Handle Select Similar menu action."""
-        selected_objects = self._get_selected_objects()
-        if not selected_objects:
-            return
-
-        # Get the first selected object as reference
-        reference_obj = selected_objects[0]
-        similar_objects = []
-
-        # Find objects with same type
-        if hasattr(self.document, 'objects'):
-            for obj_id, obj in self.document.objects.objects.items():
-                if obj.object_type == reference_obj.object_type:
-                    similar_objects.append(obj)
-
-        # Select all similar objects
-        if similar_objects:
-            self._select_objects(similar_objects)
-
-    def deselect_all(self):
-        """Handle Deselect All menu action."""
-        self._clear_selection()
-
-    def _get_selected_objects(self):
-        """Get currently selected objects from the active tool."""
-        if not hasattr(self, 'tool_manager'):
-            return []
-
-        current_tool = self.tool_manager.get_active_tool()
-        # Check for different selector tool types and their selection attributes
-        if current_tool:
-            # Try different possible attribute names for selected objects
-            for attr_name in ['selected_objects', 'selection', 'objects']:
-                if hasattr(current_tool, attr_name):
-                    return getattr(current_tool, attr_name, [])
-        return []
-
-    def _select_objects(self, objects):
-        """Select the given objects using the selector tool."""
-        # Switch to selector tool if not already active
-        selector_tokens = ["OBJSEL", "SELECTOR", "SELECT"]
-        current_tool_token = None
-
-        for token in selector_tokens:
-            if token in self.tools:
-                current_tool_token = token
-                break
-
-        if current_tool_token:
-            self.activate_tool(current_tool_token)
-
-        current_tool = self.tool_manager.get_active_tool()
-        if current_tool:
-            # Try to find the selection attribute
-            selection_attr = None
-            for attr_name in ['selected_objects', 'selection', 'objects']:
-                if hasattr(current_tool, attr_name):
-                    selection_attr = attr_name
-                    break
-
-            if selection_attr:
-                # Clear current selection
-                selection_list = getattr(current_tool, selection_attr)
-                if hasattr(selection_list, 'clear'):
-                    selection_list.clear()
-                elif isinstance(selection_list, list):
-                    selection_list[:] = []
-
-                # Add new objects to selection
-                for obj in objects:
-                    if hasattr(selection_list, 'append'):
-                        selection_list.append(obj)
-                    elif isinstance(selection_list, list):
-                        selection_list.append(obj)
-                    # Mark object as selected for visual feedback
-                    obj.selected = True
-
-                # Redraw to show selection
-                self.draw_objects()
-
-    def _clear_selection(self):
-        """Clear all selected objects."""
-        current_tool = self.tool_manager.get_active_tool()
-        if current_tool:
-            # Try to find and clear selection
-            for attr_name in ['selected_objects', 'selection', 'objects']:
-                if hasattr(current_tool, attr_name):
-                    selection_list = getattr(current_tool, attr_name)
-
-                    # Clear selection state on objects first
-                    if hasattr(selection_list, '__iter__'):
-                        for obj in selection_list:
-                            if hasattr(obj, 'selected'):
-                                obj.selected = False
-
-                    # Clear selection list
-                    if hasattr(selection_list, 'clear'):
-                        selection_list.clear()
-                    elif isinstance(selection_list, list):
-                        selection_list[:] = []
-                    break
-
-            # Redraw to remove selection visuals
-            self.draw_objects()
-
-    def _delete_selected_objects(self):
-        """Delete currently selected objects."""
-        selected_objects = self._get_selected_objects()
-        if not selected_objects:
-            return False
-
-        # Remove objects from document
-        for obj in selected_objects:
-            if hasattr(self.document, 'objects'):
-                self.document.objects.remove_object(obj.object_id)
-
-        # Clear selection
-        self._clear_selection()
-
-        # Mark document as modified
-        if hasattr(self.document, 'set_modified'):
-            self.document.set_modified(True)
-
-        # Redraw to remove deleted objects
-        self.draw_objects()
-
-        return True
-
     def group_selection(self):
         """Handle Group menu action."""
         # TODO: Implement group functionality
@@ -1167,55 +1016,15 @@ class MainWindow(QMainWindow):
             "Intersection of Polygons functionality not yet implemented"
         )
 
-    # View menu handlers
-    def redraw(self):
-        """Handle Redraw menu action."""
-        self.draw_objects()
-        self._update_rulers_and_grid()
-
-    def actual_size(self):
-        """Handle Actual Size menu action."""
-        # TODO: Implement actual size functionality
-        QMessageBox.information(
-            self, "Actual Size",
-            "Actual Size functionality not yet implemented"
-        )
-
-    def zoom_to_fit(self):
-        """Handle Zoom to Fit menu action."""
-        # TODO: Implement zoom to fit functionality
-        QMessageBox.information(
-            self, "Zoom to Fit",
-            "Zoom to Fit functionality not yet implemented"
-        )
-
-    def zoom_in(self):
-        """Handle Zoom In menu action."""
-        # TODO: Implement zoom in functionality
-        QMessageBox.information(
-            self, "Zoom In",
-            "Zoom In functionality not yet implemented"
-        )
-
-    def zoom_out(self):
-        """Handle Zoom Out menu action."""
-        # TODO: Implement zoom out functionality
-        QMessageBox.information(
-            self, "Zoom Out",
-            "Zoom Out functionality not yet implemented"
-        )
-
     def toggle_show_origin(self, show):
         """Handle Show Origin toggle."""
         self.preferences.set("show_origin", show)
         # TODO: Actually toggle origin display
-        self.redraw()
 
     def toggle_show_grid(self, show):
         """Handle Show Grid toggle."""
         self.preferences.set("show_grid", show)
         # TODO: Actually toggle grid display
-        self.redraw()
 
     # CAM menu handlers
     def configure_mill(self):
@@ -1282,24 +1091,6 @@ class MainWindow(QMainWindow):
 
     def _apply_preference_changes(self):
         """Apply preference changes to the current session."""
-        # Get updated preferences
-        antialiasing = self.preferences.get("antialiasing", True)
-        grid_visible = self.preferences.get("grid_visible", True)
-
-        # Apply canvas settings
-        if hasattr(self, 'canvas'):
-            # Update canvas antialiasing
-            if antialiasing:
-                self.canvas.setRenderHint(QPainter.RenderHint.Antialiasing)
-            else:
-                self.canvas.setRenderHint(
-                    QPainter.RenderHint.Antialiasing, False)
-
-        # Apply grid visibility
-        if hasattr(self, 'cad_scene'):
-            self.cad_scene.set_grid_visibility(grid_visible)
-
-        # You can add more preference applications here as needed
 
     def _confirm_discard_changes(self):
         """Ask user to confirm discarding unsaved changes."""
@@ -1347,37 +1138,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'undo_manager'):
             result = self.undo_manager.execute_command(command)
             if result:
-                self.draw_objects()  # Redraw to show changes
                 self.update_title()   # Update window title
             return result
         else:
             # Fallback: execute directly if no undo manager
             return command.execute()
-
-    def on_object_created(self, obj):
-        """Handle when a new object is created by a tool."""
-        # Create undo command for object creation
-        command = CreateObjectCommand(
-            self.document, obj, f"Create {obj.object_type}")
-
-        # Execute through undo system (this will add to document and undo stack)
-        if hasattr(self, 'undo_manager'):
-            self.undo_manager.execute_command(command)
-        else:
-            # Fallback: add directly if no undo manager
-            if hasattr(self.document, 'objects'):
-                self.document.objects.add_object(obj)
-
-        # Draw the new object
-        if hasattr(self, '_draw_object'):
-            self._draw_object(obj)
-
-        # Mark document as modified
-        if hasattr(self.document, 'set_modified'):
-            self.document.set_modified(True)
-
-        # Update window title
-        self.update_title()
 
     def closeEvent(self, event):
         """Handle window close event."""
@@ -1409,13 +1174,13 @@ class MainWindow(QMainWindow):
     def toggle_layers(self, show):
         """Handle Layers panel visibility toggle."""
         self.preferences.set("show_layers", show)
-        self.palette_manager.set_palette_visibility("layer_window", show)
+        self.palette_manager.set_palette_visibility("layer_pane", show)
         self._sync_palette_menu_states()
 
     def toggle_snap_settings(self, show):
         """Handle Snaps panel visibility toggle."""
         self.preferences.set("show_snap_settings", show)
-        self.palette_manager.set_palette_visibility("snap_window", show)
+        self.palette_manager.set_palette_visibility("snaps_pane", show)
         self._sync_palette_menu_states()
 
     def _sync_palette_menu_states(self):
@@ -1429,172 +1194,16 @@ class MainWindow(QMainWindow):
             self.preferences.set("show_info_panel", visible)
         elif palette_id == "config_pane":
             self.preferences.set("show_properties", visible)
-        elif palette_id == "layer_window":
+        elif palette_id == "layer_pane":
             self.preferences.set("show_layers", visible)
-        elif palette_id == "snap_window":
+        elif palette_id == "snaps_pane":
             self.preferences.set("show_snap_settings", visible)
 
         # Sync the menu checkboxes with the new state
         self._sync_palette_menu_states()
 
-    def _draw_object_simple(self, obj):
-        """Fallback method for drawing objects without DrawingManager."""
-        # Skip invisible objects
-        if not getattr(obj, 'visible', True):
-            return []
 
-        # Get color from attributes, default to black
-        color_name = obj.attributes.get('color', 'black')
-        if color_name == 'black':
-            color = QColor(0, 0, 0)
-        elif color_name == 'blue':
-            color = QColor(0, 0, 255)
-        elif color_name == 'red':
-            color = QColor(255, 0, 0)
-        elif color_name == 'green':
-            color = QColor(0, 255, 0)
-        else:
-            color = QColor(0, 0, 0)
 
-        # Get line width from attributes
-        line_width = obj.attributes.get('linewidth', 2)
-        pen = QPen(color, line_width)
-        brush = QBrush(Qt.BrushStyle.NoBrush)
-
-        graphics_items = []
-
-        # Draw based on object type
-        if obj.object_type == ObjectType.LINE:
-            if len(obj.coords) >= 2:
-                start = obj.coords[0]
-                end = obj.coords[1]
-                line = self.scene.addLine(start.x, start.y, end.x, end.y, pen)
-                line.setZValue(1)
-                graphics_items.append(line)
-
-        elif obj.object_type == ObjectType.CIRCLE:
-            if len(obj.coords) >= 1 and 'radius' in obj.attributes:
-                center = obj.coords[0]
-                radius = obj.attributes['radius']
-                ellipse = self.scene.addEllipse(
-                    center.x - radius, center.y - radius,
-                    radius * 2, radius * 2, pen, brush
-                )
-                ellipse.setZValue(1)
-                graphics_items.append(ellipse)
-
-        elif obj.object_type == ObjectType.POINT:
-            if len(obj.coords) >= 1:
-                point = obj.coords[0]
-                size = 3
-                h_line = self.scene.addLine(
-                    point.x - size, point.y, point.x + size, point.y, pen
-                )
-                h_line.setZValue(1)
-                graphics_items.append(h_line)
-                v_line = self.scene.addLine(
-                    point.x, point.y - size, point.x, point.y + size, pen
-                )
-                v_line.setZValue(1)
-                graphics_items.append(v_line)
-
-        return graphics_items
-
-    def _update_info_panes_for_selection(self, selected_objects):
-        """Update all info panes with current selection information."""
-        if not hasattr(self, '_info_panes'):
-            return
-
-        # Create selection summary text
-        if not selected_objects:
-            action_text = "No selection"
-        elif len(selected_objects) == 1:
-            obj = selected_objects[0]
-            if hasattr(obj.object_type, 'name'):
-                obj_type = obj.object_type.name
-            else:
-                obj_type = str(obj.object_type)
-            action_text = f"Selected: {obj_type}"
-        else:
-            action_text = f"Selected: {len(selected_objects)} objects"
-
-        # Update all info panes
-        for info_pane in self._info_panes:
-            if hasattr(info_pane, 'update_action_str'):
-                info_pane.update_action_str(action_text)
-
-    def _load_tool_icon(self, icon_name):
-        """Load tool icon from resources or return None if not found."""
-        if not icon_name:
-            return None
-
-        # Try to load icon from various possible locations
-        icon_paths = [
-            f"BelfryCAD/resources/icons/{icon_name}.svg",
-            f"BelfryCAD/resources/icons/{icon_name}.png",
-            f"BelfryCAD/resources/icons/{icon_name}.gif",
-            f"resources/icons/{icon_name}.svg",
-            f"resources/icons/{icon_name}.png",
-            f"resources/icons/{icon_name}.gif",
-            f"images/{icon_name}.svg",  # Legacy fallback
-            f"images/{icon_name}.png",  # Legacy fallback
-            f"images/{icon_name}.gif",  # Legacy fallback
-            f"icons/{icon_name}.svg",   # Legacy fallback
-            f"icons/{icon_name}.png",   # Legacy fallback
-            f"icons/{icon_name}.gif",   # Legacy fallback
-            icon_name  # Direct path
-        ]
-
-        for icon_path in icon_paths:
-            if os.path.exists(icon_path):
-                icon = QIcon(icon_path)
-                if not icon.isNull():
-                    return icon
-
-        # Return empty icon if not found
-        return QIcon()
-
-    def _connect_info_pane(self, info_pane):
-        """Connect info pane to the canvas and selection system."""
-        # Connect mouse position updates directly from CadScene
-        if hasattr(self, 'cad_scene'):
-            def update_cursor_data():
-                # Get the current units and coords from the CAD scene
-                x, y = self.cad_scene.get_cursor_coords()
-                unit = self.cad_scene.get_current_unit()
-                info_pane.update_mouse_position(x, y, unit)
-            # Use a lambda to add the unit parameter
-            self.cad_scene.mouse_position_changed.connect(update_cursor_data)
-
-        # Add info pane to selection update system
-        if not hasattr(self, '_info_panes'):
-            self._info_panes = []
-        self._info_panes.append(info_pane)
-
-    def draw_objects(self):
-        """Draw all objects in the document."""
-        if hasattr(self, 'drawing_manager') and self.drawing_manager:
-            self.drawing_manager.redraw()
-        elif hasattr(self, 'cad_scene') and self.cad_scene:
-            self.cad_scene.redraw_all()
-
-    def _add_axis_lines(self):
-        """Add axis lines to the scene."""
-        if hasattr(self, 'cad_scene') and self.cad_scene:
-            self.cad_scene.set_origin_visibility(True)
-            self.cad_scene.redraw_grid()
-
-    def _redraw_grid(self):
-        """Redraw the grid."""
-        if hasattr(self, 'cad_scene') and self.cad_scene:
-            self.cad_scene.redraw_grid()
-
-    def _update_rulers_and_grid(self):
-        """Update rulers and grid."""
-        if hasattr(self, 'cad_scene') and self.cad_scene:
-            self.cad_scene.redraw_grid()
-            if hasattr(self.cad_scene, 'ruler_manager'):
-                self.cad_scene.ruler_manager.update_rulers()
 
     def tool_table(self):
         """Handle Tool Table menu action."""
@@ -1605,3 +1214,83 @@ class MainWindow(QMainWindow):
             # Preferences are saved in the dialog's accept() method
         else:
             logger.info("Tool table dialog cancelled")
+
+    def _mouse_move_event(self, event):
+        """Handle mouse move events to update position label."""
+        # Get mouse position in scene coordinates
+        pos = self.cad_view.mapToScene(event.position().toPoint())
+        label = self.grid_info.unit_label
+        if label == "Inch":
+            label = '"'
+        elif label == "Foot":
+            label = ""
+        elif label == "Yard":
+            label = ""
+        cursor_x = self.grid_info.format_label(pos.x(), no_subs=True)
+        cursor_y = self.grid_info.format_label(pos.y(), no_subs=True)
+        cursor_x = cursor_x.replace("\n", " ")
+        cursor_y = cursor_y.replace("\n", " ")
+        self.position_label_x.setText(f"X: {cursor_x}{label}")
+        self.position_label_y.setText(f"Y: {cursor_y}{label}")
+        # Call original mouse move event
+        QGraphicsView.mouseMoveEvent(self.cad_view, event)
+
+    def _zoom_in(self):
+        """Zoom in."""
+        zoom = GridInfo.zoom_adjust(self.cad_view, increase=True)
+        self.zoom_edit_widget.set_zoom_value(zoom)
+
+    def _zoom_out(self):
+        """Zoom out."""
+        zoom = GridInfo.zoom_adjust(self.cad_view, increase=False)
+        self.zoom_edit_widget.set_zoom_value(zoom)
+
+    def _reset_zoom(self):
+        """Reset zoom to fit view."""
+        zoom = GridInfo.set_zoom(self.cad_view, 100)
+        self.cad_view.centerOn(0, 0)
+        self.zoom_edit_widget.set_zoom_value(zoom)
+
+    def _zoom_to_fit(self):
+        """Zoom and center to fit all scene items (excluding grid and rulers)."""
+        # Get all items except GridBackground and RulersForeground
+        scene_items = [
+            item for item in self.cad_scene.items()
+            if not isinstance(item, (GridBackground, RulersForeground))
+        ]
+        
+        if not scene_items:
+            # No items to fit, just reset to 100% zoom at origin
+            self._reset_zoom()
+            return
+        
+        # Calculate bounding rect of all items
+        bounding_rect = scene_items[0].sceneBoundingRect()
+        for item in scene_items[1:]:
+            bounding_rect = bounding_rect.united(item.sceneBoundingRect())
+        
+        # Add some padding around the items (5% of the bounding rect size)
+        padding = max(bounding_rect.width(), bounding_rect.height()) * 0.05
+        bounding_rect.adjust(-padding, -padding, padding, padding)
+        bounding_rect.adjust(0, 0, 0, bounding_rect.height()*0.05)
+        
+        # Fit the view to the bounding rect
+        self.cad_view.fitInView(bounding_rect, Qt.AspectRatioMode.KeepAspectRatio)
+        
+        # Update the zoom widget with the new zoom level
+        zoom = GridInfo.get_zoom(self.cad_view)
+        self.zoom_edit_widget.set_zoom_value(zoom)
+
+    def _clear_selection(self):
+        """Deselect all selected items."""
+        self.cad_scene.clearSelection()
+
+    def _select_all(self):
+        """Select all selectable items (excluding grid and rulers)."""
+        for item in self.cad_scene.items():
+            if isinstance(item, CadItem):
+                item.setSelected(True)
+
+    def _select_similar(self):
+        """Select similar items."""
+        pass

@@ -1,5 +1,5 @@
 """
-Palette System for PyTkCAD.
+Palette System for BelfryCad.
 
 This module implements a modern relocatable palette system within the main
 window.  Instead of separate floating windows, palettes can be docked/undocked
@@ -16,10 +16,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QPoint, QSize, QObject
 
 # Import the translated palette components
-from .info_pane_window import InfoPaneWindow
-from .config_pane import ConfigPane
-from .snap_window import SnapWindow
-from .layer_window import LayerWindow
+from .panes.info_pane import InfoPane
+from .panes.config_pane import ConfigPane
+from .panes.snaps_pane import SnapsPane
+from .panes.layer_pane import LayerPane
 
 
 class PaletteDockArea(Enum):
@@ -35,8 +35,8 @@ class PaletteType(Enum):
     """Supported palette types."""
     INFO_PANE = "info_pane"
     CONFIG_PANE = "config_pane"
-    SNAP_WINDOW = "snap_window"
-    LAYER_WINDOW = "layer_window"
+    SNAPS_PANE = "snaps_pane"
+    LAYER_PANE = "layer_pane"
 
 
 class DockablePalette(QDockWidget):
@@ -209,14 +209,14 @@ class PaletteManager(QObject):
                 'width': 250,
                 'height': 400,
             },
-            PaletteType.SNAP_WINDOW.value: {
+            PaletteType.SNAPS_PANE.value: {
                 'title': 'Snaps',
                 'default_area': PaletteDockArea.RIGHT,  # Changed to right of info pane
                 'visible': True,  # Hidden by default
                 'width': 200,
                 'height': 100,
             },
-            PaletteType.LAYER_WINDOW.value: {
+            PaletteType.LAYER_PANE.value: {
                 'title': 'Layers',
                 'default_area': PaletteDockArea.RIGHT,
                 'visible': True,
@@ -281,13 +281,13 @@ class PaletteManager(QObject):
     def _create_content_widget(self, palette_type: PaletteType) -> QWidget:
         """Create the appropriate content widget for the palette type."""
         if palette_type == PaletteType.INFO_PANE:
-            return InfoPaneWindow()
+            return InfoPane()
         elif palette_type == PaletteType.CONFIG_PANE:
             return ConfigPane()
-        elif palette_type == PaletteType.SNAP_WINDOW:
-            return SnapWindow()
-        elif palette_type == PaletteType.LAYER_WINDOW:
-            return LayerWindow(parent=self.main_window)
+        elif palette_type == PaletteType.SNAPS_PANE:
+            return SnapsPane()
+        elif palette_type == PaletteType.LAYER_PANE:
+            return LayerPane(parent=self.main_window)
         else:
             # Fallback to empty widget
             widget = QWidget()
@@ -458,10 +458,10 @@ def create_default_palettes(main_window) -> PaletteManager:
     # Create default palettes
     manager.create_palette(PaletteType.INFO_PANE)
     manager.create_palette(PaletteType.CONFIG_PANE)
-    manager.create_palette(PaletteType.LAYER_WINDOW)
+    manager.create_palette(PaletteType.LAYER_PANE)
 
-    # Snap window is created but hidden by default
-    manager.create_palette(PaletteType.SNAP_WINDOW)
+    # Snaps pane is created but hidden by default
+    manager.create_palette(PaletteType.SNAPS_PANE)
 
     return manager
 

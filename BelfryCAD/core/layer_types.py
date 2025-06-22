@@ -1,5 +1,5 @@
 """
-Layer type definitions for PyTkCAD.
+Layer type definitions for BelfryCad.
 
 This module provides the base Layer class and related types.
 """

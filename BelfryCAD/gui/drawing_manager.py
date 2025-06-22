@@ -1,7 +1,7 @@
 """
 This module translates all the cadobjects_object_draw_* procedures from TCL
 to Python, providing comprehensive object drawing functionality for the
-pyTkCAD application.
+pyBelfryCad application.
 
 The DrawingManager class serves as the main interface for all drawing
 operations, maintaining compatibility with the original TCL implementation

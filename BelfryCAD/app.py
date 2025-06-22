@@ -1,5 +1,5 @@
 """
-Main application class for PyTkCAD.
+Main application class for BelfryCAD.
 """
 
 from PySide6.QtWidgets import QApplication, QMessageBox, QFileDialog
@@ -13,11 +13,11 @@ from .core.document import Document
 from .utils.logger import get_logger
 
 
-class TkCADApplication:
-    """Main application class for PyTkCAD."""
+class BelfryCadApplication:
+    """Main application class for BelfryCAD."""
 
     def __init__(self, config: AppConfig):
-        """Initialize the TkCAD application.
+        """Initialize the BelfryCAD application.
 
         Args:
             config: Application configuration object
@@ -42,7 +42,7 @@ class TkCADApplication:
         if self.app is not None:
             self.app.setApplicationName(self.config.APP_NAME)
             self.app.setApplicationVersion(self.config.VERSION)
-            self.app.setOrganizationName("PyTkCAD")
+            self.app.setOrganizationName("BelfryCad")
 
     def run(self):
         """Run the main application."""
@@ -126,7 +126,7 @@ class TkCADApplication:
                     self.main_window,
                     "Save Document",
                     "",
-                    "TkCAD files (*.tkcad);;SVG files (*.svg);;"
+                    "BelfryCad files (*.tkcad);;SVG files (*.svg);;"
                     "DXF files (*.dxf);;All files (*.*)"
                 )
 

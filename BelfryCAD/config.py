@@ -139,7 +139,7 @@ DRAWING_TOOLS = [
 SUPPORTED_FORMATS = {
     "native": {
         "extension": ".tkcad",
-        "description": "TkCAD Native Format",
+        "description": "BelfryCad Native Format",
         "can_read": True,
         "can_write": True,
     },

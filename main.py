@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-PyTkCAD - A CAD application using Python and PySide6
-Translated from TCL TkCAD codebase
+BelfryCAD - A CAD application using Python and PySide6
 
 This is the main entry point for the application.
 """
@@ -11,34 +10,34 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 import traceback
 
 # Import main application modules
-from BelfryCAD.app import TkCADApplication
+from BelfryCAD.app import BelfryCadApplication
 from BelfryCAD.config import AppConfig
 from BelfryCAD.utils.logger import setup_logger
 
 
 def main():
-    """Main entry point for PyTkCAD application."""
+    """Main entry point for BelfryCAD application."""
     try:
         # Set up logging
         logger = setup_logger()
-        logger.info("Starting PyTkCAD application...")
+        logger.info("Starting BelfryCAD application...")
 
         # Initialize application configuration
         config = AppConfig()
 
         # Create and run the main application
-        app = TkCADApplication(config)
+        app = BelfryCadApplication(config)
         app.run()
 
     except Exception as e:
         # Show error dialog if application fails to start
-        error_msg = (f"Failed to start PyTkCAD:\n\n{str(e)}\n\n"
+        error_msg = (f"Failed to start BelfryCAD:\n\n{str(e)}\n\n"
                      f"{traceback.format_exc()}")
         try:
             # Try to show PySide6 message box
             app = QApplication(sys.argv)
             msg = QMessageBox()
-            msg.setIcon(QMessageBox.Critical)
+            msg.setIcon(QMessageBox.Icon.Critical)
             msg.setWindowTitle("BelfryCAD Error")
             msg.setText(error_msg)
             msg.exec()

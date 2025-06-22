@@ -1,5 +1,5 @@
 """
-Main Menu System for PyTkCAD
+Main Menu System for BelfryCad
 
 This module implements the main menu bar functionality, translated from the
 original TCL mainmenu.tcl implementation.
@@ -90,7 +90,7 @@ class RecentFilesManager(QObject):
 
 
 class MainMenuBar(QObject):
-    """Main menu bar implementation for PyTkCAD."""
+    """Main menu bar implementation for BelfryCad."""
 
     preferences_triggered = Signal()
 
@@ -676,11 +676,11 @@ class MainMenuBar(QObject):
             self.show_properties_action.setChecked(visible)
 
         if self.show_layers_action:
-            visible = palette_manager.is_palette_visible("layer_window")
+            visible = palette_manager.is_palette_visible("layer_pane")
             self.show_layers_action.setChecked(visible)
 
         if self.show_snap_settings_action:
-            visible = palette_manager.is_palette_visible("snap_window")
+            visible = palette_manager.is_palette_visible("snaps_pane")
             self.show_snap_settings_action.setChecked(visible)
 
     def set_document_state(

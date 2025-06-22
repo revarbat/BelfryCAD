@@ -1,5 +1,5 @@
 """
-Layer management system for PyTkCAD.
+Layer management system for BelfryCad.
 
 This module provides functionality for managing drawing layers,
 including layer creation, deletion, properties, and object management.

@@ -3,7 +3,7 @@ Base Tool System
 
 This module implements the base tool system based on the original TCL
 tools.tcl. It provides a foundation for all drawing and editing tools
-in the pyTkCAD application.
+in the pyBelfryCad application.
 """
 
 from PySide6.QtWidgets import QGraphicsScene
@@ -14,7 +14,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 
 from BelfryCAD.core.cad_objects import CADObject, Point
-from BelfryCAD.gui.cad_scene import CadCanvas
+from BelfryCAD.gui.cad_scene import CadScene
 
 
 class ToolState(Enum):

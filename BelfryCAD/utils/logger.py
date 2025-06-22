@@ -1,5 +1,5 @@
 """
-Logging utilities for PyTkCAD.
+Logging utilities for BelfryCad.
 """
 
 import logging
@@ -12,7 +12,7 @@ _logger: Optional[logging.Logger] = None
 
 
 def setup_logger(
-    name: str = "PyTkCAD",
+    name: str = "BelfryCad",
     level: int = logging.INFO
 ) -> logging.Logger:
     """Set up the main application logger.
@@ -62,7 +62,7 @@ def setup_logger(
     return _logger
 
 
-def get_logger(name: str = "PyTkCAD") -> logging.Logger:
+def get_logger(name: str = "BelfryCad") -> logging.Logger:
     """Get a logger instance.
 
     Args:
@@ -74,4 +74,4 @@ def get_logger(name: str = "PyTkCAD") -> logging.Logger:
     if _logger is None:
         setup_logger()
 
-    return logging.getLogger(f"PyTkCAD.{name}")
+    return logging.getLogger(f"BelfryCad.{name}")

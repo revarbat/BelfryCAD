@@ -1,5 +1,5 @@
 """
-Preferences management for PyTkCAD.
+Preferences management for BelfryCad.
 """
 
 import json
