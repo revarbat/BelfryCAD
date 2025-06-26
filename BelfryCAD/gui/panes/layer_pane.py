@@ -593,21 +593,28 @@ class LayerPane(QWidget):
             self.layer_selected.emit(new_layer_item.layer)
             
             # Use a timer to scroll to the new item after layout is complete
-            def scroll_to_new_item():
-                if self.scroll_area and new_layer_item:
-                    # Force layout update
-                    self.layer_list.updateGeometry()
-                    self.scroll_area.viewport().update()
-                    
-                    # Get the item's position relative to the layer list
-                    item_pos = new_layer_item.mapTo(self.scroll_area.widget(), QPoint(0, 0))
-                    # Add a small margin to ensure visibility
-                    scroll_pos = max(0, item_pos.y() - 20)  # 20 pixel margin
-                    # Set the scroll position
-                    self.scroll_area.verticalScrollBar().setValue(scroll_pos)
+            # Store reference to new layer item for the timer callback
+            self._pending_scroll_item = new_layer_item
+            QTimer.singleShot(100, self._scroll_to_new_item)
+
+    def _scroll_to_new_item(self):
+        """Scroll to the new layer item after layout is complete."""
+        if hasattr(self, '_pending_scroll_item') and self._pending_scroll_item:
+            new_layer_item = self._pending_scroll_item
+            if self.scroll_area and new_layer_item:
+                # Force layout update
+                self.layer_list.updateGeometry()
+                self.scroll_area.viewport().update()
+                
+                # Get the item's position relative to the layer list
+                item_pos = new_layer_item.mapTo(self.scroll_area.widget(), QPoint(0, 0))
+                # Add a small margin to ensure visibility
+                scroll_pos = max(0, item_pos.y() - 20)  # 20 pixel margin
+                # Set the scroll position
+                self.scroll_area.verticalScrollBar().setValue(scroll_pos)
             
-            # Use a longer delay to ensure layout is complete
-            QTimer.singleShot(100, scroll_to_new_item)
+            # Clear the pending item
+            delattr(self, '_pending_scroll_item')
 
     def _delete_current_layer(self):
         """Delete the current layer."""

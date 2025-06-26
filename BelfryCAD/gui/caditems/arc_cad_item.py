@@ -6,7 +6,7 @@ import math
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, DiamondControlPoint
+from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, DiamondControlPoint, ControlDatum
 
 
 class ArcCadItem(CadItem):
@@ -21,6 +21,7 @@ class ArcCadItem(CadItem):
         self._end_point = end_point if end_point else QPointF(0, 1)
         self._color = color
         self._line_width = line_width
+        self._radius_datum = None
         
         # Convert points to QPointF if they aren't already
         if isinstance(self._center_point, (list, tuple)):
@@ -32,10 +33,29 @@ class ArcCadItem(CadItem):
     
     def _get_control_points(self):
         """Return control points for the arc."""
+        # Create radius datum if it doesn't exist
+        if not self._radius_datum:
+            sc = math.sin(math.pi/4)
+            datum_pos = QPointF(self.radius * sc, self.radius * sc) + self._center_point
+            self._radius_datum = ControlDatum(
+                name="radius",
+                position=datum_pos,
+                value_getter=self._get_radius_value,
+                value_setter=self._set_radius_value,
+                prefix="R",
+                parent_item=self
+            )
+        else:
+            # Update radius datum position
+            sc = math.sin(math.pi/4)
+            datum_pos = QPointF(self.radius * sc, self.radius * sc) + self._center_point
+            self._radius_datum.position = datum_pos
+        
         return [
             SquareControlPoint('center', self._center_point),
             DiamondControlPoint('start', self._start_point),
-            ControlPoint('end', self._end_point)
+            ControlPoint('end', self._end_point),
+            self._radius_datum
         ]
 
     def _control_point_changed(self, name: str, new_position: QPointF):
@@ -99,6 +119,9 @@ class ArcCadItem(CadItem):
             )
         
         self.update()
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
 
     def _distance(self, point1, point2):
         """Calculate distance between two points."""
@@ -366,4 +389,39 @@ class ArcCadItem(CadItem):
         self.prepareGeometryChange()
         self._line_width = value
         self.update()
+
+    def _get_radius_value(self):
+        """Get the current radius value."""
+        return self.radius
+    
+    def _set_radius_value(self, new_radius):
+        """Set the radius value by adjusting both start and end points."""
+        if new_radius <= 0:
+            return
+        
+        # Calculate current angles
+        start_angle = self._angle_from_center(self._start_point)
+        end_angle = self._angle_from_center(self._end_point)
+        
+        # Update both points to the new radius
+        self._start_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(start_angle),
+            self._center_point.y() + new_radius * math.sin(start_angle)
+        )
+        self._end_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(end_angle),
+            self._center_point.y() + new_radius * math.sin(end_angle)
+        )
+        
+        self.prepareGeometryChange()
+        self.update()
+
+    def _create_decorations(self):
+        """Create decoration items for this arc."""
+        # Add centerlines decoration
+        self._add_centerlines(self._center_point)
+        
+        # Add dashed circle at the radius
+        radius = self._distance(self._center_point, self._start_point)
+        self._add_dashed_circle(self._center_point, radius, self._color, self._line_width)
 

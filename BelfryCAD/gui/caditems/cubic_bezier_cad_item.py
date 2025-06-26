@@ -54,6 +54,9 @@ class CubicBezierCadItem(CadItem):
         
         self.prepareGeometryChange()
         self.update()
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
 
     def _boundingRect(self):
         """Return the bounding rectangle of the Bezier curve."""

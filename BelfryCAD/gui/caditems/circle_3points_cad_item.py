@@ -1,0 +1,462 @@
+"""
+Circle3PointsCadItem - A circle CAD item defined by three points on the perimeter.
+If the three points are collinear, it draws a line instead.
+"""
+
+import math
+from PySide6.QtCore import QPointF, QRectF
+from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
+from BelfryCAD.gui.cad_item import CadItem
+from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
+
+
+class Circle3PointsCadItem(CadItem):
+    """A circle CAD item defined by three points on the perimeter."""
+    
+    def __init__(self, point1=None, point2=None, point3=None, color=QColor(255, 0, 0), line_width=0.05):
+        self._point1 = point1 if point1 is not None else QPointF(-1, 0)
+        self._point2 = point2 if point2 is not None else QPointF(0, 1)
+        self._point3 = point3 if point3 is not None else QPointF(1, 0)
+        self._color = color
+        self._line_width = line_width
+        self._radius_datum = None
+        
+        # Convert points to QPointF if they aren't already
+        if isinstance(self._point1, (list, tuple)):
+            self._point1 = QPointF(self._point1[0], self._point1[1])
+        if isinstance(self._point2, (list, tuple)):
+            self._point2 = QPointF(self._point2[0], self._point2[1])
+        if isinstance(self._point3, (list, tuple)):
+            self._point3 = QPointF(self._point3[0], self._point3[1])
+        
+        # Calculate circle properties
+        self._calculate_circle()
+        
+        super().__init__()
+        
+        # Position the item at the center point (or midpoint for lines)
+        if self.is_line:
+            # For lines, position at midpoint of first and last points
+            midpoint = QPointF(
+                (self._point1.x() + self._point3.x()) / 2,
+                (self._point1.y() + self._point3.y()) / 2
+            )
+            self.setPos(midpoint)
+        else:
+            self.setPos(self._center)
+    
+    def _calculate_circle(self):
+        """Calculate center and radius from three points, or determine if it's a line."""
+        p1, p2, p3 = self._point1, self._point2, self._point3
+        
+        # Check if points are collinear using cross product
+        # For three points A, B, C, they are collinear if: (B-A) × (C-A) = 0
+        vec1 = QPointF(p2.x() - p1.x(), p2.y() - p1.y())
+        vec2 = QPointF(p3.x() - p1.x(), p3.y() - p1.y())
+        cross_product = vec1.x() * vec2.y() - vec1.y() * vec2.x()
+        
+        if abs(cross_product) < 1e-6:
+            # Points are collinear - this becomes a line
+            self._is_line = True
+            self._center = QPointF(0, 0)
+            self._radius = 0
+            return
+        
+        self._is_line = False
+        
+        # Calculate center using perpendicular bisector method
+        # Midpoints of two chords
+        mx1 = (p1.x() + p2.x()) / 2.0
+        my1 = (p1.y() + p2.y()) / 2.0
+        mx2 = (p2.x() + p3.x()) / 2.0
+        my2 = (p2.y() + p3.y()) / 2.0
+        
+        # Handle special cases where segments are horizontal/vertical
+        if abs(p2.y() - p1.y()) < 1e-6:
+            # First segment is horizontal, second bisector is vertical
+            if abs(p3.y() - p2.y()) < 1e-6:
+                # Both segments horizontal - this shouldn't happen for valid circles
+                self._is_line = True
+                self._center = QPointF(0, 0)
+                self._radius = 0
+                return
+            m2 = -(p3.x() - p2.x()) / (p3.y() - p2.y())
+            c2 = my2 - m2 * mx2
+            cx = mx1
+            cy = m2 * cx + c2
+        elif abs(p3.y() - p2.y()) < 1e-6:
+            # Second segment is horizontal, first bisector is vertical
+            m1 = -(p2.x() - p1.x()) / (p2.y() - p1.y())
+            c1 = my1 - m1 * mx1
+            cx = mx2
+            cy = m1 * cx + c1
+        else:
+            # General case - neither segment is horizontal
+            m1 = -(p2.x() - p1.x()) / (p2.y() - p1.y())
+            m2 = -(p3.x() - p2.x()) / (p3.y() - p2.y())
+            
+            if abs(m1 - m2) < 1e-6:
+                # Perpendicular bisectors are parallel - points are collinear
+                self._is_line = True
+                self._center = QPointF(0, 0)
+                self._radius = 0
+                return
+            
+            c1 = my1 - m1 * mx1
+            c2 = my2 - m2 * mx2
+            cx = (c2 - c1) / (m1 - m2)
+            cy = m1 * cx + c1
+        
+        self._center = QPointF(cx, cy)
+        
+        # Calculate radius as distance from center to any point
+        dx = p1.x() - cx
+        dy = p1.y() - cy
+        self._radius = math.sqrt(dx * dx + dy * dy)
+    
+    def _get_control_points(self):
+        """Return control points for the circle or line."""
+        if self.is_line:
+            # For lines, use the midpoint as a reference and the three original points
+            midpoint = QPointF(
+                (self._point1.x() + self._point3.x()) / 2,
+                (self._point1.y() + self._point3.y()) / 2
+            )
+            # Convert to local coordinates relative to the line midpoint
+            point1_local = self._point1 - midpoint
+            point2_local = self._point2 - midpoint  # This may not be on the line, but it's our second definition point
+            point3_local = self._point3 - midpoint
+            
+            return [
+                ControlPoint('point1', point1_local),
+                ControlPoint('point2', point2_local),
+                ControlPoint('point3', point3_local),
+            ]
+        else:
+            # For circles, control points are relative to the center
+            point1_local = self._point1 - self._center
+            point2_local = self._point2 - self._center
+            point3_local = self._point3 - self._center
+            
+            # Create radius datum if it doesn't exist
+            if not self._radius_datum:
+                sc = math.sin(math.pi/4)
+                datum_pos = QPointF(self._radius * sc, self._radius * sc)
+                self._radius_datum = ControlDatum(
+                    name="radius",
+                    position=datum_pos,
+                    value_getter=self._get_radius_value,
+                    value_setter=self._set_radius_value,
+                    prefix="R",
+                    parent_item=self
+                )
+            else:
+                # Update radius datum position
+                sc = math.sin(math.pi/4)
+                datum_pos = QPointF(self._radius * sc, self._radius * sc)
+                self._radius_datum.position = datum_pos
+            
+            return [
+                ControlPoint('point1', point1_local),
+                ControlPoint('point2', point2_local),
+                ControlPoint('point3', point3_local),
+                SquareControlPoint('center', QPointF(0, 0)),
+                self._radius_datum
+            ]
+    
+    def _boundingRect(self):
+        """Return the bounding rectangle of the circle or line."""
+        if self.is_line:
+            # For lines, get bounding box of all three points
+            min_x = min(self._point1.x(), self._point2.x(), self._point3.x())
+            max_x = max(self._point1.x(), self._point2.x(), self._point3.x())
+            min_y = min(self._point1.y(), self._point2.y(), self._point3.y())
+            max_y = max(self._point1.y(), self._point2.y(), self._point3.y())
+            
+            # Convert to local coordinates relative to line midpoint
+            midpoint = QPointF(
+                (self._point1.x() + self._point3.x()) / 2,
+                (self._point1.y() + self._point3.y()) / 2
+            )
+            
+            min_x -= midpoint.x()
+            max_x -= midpoint.x()
+            min_y -= midpoint.y()
+            max_y -= midpoint.y()
+            
+            # Add padding for line width
+            padding = self._line_width / 2
+            return QRectF(min_x - padding, min_y - padding, 
+                         max_x - min_x + 2 * padding, max_y - min_y + 2 * padding)
+        else:
+            # For circles, use radius
+            radius = self._radius
+            # Add padding for line width
+            padding = self._line_width / 2
+            return QRectF(-radius - padding, -radius - padding, 
+                         2 * radius + 2 * padding, 2 * radius + 2 * padding)
+    
+    def _shape(self):
+        """Return the exact shape of the circle or line for collision detection."""
+        if self.is_line:
+            # Create a line path from point1 to point3
+            midpoint = QPointF(
+                (self._point1.x() + self._point3.x()) / 2,
+                (self._point1.y() + self._point3.y()) / 2
+            )
+            
+            # Convert to local coordinates
+            start_local = self._point1 - midpoint
+            end_local = self._point3 - midpoint
+            
+            path = QPainterPath()
+            path.moveTo(start_local)
+            path.lineTo(end_local)
+            
+            # Create a stroked path with the line width for better selection
+            stroker = QPainterPathStroker()
+            stroker.setWidth(max(self._line_width, 0.1))  # Minimum width for selection
+            stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+            stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            
+            return stroker.createStroke(path)
+        else:
+            # For circles, create a circular path
+            radius = self._radius
+            
+            # Create a custom 90-point circle path
+            path = QPainterPath()
+            num_points = 90
+            
+            # Calculate the first point
+            angle = 0
+            x = radius * math.cos(angle)
+            y = radius * math.sin(angle)
+            path.moveTo(x, y)
+            
+            # Add the remaining 89 points
+            for i in range(1, num_points):
+                angle = (2 * math.pi * i) / num_points
+                x = radius * math.cos(angle)
+                y = radius * math.sin(angle)
+                path.lineTo(x, y)
+            
+            # Close the path back to the starting point
+            path.closeSubpath()
+            
+            # Use QPainterPathStroker to create a stroked path with line width
+            stroker = QPainterPathStroker()
+            stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
+            stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+            stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            
+            return stroker.createStroke(path)
+    
+    def _contains(self, point):
+        """Check if a point is inside the circle or near the line."""
+        # Convert point to local coordinates if it's in scene coordinates
+        if hasattr(point, 'x') and hasattr(point, 'y'):
+            # Point is already in local coordinates
+            local_point = point
+        else:
+            # Convert from scene coordinates to local coordinates
+            local_point = self.mapFromScene(point)
+        
+        # Use the stroked shape for accurate contains check
+        shape_path = self._shape()
+        return shape_path.contains(local_point)
+    
+    def paint_item(self, painter, option, widget=None):
+        """Draw the circle or line content."""
+        painter.save()
+        
+        pen = QPen(self._color, self._line_width)
+        painter.setPen(pen)
+        
+        if self.is_line:
+            # Draw a line from point1 to point3
+            midpoint = QPointF(
+                (self._point1.x() + self._point3.x()) / 2,
+                (self._point1.y() + self._point3.y()) / 2
+            )
+            
+            # Convert to local coordinates
+            start_local = self._point1 - midpoint
+            end_local = self._point3 - midpoint
+            
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawLine(start_local, end_local)
+        else:
+            # Draw the circle
+            radius = self._radius
+            rect = QRectF(-radius, -radius, 2*radius, 2*radius)
+            painter.drawEllipse(rect)
+
+        painter.restore()
+    
+    def _create_decorations(self):
+        """Create decoration items for this circle or line."""
+        if not self.is_line:
+            # Add centerlines for valid circles
+            self._add_centerlines(QPointF(0, 0))
+
+    @property
+    def center_point(self):
+        """Get the center point of the circle (or midpoint for lines)."""
+        if self.is_line:
+            return QPointF(
+                (self._point1.x() + self._point3.x()) / 2,
+                (self._point1.y() + self._point3.y()) / 2
+            )
+        else:
+            return QPointF(self._center)
+    
+    @property
+    def radius(self):
+        """Get the radius of the circle (0 for lines)."""
+        return self._radius if not self.is_line else 0
+    
+    @property
+    def is_line(self):
+        """Check if the three points are collinear (making this a line)."""
+        return self._is_line
+    
+    @property
+    def point1(self):
+        return QPointF(self._point1)
+    
+    @point1.setter
+    def point1(self, value):
+        if isinstance(value, (list, tuple)):
+            value = QPointF(value[0], value[1])
+        self._point1 = value
+        self._calculate_circle()
+        self.setPos(self.center_point)
+        self.prepareGeometryChange()
+        self.update()
+
+    @property
+    def point2(self):
+        return QPointF(self._point2)
+    
+    @point2.setter
+    def point2(self, value):
+        if isinstance(value, (list, tuple)):
+            value = QPointF(value[0], value[1])
+        self._point2 = value
+        self._calculate_circle()
+        self.setPos(self.center_point)
+        self.prepareGeometryChange()
+        self.update()
+
+    @property
+    def point3(self):
+        return QPointF(self._point3)
+    
+    @point3.setter
+    def point3(self, value):
+        if isinstance(value, (list, tuple)):
+            value = QPointF(value[0], value[1])
+        self._point3 = value
+        self._calculate_circle()
+        self.setPos(self.center_point)
+        self.prepareGeometryChange()
+        self.update()
+
+    @property
+    def color(self):
+        return self._color
+    
+    @color.setter
+    def color(self, value):
+        self._color = value
+        self.update()
+    
+    @property
+    def line_width(self):
+        return self._line_width
+    
+    @line_width.setter
+    def line_width(self, value):
+        self.prepareGeometryChange()  # Line width affects bounding rect
+        self._line_width = value
+        self.update()
+    
+    def _control_point_changed(self, name: str, new_position: QPointF):
+        """Handle control point changes."""
+        self.prepareGeometryChange()
+        local_pos = self.mapToScene(new_position)
+        if name == 'center' and not self.is_line:
+            # Translate the entire circle (all three points)
+            # Calculate the delta from current center (which is at origin in local coords)
+            scene_delta = local_pos - self._center
+            self._point1 += scene_delta
+            self._point2 += scene_delta
+            self._point3 += scene_delta
+            self._center += scene_delta
+            self.setPos(self.center_point)
+        elif name == 'point1':
+            # Change point1 position
+            self.point1 = local_pos
+        elif name == 'point2':
+            # Change point2 position
+            self.point2 = local_pos
+        elif name == 'point3':
+            # Change point3 position
+            self.point3 = local_pos
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
+
+    def set_points(self, point1, point2, point3):
+        """Set all three points at once."""
+        if isinstance(point1, (list, tuple)):
+            point1 = QPointF(point1[0], point1[1])
+        if isinstance(point2, (list, tuple)):
+            point2 = QPointF(point2[0], point2[1])
+        if isinstance(point3, (list, tuple)):
+            point3 = QPointF(point3[0], point3[1])
+        
+        self._point1 = point1
+        self._point2 = point2
+        self._point3 = point3
+        self._calculate_circle()
+        self.setPos(self.center_point)
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_radius_value(self):
+        """Get the current radius value."""
+        return self.radius
+    
+    def _set_radius_value(self, new_radius):
+        """Set the radius value by adjusting the third point."""
+        if self.is_line or new_radius <= 0:
+            return
+        
+        # Calculate new position for point3 to achieve the desired radius
+        # Keep point1 and point2 fixed, adjust point3
+        center = self._center
+        point1_vec = self._point1 - center
+        point2_vec = self._point2 - center
+        
+        # Calculate the angle of point3 (average of point1 and point2 angles)
+        angle1 = math.atan2(point1_vec.y(), point1_vec.x())
+        angle2 = math.atan2(point2_vec.y(), point2_vec.x())
+        
+        # Use the angle that's 120 degrees from the average
+        avg_angle = (angle1 + angle2) / 2
+        point3_angle = avg_angle + math.pi * 2 / 3  # 120 degrees
+        
+        # Calculate new point3 position
+        new_point3 = QPointF(
+            center.x() + new_radius * math.cos(point3_angle),
+            center.y() + new_radius * math.sin(point3_angle)
+        )
+        
+        self._point3 = new_point3
+        self._calculate_circle()
+        self.setPos(self._center)
+        self.prepareGeometryChange()
+        self.update() 

@@ -96,8 +96,9 @@ class ConfigPane(QWidget):
         """Handle invalid input by reverting to old value."""
         QApplication.beep()
         old_val = self.get_datum(canvas, name, datum, val_get_cb, default)
-        # Schedule restoration of old value
-        QTimer.singleShot(0, lambda: self._restore_value(var_name, old_val))
+        # Schedule restoration of old value using dedicated method
+        self._pending_restore = (var_name, old_val)
+        QTimer.singleShot(0, self._restore_pending_value)
 
     def invalid_cmd_point(self, canvas, name: str, datum: str,
                           val_get_cb: Optional[Callable],
@@ -107,7 +108,8 @@ class ConfigPane(QWidget):
         old_val = self.get_datum(canvas, name, datum, val_get_cb, default)
         if isinstance(old_val, (list, tuple)) and len(old_val) > coord_num:
             old_val = old_val[coord_num]
-        QTimer.singleShot(0, lambda: self._restore_value(var_name, old_val))
+        self._pending_restore = (var_name, old_val)
+        QTimer.singleShot(0, self._restore_pending_value)
 
     def invalid_cmd_fontsize(self, canvas, name: str, datum: str,
                              val_get_cb: Optional[Callable],
@@ -117,7 +119,15 @@ class ConfigPane(QWidget):
         old_val = self.get_datum(canvas, name, datum, val_get_cb, default)
         if isinstance(old_val, (list, tuple)) and len(old_val) > 1:
             old_val = old_val[1]
-        QTimer.singleShot(0, lambda: self._restore_value(var_name, old_val))
+        self._pending_restore = (var_name, old_val)
+        QTimer.singleShot(0, self._restore_pending_value)
+
+    def _restore_pending_value(self):
+        """Restore the pending value to prevent lambda usage."""
+        if hasattr(self, '_pending_restore'):
+            var_name, old_val = self._pending_restore
+            self._restore_value(var_name, old_val)
+            delattr(self, '_pending_restore')
 
     def _restore_value(self, var_name: str, value: Any):
         """Restore a widget's value."""
@@ -678,16 +688,16 @@ class ConfigPane(QWidget):
 
         # Connect signals
         font_combo.currentTextChanged.connect(
-            lambda: self.set_font_datum(self.canvas, name, name, None, None)
+            lambda _: self.set_font_datum(self.canvas, name, name, None, None)
         )
         size_spin.valueChanged.connect(
-            lambda: self.set_font_datum(self.canvas, name, name, None, None)
+            lambda _: self.set_font_datum(self.canvas, name, name, None, None)
         )
         bold_check.toggled.connect(
-            lambda: self.set_font_datum(self.canvas, name, name, None, None)
+            lambda _: self.set_font_datum(self.canvas, name, name, None, None)
         )
         italic_check.toggled.connect(
-            lambda: self.set_font_datum(self.canvas, name, name, None, None)
+            lambda _: self.set_font_datum(self.canvas, name, name, None, None)
         )
 
         # Layout

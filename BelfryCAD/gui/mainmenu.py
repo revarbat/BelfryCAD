@@ -128,6 +128,8 @@ class MainMenuBar(QObject):
     rotate_90_ccw_triggered = Signal()
     rotate_90_cw_triggered = Signal()
     rotate_180_triggered = Signal()
+    flip_horizontal_triggered = Signal()
+    flip_vertical_triggered = Signal()
 
     # Conversion signals
     convert_to_lines_triggered = Signal()
@@ -193,6 +195,8 @@ class MainMenuBar(QObject):
         # Create all menus
         self._create_file_menu()
         self._create_edit_menu()
+        self._create_objects_menu()
+        self._create_paths_menu()
         self._create_view_menu()
         self._create_cam_menu()
         self._create_window_menu()
@@ -267,7 +271,6 @@ class MainMenuBar(QObject):
         print_action.triggered.connect(self.print_triggered.emit)
         file_menu.addAction(print_action)
 
-
         # Preferences
         if platform.system() == "Windows":
             file_menu.addSeparator()
@@ -332,7 +335,7 @@ class MainMenuBar(QObject):
 
         # Deselect All
         deselect_all_action = QAction("&Deselect All", self.parent_window)
-        deselect_all_action.setShortcut(QKeySequence("Ctrl+D"))
+        deselect_all_action.setShortcut(QKeySequence.StandardKey.Deselect)
         deselect_all_action.triggered.connect(self.deselect_all_triggered.emit)
         edit_menu.addAction(deselect_all_action)
 
@@ -344,135 +347,145 @@ class MainMenuBar(QObject):
         clear_action.triggered.connect(self.clear_triggered.emit)
         edit_menu.addAction(clear_action)
 
-        edit_menu.addSeparator()
+    def _create_objects_menu(self):
+        """Create the Objects menu."""
+        objects_menu = self.menubar.addMenu("&Objects")
 
         # Group
         group_action = QAction("&Group", self.parent_window)
         group_action.setShortcut(QKeySequence("Ctrl+G"))
         group_action.triggered.connect(self.group_triggered.emit)
-        edit_menu.addAction(group_action)
+        objects_menu.addAction(group_action)
 
         # Ungroup
         ungroup_action = QAction("&Ungroup", self.parent_window)
         ungroup_action.setShortcut(QKeySequence("Shift+Ctrl+G"))
         ungroup_action.triggered.connect(self.ungroup_triggered.emit)
-        edit_menu.addAction(ungroup_action)
+        objects_menu.addAction(ungroup_action)
 
-        # Arrange submenu
-        arrange_menu = edit_menu.addMenu("&Arrange")
+        objects_menu.addSeparator()
 
         raise_to_top_action = QAction("Raise to &Top", self.parent_window)
+        raise_to_top_action.setShortcut(QKeySequence("Ctrl+Shift+up"))
         raise_to_top_action.triggered.connect(self.raise_to_top_triggered.emit)
-        arrange_menu.addAction(raise_to_top_action)
+        objects_menu.addAction(raise_to_top_action)
 
         raise_action = QAction("&Raise", self.parent_window)
+        raise_action.setShortcut(QKeySequence("Ctrl+up"))
         raise_action.triggered.connect(self.raise_triggered.emit)
-        arrange_menu.addAction(raise_action)
+        objects_menu.addAction(raise_action)
 
         lower_action = QAction("&Lower", self.parent_window)
+        lower_action.setShortcut(QKeySequence("Ctrl+down"))
         lower_action.triggered.connect(self.lower_triggered.emit)
-        arrange_menu.addAction(lower_action)
+        objects_menu.addAction(lower_action)
 
         lower_to_bottom_action = QAction(
             "Lower to &Bottom", self.parent_window)
+        lower_to_bottom_action.setShortcut(QKeySequence("Ctrl+Shift+down"))
         lower_to_bottom_action.triggered.connect(
             self.lower_to_bottom_triggered.emit)
-        arrange_menu.addAction(lower_to_bottom_action)
+        objects_menu.addAction(lower_to_bottom_action)
 
-        edit_menu.addSeparator()
+        objects_menu.addSeparator()
 
         # Rotation commands
         rotate_ccw_action = QAction("Rotate 90 CCW", self.parent_window)
         rotate_ccw_action.setShortcut(QKeySequence("Ctrl+["))
         rotate_ccw_action.triggered.connect(self.rotate_90_ccw_triggered.emit)
-        edit_menu.addAction(rotate_ccw_action)
+        objects_menu.addAction(rotate_ccw_action)
 
         rotate_cw_action = QAction("Rotate 90 CW", self.parent_window)
         rotate_cw_action.setShortcut(QKeySequence("Ctrl+]"))
         rotate_cw_action.triggered.connect(self.rotate_90_cw_triggered.emit)
-        edit_menu.addAction(rotate_cw_action)
+        objects_menu.addAction(rotate_cw_action)
 
         rotate_180_action = QAction("Rotate 180", self.parent_window)
         rotate_180_action.triggered.connect(self.rotate_180_triggered.emit)
-        edit_menu.addAction(rotate_180_action)
+        objects_menu.addAction(rotate_180_action)
 
-        edit_menu.addSeparator()
+        objects_menu.addSeparator()
+
+        flip_horizontal_action = QAction("Flip Horizontal", self.parent_window)
+        flip_horizontal_action.triggered.connect(self.flip_horizontal_triggered.emit)
+        objects_menu.addAction(flip_horizontal_action)
+
+        flip_vertical_action = QAction("Flip Vertical", self.parent_window)
+        flip_vertical_action.triggered.connect(self.flip_vertical_triggered.emit)
+        objects_menu.addAction(flip_vertical_action)
+
+        objects_menu.addSeparator()
+
+
+    def _create_paths_menu(self):
+        """Create the Paths menu."""
+        paths_menu = self.menubar.addMenu("&Paths")
 
         # Conversion commands
         to_lines_action = QAction("Convert to &Lines", self.parent_window)
         to_lines_action.setShortcut(QKeySequence("Ctrl+L"))
         to_lines_action.triggered.connect(self.convert_to_lines_triggered.emit)
-        edit_menu.addAction(to_lines_action)
+        paths_menu.addAction(to_lines_action)
 
         to_curves_action = QAction("Convert to C&urves", self.parent_window)
         to_curves_action.setShortcut(QKeySequence("Ctrl+B"))
         to_curves_action.triggered.connect(
             self.convert_to_curves_triggered.emit)
-        edit_menu.addAction(to_curves_action)
+        paths_menu.addAction(to_curves_action)
 
         simplify_curves_action = QAction(
             "&Simplify Curves", self.parent_window)
         simplify_curves_action.setShortcut(QKeySequence("Alt+Ctrl+B"))
         simplify_curves_action.triggered.connect(
             self.simplify_curves_triggered.emit)
-        edit_menu.addAction(simplify_curves_action)
+        paths_menu.addAction(simplify_curves_action)
 
         smooth_curves_action = QAction("S&mooth Curves", self.parent_window)
         smooth_curves_action.setShortcut(QKeySequence("Shift+Ctrl+B"))
         smooth_curves_action.triggered.connect(
             self.smooth_curves_triggered.emit)
-        edit_menu.addAction(smooth_curves_action)
+        paths_menu.addAction(smooth_curves_action)
 
         join_curves_action = QAction("&Join Curves", self.parent_window)
         join_curves_action.setShortcut(QKeySequence("Ctrl+J"))
         join_curves_action.triggered.connect(self.join_curves_triggered.emit)
-        edit_menu.addAction(join_curves_action)
+        paths_menu.addAction(join_curves_action)
 
-        vectorize_action = QAction("&Vectorize Bitmap", self.parent_window)
-        vectorize_action.triggered.connect(
-            self.vectorize_bitmap_triggered.emit)
-        edit_menu.addAction(vectorize_action)
-
-        edit_menu.addSeparator()
+        paths_menu.addSeparator()
 
         # Boolean operations
-        union_action = QAction("&Union of Polygons", self.parent_window)
+        union_action = QAction("&Union", self.parent_window)
         union_action.setShortcut(QKeySequence("Alt+Ctrl+U"))
         union_action.triggered.connect(self.union_polygons_triggered.emit)
-        edit_menu.addAction(union_action)
+        paths_menu.addAction(union_action)
 
         difference_action = QAction(
-            "&Difference of Polygons", self.parent_window)
-        difference_action.setShortcut(QKeySequence("Ctrl+Alt+Ctrl+D"))
+            "&Difference", self.parent_window)
+        difference_action.setShortcut(QKeySequence("Ctrl+Alt+Meta+D"))
         difference_action.triggered.connect(
             self.difference_polygons_triggered.emit)
-        edit_menu.addAction(difference_action)
+        paths_menu.addAction(difference_action)
 
         intersection_action = QAction(
-            "&Intersection of Polygons", self.parent_window)
+            "&Intersection", self.parent_window)
         intersection_action.setShortcut(QKeySequence("Alt+Ctrl+I"))
         intersection_action.triggered.connect(
             self.intersection_polygons_triggered.emit)
-        edit_menu.addAction(intersection_action)
+        paths_menu.addAction(intersection_action)
 
     def _create_view_menu(self):
         """Create the View menu."""
         view_menu = self.menubar.addMenu("&View")
 
-        # Redraw
-        redraw_action = QAction("&Redraw", self.parent_window)
-        redraw_action.setShortcut(QKeySequence("Ctrl+R"))
-        redraw_action.triggered.connect(self.redraw_triggered.emit)
-        view_menu.addAction(redraw_action)
-
         # Actual Size
         actual_size_action = QAction("&Actual Size", self.parent_window)
-        actual_size_action.setShortcut(QKeySequence("Ctrl+0"))
+        actual_size_action.setShortcut(QKeySequence("Ctrl+1"))
         actual_size_action.triggered.connect(self.actual_size_triggered.emit)
         view_menu.addAction(actual_size_action)
 
         # Zoom to Fit
         zoom_fit_action = QAction("Zoom to &Fit", self.parent_window)
+        zoom_fit_action.setShortcut(QKeySequence("Ctrl+0"))
         zoom_fit_action.triggered.connect(self.zoom_to_fit_triggered.emit)
         view_menu.addAction(zoom_fit_action)
 

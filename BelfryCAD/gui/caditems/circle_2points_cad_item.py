@@ -1,5 +1,5 @@
 """
-CircleCenterRadiusCadItem - A circle CAD item defined by center point and perimeter point.
+Circle2PointsCadItem - A circle CAD item defined by two points on opposite sides (diameter endpoints).
 """
 
 import math
@@ -9,29 +9,33 @@ from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
 
 
-class CircleCenterRadiusCadItem(CadItem):
-    """A circle CAD item defined by center point and perimeter point."""
+class Circle2PointsCadItem(CadItem):
+    """A circle CAD item defined by two points on opposite sides (diameter endpoints)."""
     
-    def __init__(self, center_point=None, perimeter_point=None, color=QColor(255, 0, 0), line_width=0.05):
-        super().__init__()
-        self._center_point = center_point if center_point else QPointF(0, 0)
-        self._perimeter_point = perimeter_point if perimeter_point else QPointF(1, 0)
+    def __init__(self, point1=None, point2=None, color=QColor(255, 0, 0), line_width=0.05):
+        self._point1 = point1 if point1 is not None else QPointF(-1, 0)
+        self._point2 = point2 if point2 is not None else QPointF(1, 0)
         self._color = color
         self._line_width = line_width
         self._radius_datum = None
         
         # Convert points to QPointF if they aren't already
-        if isinstance(self._center_point, (list, tuple)):
-            self._center_point = QPointF(self._center_point[0], self._center_point[1])
-        if isinstance(self._perimeter_point, (list, tuple)):
-            self._perimeter_point = QPointF(self._perimeter_point[0], self._perimeter_point[1])
+        if isinstance(self._point1, (list, tuple)):
+            self._point1 = QPointF(self._point1[0], self._point1[1])
+        if isinstance(self._point2, (list, tuple)):
+            self._point2 = QPointF(self._point2[0], self._point2[1])
+        
+        super().__init__()
         
         # Position the item at the center point
-        self.setPos(self._center_point)
+        self.setPos(self.center_point)
     
     def _get_control_points(self):
         """Return control points for the circle."""
-        perimeter_local = self._perimeter_point - self._center_point
+        # Control points are relative to the center
+        center = self.center_point
+        point1_local = self._point1 - center
+        point2_local = self._point2 - center
         
         # Create radius datum if it doesn't exist
         if not self._radius_datum:
@@ -46,14 +50,14 @@ class CircleCenterRadiusCadItem(CadItem):
                 parent_item=self
             )
         else:
-            # Update radius datum position
             sc = math.sin(math.pi/4)
             datum_pos = QPointF(self.radius * sc, self.radius * sc)
             self._radius_datum.position = datum_pos
         
         return [
+            ControlPoint('point1', point1_local),
+            ControlPoint('point2', point2_local),
             SquareControlPoint('center', QPointF(0, 0)),
-            ControlPoint('perimeter', perimeter_local),
             self._radius_datum
         ]
     
@@ -130,23 +134,63 @@ class CircleCenterRadiusCadItem(CadItem):
         self._add_centerlines(QPointF(0, 0))
 
     @property
+    def center_point(self):
+        """Calculate the center point between the two diameter endpoints."""
+        return QPointF(
+            (self._point1.x() + self._point2.x()) / 2,
+            (self._point1.y() + self._point2.y()) / 2
+        )
+    
+    @property
     def radius(self):
-        """Calculate the radius from center to perimeter point."""
-        delta = self._perimeter_point - self._center_point
-        return (delta.x() ** 2 + delta.y() ** 2) ** 0.5
+        """Calculate the radius as half the distance between the two points."""
+        delta = self._point2 - self._point1
+        diameter = (delta.x() ** 2 + delta.y() ** 2) ** 0.5
+        return diameter / 2
     
     @radius.setter
     def radius(self, value):
-        """Set the radius by moving the perimeter point."""
-        # Calculate current angle from center to perimeter point
-        delta = self._perimeter_point - self._center_point
-        current_angle = math.atan2(delta.y(), delta.x())
+        """Set the radius by moving both points symmetrically from center."""
+        center = self.center_point
+        # Calculate current direction vector from point1 to point2
+        direction = self._point2 - self._point1
+        direction_length = (direction.x() ** 2 + direction.y() ** 2) ** 0.5
         
-        # Calculate new perimeter point position
-        new_perimeter_x = self._center_point.x() + value * math.cos(current_angle)
-        new_perimeter_y = self._center_point.y() + value * math.sin(current_angle)
+        if direction_length > 0:
+            # Normalize direction and scale by new diameter
+            normalized = QPointF(direction.x() / direction_length, direction.y() / direction_length)
+            half_diameter = value
+            
+            self._point1 = center - QPointF(normalized.x() * half_diameter, normalized.y() * half_diameter)
+            self._point2 = center + QPointF(normalized.x() * half_diameter, normalized.y() * half_diameter)
+        else:
+            # If points are coincident, create horizontal diameter
+            self._point1 = QPointF(center.x() - value, center.y())
+            self._point2 = QPointF(center.x() + value, center.y())
         
-        self._perimeter_point = QPointF(new_perimeter_x, new_perimeter_y)
+        self.setPos(self.center_point)
+        self.prepareGeometryChange()
+        self.update()
+
+    @property
+    def point1(self):
+        return self._point1
+    
+    @point1.setter
+    def point1(self, value):
+        self._point1 = value
+        self.setPos(self.center_point)
+        self.prepareGeometryChange()
+        self.update()
+
+    @property
+    def point2(self):
+        return self._point2
+    
+    @point2.setter
+    def point2(self, value):
+        self._point2 = value
+        self.setPos(self.center_point)
         self.prepareGeometryChange()
         self.update()
 
@@ -169,31 +213,46 @@ class CircleCenterRadiusCadItem(CadItem):
         self._line_width = value
         self.update()
     
-    def _update_geometry_from_control_point(self, name: str, new_position: QPointF):
-        """Update the CAD item geometry based on control point changes."""
-        if name == 'center':
-            # new_position is in scene coordinates
-            # Update the center point in scene coordinates
-            old_center = self._center_point
-            self._center_point = new_position
-            # Move the CAD item to the new center
-            self.setPos(self._center_point)
-            # Update perimeter point to maintain the same relative position
-            delta = new_position - old_center
-            self._perimeter_point += delta
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'perimeter':
-            # new_position is in scene coordinates
-            # Update perimeter point in scene coordinates
-            self._perimeter_point = new_position
-            self.prepareGeometryChange()
-            self.update()
-    
     def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes using the optimized update method."""
-        # Call the parent method which handles the optimized update logic
+        """Handle control point changes."""
+        self.prepareGeometryChange()
+        if name == 'center':
+            # Translate the entire circle (both points)
+            # Calculate the delta from current center (which is at origin in local coords)
+            delta = new_position  # new_position is the delta from origin
+            scene_delta = self.mapToScene(delta) - self.mapToScene(QPointF(0, 0))
+            self._point1 += scene_delta
+            self._point2 += scene_delta
+            self.setPos(self.center_point)
+        elif name == 'point1':
+            # Change point1 position
+            scene_pos = self.mapToScene(new_position)
+            self._point1 = scene_pos
+            self.setPos(self.center_point)
+            self.prepareGeometryChange()
+            self.update()
+        elif name == 'point2':
+            # Change point2 position
+            scene_pos = self.mapToScene(new_position)
+            self._point2 = scene_pos
+            self.setPos(self.center_point)
+            self.prepareGeometryChange()
+            self.update()
+        
+        # Call parent method to refresh all control points
         super()._control_point_changed(name, new_position)
+
+    def diameter(self):
+        """Get the diameter of the circle."""
+        return self.radius * 2
+    
+    def set_diameter_points(self, point1, point2):
+        """Set both diameter endpoint at once."""
+        self._point1 = point1
+        self._point2 = point2
+        self.setPos(self.center_point)
+        self.prepareGeometryChange()
+        self.update()
 
     def _get_radius_value(self):
         """Get the current radius value."""

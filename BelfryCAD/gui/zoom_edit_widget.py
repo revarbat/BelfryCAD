@@ -1,5 +1,5 @@
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QGraphicsView
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QGraphicsView, QWidget
 
 from .grid_info import GridInfo
 
@@ -25,11 +25,16 @@ class DigitOnlyInputFilter(QObject):
         return False
 
 
-class ZoomEditWidget(QHBoxLayout):
+class ZoomEditWidget(QWidget):
     """A widget for editing and displaying zoom level, with label and percent sign."""
     def __init__(self, view: QGraphicsView, parent=None):
-        super().__init__()
+        super().__init__(parent)
         self._view = view
+        
+        # Create layout
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)  # Remove margins for compact appearance
+        
         self.zoom_label = QLabel("Zoom:")
         self.zoom_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -42,6 +47,7 @@ class ZoomEditWidget(QHBoxLayout):
         self.scale_label.setReadOnly(True)
 
         self.percent_label = QLabel("%")
+        self.percent_label.setFixedWidth(20)
         self.percent_label.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
@@ -49,9 +55,9 @@ class ZoomEditWidget(QHBoxLayout):
         self.digit_filter = DigitOnlyInputFilter()
         self.scale_label.installEventFilter(self.digit_filter)
 
-        self.addWidget(self.zoom_label)
-        self.addWidget(self.scale_label)
-        self.addWidget(self.percent_label)
+        layout.addWidget(self.zoom_label)
+        layout.addWidget(self.scale_label)
+        layout.addWidget(self.percent_label)
 
         self.scale_label.mouseDoubleClickEvent = self._scale_label_double_click
         self.scale_label.returnPressed.connect(self._apply_zoom_from_label)

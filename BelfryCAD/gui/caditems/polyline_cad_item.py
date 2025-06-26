@@ -40,6 +40,9 @@ class PolylineCadItem(CadItem):
             except ValueError:
                 # Invalid point index, ignore the change
                 pass
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
 
     def _boundingRect(self):
         """Return the bounding rectangle of the polyline."""

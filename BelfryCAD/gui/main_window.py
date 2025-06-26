@@ -1,18 +1,18 @@
 # filepath: /Users/gminette/dev/git-repos/pyBelfryCad/src/gui/main_window.py
 """Main window for the BelfryCad application."""
-import math
-import os
+
 import logging
 
 from PySide6.QtCore import (
     Qt, QSize, QTimer
 )
 from PySide6.QtGui import (
-    QShortcut, QKeySequence, QIcon
+    QShortcut, QKeySequence, QPen, QColor
 )
 from PySide6.QtWidgets import (
-    QMainWindow, QFileDialog, QMessageBox, QDialog
+    QMainWindow, QFileDialog, QMessageBox, QDialog, QLabel, QGraphicsView
 )
+from PySide6.QtCore import QPointF
 
 from ..core.undo_redo import UndoRedoManager
 from ..core.cad_objects import CADObject
@@ -35,6 +35,11 @@ from .preferences_dialog import PreferencesDialog
 from .gear_wizard_dialog import GearWizardDialog
 from .gcode_backtracer_dialog import GCodeBacktracerDialog
 from .zoom_edit_widget import ZoomEditWidget
+from .caditems import (
+    LineCadItem, CubicBezierCadItem, CircleCenterRadiusCadItem,
+    Circle2PointsCadItem, Circle3PointsCadItem, CircleCornerCadItem, ArcCornerCadItem, RectangleCadItem, ArcCadItem, PolylineCadItem,
+)
+from .panes.layer_pane import LayerPane
 
 logger = logging.getLogger(__name__)
 
@@ -94,26 +99,12 @@ class MainWindow(QMainWindow):
         self._create_menu()
         self._create_toolbar()
         self._create_canvas()
+        self._create_status_bar()  # Add status bar
         self._setup_palettes()  # Add palette system setup
         self._setup_tools()
         self._setup_category_shortcuts()
         self._update_shortcut_tooltips()
-        self._setup_shortcuts()
-
-    def _setup_shortcuts(self):
-        """Set up keyboard shortcuts for the main window."""
-        zoom_in_shortcut = QShortcut(QKeySequence("Ctrl+="), self)
-        zoom_in_shortcut.activated.connect(self._zoom_in)
-        zoom_out_shortcut = QShortcut(QKeySequence("Ctrl+-"), self)
-        zoom_out_shortcut.activated.connect(self._zoom_out)
-        reset_shortcut = QShortcut(QKeySequence("Ctrl+1"), self)
-        reset_shortcut.activated.connect(self._reset_zoom)
-        zoom_fit_shortcut = QShortcut(QKeySequence("Ctrl+0"), self)
-        zoom_fit_shortcut.activated.connect(self._zoom_to_fit)
-        deselect_shortcut = QShortcut(QKeySequence("Escape"), self)
-        deselect_shortcut.activated.connect(self._clear_selection)
-        select_all_shortcut = QShortcut(QKeySequence("Ctrl+A"), self)
-        select_all_shortcut.activated.connect(self._select_all)
+        self._draw_shapes()
 
     def _setup_category_shortcuts(self):
         """Set up keyboard shortcuts for tool category activation"""
@@ -276,14 +267,14 @@ class MainWindow(QMainWindow):
         self.toolbar.setContentsMargins(0, 0, 0, 0)
         # Make toolbar more compact
         self.toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        # Apply custom stylesheet with 2px spacing
+        # Apply custom stylesheet with 2px spacing and 1px border
         self.toolbar.setStyleSheet("""
             QToolBar {
-                margin: 2px;
-                border: none;
+                margin: 0px;
+                border: 1px solid #cccccc;
             }
             QToolButton {
-                margin: 2px;
+                margin: 0px;
                 padding: 0px;
                 border: none;
             }
@@ -292,6 +283,38 @@ class MainWindow(QMainWindow):
 
         # Store category buttons for reference
         self.category_buttons = {}
+
+    def _create_status_bar(self):
+        """Create the status bar with position labels."""
+        # Create status bar
+        status_bar = self.statusBar()
+        
+        # Create position labels
+        xlabel = QLabel('  X:')
+        self.position_label_x = QLabel('0.000"')
+        ylabel = QLabel('Y:')
+        self.position_label_y = QLabel('0.000"')
+        
+        # Set minimum width for labels to prevent jumping
+        self.position_label_x.setMinimumWidth(100)
+        self.position_label_y.setMinimumWidth(100)
+
+        xlabel.setStyleSheet("color: #cc0000; font-weight: bold; font-size: 16pt;")
+        self.position_label_x.setStyleSheet("font-size: 16pt;")
+        ylabel.setStyleSheet("color: #00aa00; font-weight: bold; font-size: 16pt;")
+        self.position_label_y.setStyleSheet("font-size: 16pt;")
+
+        # Add labels to status bar
+        status_bar.addWidget(xlabel)
+        status_bar.addWidget(self.position_label_x)
+        status_bar.addWidget(ylabel)
+        status_bar.addWidget(self.position_label_y)
+
+        # Add stretch to push labels to the left
+        status_bar.addWidget(QLabel(), 1)
+
+        self.zoom_edit_widget = ZoomEditWidget(self.cad_view)
+        status_bar.addWidget(self.zoom_edit_widget, 1)
 
     def get_scene(self):
         return self.cad_scene
@@ -387,7 +410,8 @@ class MainWindow(QMainWindow):
         current_layer = self.document.layers.get_current_layer()
 
         # Update the layer pane
-        layer_pane.refresh_layers(layers, current_layer)
+        if isinstance(layer_pane, LayerPane):
+            layer_pane.refresh_layers(layers, current_layer)
 
     def _on_layer_created(self):
         """Handle layer creation request from layer window."""
@@ -735,7 +759,8 @@ class MainWindow(QMainWindow):
                 # Check file extension to determine export type
                 if filename.lower().endswith('.pdf'):
                     # Use print manager for PDF export
-                    if hasattr(self, 'print_manager'):
+                    if hasattr(self, 'print_manager') and \
+                            self.print_manager is not None:
                         return self.print_manager.export_to_pdf(filename)
                     else:
                         QMessageBox.information(
@@ -757,7 +782,7 @@ class MainWindow(QMainWindow):
 
     def page_setup(self):
         """Handle Page Setup menu action."""
-        if hasattr(self, 'print_manager'):
+        if hasattr(self, 'print_manager') and self.print_manager is not None:
             self.print_manager.show_page_setup_dialog()
         else:
             # Fallback message
@@ -768,7 +793,7 @@ class MainWindow(QMainWindow):
 
     def print_file(self):
         """Handle Print menu action."""
-        if hasattr(self, 'print_manager'):
+        if hasattr(self, 'print_manager') and self.print_manager is not None:
             self.print_manager.show_print_dialog()
         else:
             # Fallback message
@@ -779,7 +804,7 @@ class MainWindow(QMainWindow):
 
     def export_pdf(self):
         """Export the current drawing to PDF."""
-        if hasattr(self, 'print_manager'):
+        if hasattr(self, 'print_manager') and self.print_manager is not None:
             return self.print_manager.export_to_pdf()
         else:
             # Fallback message
@@ -793,24 +818,22 @@ class MainWindow(QMainWindow):
     def undo(self):
         """Handle Undo menu action."""
         if hasattr(self, 'undo_manager') and self.undo_manager.undo():
-            self.draw_objects()  # Redraw to reflect changes
             self.update_title()  # Update window title
 
     def redo(self):
         """Handle Redo menu action."""
         if hasattr(self, 'undo_manager') and self.undo_manager.redo():
-            self.draw_objects()  # Redraw to reflect changes
             self.update_title()  # Update window title
 
     def cut(self):
         """Handle Cut menu action."""
         # Copy selected objects to clipboard, then delete them
         if self.copy():
-            self._delete_selected_objects()
+            self._delete_selected_items()
 
     def copy(self):
         """Handle Copy menu action."""
-        selected_objects = self._get_selected_objects()
+        selected_objects = self._get_selected_items()
         if not selected_objects:
             return False
 
@@ -846,7 +869,7 @@ class MainWindow(QMainWindow):
             # Create new object with offset coordinates
             new_coords = []
             for coord in obj_data['coords']:
-                new_coords.append(Point(
+                new_coords.append(QPointF(
                     coord['x'] + paste_offset_x,
                     coord['y'] + paste_offset_y
                 ))
@@ -871,8 +894,7 @@ class MainWindow(QMainWindow):
 
         # Select the newly pasted objects
         if new_objects:
-            self._select_objects(new_objects)
-            self.draw_objects()  # Redraw to show new objects
+            self._select_items(new_objects)
 
         return len(new_objects) > 0
 
@@ -1129,9 +1151,8 @@ class MainWindow(QMainWindow):
             redo_text = f"Redo {redo_desc}" if redo_desc else "Redo"
 
             # Update menu items (if the menu supports it)
-            if hasattr(self.main_menu, 'update_undo_redo_state'):
-                self.main_menu.update_undo_redo_state(
-                    can_undo, undo_text, can_redo, redo_text)
+            # TODO: Implement update_undo_redo_state method in MainMenuBar
+            pass
 
     def execute_command(self, command):
         """Execute a command through the undo system."""
@@ -1202,9 +1223,6 @@ class MainWindow(QMainWindow):
         # Sync the menu checkboxes with the new state
         self._sync_palette_menu_states()
 
-
-
-
     def tool_table(self):
         """Handle Tool Table menu action."""
         logger.info("Opening tool table dialog")
@@ -1226,12 +1244,12 @@ class MainWindow(QMainWindow):
             label = ""
         elif label == "Yard":
             label = ""
-        cursor_x = self.grid_info.format_label(pos.x(), no_subs=True)
-        cursor_y = self.grid_info.format_label(pos.y(), no_subs=True)
+        cursor_x = self.grid_info.format_label(pos.x(), no_subs=False)
+        cursor_y = self.grid_info.format_label(pos.y(), no_subs=False)
         cursor_x = cursor_x.replace("\n", " ")
         cursor_y = cursor_y.replace("\n", " ")
-        self.position_label_x.setText(f"X: {cursor_x}{label}")
-        self.position_label_y.setText(f"Y: {cursor_y}{label}")
+        self.position_label_x.setText(f"{cursor_x}{label}")
+        self.position_label_y.setText(f"{cursor_y}{label}")
         # Call original mouse move event
         QGraphicsView.mouseMoveEvent(self.cad_view, event)
 
@@ -1283,7 +1301,23 @@ class MainWindow(QMainWindow):
 
     def _clear_selection(self):
         """Deselect all selected items."""
-        self.cad_scene.clearSelection()
+        try:
+            # First, manually deselect all items to ensure proper cleanup
+            selected_items = self.cad_scene.selectedItems()
+            for item in selected_items:
+                try:
+                    if hasattr(item, 'setSelected'):
+                        item.setSelected(False)
+                except (RuntimeError, AttributeError, TypeError):
+                    # Item may be invalid, continue with others
+                    continue
+            
+            # Then call clearSelection to ensure Qt's internal state is updated
+            self.cad_scene.clearSelection()
+        except (RuntimeError, AttributeError, TypeError) as e:
+            # If clearSelection fails, just log the error and continue
+            print(f"Warning: Failed to clear selection: {e}")
+            pass
 
     def _select_all(self):
         """Select all selectable items (excluding grid and rulers)."""
@@ -1291,6 +1325,157 @@ class MainWindow(QMainWindow):
             if isinstance(item, CadItem):
                 item.setSelected(True)
 
+    def _get_selected_items(self):
+        """Get currently selected items from the scene."""
+        selected_items = []
+        for item in self.cad_scene.selectedItems():
+            if isinstance(item, CadItem):
+                selected_items.append(item)
+        return selected_items
+
+    def _delete_selected_items(self):
+        """Delete currently selected items from the scene."""
+        selected_items = self._get_selected_items()
+        for item in selected_items:
+            self.cad_scene.removeItem(item)
+        return len(selected_items) > 0
+
+    def _select_items(self, items):
+        """Select the specified items in the scene."""
+        # First clear current selection
+        self.cad_scene.clearSelection()
+        # Then select the new items
+        for item in items:
+            if hasattr(item, 'setSelected'):
+                item.setSelected(True)
+
     def _select_similar(self):
         """Select similar items."""
         pass
+
+    def _draw_shapes(self):
+        """Draw test shapes on the scene."""
+        black = QColor(0, 0, 0)
+
+        # Add draggable circles
+        circle1 = CircleCenterRadiusCadItem(
+            QPointF(1, 0.5), QPointF(2, 0.5),
+            black, 0.08)
+        circle1.setZValue(2)  # Above other shapes
+        self.cad_scene.addItem(circle1)
+        
+        # Add polylines
+        # Triangle polyline
+        triangle_points = [
+            QPointF(-3, 0),
+            QPointF(-1, 0),
+            QPointF(-2, 2),
+            QPointF(-3, 0)
+        ]
+        triangle = PolylineCadItem(
+            triangle_points, black, 0.1)
+        triangle.setZValue(1)
+        self.cad_scene.addItem(triangle)
+        
+        # Zigzag polyline
+        zigzag_points = [
+            QPointF(-4, -2),
+            QPointF(-3, -1),
+            QPointF(-2, -2), 
+            QPointF(-1, -1),
+            QPointF(0, -2),
+            QPointF(1, -1)
+        ]
+        zigzag = PolylineCadItem(
+            zigzag_points, black, 0.08)
+        zigzag.setZValue(2)
+        self.cad_scene.addItem(zigzag)
+                
+        # Add line segments
+        # Horizontal line
+        line1 = LineCadItem(
+            QPointF(-2, 4), QPointF(2, 4),
+            black, 0.12)
+        line1.setZValue(1)
+        self.cad_scene.addItem(line1)
+        
+        # Diagonal line
+        line2 = LineCadItem(
+            QPointF(-4, 1), QPointF(-2, 3),
+            black, 0.08)
+        line2.setZValue(2)
+        self.cad_scene.addItem(line2)
+        
+        # Vertical line
+        line3 = LineCadItem(
+            QPointF(4, -2), QPointF(4, 2),
+            black, 0.1)
+        line3.setZValue(2)
+        self.cad_scene.addItem(line3)
+        
+        # Add Bezier curves
+        # Tight curve
+        bezier3 = CubicBezierCadItem(
+            QPointF(-1, 1.5), QPointF(0, 3.5), 
+            QPointF(1, 3.5), QPointF(2, 2),
+            black, 0.1)
+        bezier3.setZValue(2)
+        self.cad_scene.addItem(bezier3)
+        
+        # Add rectangles
+        # Test rectangle
+        rectangle1 = RectangleCadItem(
+            QPointF(3, 3), QPointF(5, 3),
+            QPointF(5, 1), QPointF(3, 1),
+            black, 0.08)
+        rectangle1.setZValue(2)
+        self.cad_scene.addItem(rectangle1)
+        
+        # Add arcs
+        # Test arc (quarter circle)
+        arc1 = ArcCadItem(
+            QPointF(-1, -3), QPointF(0, -3), QPointF(-1, -2),
+            black, 0.1)
+        arc1.setZValue(2)
+        self.cad_scene.addItem(arc1)
+
+        circ2 = Circle2PointsCadItem(
+            QPointF(1, -2), QPointF(3, -2),
+            black, 0.1)
+        circ2.setZValue(2)
+        self.cad_scene.addItem(circ2)
+        
+        # Add Circle3PointsCadItem - valid circle
+        circle3pt = Circle3PointsCadItem(
+            QPointF(-3, -3), QPointF(-1, -4), QPointF(-2, -1),
+            QColor(0, 150, 0), 0.08)
+        circle3pt.setZValue(2)
+        self.cad_scene.addItem(circle3pt)
+        
+        # Add Circle3PointsCadItem - collinear points (becomes a line)
+        line3pt = Circle3PointsCadItem(
+            QPointF(4, 3), QPointF(5, 4), QPointF(6, 5),
+            QColor(200, 0, 200), 0.1)
+        line3pt.setZValue(2)
+        self.cad_scene.addItem(line3pt)
+        
+        # Add CircleCornerCadItem - circle tangent to two rays
+        corner_circle = CircleCornerCadItem(
+            QPointF(-5, 2),       # Corner point
+            QPointF(-3, 3),       # Ray 1 point
+            QPointF(-4, 4),       # Ray 2 point
+            QPointF(-4.2, 2.8),   # Center spec point (on bisector)
+            QColor(0, 0, 255), 0.06)
+        corner_circle.setZValue(2)
+        self.cad_scene.addItem(corner_circle)
+        
+        # Add ArcCornerCadItem - arc between tangent points on two rays
+        corner_arc = ArcCornerCadItem(
+            QPointF(5, -3),       # Corner point
+            QPointF(7, -2),       # Ray 1 point
+            QPointF(6, -1),       # Ray 2 point
+            QPointF(6.0, -2.2),   # Center spec point (on bisector)
+            QColor(255, 128, 0), 0.08)
+        corner_arc.setZValue(2)
+        self.cad_scene.addItem(corner_arc)
+        
