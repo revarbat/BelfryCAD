@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="16"
+   height="16"
+   viewBox="0 0 16 16"
+   version="1.1"
+   id="svg8"
+   sodipodi:docname="snap-disable.svg"
+   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs8" />
+  <sodipodi:namedview
+     id="namedview8"
+     pagecolor="#ffffff"
+     bordercolor="#111111"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="26"
+     inkscape:cx="8"
+     inkscape:cy="8"
+     inkscape:window-width="1232"
+     inkscape:window-height="847"
+     inkscape:window-x="0"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg8" />
+  <!-- Circle with quadrant points -->
+  <circle
+     cx="8"
+     cy="8"
+     r="5"
+     stroke="#666666"
+     stroke-width="2"
+     fill="none"
+     id="circle1"
+     style="stroke-width:1;stroke-dasharray:none;stroke:#ff0000;stroke-opacity:1" />
+  <!-- Quadrant crosshairs -->
+  <path
+     style="fill:none;stroke:#ff0000;stroke-dashoffset:1.5;stroke-opacity:1"
+     d="M 4.4134616,11.586539 11.586538,4.4134614"
+     id="path1" />
+</svg>
