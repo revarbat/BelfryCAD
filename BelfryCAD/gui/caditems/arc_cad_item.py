@@ -7,6 +7,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, DiamondControlPoint, ControlDatum
+from BelfryCAD.gui.cad_rect import CadRect
 
 
 class ArcCadItem(CadItem):
@@ -156,42 +157,14 @@ class ArcCadItem(CadItem):
         start_angle = self._normalize_angle(start_angle)
         end_angle = self._normalize_angle(end_angle)
         
-        # Find the arc's actual extents
-        min_x = min(self._start_point.x(), self._end_point.x())
-        max_x = max(self._start_point.x(), self._end_point.x())
-        min_y = min(self._start_point.y(), self._end_point.y())
-        max_y = max(self._start_point.y(), self._end_point.y())
-        
-        # Check if arc crosses cardinal directions (0°, 90°, 180°, 270°)
-        # and include those extremes if they're within the arc span
-        if self._angle_in_arc(0, start_angle, end_angle):  # 0° (right)
-            max_x = max(max_x, self._center_point.x() + radius)
-        if self._angle_in_arc(math.pi / 2, start_angle, end_angle):  # 90° (up)
-            max_y = max(max_y, self._center_point.y() + radius)
-        if self._angle_in_arc(math.pi, start_angle, end_angle):  # 180° (left)
-            min_x = min(min_x, self._center_point.x() - radius)
-        if self._angle_in_arc(3 * math.pi / 2, start_angle, end_angle):  # 270° (down)
-            min_y = min(min_y, self._center_point.y() - radius)
+        # Create a CadRect and expand it to include the arc
+        rect = CadRect()
+        rect.expandWithArc(self._center_point, radius, start_angle, end_angle)
         
         # Add padding for line width
-        padding = self._line_width / 2
-        return QRectF(
-            min_x - padding,
-            min_y - padding,
-            max_x - min_x + 2 * padding,
-            max_y - min_y + 2 * padding
-        )
-
-    def _angle_in_arc(self, test_angle, start_angle, end_angle):
-        """Check if a test angle is within the arc span (counter-clockwise)."""
-        test_angle = self._normalize_angle(test_angle)
+        rect.expandByScalar(self._line_width / 2)
         
-        if start_angle <= end_angle:
-            # Arc doesn't cross 0°
-            return start_angle <= test_angle <= end_angle
-        else:
-            # Arc crosses 0°
-            return test_angle >= start_angle or test_angle <= end_angle
+        return rect
 
     def _create_arc_path(self):
         """Create the arc path."""
@@ -278,11 +251,6 @@ class ArcCadItem(CadItem):
         shape_path = self._shape()
         return shape_path.contains(local_point)
 
-    def _draw_decorations(self, painter):
-        """Draw centerlines when selected."""
-        radius = self._distance(self._center_point, self._start_point)
-        self.draw_centerlines(painter, self._center_point, radius)
-    
     def paint_item(self, painter, option, widget=None):
         """Draw the arc content."""
         painter.save()

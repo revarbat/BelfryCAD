@@ -6,6 +6,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, DiamondControlPoint
+from BelfryCAD.gui.cad_rect import CadRect
 
 
 class CubicBezierCadItem(CadItem):
@@ -62,26 +63,19 @@ class CubicBezierCadItem(CadItem):
         """Return the bounding rectangle of the Bezier curve."""
         # For a cubic Bezier, the bounding box includes all four control points
         # plus some padding for the curve that might extend beyond the control polygon
-        points = [
-            self._start_point,
-            self._control1,
-            self._control2,
-            self._end_point
-        ]
         
-        min_x = min(p.x() for p in points)
-        max_x = max(p.x() for p in points)
-        min_y = min(p.y() for p in points)
-        max_y = max(p.y() for p in points)
+        # Create a CadRect containing all four control points
+        rect = CadRect()
+        rect.expandToPoint(self._start_point)
+        rect.expandToPoint(self._control1)
+        rect.expandToPoint(self._control2)
+        rect.expandToPoint(self._end_point)
         
         # Add padding for line width and potential curve overshoot
         padding = max(self._line_width / 2, 0.1)
-        return QRectF(
-            min_x - padding,
-            min_y - padding, 
-            max_x - min_x + 2 * padding,
-            max_y - min_y + 2 * padding
-        )
+        rect.expandByScalar(padding)
+        
+        return rect
     
     def _create_bezier_path(self):
         """Create the Bezier curve path."""

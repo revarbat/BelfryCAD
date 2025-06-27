@@ -6,6 +6,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint
+from BelfryCAD.gui.cad_rect import CadRect
 
 
 class RectangleCadItem(CadItem):
@@ -107,21 +108,17 @@ class RectangleCadItem(CadItem):
 
     def _boundingRect(self):
         """Return the bounding rectangle of the rectangle."""
-        points = [self._top_left, self._top_right, self._bottom_right, self._bottom_left]
-        
-        min_x = min(p.x() for p in points)
-        max_x = max(p.x() for p in points)
-        min_y = min(p.y() for p in points)
-        max_y = max(p.y() for p in points)
+        # Create a CadRect containing all four corner points
+        rect = CadRect()
+        rect.expandToPoint(self._top_left)
+        rect.expandToPoint(self._top_right)
+        rect.expandToPoint(self._bottom_right)
+        rect.expandToPoint(self._bottom_left)
         
         # Add padding for line width
-        padding = self._line_width / 2
-        return QRectF(
-            min_x - padding,
-            min_y - padding, 
-            max_x - min_x + 2 * padding,
-            max_y - min_y + 2 * padding
-        )
+        rect.expandByScalar(self._line_width / 2)
+        
+        return rect
     
     def _create_rectangle_path(self):
         """Create the rectangle path."""

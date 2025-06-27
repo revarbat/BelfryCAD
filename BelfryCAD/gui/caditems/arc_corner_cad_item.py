@@ -8,6 +8,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
+from BelfryCAD.gui.cad_rect import CadRect
 
 
 class ArcCornerCadItem(CadItem):
@@ -269,29 +270,37 @@ class ArcCornerCadItem(CadItem):
         """Return the bounding rectangle of the arc."""
         if not self._is_valid or self._radius <= 0:
             # Fallback to bounding box of all points
-            points = [self._corner_point, self._ray1_point, self._ray2_point, self._center_point]
-            min_x = min(p.x() for p in points)
-            max_x = max(p.x() for p in points)
-            min_y = min(p.y() for p in points)
-            max_y = max(p.y() for p in points)
-            
-            # Convert to local coordinates
             center = self._calculated_center
-            min_x -= center.x()
-            max_x -= center.x()
-            min_y -= center.y()
-            max_y -= center.y()
             
-            padding = self._line_width / 2
-            return QRectF(min_x - padding, min_y - padding, 
-                         max_x - min_x + 2 * padding, max_y - min_y + 2 * padding)
+            # Create a CadRect containing all points in local coordinates
+            rect = CadRect()
+            rect.expandToPoint(self._corner_point - center)
+            rect.expandToPoint(self._ray1_point - center)
+            rect.expandToPoint(self._ray2_point - center)
+            rect.expandToPoint(self._center_point - center)
+            
+            # Add padding for line width
+            rect.expandByScalar(self._line_width / 2)
+            
+            return rect
         
         # For valid arcs, use arc bounding box
-        # Simple approach: use full circle bounds (could be optimized)
-        radius = self._radius
-        padding = self._line_width / 2
-        return QRectF(-radius - padding, -radius - padding, 
-                     2 * radius + 2 * padding, 2 * radius + 2 * padding)
+        # Convert tangent points to local coordinates (relative to arc center)
+        t1_local = self._tangent_point1 - self._calculated_center
+        t2_local = self._tangent_point2 - self._calculated_center
+        
+        # Calculate angles from center to tangent points
+        start_angle = math.atan2(t1_local.y(), t1_local.x())
+        end_angle = math.atan2(t2_local.y(), t2_local.x())
+        
+        # Create a CadRect and expand it to include the arc
+        rect = CadRect()
+        rect.expandWithArc(QPointF(0, 0), self._radius, start_angle, end_angle)
+        
+        # Add padding for line width
+        rect.expandByScalar(self._line_width / 2)
+        
+        return rect
     
     def _shape(self):
         """Return the exact shape of the arc for collision detection."""

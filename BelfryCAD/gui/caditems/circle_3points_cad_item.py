@@ -8,6 +8,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
+from BelfryCAD.gui.cad_rect import CadRect
 
 
 class Circle3PointsCadItem(CadItem):
@@ -164,46 +165,46 @@ class Circle3PointsCadItem(CadItem):
                 self._radius_datum
             ]
     
+    def _get_midpoint(self):
+        """Get the midpoint between point1 and point3."""
+        return QPointF(
+            (self._point1.x() + self._point3.x()) / 2,
+            (self._point1.y() + self._point3.y()) / 2
+        )
+    
     def _boundingRect(self):
         """Return the bounding rectangle of the circle or line."""
         if self.is_line:
             # For lines, get bounding box of all three points
-            min_x = min(self._point1.x(), self._point2.x(), self._point3.x())
-            max_x = max(self._point1.x(), self._point2.x(), self._point3.x())
-            min_y = min(self._point1.y(), self._point2.y(), self._point3.y())
-            max_y = max(self._point1.y(), self._point2.y(), self._point3.y())
+            midpoint = self._get_midpoint()
             
-            # Convert to local coordinates relative to line midpoint
-            midpoint = QPointF(
-                (self._point1.x() + self._point3.x()) / 2,
-                (self._point1.y() + self._point3.y()) / 2
-            )
-            
-            min_x -= midpoint.x()
-            max_x -= midpoint.x()
-            min_y -= midpoint.y()
-            max_y -= midpoint.y()
+            # Create a CadRect containing all three points in local coordinates
+            rect = CadRect()
+            rect.expandToPoint(self._point1 - midpoint)
+            rect.expandToPoint(self._point2 - midpoint)
+            rect.expandToPoint(self._point3 - midpoint)
             
             # Add padding for line width
-            padding = self._line_width / 2
-            return QRectF(min_x - padding, min_y - padding, 
-                         max_x - min_x + 2 * padding, max_y - min_y + 2 * padding)
+            rect.expandByScalar(self._line_width / 2)
+            
+            return rect
         else:
             # For circles, use radius
             radius = self._radius
+            
+            # Create a CadRect centered at origin with the circle's diameter
+            rect = CadRect(-radius, -radius, 2 * radius, 2 * radius)
+            
             # Add padding for line width
-            padding = self._line_width / 2
-            return QRectF(-radius - padding, -radius - padding, 
-                         2 * radius + 2 * padding, 2 * radius + 2 * padding)
+            rect.expandByScalar(self._line_width / 2)
+            
+            return rect
     
     def _shape(self):
         """Return the exact shape of the circle or line for collision detection."""
         if self.is_line:
             # Create a line path from point1 to point3
-            midpoint = QPointF(
-                (self._point1.x() + self._point3.x()) / 2,
-                (self._point1.y() + self._point3.y()) / 2
-            )
+            midpoint = self._get_midpoint()
             
             # Convert to local coordinates
             start_local = self._point1 - midpoint
@@ -275,10 +276,7 @@ class Circle3PointsCadItem(CadItem):
         
         if self.is_line:
             # Draw a line from point1 to point3
-            midpoint = QPointF(
-                (self._point1.x() + self._point3.x()) / 2,
-                (self._point1.y() + self._point3.y()) / 2
-            )
+            midpoint = self._get_midpoint()
             
             # Convert to local coordinates
             start_local = self._point1 - midpoint
@@ -305,10 +303,7 @@ class Circle3PointsCadItem(CadItem):
     def center_point(self):
         """Get the center point of the circle (or midpoint for lines)."""
         if self.is_line:
-            return QPointF(
-                (self._point1.x() + self._point3.x()) / 2,
-                (self._point1.y() + self._point3.y()) / 2
-            )
+            return self._get_midpoint()
         else:
             return QPointF(self._center)
     

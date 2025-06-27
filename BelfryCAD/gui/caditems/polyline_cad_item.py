@@ -6,6 +6,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint
+from BelfryCAD.gui.cad_rect import CadRect
 
 
 class PolylineCadItem(CadItem):
@@ -48,18 +49,17 @@ class PolylineCadItem(CadItem):
         """Return the bounding rectangle of the polyline."""
         if len(self._points) < 2:
             # If we don't have at least 2 points, return a small default rect
-            return QRectF(-0.1, -0.1, 0.2, 0.2)
+            return CadRect(-0.1, -0.1, 0.2, 0.2)
         
-        # Find min/max x and y coordinates
-        min_x = min(p.x() for p in self._points)
-        max_x = max(p.x() for p in self._points)
-        min_y = min(p.y() for p in self._points)
-        max_y = max(p.y() for p in self._points)
+        # Create a CadRect containing all points
+        rect = CadRect()
+        for point in self._points:
+            rect.expandToPoint(point)
         
-        # Add some padding for line width
-        padding = self._line_width / 2
-        return QRectF(min_x - padding, min_y - padding, 
-                     max_x - min_x + 2 * padding, max_y - min_y + 2 * padding)
+        # Add padding for line width
+        rect.expandByScalar(self._line_width / 2)
+        
+        return rect
     
     def _shape(self):
         """Return the exact shape of the polyline for collision detection."""

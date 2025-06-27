@@ -7,6 +7,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
+from BelfryCAD.gui.cad_rect import CadRect
 
 
 class CircleCenterRadiusCadItem(CadItem):
@@ -60,10 +61,14 @@ class CircleCenterRadiusCadItem(CadItem):
     def _boundingRect(self):
         """Return the bounding rectangle of the circle."""
         radius = self.radius
+        
+        # Create a CadRect centered at origin with the circle's diameter
+        rect = CadRect(-radius, -radius, 2 * radius, 2 * radius)
+        
         # Add padding for line width
-        padding = self._line_width / 2
-        return QRectF(-radius - padding, -radius - padding, 
-                     2 * radius + 2 * padding, 2 * radius + 2 * padding)
+        rect.expandByScalar(self._line_width / 2)
+        
+        return rect
     
     def _shape(self):
         """Return the exact shape of the circle for collision detection."""

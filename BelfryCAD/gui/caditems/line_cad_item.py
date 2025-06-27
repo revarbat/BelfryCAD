@@ -7,6 +7,7 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint
+from BelfryCAD.gui.cad_rect import CadRect
 
 
 class LineCadItem(CadItem):
@@ -66,19 +67,15 @@ class LineCadItem(CadItem):
 
     def _boundingRect(self):
         """Return the bounding rectangle of the line."""
-        min_x = min(self._start_point.x(), self._end_point.x())
-        max_x = max(self._start_point.x(), self._end_point.x())
-        min_y = min(self._start_point.y(), self._end_point.y())
-        max_y = max(self._start_point.y(), self._end_point.y())
+        # Create a CadRect containing both points
+        rect = CadRect()
+        rect.expandToPoint(self._start_point)
+        rect.expandToPoint(self._end_point)
         
-        # Add some padding for line width
-        padding = self._line_width / 2
-        return QRectF(
-            min_x - padding,
-            min_y - padding, 
-            max_x - min_x + 2 * padding,
-            max_y - min_y + 2 * padding
-        )
+        # Add padding for line width
+        rect.expandByScalar(self._line_width / 2)
+        
+        return rect
     
     def _shape(self):
         """Return the exact shape of the line for collision detection."""
