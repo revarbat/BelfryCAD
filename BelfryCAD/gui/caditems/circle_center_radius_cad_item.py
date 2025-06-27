@@ -30,34 +30,6 @@ class CircleCenterRadiusCadItem(CadItem):
         # Position the item at the center point
         self.setPos(self._center_point)
     
-    def _get_control_points(self):
-        """Return control points for the circle."""
-        perimeter_local = self._perimeter_point - self._center_point
-        
-        # Create radius datum if it doesn't exist
-        if not self._radius_datum:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self.radius * sc, self.radius * sc)
-            self._radius_datum = ControlDatum(
-                name="radius",
-                position=datum_pos,
-                value_getter=self._get_radius_value,
-                value_setter=self._set_radius_value,
-                prefix="R",
-                parent_item=self
-            )
-        else:
-            # Update radius datum position
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self.radius * sc, self.radius * sc)
-            self._radius_datum.position = datum_pos
-        
-        return [
-            SquareControlPoint('center', QPointF(0, 0)),
-            ControlPoint('perimeter', perimeter_local),
-            self._radius_datum
-        ]
-    
     def boundingRect(self):
         """Return the bounding rectangle of the circle."""
         radius = self.radius
@@ -100,6 +72,39 @@ class CircleCenterRadiusCadItem(CadItem):
         # Use the stroked shape for accurate contains check
         shape_path = self.shape()
         return shape_path.contains(local_point)
+    
+    def _get_control_points(self):
+        """Return control points for the circle."""
+        perimeter_local = self._perimeter_point - self._center_point
+        
+        # Create radius datum if it doesn't exist
+        if not self._radius_datum:
+            sc = math.sin(math.pi/4)
+            datum_pos = QPointF(self.radius * sc, self.radius * sc)
+            self._radius_datum = ControlDatum(
+                name="radius",
+                position=datum_pos,
+                value_getter=self._get_radius_value,
+                value_setter=self._set_radius_value,
+                prefix="R",
+                parent_item=self
+            )
+        else:
+            # Update radius datum position
+            sc = math.sin(math.pi/4)
+            datum_pos = QPointF(self.radius * sc, self.radius * sc)
+            self._radius_datum.position = datum_pos
+        
+        return [
+            SquareControlPoint('center', QPointF(0, 0)),
+            ControlPoint('perimeter', perimeter_local),
+            self._radius_datum
+        ]
+    
+    def _control_point_changed(self, name: str, new_position: QPointF):
+        """Handle control point changes using the optimized update method."""
+        # Call the parent method which handles the optimized update logic
+        super()._control_point_changed(name, new_position)
     
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""
@@ -180,11 +185,6 @@ class CircleCenterRadiusCadItem(CadItem):
             self.prepareGeometryChange()
             self.update()
     
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes using the optimized update method."""
-        # Call the parent method which handles the optimized update logic
-        super()._control_point_changed(name, new_position)
-
     def _get_radius_value(self):
         """Get the current radius value."""
         return self.radius

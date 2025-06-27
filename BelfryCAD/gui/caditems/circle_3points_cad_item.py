@@ -115,63 +115,6 @@ class Circle3PointsCadItem(CadItem):
         dy = p1.y() - cy
         self._radius = math.sqrt(dx * dx + dy * dy)
     
-    def _get_control_points(self):
-        """Return control points for the circle or line."""
-        if self.is_line:
-            # For lines, use the midpoint as a reference and the three original points
-            midpoint = QPointF(
-                (self._point1.x() + self._point3.x()) / 2,
-                (self._point1.y() + self._point3.y()) / 2
-            )
-            # Convert to local coordinates relative to the line midpoint
-            point1_local = self._point1 - midpoint
-            point2_local = self._point2 - midpoint  # This may not be on the line, but it's our second definition point
-            point3_local = self._point3 - midpoint
-            
-            return [
-                ControlPoint('point1', point1_local),
-                ControlPoint('point2', point2_local),
-                ControlPoint('point3', point3_local),
-            ]
-        else:
-            # For circles, control points are relative to the center
-            point1_local = self._point1 - self._center
-            point2_local = self._point2 - self._center
-            point3_local = self._point3 - self._center
-            
-            # Create radius datum if it doesn't exist
-            if not self._radius_datum:
-                sc = math.sin(math.pi/4)
-                datum_pos = QPointF(self._radius * sc, self._radius * sc)
-                self._radius_datum = ControlDatum(
-                    name="radius",
-                    position=datum_pos,
-                    value_getter=self._get_radius_value,
-                    value_setter=self._set_radius_value,
-                    prefix="R",
-                    parent_item=self
-                )
-            else:
-                # Update radius datum position
-                sc = math.sin(math.pi/4)
-                datum_pos = QPointF(self._radius * sc, self._radius * sc)
-                self._radius_datum.position = datum_pos
-            
-            return [
-                ControlPoint('point1', point1_local),
-                ControlPoint('point2', point2_local),
-                ControlPoint('point3', point3_local),
-                SquareControlPoint('center', QPointF(0, 0)),
-                self._radius_datum
-            ]
-    
-    def _get_midpoint(self):
-        """Get the midpoint between point1 and point3."""
-        return QPointF(
-            (self._point1.x() + self._point3.x()) / 2,
-            (self._point1.y() + self._point3.y()) / 2
-        )
-    
     def boundingRect(self):
         """Return the bounding rectangle of the circle or line."""
         if self.is_line:
@@ -250,6 +193,63 @@ class Circle3PointsCadItem(CadItem):
         # Use the stroked shape for accurate contains check
         shape_path = self.shape()
         return shape_path.contains(local_point)
+    
+    def _get_control_points(self):
+        """Return control points for the circle or line."""
+        if self.is_line:
+            # For lines, use the midpoint as a reference and the three original points
+            midpoint = QPointF(
+                (self._point1.x() + self._point3.x()) / 2,
+                (self._point1.y() + self._point3.y()) / 2
+            )
+            # Convert to local coordinates relative to the line midpoint
+            point1_local = self._point1 - midpoint
+            point2_local = self._point2 - midpoint  # This may not be on the line, but it's our second definition point
+            point3_local = self._point3 - midpoint
+            
+            return [
+                ControlPoint('point1', point1_local),
+                ControlPoint('point2', point2_local),
+                ControlPoint('point3', point3_local),
+            ]
+        else:
+            # For circles, control points are relative to the center
+            point1_local = self._point1 - self._center
+            point2_local = self._point2 - self._center
+            point3_local = self._point3 - self._center
+            
+            # Create radius datum if it doesn't exist
+            if not self._radius_datum:
+                sc = math.sin(math.pi/4)
+                datum_pos = QPointF(self._radius * sc, self._radius * sc)
+                self._radius_datum = ControlDatum(
+                    name="radius",
+                    position=datum_pos,
+                    value_getter=self._get_radius_value,
+                    value_setter=self._set_radius_value,
+                    prefix="R",
+                    parent_item=self
+                )
+            else:
+                # Update radius datum position
+                sc = math.sin(math.pi/4)
+                datum_pos = QPointF(self._radius * sc, self._radius * sc)
+                self._radius_datum.position = datum_pos
+            
+            return [
+                ControlPoint('point1', point1_local),
+                ControlPoint('point2', point2_local),
+                ControlPoint('point3', point3_local),
+                SquareControlPoint('center', QPointF(0, 0)),
+                self._radius_datum
+            ]
+    
+    def _get_midpoint(self):
+        """Get the midpoint between point1 and point3."""
+        return QPointF(
+            (self._point1.x() + self._point3.x()) / 2,
+            (self._point1.y() + self._point3.y()) / 2
+        )
     
     def paint_item(self, painter, option, widget=None):
         """Draw the circle or line content."""

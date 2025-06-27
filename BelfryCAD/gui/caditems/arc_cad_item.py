@@ -32,6 +32,52 @@ class ArcCadItem(CadItem):
         if isinstance(self._end_point, (list, tuple)):
             self._end_point = QPointF(self._end_point[0], self._end_point[1])
     
+    def boundingRect(self):
+        """Return the bounding rectangle of the arc."""
+        # Get the radius from center to start point
+        radius = self._distance(self._center_point, self._start_point)
+        
+        # Calculate start and end angles
+        start_angle = self._angle_from_center(self._start_point)
+        end_angle = self._angle_from_center(self._end_point)
+        
+        # Normalize angles
+        start_angle = self._normalize_angle(start_angle)
+        end_angle = self._normalize_angle(end_angle)
+        
+        # Create a CadRect and expand it to include the arc
+        rect = CadRect()
+        rect.expandWithArc(self._center_point, radius, start_angle, end_angle)
+        
+        # Add padding for line width
+        rect.expandByScalar(self._line_width / 2)
+        
+        return rect
+    
+    def shape(self):
+        """Return the exact shape of the arc for collision detection."""
+        path = self._create_arc_path()
+        
+        # Use QPainterPathStroker to create a stroked path with line width
+        stroker = QPainterPathStroker()
+        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
+        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        
+        return stroker.createStroke(path)
+    
+    def contains(self, point):
+        """Check if a point is near the arc."""
+        # Convert point to local coordinates if needed
+        if hasattr(point, 'x') and hasattr(point, 'y'):
+            local_point = point
+        else:
+            local_point = self.mapFromScene(point)
+        
+        # Use the stroked shape for accurate contains check
+        shape_path = self.shape()
+        return shape_path.contains(local_point)
+    
     def _get_control_points(self):
         """Return control points for the arc."""
         # Create radius datum if it doesn't exist
@@ -123,7 +169,23 @@ class ArcCadItem(CadItem):
         
         # Call parent method to refresh all control points
         super()._control_point_changed(name, new_position)
-
+    
+    def paint_item(self, painter, option, widget=None):
+        """Draw the arc content."""
+        painter.save()
+        
+        pen = QPen(self._color, self._line_width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(QBrush())  # No fill
+        
+        # Draw the arc
+        arc_path = self._create_arc_path()
+        painter.drawPath(arc_path)
+        
+        painter.restore()
+    
     def _distance(self, point1, point2):
         """Calculate distance between two points."""
         dx = point2.x() - point1.x()
@@ -143,28 +205,6 @@ class ArcCadItem(CadItem):
         while angle >= 2 * math.pi:
             angle -= 2 * math.pi
         return angle
-
-    def boundingRect(self):
-        """Return the bounding rectangle of the arc."""
-        # Get the radius from center to start point
-        radius = self._distance(self._center_point, self._start_point)
-        
-        # Calculate start and end angles
-        start_angle = self._angle_from_center(self._start_point)
-        end_angle = self._angle_from_center(self._end_point)
-        
-        # Normalize angles
-        start_angle = self._normalize_angle(start_angle)
-        end_angle = self._normalize_angle(end_angle)
-        
-        # Create a CadRect and expand it to include the arc
-        rect = CadRect()
-        rect.expandWithArc(self._center_point, radius, start_angle, end_angle)
-        
-        # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
-        
-        return rect
 
     def _create_arc_path(self):
         """Create the arc path."""
@@ -194,47 +234,42 @@ class ArcCadItem(CadItem):
         path.arcTo(arc_rect, -start_degrees, -span_degrees)
 
         return path
-    
-    def shape(self):
-        """Return the exact shape of the arc for collision detection."""
-        path = self._create_arc_path()
-        
-        # Use QPainterPathStroker to create a stroked path with line width
-        stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
-        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
-        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        
-        return stroker.createStroke(path)
 
-    def contains(self, point):
-        """Check if a point is near the arc."""
-        # Convert point to local coordinates if needed
-        if hasattr(point, 'x') and hasattr(point, 'y'):
-            local_point = point
-        else:
-            local_point = self.mapFromScene(point)
-        
-        # Use the stroked shape for accurate contains check
-        shape_path = self.shape()
-        return shape_path.contains(local_point)
-
-    def paint_item(self, painter, option, widget=None):
-        """Draw the arc content."""
-        painter.save()
-        
-        pen = QPen(self._color, self._line_width)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(QBrush())  # No fill
-        
-        # Draw the arc
-        arc_path = self._create_arc_path()
-        painter.drawPath(arc_path)
-        
-        painter.restore()
+    def _get_radius_value(self):
+        """Get the current radius value."""
+        return self.radius
     
+    def _set_radius_value(self, new_radius):
+        """Set the radius value by adjusting both start and end points."""
+        if new_radius <= 0:
+            return
+        
+        # Calculate current angles
+        start_angle = self._angle_from_center(self._start_point)
+        end_angle = self._angle_from_center(self._end_point)
+        
+        # Update both points to the new radius
+        self._start_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(start_angle),
+            self._center_point.y() + new_radius * math.sin(start_angle)
+        )
+        self._end_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(end_angle),
+            self._center_point.y() + new_radius * math.sin(end_angle)
+        )
+        
+        self.prepareGeometryChange()
+        self.update()
+
+    def _create_decorations(self):
+        """Create decoration items for this arc."""
+        # Add centerlines decoration
+        self._add_centerlines(self._center_point)
+        
+        # Add dashed circle at the radius
+        radius = self._distance(self._center_point, self._start_point)
+        self._add_dashed_circle(self._center_point, radius, self._color, self._line_width)
+
     @property
     def center_point(self):
         """Get the center point."""
@@ -325,39 +360,4 @@ class ArcCadItem(CadItem):
         self.prepareGeometryChange()
         self._line_width = value
         self.update()
-
-    def _get_radius_value(self):
-        """Get the current radius value."""
-        return self.radius
-    
-    def _set_radius_value(self, new_radius):
-        """Set the radius value by adjusting both start and end points."""
-        if new_radius <= 0:
-            return
-        
-        # Calculate current angles
-        start_angle = self._angle_from_center(self._start_point)
-        end_angle = self._angle_from_center(self._end_point)
-        
-        # Update both points to the new radius
-        self._start_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(start_angle),
-            self._center_point.y() + new_radius * math.sin(start_angle)
-        )
-        self._end_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(end_angle),
-            self._center_point.y() + new_radius * math.sin(end_angle)
-        )
-        
-        self.prepareGeometryChange()
-        self.update()
-
-    def _create_decorations(self):
-        """Create decoration items for this arc."""
-        # Add centerlines decoration
-        self._add_centerlines(self._center_point)
-        
-        # Add dashed circle at the radius
-        radius = self._distance(self._center_point, self._start_point)
-        self._add_dashed_circle(self._center_point, radius, self._color, self._line_width)
 

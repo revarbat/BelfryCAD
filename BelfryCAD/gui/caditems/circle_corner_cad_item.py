@@ -48,6 +48,162 @@ class CircleCornerCadItem(CadItem):
         # Position the item at the calculated center
         self.setPos(self._calculated_center)
     
+    def boundingRect(self):
+        """Return the bounding rectangle of the circle."""
+        if not self._is_valid or self._radius <= 0:
+            # Fallback to bounding box of all points
+            center = self._calculated_center
+            
+            # Create a CadRect containing all points in local coordinates
+            rect = CadRect()
+            rect.expandToPoint(self._corner_point - center)
+            rect.expandToPoint(self._ray1_point - center)
+            rect.expandToPoint(self._ray2_point - center)
+            rect.expandToPoint(self._center_point - center)
+            
+            # Add padding for line width
+            rect.expandByScalar(self._line_width / 2)
+            
+            return rect
+        
+        # For valid circles, use circle bounding box
+        radius = self._radius
+        rect = CadRect(-radius, -radius, 2 * radius, 2 * radius)
+        
+        # Add padding for line width
+        rect.expandByScalar(self._line_width / 2)
+        
+        return rect
+    
+    def shape(self):
+        """Return the exact shape of the circle for collision detection."""
+        if not self._is_valid or self._radius <= 0:
+            # Return empty path for invalid circles
+            return QPainterPath()
+        
+        path = QPainterPath()
+        path.addEllipse(QPointF(0, 0), self._radius, self._radius)
+        
+        # Use QPainterPathStroker to create a stroked path with line width
+        stroker = QPainterPathStroker()
+        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
+        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        
+        return stroker.createStroke(path)
+    
+    def contains(self, point):
+        """Check if a point is near the circle."""
+        if not self._is_valid:
+            return False
+        
+        # Convert point to local coordinates if it's in scene coordinates
+        if hasattr(point, 'x') and hasattr(point, 'y'):
+            # Point is already in local coordinates
+            local_point = point
+        else:
+            # Convert from scene coordinates to local coordinates
+            local_point = self.mapFromScene(point)
+        
+        # Use the stroked shape for accurate contains check
+        shape_path = self.shape()
+        return shape_path.contains(local_point)
+    
+    def _get_control_points(self):
+        """Return control points for the circle."""
+        if not self._is_valid:
+            return []
+        
+        # Control points are relative to the calculated center
+        corner_local = self._corner_point - self._calculated_center
+        ray1_local = self._ray1_point - self._calculated_center
+        ray2_local = self._ray2_point - self._calculated_center
+        
+        # Create radius datum if it doesn't exist
+        if not self._radius_datum:
+            sc = math.sin(math.pi/4)
+            datum_pos = QPointF(self._radius * sc, self._radius * sc)
+            self._radius_datum = ControlDatum(
+                name="radius",
+                position=datum_pos,
+                value_getter=self._get_radius_value,
+                value_setter=self._set_radius_value,
+                prefix="R",
+                parent_item=self
+            )
+        else:
+            sc = math.sin(math.pi/4)
+            datum_pos = QPointF(self._radius * sc, self._radius * sc)
+            self._radius_datum.position = datum_pos
+        
+        return [
+            SquareControlPoint('corner', corner_local),
+            ControlPoint('ray1', ray1_local),
+            ControlPoint('ray2', ray2_local),
+            SquareControlPoint('center', QPointF(0, 0)),
+            self._radius_datum
+        ]
+    
+    def _control_point_changed(self, name: str, new_position: QPointF):
+        """Handle control point changes."""
+        self.prepareGeometryChange()
+        local_pos = self.mapToScene(new_position)
+        
+        if name == 'center' and self._is_valid:
+            # Constrain center movement to the angle bisector
+            self._move_center_along_bisector(local_pos)
+        elif name == 'corner':
+            # When corner moves, recalculate and update center spec point
+            self._corner_point = local_pos
+            self._calculate_circle(update_center_spec=True)
+            self.setPos(self._calculated_center)
+            self.prepareGeometryChange()
+            self.update()
+        elif name == 'ray1':
+            # When ray1 moves, recalculate and update center spec point
+            self._ray1_point = local_pos
+            self._calculate_circle(update_center_spec=True)
+            self.setPos(self._calculated_center)
+            self.prepareGeometryChange()
+            self.update()
+        elif name == 'ray2':
+            # When ray2 moves, recalculate and update center spec point
+            self._ray2_point = local_pos
+            self._calculate_circle(update_center_spec=True)
+            self.setPos(self._calculated_center)
+            self.prepareGeometryChange()
+            self.update()
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
+    
+    def paint_item(self, painter, option, widget=None):
+        """Draw the circle and construction lines."""
+        painter.save()
+        
+        pen = QPen(self._color, self._line_width)
+        painter.setPen(pen)
+        
+        if self._is_valid and self._radius > 0:
+            # Draw the circle
+            painter.drawEllipse(QPointF(0, 0), self._radius, self._radius)
+        else:
+            # Draw construction points for invalid geometry
+            construction_pen = QPen(QColor(255, 0, 0), self._line_width)
+            construction_pen.setStyle(Qt.PenStyle.DashDotLine)
+            painter.setPen(construction_pen)
+            
+            # Convert points to local coordinates
+            corner_local = self._corner_point - self._calculated_center
+            ray1_local = self._ray1_point - self._calculated_center
+            ray2_local = self._ray2_point - self._calculated_center
+            
+            # Draw lines to show the invalid configuration
+            painter.drawLine(corner_local, ray1_local)
+            painter.drawLine(corner_local, ray2_local)
+
+        painter.restore()
+    
     def _get_radius_value(self):
         """Get the current radius value for the control datum."""
         return self._radius if self._is_valid else 0.0
@@ -205,7 +361,7 @@ class CircleCornerCadItem(CadItem):
         self.setPos(self._calculated_center)
         self.prepareGeometryChange()
         self.update()
-
+    
     def _set_radius(self, new_radius):
         """Set the radius by moving the center point along the bisector."""
         if not self._is_valid or new_radius <= 0:
@@ -261,219 +417,75 @@ class CircleCornerCadItem(CadItem):
         self.setPos(self._calculated_center)
         self.prepareGeometryChange()
         self.update()
-        
+    
     def _adjust_center_for_ray_change(self):
-        """Adjust the center position to maintain the current radius with the new ray positions."""
-        if not self._is_valid or self._radius <= 0:
+        """Adjust the center point when rays change to maintain a reasonable radius."""
+        if not self._is_valid:
             return
             
+        # Calculate a reasonable radius based on the current configuration
         corner = self._corner_point
         ray1 = self._ray1_point
         ray2 = self._ray2_point
-        target_radius = self._radius
         
-        # Calculate ray vectors from corner
+        # Calculate ray vectors
         ray1_vec = QPointF(ray1.x() - corner.x(), ray1.y() - corner.y())
         ray2_vec = QPointF(ray2.x() - corner.x(), ray2.y() - corner.y())
         
-        # Normalize ray vectors
         ray1_len = math.sqrt(ray1_vec.x() ** 2 + ray1_vec.y() ** 2)
         ray2_len = math.sqrt(ray2_vec.x() ** 2 + ray2_vec.y() ** 2)
         
         if ray1_len < 1e-6 or ray2_len < 1e-6:
-            return  # Can't adjust if rays are degenerate
-        
-        ray1_unit = QPointF(ray1_vec.x() / ray1_len, ray1_vec.y() / ray1_len)
-        ray2_unit = QPointF(ray2_vec.x() / ray2_len, ray2_vec.y() / ray2_len)
-        
-        # Check if rays are parallel
-        cross_product = ray1_unit.x() * ray2_unit.y() - ray1_unit.y() * ray2_unit.x()
-        if abs(cross_product) < 1e-6:
-            return  # Can't adjust if rays are parallel
-        
-        # Calculate angle bisector direction
-        bisector_vec = QPointF(ray1_unit.x() + ray2_unit.x(), ray1_unit.y() + ray2_unit.y())
-        bisector_len = math.sqrt(bisector_vec.x() ** 2 + bisector_vec.y() ** 2)
-        
-        if bisector_len < 1e-6:
-            return  # Can't adjust if rays are opposite
-        
-        bisector_unit = QPointF(bisector_vec.x() / bisector_len, bisector_vec.y() / bisector_len)
-        
-        # Calculate the distance along bisector needed for the target radius
-        # For a circle tangent to two rays, the distance from corner to center
-        # relates to radius by: distance = radius / sin(angle/2)
-        # where angle is the angle between the rays
-        dot_product = ray1_unit.x() * ray2_unit.x() + ray1_unit.y() * ray2_unit.y()
-        angle_between_rays = math.acos(max(-1.0, min(1.0, dot_product)))
-        
-        if angle_between_rays < 1e-6 or angle_between_rays > math.pi - 1e-6:
-            return  # Degenerate cases
+            return
             
-        distance_to_center = target_radius / math.sin(angle_between_rays / 2)
+        # Use the smaller of the two ray lengths as a reasonable radius
+        reasonable_radius = min(ray1_len, ray2_len) * 0.3
         
-        # Calculate new center position
-        new_center = QPointF(
-            corner.x() + distance_to_center * bisector_unit.x(),
-            corner.y() + distance_to_center * bisector_unit.y()
-        )
-        
-        # Update center specification point and recalculate
-        self._center_point = new_center
-        self._calculate_circle(update_center_spec=False)
-
-    def _get_control_points(self):
-        """Return control points for the circle."""
-        if not self._is_valid:
-            return []
-        
-        # Control points are relative to the calculated center
-        corner_local = self._corner_point - self._calculated_center
-        ray1_local = self._ray1_point - self._calculated_center
-        ray2_local = self._ray2_point - self._calculated_center
-        sc = math.sin(math.pi/4)
-        datum_local = QPointF(self._radius * sc, self._radius * sc)
- 
-        # Datums must persist between calls to _get_control_points()
-        if not self._radius_datum:
-            self._radius_datum = ControlDatum(
-                name="radius",
-                position=datum_local,
-                value_getter=self._get_radius_value,
-                value_setter=self._set_radius_value,
-                prefix="R",
-                parent_item=self
-            )
-        else:
-            self._radius_datum.position = datum_local
-
-        control_points = [
-            SquareControlPoint('corner', corner_local),
-            ControlPoint('ray1', ray1_local),
-            ControlPoint('ray2', ray2_local),
-            SquareControlPoint('center', QPointF(0, 0)),
-            self._radius_datum
-        ]
-        return control_points
-    
-    def boundingRect(self):
-        """Return the bounding rectangle of the circle."""
-        if not self._is_valid or self._radius <= 0:
-            # Fallback to bounding box of all points
-            center = self._calculated_center
-            
-            # Create a CadRect containing all points in local coordinates
-            rect = CadRect()
-            rect.expandToPoint(self._corner_point - center)
-            rect.expandToPoint(self._ray1_point - center)
-            rect.expandToPoint(self._ray2_point - center)
-            rect.expandToPoint(self._center_point - center)
-            
-            # Add padding for line width
-            rect.expandByScalar(self._line_width / 2)
-            
-            return rect
-        
-        # For valid circles, use radius
-        radius = self._radius
-        
-        # Create a CadRect centered at origin with the circle's diameter
-        rect = CadRect(-radius, -radius, 2 * radius, 2 * radius)
-        
-        # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
-        
-        return rect
-    
-    def shape(self):
-        """Return the exact shape of the circle for collision detection."""
-        if not self._is_valid or self._radius <= 0:
-            # Return empty path for invalid circles
-            return QPainterPath()
-        
-        radius = self._radius
-        
-        # Create a proper ellipse path
-        path = QPainterPath()
-        rect = QRectF(-radius, -radius, 2 * radius, 2 * radius)
-        path.addEllipse(rect)
-        
-        # Use QPainterPathStroker to create a stroked path with line width
-        stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
-        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
-        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        
-        return stroker.createStroke(path)
-    
-    def contains(self, point):
-        """Check if a point is inside the circle."""
-        if not self._is_valid:
-            return False
-        
-        # Convert point to local coordinates if it's in scene coordinates
-        if hasattr(point, 'x') and hasattr(point, 'y'):
-            # Point is already in local coordinates
-            local_point = point
-        else:
-            # Convert from scene coordinates to local coordinates
-            local_point = self.mapFromScene(point)
-        
-        # Use the stroked shape for accurate contains check
-        shape_path = self.shape()
-        return shape_path.contains(local_point)
-    
-    def paint_item(self, painter, option, widget=None):
-        """Draw the circle and construction lines."""
-        painter.save()
-        
-        pen = QPen(self._color, self._line_width)
-        painter.setPen(pen)
-        
-        if self._is_valid and self._radius > 0:
-            # Draw the circle
-            radius = self._radius
-            rect = QRectF(-radius, -radius, 2*radius, 2*radius)
-            painter.drawEllipse(rect)
-            
-            # Draw construction lines (rays) with lighter color when selected
-        else:
-            # Draw construction points for invalid geometry
-            construction_pen = QPen(QColor(255, 0, 0), self._line_width)
-            construction_pen.setStyle(Qt.PenStyle.DashDotLine)
-            painter.setPen(construction_pen)
-            
-            # Convert points to local coordinates
-            corner_local = self._corner_point - self._calculated_center
-            ray1_local = self._ray1_point - self._calculated_center
-            ray2_local = self._ray2_point - self._calculated_center
-            center_spec_local = self._center_point - self._calculated_center
-            
-            # Draw lines to show the invalid configuration
-            painter.drawLine(corner_local, ray1_local)
-            painter.drawLine(corner_local, ray2_local)
-            painter.drawLine(corner_local, center_spec_local)
-
-        painter.restore()
+        # Set the radius, which will adjust the center position
+        self._set_radius(reasonable_radius)
     
     def _create_decorations(self):
         """Create decoration items for this circle."""
         if self._is_valid and self._radius > 0:
-            # Add centerlines
-            self._add_centerlines(QPointF(0, 0))
+            # Add dashed circle outline
+            self._add_dashed_circle(QPointF(0, 0), self._radius)
             
-            # Add dashed rays from corner
+            # Add radius lines to tangent points
             corner_local = self._corner_point - self._calculated_center
             ray1_local = self._ray1_point - self._calculated_center
             ray2_local = self._ray2_point - self._calculated_center
-            center_spec_local = self._center_point - self._calculated_center
             
+            self._add_radius_lines(
+                QPointF(0, 0), 
+                [corner_local, ray1_local, ray2_local]
+            )
+            
+            # Add dashed rays from corner
             self._add_dashed_lines([
                 (corner_local, ray1_local),
-                (corner_local, ray2_local),
-                (corner_local, center_spec_local)
+                (corner_local, ray2_local)
             ])
-
+    
+    def set_points(self, corner_point, ray1_point, ray2_point, center_point):
+        """Set all four points at once."""
+        if isinstance(corner_point, (list, tuple)):
+            corner_point = QPointF(corner_point[0], corner_point[1])
+        if isinstance(ray1_point, (list, tuple)):
+            ray1_point = QPointF(ray1_point[0], ray1_point[1])
+        if isinstance(ray2_point, (list, tuple)):
+            ray2_point = QPointF(ray2_point[0], ray2_point[1])
+        if isinstance(center_point, (list, tuple)):
+            center_point = QPointF(center_point[0], center_point[1])
+        
+        self._corner_point = corner_point
+        self._ray1_point = ray1_point
+        self._ray2_point = ray2_point
+        self._center_point = center_point
+        self._calculate_circle()
+        self.setPos(self._calculated_center)
+        self.prepareGeometryChange()
+        self.update()
+    
     @property
     def center_point(self):
         """Get the calculated center point of the circle."""
@@ -562,67 +574,4 @@ class CircleCornerCadItem(CadItem):
     def line_width(self, value):
         self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
-        self.update()
-    
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        self.prepareGeometryChange()
-        local_pos = self.mapToScene(new_position)
-        
-        if name == 'center' and self._is_valid:
-            # Constrain center movement to the angle bisector
-            self._move_center_along_bisector(local_pos)
-        elif name == 'corner':
-            # When corner moves, recalculate and update center spec point
-            self._corner_point = local_pos
-            self._calculate_circle(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'ray1':
-            # When ray1 moves, preserve radius and adjust center to maintain tangency
-            if self._is_valid and self._radius > 0:
-                self._ray1_point = local_pos
-                self._adjust_center_for_ray_change()
-            else:
-                # For invalid circles, just update the ray and recalculate
-                self._ray1_point = local_pos
-                self._calculate_circle(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'ray2':
-            # When ray2 moves, preserve radius and adjust center to maintain tangency
-            if self._is_valid and self._radius > 0:
-                self._ray2_point = local_pos
-                self._adjust_center_for_ray_change()
-            else:
-                # For invalid circles, just update the ray and recalculate
-                self._ray2_point = local_pos
-                self._calculate_circle(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
-        
-        # Call parent method to refresh all control points
-        super()._control_point_changed(name, new_position)
-
-    def set_points(self, corner_point, ray1_point, ray2_point, center_point):
-        """Set all four points at once."""
-        if isinstance(corner_point, (list, tuple)):
-            corner_point = QPointF(corner_point[0], corner_point[1])
-        if isinstance(ray1_point, (list, tuple)):
-            ray1_point = QPointF(ray1_point[0], ray1_point[1])
-        if isinstance(ray2_point, (list, tuple)):
-            ray2_point = QPointF(ray2_point[0], ray2_point[1])
-        if isinstance(center_point, (list, tuple)):
-            center_point = QPointF(center_point[0], center_point[1])
-        
-        self._corner_point = corner_point
-        self._ray1_point = ray1_point
-        self._ray2_point = ray2_point
-        self._center_point = center_point
-        self._calculate_circle()
-        self.setPos(self._calculated_center)
-        self.prepareGeometryChange()
         self.update() 

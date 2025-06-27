@@ -22,29 +22,6 @@ class PolylineCadItem(CadItem):
         self._points = [QPointF(p[0], p[1]) if isinstance(p, (list, tuple)) else p 
                       for p in self._points]
     
-    def _get_control_points(self):
-        """Return control points for the polyline."""
-        return [
-            ControlPoint(f"p_{i}", self._points[i]) for i in range(len(self._points))
-        ]
-    
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        # Extract point index from control point name (e.g., "p_0" -> 0)
-        if name.startswith("p_"):
-            try:
-                point_index = int(name[2:])  # Remove "p_" prefix and convert to int
-                if 0 <= point_index < len(self._points):
-                    self._points[point_index] = new_position
-                    self.prepareGeometryChange()
-                    self.update()
-            except ValueError:
-                # Invalid point index, ignore the change
-                pass
-        
-        # Call parent method to refresh all control points
-        super()._control_point_changed(name, new_position)
-
     def boundingRect(self):
         """Return the bounding rectangle of the polyline."""
         if len(self._points) < 2:
@@ -106,6 +83,48 @@ class PolylineCadItem(CadItem):
         
         return False
     
+    def _get_control_points(self):
+        """Return control points for the polyline."""
+        return [
+            ControlPoint(f"p_{i}", self._points[i]) for i in range(len(self._points))
+        ]
+    
+    def _control_point_changed(self, name: str, new_position: QPointF):
+        """Handle control point changes."""
+        # Extract point index from control point name (e.g., "p_0" -> 0)
+        if name.startswith("p_"):
+            try:
+                point_index = int(name[2:])  # Remove "p_" prefix and convert to int
+                if 0 <= point_index < len(self._points):
+                    self._points[point_index] = new_position
+                    self.prepareGeometryChange()
+                    self.update()
+            except ValueError:
+                # Invalid point index, ignore the change
+                pass
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
+    
+    def paint_item(self, painter, option, widget=None):
+        """Draw the polyline content."""
+        if len(self._points) < 2:
+            return
+        
+        painter.save()
+        
+        pen = QPen(self._color, self._line_width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(QBrush())  # No fill
+        
+        # Draw lines between consecutive points
+        for i in range(len(self._points) - 1):
+            painter.drawLine(self._points[i], self._points[i + 1])
+        
+        painter.restore()
+    
     def _point_to_line_distance(self, point, line_start, line_end):
         """Calculate the shortest distance from a point to a line segment."""
         # Vector from line_start to line_end
@@ -136,38 +155,6 @@ class PolylineCadItem(CadItem):
         dy = point.y() - closest_y
         return (dx ** 2 + dy ** 2) ** 0.5
     
-    def paint_item(self, painter, option, widget=None):
-        """Draw the polyline content."""
-        if len(self._points) < 2:
-            return
-        
-        painter.save()
-        
-        pen = QPen(self._color, self._line_width)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(QBrush())  # No fill
-        
-        # Draw lines between consecutive points
-        for i in range(len(self._points) - 1):
-            painter.drawLine(self._points[i], self._points[i + 1])
-        
-        painter.restore()
-        
-    @property
-    def points(self):
-        """Get the list of points."""
-        return self._points.copy()
-    
-    @points.setter
-    def points(self, value):
-        """Set the list of points."""
-        self.prepareGeometryChange()  # Notify Qt that geometry will change
-        self._points = [QPointF(p[0], p[1]) if isinstance(p, (list, tuple)) else p 
-                       for p in value]
-        self.update()
-    
     def add_point(self, point):
         """Add a point to the end of the polyline."""
         self.prepareGeometryChange()
@@ -190,6 +177,19 @@ class PolylineCadItem(CadItem):
             self.prepareGeometryChange()
             self._points.pop(index)
             self.update()
+    
+    @property
+    def points(self):
+        """Get the list of points."""
+        return self._points.copy()
+    
+    @points.setter
+    def points(self, value):
+        """Set the list of points."""
+        self.prepareGeometryChange()  # Notify Qt that geometry will change
+        self._points = [QPointF(p[0], p[1]) if isinstance(p, (list, tuple)) else p 
+                       for p in value]
+        self.update()
     
     @property
     def color(self):

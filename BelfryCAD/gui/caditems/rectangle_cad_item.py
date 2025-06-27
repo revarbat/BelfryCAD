@@ -33,6 +33,44 @@ class RectangleCadItem(CadItem):
         if isinstance(self._bottom_left, (list, tuple)):
             self._bottom_left = QPointF(self._bottom_left[0], self._bottom_left[1])
     
+    def boundingRect(self):
+        """Return the bounding rectangle of the rectangle."""
+        # Create a CadRect containing all four corner points
+        rect = CadRect()
+        rect.expandToPoint(self._top_left)
+        rect.expandToPoint(self._top_right)
+        rect.expandToPoint(self._bottom_right)
+        rect.expandToPoint(self._bottom_left)
+        
+        # Add padding for line width
+        rect.expandByScalar(self._line_width / 2)
+        
+        return rect
+    
+    def shape(self):
+        """Return the exact shape of the rectangle for collision detection."""
+        path = self._create_rectangle_path()
+        
+        # Create a stroked path with the line width for better selection
+        stroker = QPainterPathStroker()
+        stroker.setWidth(max(self._line_width, 0.1))  # Minimum width for selection
+        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        
+        return stroker.createStroke(path)
+    
+    def contains(self, point):
+        """Check if a point is near the rectangle outline."""
+        # Convert point to local coordinates if needed
+        if hasattr(point, 'x') and hasattr(point, 'y'):
+            local_point = point
+        else:
+            local_point = self.mapFromScene(point)
+        
+        # Use the stroked shape for accurate contains check
+        shape_path = self.shape()
+        return shape_path.contains(local_point)
+    
     def _get_control_points(self):
         """Return control points for the rectangle corners and center."""
         # Calculate center point
@@ -105,54 +143,6 @@ class RectangleCadItem(CadItem):
         
         # Call parent method to refresh all control points
         super()._control_point_changed(name, new_position)
-
-    def boundingRect(self):
-        """Return the bounding rectangle of the rectangle."""
-        # Create a CadRect containing all four corner points
-        rect = CadRect()
-        rect.expandToPoint(self._top_left)
-        rect.expandToPoint(self._top_right)
-        rect.expandToPoint(self._bottom_right)
-        rect.expandToPoint(self._bottom_left)
-        
-        # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
-        
-        return rect
-    
-    def _create_rectangle_path(self):
-        """Create the rectangle path."""
-        path = QPainterPath()
-        path.moveTo(self._top_left)
-        path.lineTo(self._top_right)
-        path.lineTo(self._bottom_right)
-        path.lineTo(self._bottom_left)
-        path.closeSubpath()  # Close the rectangle
-        return path
-    
-    def shape(self):
-        """Return the exact shape of the rectangle for collision detection."""
-        path = self._create_rectangle_path()
-        
-        # Create a stroked path with the line width for better selection
-        stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.1))  # Minimum width for selection
-        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
-        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        
-        return stroker.createStroke(path)
-    
-    def contains(self, point):
-        """Check if a point is near the rectangle outline."""
-        # Convert point to local coordinates if needed
-        if hasattr(point, 'x') and hasattr(point, 'y'):
-            local_point = point
-        else:
-            local_point = self.mapFromScene(point)
-        
-        # Use the stroked shape for accurate contains check
-        shape_path = self.shape()
-        return shape_path.contains(local_point)
     
     def paint_item(self, painter, option, widget=None):
         """Draw the rectangle content."""
@@ -169,6 +159,16 @@ class RectangleCadItem(CadItem):
         painter.drawPath(rectangle_path)
         
         painter.restore()
+    
+    def _create_rectangle_path(self):
+        """Create the rectangle path."""
+        path = QPainterPath()
+        path.moveTo(self._top_left)
+        path.lineTo(self._top_right)
+        path.lineTo(self._bottom_right)
+        path.lineTo(self._bottom_left)
+        path.closeSubpath()  # Close the rectangle
+        return path
     
     @property
     def top_left(self):
@@ -234,56 +234,62 @@ class RectangleCadItem(CadItem):
     
     @points.setter
     def points(self, value):
-        """Set all four corner points from a tuple/list."""
+        """Set all four corner points from a tuple/list of four points."""
         if len(value) != 4:
-            raise ValueError("Rectangle requires exactly 4 points")
-        
+            raise ValueError("Points must contain exactly 4 points")
         self.prepareGeometryChange()
-        self._top_left = QPointF(value[0]) if not isinstance(value[0], QPointF) else value[0]
-        self._top_right = QPointF(value[1]) if not isinstance(value[1], QPointF) else value[1]
-        self._bottom_right = QPointF(value[2]) if not isinstance(value[2], QPointF) else value[2]
-        self._bottom_left = QPointF(value[3]) if not isinstance(value[3], QPointF) else value[3]
+        top_left, top_right, bottom_right, bottom_left = value
+        if isinstance(top_left, (list, tuple)):
+            top_left = QPointF(top_left[0], top_left[1])
+        if isinstance(top_right, (list, tuple)):
+            top_right = QPointF(top_right[0], top_right[1])
+        if isinstance(bottom_right, (list, tuple)):
+            bottom_right = QPointF(bottom_right[0], bottom_right[1])
+        if isinstance(bottom_left, (list, tuple)):
+            bottom_left = QPointF(bottom_left[0], bottom_left[1])
+        self._top_left = top_left
+        self._top_right = top_right
+        self._bottom_right = bottom_right
+        self._bottom_left = bottom_left
         self.update()
     
     @property
     def color(self):
-        """Get the rectangle color."""
-        return QColor(self._color)
+        return self._color
     
     @color.setter
     def color(self, value):
-        """Set the rectangle color."""
-        self._color = QColor(value)
+        self._color = value
         self.update()
     
     @property
     def line_width(self):
-        """Get the line width."""
         return self._line_width
     
     @line_width.setter
     def line_width(self, value):
-        """Set the line width."""
-        self.prepareGeometryChange()
+        self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
         self.update()
     
+    @property
     def width(self):
-        """Calculate the width of the rectangle (distance between top corners)."""
+        """Calculate the width of the rectangle."""
         return abs(self._top_right.x() - self._top_left.x())
     
+    @property
     def height(self):
-        """Calculate the height of the rectangle (distance between top and bottom on left side)."""
+        """Calculate the height of the rectangle."""
         return abs(self._top_left.y() - self._bottom_left.y())
     
+    @property
     def area(self):
         """Calculate the area of the rectangle."""
-        return self.width() * self.height()
+        return self.width * self.height
     
+    @property
     def center(self):
         """Calculate the center point of the rectangle."""
-        center_x = (self._top_left.x() + self._top_right.x() + 
-                   self._bottom_right.x() + self._bottom_left.x()) / 4
-        center_y = (self._top_left.y() + self._top_right.y() + 
-                   self._bottom_right.y() + self._bottom_left.y()) / 4
+        center_x = (self._top_left.x() + self._bottom_right.x()) / 2
+        center_y = (self._top_left.y() + self._bottom_right.y()) / 2
         return QPointF(center_x, center_y) 

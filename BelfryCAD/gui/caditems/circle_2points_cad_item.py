@@ -31,37 +31,6 @@ class Circle2PointsCadItem(CadItem):
         # Position the item at the center point
         self.setPos(self.center_point)
     
-    def _get_control_points(self):
-        """Return control points for the circle."""
-        # Control points are relative to the center
-        center = self.center_point
-        point1_local = self._point1 - center
-        point2_local = self._point2 - center
-        
-        # Create radius datum if it doesn't exist
-        if not self._radius_datum:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self.radius * sc, self.radius * sc)
-            self._radius_datum = ControlDatum(
-                name="radius",
-                position=datum_pos,
-                value_getter=self._get_radius_value,
-                value_setter=self._set_radius_value,
-                prefix="R",
-                parent_item=self
-            )
-        else:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self.radius * sc, self.radius * sc)
-            self._radius_datum.position = datum_pos
-        
-        return [
-            ControlPoint('point1', point1_local),
-            ControlPoint('point2', point2_local),
-            SquareControlPoint('center', QPointF(0, 0)),
-            self._radius_datum
-        ]
-    
     def boundingRect(self):
         """Return the bounding rectangle of the circle."""
         radius = self.radius
@@ -104,6 +73,66 @@ class Circle2PointsCadItem(CadItem):
         # Use the stroked shape for accurate contains check
         shape_path = self.shape()
         return shape_path.contains(local_point)
+    
+    def _get_control_points(self):
+        """Return control points for the circle."""
+        # Control points are relative to the center
+        center = self.center_point
+        point1_local = self._point1 - center
+        point2_local = self._point2 - center
+        
+        # Create radius datum if it doesn't exist
+        if not self._radius_datum:
+            sc = math.sin(math.pi/4)
+            datum_pos = QPointF(self.radius * sc, self.radius * sc)
+            self._radius_datum = ControlDatum(
+                name="radius",
+                position=datum_pos,
+                value_getter=self._get_radius_value,
+                value_setter=self._set_radius_value,
+                prefix="R",
+                parent_item=self
+            )
+        else:
+            sc = math.sin(math.pi/4)
+            datum_pos = QPointF(self.radius * sc, self.radius * sc)
+            self._radius_datum.position = datum_pos
+        
+        return [
+            ControlPoint('point1', point1_local),
+            ControlPoint('point2', point2_local),
+            SquareControlPoint('center', QPointF(0, 0)),
+            self._radius_datum
+        ]
+    
+    def _control_point_changed(self, name: str, new_position: QPointF):
+        """Handle control point changes."""
+        self.prepareGeometryChange()
+        if name == 'center':
+            # Translate the entire circle (both points)
+            # Calculate the delta from current center (which is at origin in local coords)
+            delta = new_position  # new_position is the delta from origin
+            scene_delta = self.mapToScene(delta) - self.mapToScene(QPointF(0, 0))
+            self._point1 += scene_delta
+            self._point2 += scene_delta
+            self.setPos(self.center_point)
+        elif name == 'point1':
+            # Change point1 position
+            scene_pos = self.mapToScene(new_position)
+            self._point1 = scene_pos
+            self.setPos(self.center_point)
+            self.prepareGeometryChange()
+            self.update()
+        elif name == 'point2':
+            # Change point2 position
+            scene_pos = self.mapToScene(new_position)
+            self._point2 = scene_pos
+            self.setPos(self.center_point)
+            self.prepareGeometryChange()
+            self.update()
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
     
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""
@@ -203,47 +232,6 @@ class Circle2PointsCadItem(CadItem):
         self._line_width = value
         self.update()
     
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        self.prepareGeometryChange()
-        if name == 'center':
-            # Translate the entire circle (both points)
-            # Calculate the delta from current center (which is at origin in local coords)
-            delta = new_position  # new_position is the delta from origin
-            scene_delta = self.mapToScene(delta) - self.mapToScene(QPointF(0, 0))
-            self._point1 += scene_delta
-            self._point2 += scene_delta
-            self.setPos(self.center_point)
-        elif name == 'point1':
-            # Change point1 position
-            scene_pos = self.mapToScene(new_position)
-            self._point1 = scene_pos
-            self.setPos(self.center_point)
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'point2':
-            # Change point2 position
-            scene_pos = self.mapToScene(new_position)
-            self._point2 = scene_pos
-            self.setPos(self.center_point)
-            self.prepareGeometryChange()
-            self.update()
-        
-        # Call parent method to refresh all control points
-        super()._control_point_changed(name, new_position)
-
-    def diameter(self):
-        """Get the diameter of the circle."""
-        return self.radius * 2
-    
-    def set_diameter_points(self, point1, point2):
-        """Set both diameter endpoint at once."""
-        self._point1 = point1
-        self._point2 = point2
-        self.setPos(self.center_point)
-        self.prepareGeometryChange()
-        self.update()
-
     def _get_radius_value(self):
         """Get the current radius value."""
         return self.radius

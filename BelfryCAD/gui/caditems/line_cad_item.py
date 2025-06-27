@@ -26,45 +26,6 @@ class LineCadItem(CadItem):
         if isinstance(self._end_point, (list, tuple)):
             self._end_point = QPointF(self._end_point[0], self._end_point[1])
     
-    def _get_control_points(self):
-        """Return control points for the line."""
-        return [
-            SquareControlPoint('start', self._start_point),
-            ControlPoint('end', self._end_point),
-            ControlPoint('midpoint', self.midpoint)
-        ]
-
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        if name == 'start':
-            # When start point moves, move end point to maintain the same relative position
-            # Calculate the current vector from start to end
-            current_vector = QPointF(self._end_point.x() - self._start_point.x(),
-                                   self._end_point.y() - self._start_point.y())
-            
-            # Update start point
-            self._start_point = new_position
-            
-            # Move end point by the same vector from the new start position
-            self._end_point = QPointF(new_position.x() + current_vector.x(),
-                                     new_position.y() + current_vector.y())
-        elif name == 'end':
-            self._end_point = new_position
-        elif name == 'midpoint':
-            # Calculate the vector from start to new midpoint
-            start_to_mid = QPointF(new_position.x() - self._start_point.x(), 
-                                  new_position.y() - self._start_point.y())
-            
-            # The end point should be equidistant on the opposite side
-            self._end_point = QPointF(new_position.x() + start_to_mid.x(),
-                                     new_position.y() + start_to_mid.y())
-        
-        self.prepareGeometryChange()
-        self.update()
-        
-        # Call parent method to refresh all control points
-        super()._control_point_changed(name, new_position)
-
     def boundingRect(self):
         """Return the bounding rectangle of the line."""
         # Create a CadRect containing both points
@@ -105,6 +66,59 @@ class LineCadItem(CadItem):
             local_point, self._start_point, self._end_point)
         return distance <= tolerance
     
+    def _get_control_points(self):
+        """Return control points for the line."""
+        return [
+            SquareControlPoint('start', self._start_point),
+            ControlPoint('end', self._end_point),
+            ControlPoint('midpoint', self.midpoint)
+        ]
+
+    def _control_point_changed(self, name: str, new_position: QPointF):
+        """Handle control point changes."""
+        if name == 'start':
+            # When start point moves, move end point to maintain the same relative position
+            # Calculate the current vector from start to end
+            current_vector = QPointF(self._end_point.x() - self._start_point.x(),
+                                   self._end_point.y() - self._start_point.y())
+            
+            # Update start point
+            self._start_point = new_position
+            
+            # Move end point by the same vector from the new start position
+            self._end_point = QPointF(new_position.x() + current_vector.x(),
+                                     new_position.y() + current_vector.y())
+        elif name == 'end':
+            self._end_point = new_position
+        elif name == 'midpoint':
+            # Calculate the vector from start to new midpoint
+            start_to_mid = QPointF(new_position.x() - self._start_point.x(), 
+                                  new_position.y() - self._start_point.y())
+            
+            # The end point should be equidistant on the opposite side
+            self._end_point = QPointF(new_position.x() + start_to_mid.x(),
+                                     new_position.y() + start_to_mid.y())
+        
+        self.prepareGeometryChange()
+        self.update()
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
+    
+    def paint_item(self, painter, option, widget=None):
+        """Draw the line content."""
+        painter.save()
+        
+        pen = QPen(self._color, self._line_width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.setBrush(QBrush())  # No fill
+        
+        # Draw the line
+        painter.drawLine(self._start_point, self._end_point)
+        
+        painter.restore()
+    
     def _point_to_line_distance(self, point, line_start, line_end):
         """Calculate the shortest distance from a point to a line segment."""
         # Vector from line_start to line_end
@@ -134,20 +148,6 @@ class LineCadItem(CadItem):
         dx = point.x() - closest_x
         dy = point.y() - closest_y
         return (dx ** 2 + dy ** 2) ** 0.5
-    
-    def paint_item(self, painter, option, widget=None):
-        """Draw the line content."""
-        painter.save()
-        
-        pen = QPen(self._color, self._line_width)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(pen)
-        painter.setBrush(QBrush())  # No fill
-        
-        # Draw the line
-        painter.drawLine(self._start_point, self._end_point)
-        
-        painter.restore()
     
     @property
     def start_point(self):
@@ -233,17 +233,17 @@ class LineCadItem(CadItem):
         )
         self.prepareGeometryChange()
         self.update()
-        
+    
     @property
     def angle(self):
-        """Calculate the angle of the line in radians (from start to end point)."""
+        """Calculate the angle of the line segment in radians."""
         dx = self._end_point.x() - self._start_point.x()
         dy = self._end_point.y() - self._start_point.y()
         return math.atan2(dy, dx)
     
     @angle.setter
     def angle(self, value):
-        """Set the angle of the line by moving the endpoint relative to the start point."""
+        """Set the angle of the line segment by moving the endpoint."""
         current_length = self.length
         self._end_point = QPointF(
             self._start_point.x() + current_length * math.cos(value),
@@ -251,7 +251,7 @@ class LineCadItem(CadItem):
         )
         self.prepareGeometryChange()
         self.update()
-
+    
     @property
     def midpoint(self):
         """Calculate the midpoint of the line segment."""
@@ -261,25 +261,20 @@ class LineCadItem(CadItem):
     
     @midpoint.setter
     def midpoint(self, value):
-        """Set the midpoint of the line by moving both points equidistant from the new midpoint."""
-        current_length = self.length
-        current_angle = self.angle
+        """Set the midpoint of the line segment by moving both endpoints."""
+        if isinstance(value, (list, tuple)):
+            value = QPointF(value[0], value[1])
         
-        # Calculate half the length
-        half_length = current_length / 2
+        # Calculate the current vector from start to end
+        current_vector = QPointF(self._end_point.x() - self._start_point.x(),
+                               self._end_point.y() - self._start_point.y())
         
-        # Set the new midpoint
-        new_midpoint = value if isinstance(value, QPointF) else QPointF(value[0], value[1])
+        # Calculate half the vector
+        half_vector = QPointF(current_vector.x() / 2, current_vector.y() / 2)
         
-        # Calculate new start and end points
-        self._start_point = QPointF(
-            new_midpoint.x() - half_length * math.cos(current_angle),
-            new_midpoint.y() - half_length * math.sin(current_angle)
-        )
-        self._end_point = QPointF(
-            new_midpoint.x() + half_length * math.cos(current_angle),
-            new_midpoint.y() + half_length * math.sin(current_angle)
-        )
+        # Set start and end points relative to the new midpoint
+        self._start_point = QPointF(value.x() - half_vector.x(), value.y() - half_vector.y())
+        self._end_point = QPointF(value.x() + half_vector.x(), value.y() + half_vector.y())
         
         self.prepareGeometryChange()
         self.update() 

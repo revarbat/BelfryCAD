@@ -33,32 +33,6 @@ class CubicBezierCadItem(CadItem):
         if isinstance(self._end_point, (list, tuple)):
             self._end_point = QPointF(self._end_point[0], self._end_point[1])
     
-    def _get_control_points(self):
-        """Return control points for the Bezier curve."""
-        return [
-            SquareControlPoint('start', self._start_point),
-            ControlPoint('control1', self._control1),
-            ControlPoint('control2', self._control2),
-            DiamondControlPoint('end', self._end_point)
-        ]
-
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        if name == 'start':
-            self._start_point = new_position
-        elif name == 'control1':
-            self._control1 = new_position
-        elif name == 'control2':
-            self._control2 = new_position
-        elif name == 'end':
-            self._end_point = new_position
-        
-        self.prepareGeometryChange()
-        self.update()
-        
-        # Call parent method to refresh all control points
-        super()._control_point_changed(name, new_position)
-
     def boundingRect(self):
         """Return the bounding rectangle of the Bezier curve."""
         # For a cubic Bezier, the bounding box includes all four control points
@@ -76,13 +50,6 @@ class CubicBezierCadItem(CadItem):
         rect.expandByScalar(padding)
         
         return rect
-    
-    def _create_bezier_path(self):
-        """Create the Bezier curve path."""
-        path = QPainterPath()
-        path.moveTo(self._start_point)
-        path.cubicTo(self._control1, self._control2, self._end_point)
-        return path
     
     def shape(self):
         """Return the exact shape of the Bezier curve for collision detection."""
@@ -108,6 +75,32 @@ class CubicBezierCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
     
+    def _get_control_points(self):
+        """Return control points for the Bezier curve."""
+        return [
+            SquareControlPoint('start', self._start_point),
+            ControlPoint('control1', self._control1),
+            ControlPoint('control2', self._control2),
+            DiamondControlPoint('end', self._end_point)
+        ]
+
+    def _control_point_changed(self, name: str, new_position: QPointF):
+        """Handle control point changes."""
+        if name == 'start':
+            self._start_point = new_position
+        elif name == 'control1':
+            self._control1 = new_position
+        elif name == 'control2':
+            self._control2 = new_position
+        elif name == 'end':
+            self._end_point = new_position
+        
+        self.prepareGeometryChange()
+        self.update()
+        
+        # Call parent method to refresh all control points
+        super()._control_point_changed(name, new_position)
+    
     def paint_item(self, painter, option, widget=None):
         """Draw the Bezier curve content."""
         painter.save()
@@ -123,6 +116,13 @@ class CubicBezierCadItem(CadItem):
         painter.drawPath(bezier_path)
         
         painter.restore()
+    
+    def _create_bezier_path(self):
+        """Create the Bezier curve path."""
+        path = QPainterPath()
+        path.moveTo(self._start_point)
+        path.cubicTo(self._control1, self._control2, self._end_point)
+        return path
     
     def _draw_decorations(self, painter):
         """Draw control polygon when selected."""
