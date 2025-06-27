@@ -45,21 +45,21 @@ class ToolTableDialog(QDialog):
         # Tool list
         list_group = QGroupBox("Tools")
         list_layout = QVBoxLayout()
-        
+
         self.tool_list = QListWidget()
         self.tool_list.setAlternatingRowColors(True)
         self.tool_list.itemDoubleClicked.connect(self._edit_tool)
         self.tool_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)  # Enable drag-and-drop
         self.tool_list.model().rowsMoved.connect(self._on_items_reordered)  # Handle reordering
         list_layout.addWidget(self.tool_list)
-        
+
         # Buttons for tool list
         button_layout = QHBoxLayout()
-        
+
         add_button = QPushButton("+")
         add_button.clicked.connect(self._add_tool)
         button_layout.addWidget(add_button)
-        
+
         delete_button = QPushButton("-")
         delete_button.clicked.connect(self._delete_tool)
         button_layout.addWidget(delete_button)
@@ -67,18 +67,18 @@ class ToolTableDialog(QDialog):
         edit_button = QPushButton("Edit")
         edit_button.clicked.connect(self._edit_tool)
         button_layout.addWidget(edit_button)
-        
+
         button_layout.addStretch()
-        
+
         # Add move up/down buttons
         move_up_button = QPushButton("↑")
         move_up_button.clicked.connect(self._move_tool_up)
         button_layout.addWidget(move_up_button)
-        
+
         move_down_button = QPushButton("↓")
         move_down_button.clicked.connect(self._move_tool_down)
         button_layout.addWidget(move_down_button)
-        
+
         list_layout.addLayout(button_layout)
         list_group.setLayout(list_layout)
         layout.addWidget(list_group)
@@ -204,18 +204,18 @@ class ToolTableDialog(QDialog):
         current_item = self.tool_list.currentItem()
         if not current_item:
             return
-            
+
         current_row = self.tool_list.row(current_item)
         if current_row > 0:
             # Move item in list widget
             self.tool_list.takeItem(current_row)
             self.tool_list.insertItem(current_row - 1, current_item)
             self.tool_list.setCurrentItem(current_item)
-            
+
             # Update tool_specs list
             tool = self.tool_specs.pop(current_row)
             self.tool_specs.insert(current_row - 1, tool)
-            
+
             # Renumber all tools
             self._renumber_tools()
 
@@ -224,18 +224,18 @@ class ToolTableDialog(QDialog):
         current_item = self.tool_list.currentItem()
         if not current_item:
             return
-            
+
         current_row = self.tool_list.row(current_item)
         if current_row < self.tool_list.count() - 1:
             # Move item in list widget
             self.tool_list.takeItem(current_row)
             self.tool_list.insertItem(current_row + 1, current_item)
             self.tool_list.setCurrentItem(current_item)
-            
+
             # Update tool_specs list
             tool = self.tool_specs.pop(current_row)
             self.tool_specs.insert(current_row + 1, tool)
-            
+
             # Renumber all tools
             self._renumber_tools()
 
@@ -279,7 +279,7 @@ class ToolTableDialog(QDialog):
             tool_dict['material'] = tool_dict['material'].value
             tool_dict['coating'] = tool_dict['coating'].value
             tool_dicts.append(tool_dict)
-            
+
         logger.info(f"Saving {len(tool_dicts)} tools to preferences: {tool_dicts}")
         # Get preferences from main window
         main_window = cast('MainWindow', self.parent())
@@ -302,7 +302,7 @@ class ToolTableDialog(QDialog):
             logger.info(f"Loaded {len(tool_dicts)} tools from preferences: {tool_dicts}")
         else:
             logger.warning("No parent window provided, loading empty tool table")
-            
+
         # Convert string values back to enums
         tool_specs = []
         for tool_dict in tool_dicts:
@@ -314,5 +314,5 @@ class ToolTableDialog(QDialog):
             except (ValueError, KeyError) as e:
                 logger.error(f"Error converting tool dict to ToolSpecification: {e}")
                 continue
-                
-        return cls(tool_specs=tool_specs, parent=parent) 
+
+        return cls(tool_specs=tool_specs, parent=parent)

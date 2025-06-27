@@ -123,7 +123,7 @@ class GridInfo(object):
             GridUnits.CENTIMETERS: "cm",
             GridUnits.METERS: "m",
         }[self.units]
-    
+
     @property
     def use_fractions(self):
         return {
@@ -151,7 +151,7 @@ class GridInfo(object):
             GridUnits.CENTIMETERS: 1/2.54,
             GridUnits.METERS: 1/0.0254,
         }[self.units]
-    
+
     def get_relevant_spacings(self, scaling: float) \
             -> Tuple[List[float], float]:
         """Get the relevant grid spacings for the given scaling factor."""
@@ -170,7 +170,7 @@ class GridInfo(object):
         while label_spacing * scaling < 30.0:
             label_spacing *= 2.0
         return (spacings, label_spacing)
-    
+
     def grid_line_color(self, level: int) -> QColor:
         """Get the color for the grid line at the given level."""
         color = self.base_color
@@ -191,7 +191,7 @@ class GridInfo(object):
         for digit, superscript in superscripts.items():
             valstr = valstr.replace(digit, superscript)
         return valstr
-    
+
     def _subscript_numbers(self, value: int) -> str:
         """Get the subscript for the given number string."""
         subscripts = {
@@ -202,7 +202,7 @@ class GridInfo(object):
         for digit, subscript in subscripts.items():
             valstr = valstr.replace(digit, subscript)
         return valstr
-    
+
     def _fractionize(self, value: float, no_subs: bool = False) -> str:
         """Fractionize the given value."""
         sign = "" if value >= 0 else "-"
@@ -240,7 +240,7 @@ class GridInfo(object):
         if numerator == 0:
             return f"{sign}{whole}"
         return f"{sign}{whole}\n{fracstr}"
-    
+
     def format_label(self, value: float, no_subs: bool = False) -> str:
         """Format the label for the grid."""
         value /= self.unit_scale
@@ -277,7 +277,7 @@ class GridInfo(object):
         """Get the zoom level, in percentage."""
         dpi = view.logicalDpiX()
         return view.transform().m11() / dpi * 100
-    
+
     @staticmethod
     def set_zoom(view: QGraphicsView, zoom: float) -> float:
         """Set the zoom level, in percentage."""
@@ -311,38 +311,38 @@ class GridInfo(object):
 
 class UnitSelectionDialog(QDialog):
     """Dialog for selecting grid units."""
-    
+
     def __init__(self, current_unit: GridUnits, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Select Grid Units")
         self.setModal(True)
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Create combo box for unit selection
         self.unit_combo = QComboBox()
         for unit in GridUnits:
             self.unit_combo.addItem(unit.value, unit)
-        
+
         # Set current selection
         index = self.unit_combo.findData(current_unit)
         if index >= 0:
             self.unit_combo.setCurrentIndex(index)
-        
+
         layout.addWidget(QLabel("Grid Units:"))
         layout.addWidget(self.unit_combo)
-        
+
         # Add OK/Cancel buttons
         button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | 
+            QDialogButtonBox.StandardButton.Ok |
             QDialogButtonBox.StandardButton.Cancel
         )
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
         layout.addWidget(button_box)
-        
+
         self.resize(300, 100)
-    
+
     def get_selected_unit(self) -> GridUnits:
         """Get the selected grid unit."""
         return self.unit_combo.currentData()

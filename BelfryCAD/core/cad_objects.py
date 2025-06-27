@@ -92,7 +92,7 @@ class CADObject:
     def id(self) -> str:
         """Get object ID as string for compatibility"""
         return str(self.object_id)
-        
+
     def __post_init__(self):
         """Initialize object after creation"""
         self.show_controls = False

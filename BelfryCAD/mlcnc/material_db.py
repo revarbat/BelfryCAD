@@ -46,25 +46,25 @@ class MaterialRecord:
 class MaterialDatabase:
     """
     Material property database for CNC machining.
-    
+
     This class provides storage, retrieval, and management of
     material properties used in machining calculations.
     """
-    
+
     def __init__(self, database_path: Optional[str] = None):
         """
         Initialize the material database.
-        
+
         Args:
             database_path: Path to database file (optional)
         """
         self.database_path = database_path
         self.materials: Dict[str, MaterialRecord] = {}
         self._load_default_materials()
-        
+
         if database_path and os.path.exists(database_path):
             self.load_from_file(database_path)
-    
+
     def _load_default_materials(self):
         """Load default material properties."""
         # Aluminum 6061
@@ -82,7 +82,7 @@ class MaterialDatabase:
             "surface_speed": MaterialProperty("Surface Speed", 800, "ft/min", "Machining", 0.85),
             "chip_load": MaterialProperty("Chip Load", 0.005, "in/tooth", "Machining", 0.8)
         }
-        
+
         self.materials["AL6061"] = MaterialRecord(
             material_id="AL6061",
             name="Aluminum 6061-T6",
@@ -90,7 +90,7 @@ class MaterialDatabase:
             properties=al6061_props,
             notes="General purpose aluminum alloy"
         )
-        
+
         # Steel 1018
         steel1018_props = {
             "density": MaterialProperty("Density", 0.284, "lb/in³", "NIST", 0.95),
@@ -106,7 +106,7 @@ class MaterialDatabase:
             "surface_speed": MaterialProperty("Surface Speed", 400, "ft/min", "Machining", 0.85),
             "chip_load": MaterialProperty("Chip Load", 0.008, "in/tooth", "Machining", 0.8)
         }
-        
+
         self.materials["STEEL1018"] = MaterialRecord(
             material_id="STEEL1018",
             name="Steel 1018 (Low Carbon)",
@@ -114,7 +114,7 @@ class MaterialDatabase:
             properties=steel1018_props,
             notes="Low carbon mild steel"
         )
-        
+
         # Stainless Steel 304
         ss304_props = {
             "density": MaterialProperty("Density", 0.29, "lb/in³", "NIST", 0.95),
@@ -130,7 +130,7 @@ class MaterialDatabase:
             "surface_speed": MaterialProperty("Surface Speed", 300, "ft/min", "Machining", 0.85),
             "chip_load": MaterialProperty("Chip Load", 0.006, "in/tooth", "Machining", 0.8)
         }
-        
+
         self.materials["SS304"] = MaterialRecord(
             material_id="SS304",
             name="Stainless Steel 304",
@@ -138,11 +138,11 @@ class MaterialDatabase:
             properties=ss304_props,
             notes="Austenitic stainless steel"
         )
-        
+
         # Add more materials...
         self._add_brass_materials()
         self._add_plastic_materials()
-    
+
     def _add_brass_materials(self):
         """Add brass material properties."""
         brass360_props = {
@@ -159,7 +159,7 @@ class MaterialDatabase:
             "surface_speed": MaterialProperty("Surface Speed", 900, "ft/min", "Machining", 0.85),
             "chip_load": MaterialProperty("Chip Load", 0.010, "in/tooth", "Machining", 0.8)
         }
-        
+
         self.materials["BRASS360"] = MaterialRecord(
             material_id="BRASS360",
             name="Brass 360 (Free Machining)",
@@ -167,7 +167,7 @@ class MaterialDatabase:
             properties=brass360_props,
             notes="Excellent machinability"
         )
-    
+
     def _add_plastic_materials(self):
         """Add plastic material properties."""
         nylon_props = {
@@ -184,7 +184,7 @@ class MaterialDatabase:
             "surface_speed": MaterialProperty("Surface Speed", 1200, "ft/min", "Machining", 0.7),
             "chip_load": MaterialProperty("Chip Load", 0.015, "in/tooth", "Machining", 0.7)
         }
-        
+
         self.materials["NYLON66"] = MaterialRecord(
             material_id="NYLON66",
             name="Nylon 66",
@@ -192,27 +192,27 @@ class MaterialDatabase:
             properties=nylon_props,
             notes="Engineering thermoplastic"
         )
-    
+
     def get_material(self, material_id: str) -> Optional[MaterialRecord]:
         """
         Get material record by ID.
-        
+
         Args:
             material_id: Material identifier
-            
+
         Returns:
             MaterialRecord if found, None otherwise
         """
         return self.materials.get(material_id.upper())
-    
+
     def get_property(self, material_id: str, property_name: str) -> Optional[MaterialProperty]:
         """
         Get specific property for a material.
-        
+
         Args:
             material_id: Material identifier
             property_name: Property name
-            
+
         Returns:
             MaterialProperty if found, None otherwise
         """
@@ -220,82 +220,82 @@ class MaterialDatabase:
         if material:
             return material.properties.get(property_name)
         return None
-    
+
     def get_property_value(self, material_id: str, property_name: str) -> Optional[Union[float, str, bool]]:
         """
         Get property value for a material.
-        
+
         Args:
             material_id: Material identifier
             property_name: Property name
-            
+
         Returns:
             Property value if found, None otherwise
         """
         prop = self.get_property(material_id, property_name)
         return prop.value if prop else None
-    
+
     def list_materials(self, category: Optional[MaterialType] = None) -> List[MaterialRecord]:
         """
         List all materials, optionally filtered by category.
-        
+
         Args:
             category: Optional material category filter
-            
+
         Returns:
             List of material records
         """
         if category:
             return [mat for mat in self.materials.values() if mat.category == category]
         return list(self.materials.values())
-    
+
     def add_material(self, material: MaterialRecord) -> bool:
         """
         Add a new material to the database.
-        
+
         Args:
             material: Material record to add
-            
+
         Returns:
             True if successful, False if material already exists
         """
         if material.material_id in self.materials:
             return False
-        
+
         self.materials[material.material_id] = material
         return True
-    
+
     def update_material(self, material_id: str, updates: Dict[str, Any]) -> bool:
         """
         Update material properties.
-        
+
         Args:
             material_id: Material identifier
             updates: Dictionary of updates
-            
+
         Returns:
             True if successful, False if material not found
         """
         material = self.get_material(material_id)
         if not material:
             return False
-        
+
         for key, value in updates.items():
             if hasattr(material, key):
                 setattr(material, key, value)
             elif key in material.properties:
                 # Update property value
                 material.properties[key].value = value
-        
+
         return True
-    
+
     def delete_material(self, material_id: str) -> bool:
         """
         Delete a material from the database.
-        
+
         Args:
             material_id: Material identifier
-            
+
         Returns:
             True if successful, False if material not found
         """
@@ -303,107 +303,107 @@ class MaterialDatabase:
             del self.materials[material_id]
             return True
         return False
-    
+
     def search_materials(self, query: str) -> List[MaterialRecord]:
         """
         Search materials by name or properties.
-        
+
         Args:
             query: Search query
-            
+
         Returns:
             List of matching material records
         """
         query_lower = query.lower()
         results = []
-        
+
         for material in self.materials.values():
             # Search in name
             if query_lower in material.name.lower():
                 results.append(material)
                 continue
-            
+
             # Search in material ID
             if query_lower in material.material_id.lower():
                 results.append(material)
                 continue
-            
+
             # Search in properties
             for prop in material.properties.values():
                 if query_lower in prop.name.lower():
                     results.append(material)
                     break
-        
+
         return results
-    
+
     def get_similar_materials(self, material_id: str, property_names: List[str]) -> List[MaterialRecord]:
         """
         Find materials with similar properties.
-        
+
         Args:
             material_id: Reference material ID
             property_names: Properties to compare
-            
+
         Returns:
             List of similar materials sorted by similarity
         """
         reference = self.get_material(material_id)
         if not reference:
             return []
-        
+
         similar_materials = []
-        
+
         for mat_id, material in self.materials.items():
             if mat_id == material_id:
                 continue
-            
+
             similarity_score = self._calculate_similarity(
                 reference, material, property_names)
-            
+
             if similarity_score > 0.7:  # 70% similarity threshold
                 similar_materials.append((material, similarity_score))
-        
+
         # Sort by similarity score (descending)
         similar_materials.sort(key=lambda x: x[1], reverse=True)
-        
+
         return [mat for mat, score in similar_materials]
-    
+
     def _calculate_similarity(self, mat1: MaterialRecord, mat2: MaterialRecord,
                             property_names: List[str]) -> float:
         """Calculate similarity score between two materials."""
         total_score = 0.0
         valid_comparisons = 0
-        
+
         for prop_name in property_names:
             prop1 = mat1.properties.get(prop_name)
             prop2 = mat2.properties.get(prop_name)
-            
+
             if prop1 and prop2 and isinstance(prop1.value, (int, float)) and isinstance(prop2.value, (int, float)):
                 # Calculate relative difference
                 diff = abs(prop1.value - prop2.value) / max(prop1.value, prop2.value)
                 similarity = 1.0 - min(1.0, diff)
                 total_score += similarity
                 valid_comparisons += 1
-        
+
         return total_score / valid_comparisons if valid_comparisons > 0 else 0.0
-    
+
     def export_material_data(self, material_ids: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Export material data to dictionary format.
-        
+
         Args:
             material_ids: Optional list of material IDs to export
-            
+
         Returns:
             Dictionary with material data
         """
         if material_ids:
-            materials_to_export = {mat_id: self.materials[mat_id] 
-                                 for mat_id in material_ids 
+            materials_to_export = {mat_id: self.materials[mat_id]
+                                 for mat_id in material_ids
                                  if mat_id in self.materials}
         else:
             materials_to_export = self.materials
-        
+
         export_data = {}
         for mat_id, material in materials_to_export.items():
             export_data[mat_id] = {
@@ -423,21 +423,21 @@ class MaterialDatabase:
                 "notes": material.notes,
                 "last_updated": material.last_updated
             }
-        
+
         return export_data
-    
+
     def import_material_data(self, data: Dict[str, Any]) -> int:
         """
         Import material data from dictionary format.
-        
+
         Args:
             data: Dictionary with material data
-            
+
         Returns:
             Number of materials imported
         """
         imported_count = 0
-        
+
         for mat_id, mat_data in data.items():
             try:
                 # Reconstruct properties
@@ -450,7 +450,7 @@ class MaterialDatabase:
                         source=prop_data["source"],
                         confidence=prop_data["confidence"]
                     )
-                
+
                 # Create material record
                 material = MaterialRecord(
                     material_id=mat_data["material_id"],
@@ -460,23 +460,23 @@ class MaterialDatabase:
                     notes=mat_data.get("notes"),
                     last_updated=mat_data.get("last_updated")
                 )
-                
+
                 self.materials[mat_id] = material
                 imported_count += 1
-                
+
             except (KeyError, ValueError) as e:
                 print(f"Error importing material {mat_id}: {e}")
                 continue
-        
+
         return imported_count
-    
+
     def save_to_file(self, filepath: str) -> bool:
         """
         Save database to JSON file.
-        
+
         Args:
             filepath: Path to save file
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -488,54 +488,54 @@ class MaterialDatabase:
         except Exception as e:
             print(f"Error saving database: {e}")
             return False
-    
+
     def load_from_file(self, filepath: str) -> bool:
         """
         Load database from JSON file.
-        
+
         Args:
             filepath: Path to load file
-            
+
         Returns:
             True if successful, False otherwise
         """
         try:
             with open(filepath, 'r') as f:
                 data = json.load(f)
-            
+
             imported_count = self.import_material_data(data)
             print(f"Imported {imported_count} materials from {filepath}")
             return True
-            
+
         except Exception as e:
             print(f"Error loading database: {e}")
             return False
-    
+
     def validate_database(self) -> Dict[str, List[str]]:
         """
         Validate database integrity.
-        
+
         Returns:
             Dictionary with validation results
         """
         errors = []
         warnings = []
-        
+
         for mat_id, material in self.materials.items():
             # Check required properties
             required_props = ["density", "tensile_strength", "machinability_rating"]
             for prop in required_props:
                 if prop not in material.properties:
                     errors.append(f"{mat_id}: Missing required property '{prop}'")
-            
+
             # Check property values
             for prop_name, prop in material.properties.items():
                 if isinstance(prop.value, (int, float)) and prop.value < 0:
                     warnings.append(f"{mat_id}: Negative value for '{prop_name}'")
-                
+
                 if prop.confidence < 0.5:
                     warnings.append(f"{mat_id}: Low confidence ({prop.confidence}) for '{prop_name}'")
-        
+
         return {
             "errors": errors,
             "warnings": warnings,

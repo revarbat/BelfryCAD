@@ -22,7 +22,7 @@ class LayerManager:
     """
 
     _next_id: int = 1
-    
+
     def __init__(self, canvas_id: str = "default"):
         """
         Initialize the layer manager.

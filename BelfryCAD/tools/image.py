@@ -220,4 +220,4 @@ class ImageTool(Tool):
         self.object_created.emit(image)
 
         # Reset tool state
-        self.reset() 
+        self.reset()

@@ -28,4 +28,4 @@ class Layer:
         """Compare Layer objects for equality based on instance identity."""
         if not isinstance(other, Layer):
             return NotImplemented
-        return self is other 
+        return self is other

@@ -46,7 +46,7 @@ class WormParameters(GearParameters):
 
 class GearGenerator:
     """Base class for gear generation."""
-    
+
     def __init__(self, params: GearParameters):
         self.params = params
         self.pi = math.pi
@@ -67,7 +67,7 @@ class GearGenerator:
         hel_rad = math.radians(self.params.helical_angle)
         cut_len = self.params.gear_width / math.cos(hel_rad)
         a_axis_move = (math.tan(hel_rad) * self.params.gear_width) / (self.pi * self._calculate_gear_dimensions()[0] / 360.0)
-        
+
         # Calculate perpendicular distances
         perp_ang = math.radians(self.params.table_orientation.value) - self.pi
         if self.params.helical_angle < 0.0:
@@ -114,7 +114,7 @@ class GearGenerator:
 
         # Generate G-code
         gcode = []
-        
+
         # Add header comments
         if abs(self.params.helical_angle) <= 0.00001:
             gcode.append("(          SPUR GEAR           )")
@@ -133,7 +133,7 @@ class GearGenerator:
         gcode.append(f"( gear width    = {self.params.gear_width:8.4f} in  )")
         gcode.append(f"( circ. pitch   = {circ_pitch:8.4f} in  )")
         gcode.append("")
-        
+
         # Add feed rate calculations
         gcode.append("( correct feed for angular motion )")
         gcode.append(f"#1020=[#1001*SIN[ABS[{self.params.helical_angle:.5f}]]*{rot_feed_fact:.5f}]")
@@ -205,7 +205,7 @@ class GearGenerator:
 
 class WormGearGenerator(GearGenerator):
     """Generator for worm gears."""
-    
+
     def __init__(self, params: WormParameters):
         super().__init__(params)
         self.worm_params = params
@@ -226,7 +226,7 @@ class WormGearGenerator(GearGenerator):
 
 class WormGenerator(GearGenerator):
     """Generator for worms."""
-    
+
     def __init__(self, params: WormParameters):
         super().__init__(params)
         self.worm_params = params
@@ -244,4 +244,4 @@ class WormGenerator(GearGenerator):
             helical_angle = -helical_angle
 
         complement_angle = 90.0 - helical_angle
-        return complement_angle, pitch_diam, axial_pitch, lead 
+        return complement_angle, pitch_diam, axial_pitch, lead

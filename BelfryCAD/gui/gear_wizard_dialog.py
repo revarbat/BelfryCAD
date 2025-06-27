@@ -60,17 +60,17 @@ class GearWizardDialog(QDialog):
             logger.info("Setting up tool selection")
             tool_group = QGroupBox("Tool")
             tool_layout = QHBoxLayout()
-            
+
             # Tool dropdown
             self.tool_combo = QComboBox()
             self.tool_combo.setMinimumWidth(200)
             tool_layout.addWidget(self.tool_combo)
-            
+
             # Tool table button
             self.tool_table_button = QPushButton("Tool Table...")
             self.tool_table_button.clicked.connect(self._open_tool_table)
             tool_layout.addWidget(self.tool_table_button)
-            
+
             tool_group.setLayout(tool_layout)
             layout.addWidget(tool_group)
 
@@ -244,7 +244,7 @@ class GearWizardDialog(QDialog):
         """Connect UI signals to slots."""
         # Tool selection
         self.tool_combo.currentIndexChanged.connect(self._on_tool_changed)
-        
+
         # Gear type selection
         self.type_combo.currentIndexChanged.connect(self._on_gear_type_changed)
 
@@ -271,7 +271,7 @@ class GearWizardDialog(QDialog):
         if main_window:
             tool_dicts = main_window.preferences.get('tool_table', [])
             logger.info(f"Loaded {len(tool_dicts)} tools from preferences")
-            
+
             # Convert string values back to enums
             for tool_dict in tool_dicts:
                 try:
@@ -307,11 +307,11 @@ class GearWizardDialog(QDialog):
     def _on_gear_type_changed(self):
         """Handle gear type selection change."""
         gear_type = self.type_combo.currentText()
-        
+
         # Show/hide appropriate parameter groups
         self.helical_group.setVisible(gear_type == "Helical Gear")
         self.worm_group.setVisible(gear_type in ["Worm", "Worm Gear"])
-        
+
         # Update stats
         self._update_stats()
 
@@ -439,4 +439,4 @@ class GearWizardDialog(QDialog):
                     self,
                     "Error",
                     f"Failed to save G-code: {str(e)}"
-                ) 
+                )

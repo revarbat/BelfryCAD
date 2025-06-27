@@ -33,7 +33,7 @@ class Colors:
         Returns:
             Tuple of (hue, saturation, value) where:
             - hue is in range 0-360 degrees
-            - saturation is in range 0-1 
+            - saturation is in range 0-1
             - value is in range 0-1
         """
         if isinstance(color, str):
@@ -212,7 +212,7 @@ class Colors:
 
         Args:
             color1: First color
-            color2: Second color  
+            color2: Second color
             ratio: Blend ratio (0.0 = all color1, 1.0 = all color2)
 
         Returns:

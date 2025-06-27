@@ -28,20 +28,20 @@ class ObjectState:
 
 class Command(ABC):
     """Abstract base class for all undoable commands."""
-    
+
     def __init__(self, description: str = ""):
         self.description = description
-    
+
     @abstractmethod
     def execute(self) -> bool:
         """Execute the command. Returns True if successful."""
         pass
-    
+
     @abstractmethod
     def undo(self) -> bool:
         """Undo the command. Returns True if successful."""
         pass
-    
+
     def redo(self) -> bool:
         """Redo the command. Default implementation calls execute."""
         return self.execute()
@@ -49,13 +49,13 @@ class Command(ABC):
 
 class CreateObjectCommand(Command):
     """Command to create a new CAD object."""
-    
+
     def __init__(self, document, obj: CADObject, description: str = "Create Object"):
         super().__init__(description)
         self.document = document
         self.obj = obj
         self.object_id = obj.object_id
-    
+
     def execute(self) -> bool:
         """Add the object to the document."""
         try:
@@ -65,7 +65,7 @@ class CreateObjectCommand(Command):
         except Exception as e:
             print(f"Error executing CreateObjectCommand: {e}")
         return False
-    
+
     def undo(self) -> bool:
         """Remove the object from the document."""
         try:
@@ -79,12 +79,12 @@ class CreateObjectCommand(Command):
 
 class DeleteObjectCommand(Command):
     """Command to delete a CAD object."""
-    
+
     def __init__(self, document, obj: CADObject, description: str = "Delete Object"):
         super().__init__(description)
         self.document = document
         self.object_state = self._capture_object_state(obj)
-    
+
     def _capture_object_state(self, obj: CADObject) -> ObjectState:
         """Capture the complete state of an object."""
         return ObjectState(
@@ -96,7 +96,7 @@ class DeleteObjectCommand(Command):
             visible=getattr(obj, 'visible', True),
             selected=getattr(obj, 'selected', False)
         )
-    
+
     def _restore_object(self, state: ObjectState) -> CADObject:
         """Restore an object from its state."""
         from BelfryCAD.core.cad_objects import CADObject
@@ -111,7 +111,7 @@ class DeleteObjectCommand(Command):
         obj.visible = state.visible
         obj.selected = state.selected
         return obj
-    
+
     def execute(self) -> bool:
         """Remove the object from the document."""
         try:
@@ -121,7 +121,7 @@ class DeleteObjectCommand(Command):
         except Exception as e:
             print(f"Error executing DeleteObjectCommand: {e}")
         return False
-    
+
     def undo(self) -> bool:
         """Restore the object to the document."""
         try:
@@ -136,18 +136,18 @@ class DeleteObjectCommand(Command):
 
 class ModifyObjectCommand(Command):
     """Command to modify a CAD object's properties."""
-    
-    def __init__(self, document, obj: CADObject, new_coords=None, 
+
+    def __init__(self, document, obj: CADObject, new_coords=None,
                  new_attributes=None, description: str = "Modify Object"):
         super().__init__(description)
         self.document = document
         self.object_id = obj.object_id
         self.old_state = self._capture_object_state(obj)
-        
+
         # Store new values
         self.new_coords = copy.deepcopy(new_coords) if new_coords else None
         self.new_attributes = copy.deepcopy(new_attributes) if new_attributes else None
-    
+
     def _capture_object_state(self, obj: CADObject) -> ObjectState:
         """Capture the complete state of an object."""
         return ObjectState(
@@ -159,14 +159,14 @@ class ModifyObjectCommand(Command):
             visible=getattr(obj, 'visible', True),
             selected=getattr(obj, 'selected', False)
         )
-    
+
     def _apply_changes(self, obj: CADObject):
         """Apply the new changes to an object."""
         if self.new_coords is not None:
             obj.coords = copy.deepcopy(self.new_coords)
         if self.new_attributes is not None:
             obj.attributes.update(copy.deepcopy(self.new_attributes))
-    
+
     def _restore_state(self, obj: CADObject, state: ObjectState):
         """Restore an object to a previous state."""
         obj.coords = copy.deepcopy(state.coords)
@@ -175,7 +175,7 @@ class ModifyObjectCommand(Command):
             obj.layer = state.layer
         obj.visible = state.visible
         obj.selected = state.selected
-    
+
     def execute(self) -> bool:
         """Apply the modifications to the object."""
         try:
@@ -187,7 +187,7 @@ class ModifyObjectCommand(Command):
         except Exception as e:
             print(f"Error executing ModifyObjectCommand: {e}")
         return False
-    
+
     def undo(self) -> bool:
         """Restore the object to its previous state."""
         try:
@@ -203,11 +203,11 @@ class ModifyObjectCommand(Command):
 
 class CompoundCommand(Command):
     """Command that groups multiple commands together."""
-    
+
     def __init__(self, commands: List[Command], description: str = "Multiple Operations"):
         super().__init__(description)
         self.commands = commands
-    
+
     def execute(self) -> bool:
         """Execute all commands in order."""
         success = True
@@ -216,7 +216,7 @@ class CompoundCommand(Command):
                 success = False
                 # Continue executing remaining commands
         return success
-    
+
     def undo(self) -> bool:
         """Undo all commands in reverse order."""
         success = True
@@ -229,35 +229,35 @@ class CompoundCommand(Command):
 
 class UndoRedoManager:
     """Manages undo/redo operations using a command stack."""
-    
+
     def __init__(self, max_undo_levels: int = 50):
         self.max_undo_levels = max_undo_levels
         self.undo_stack: List[Command] = []
         self.redo_stack: List[Command] = []
         self.callbacks = []
-    
+
     def execute_command(self, command: Command) -> bool:
         """Execute a command and add it to the undo stack."""
         if command.execute():
             # Clear redo stack when new command is executed
             self.redo_stack.clear()
-            
+
             # Add to undo stack
             self.undo_stack.append(command)
-            
+
             # Limit undo stack size
             while len(self.undo_stack) > self.max_undo_levels:
                 self.undo_stack.pop(0)
-            
+
             self._notify_callbacks()
             return True
         return False
-    
+
     def undo(self) -> bool:
         """Undo the last command."""
         if not self.can_undo():
             return False
-        
+
         command = self.undo_stack.pop()
         if command.undo():
             self.redo_stack.append(command)
@@ -267,12 +267,12 @@ class UndoRedoManager:
             # If undo failed, put command back
             self.undo_stack.append(command)
             return False
-    
+
     def redo(self) -> bool:
         """Redo the last undone command."""
         if not self.can_redo():
             return False
-        
+
         command = self.redo_stack.pop()
         if command.redo():
             self.undo_stack.append(command)
@@ -282,37 +282,37 @@ class UndoRedoManager:
             # If redo failed, put command back
             self.redo_stack.append(command)
             return False
-    
+
     def can_undo(self) -> bool:
         """Check if undo is possible."""
         return len(self.undo_stack) > 0
-    
+
     def can_redo(self) -> bool:
         """Check if redo is possible."""
         return len(self.redo_stack) > 0
-    
+
     def get_undo_description(self) -> Optional[str]:
         """Get description of the command that would be undone."""
         if self.can_undo():
             return self.undo_stack[-1].description
         return None
-    
+
     def get_redo_description(self) -> Optional[str]:
         """Get description of the command that would be redone."""
         if self.can_redo():
             return self.redo_stack[-1].description
         return None
-    
+
     def clear(self):
         """Clear all undo/redo history."""
         self.undo_stack.clear()
         self.redo_stack.clear()
         self._notify_callbacks()
-    
+
     def add_callback(self, callback):
         """Add a callback to be notified when undo/redo state changes."""
         self.callbacks.append(callback)
-    
+
     def _notify_callbacks(self):
         """Notify all callbacks of state changes."""
         for callback in self.callbacks:
@@ -324,13 +324,13 @@ class UndoRedoManager:
 
 class CreateLayerCommand(Command):
     """Command to create a new layer."""
-    
+
     def __init__(self, layer_manager, name: str = "", description: str = "Create Layer"):
         super().__init__(description)
         self.layer_manager = layer_manager
         self.name = name
         self.layer: Optional[Layer] = None
-    
+
     def execute(self) -> bool:
         """Create the layer."""
         try:
@@ -339,7 +339,7 @@ class CreateLayerCommand(Command):
         except Exception as e:
             print(f"Error executing CreateLayerCommand: {e}")
             return False
-    
+
     def undo(self) -> bool:
         """Delete the created layer."""
         try:
@@ -352,14 +352,14 @@ class CreateLayerCommand(Command):
 
 class DeleteLayerCommand(Command):
     """Command to delete a layer."""
-    
+
     def __init__(self, layer_manager, layer, description: str = "Delete Layer"):
         super().__init__(description)
         self.layer_manager = layer_manager
         self.layer = layer
         self.layer_data = None
         self.layer_position = None
-    
+
     def _capture_layer_state(self, layer) -> dict:
         """Capture the complete state of a layer."""
         return {
@@ -371,20 +371,20 @@ class DeleteLayerCommand(Command):
             'cut_depth': layer.cut_depth,
             'objects': layer.objects.copy()
         }
-    
+
     def execute(self) -> bool:
         """Delete the layer."""
         try:
             # Capture layer state before deletion
             self.layer_data = self._capture_layer_state(self.layer)
             self.layer_position = self.layer_manager.get_layer_position(self.layer)
-            
+
             # Delete the layer
             return self.layer_manager.delete_layer(self.layer, with_undo=False)
         except Exception as e:
             print(f"Error executing DeleteLayerCommand: {e}")
             return False
-    
+
     def undo(self) -> bool:
         """Restore the deleted layer."""
         try:
@@ -392,7 +392,7 @@ class DeleteLayerCommand(Command):
                 # Create new layer with same properties
                 new_layer = self.layer_manager.create_layer(
                     self.layer_data['name'], with_undo=False)
-                
+
                 # Restore properties
                 new_layer.visible = self.layer_data['visible']
                 new_layer.locked = self.layer_data['locked']
@@ -400,10 +400,10 @@ class DeleteLayerCommand(Command):
                 new_layer.cut_bit = self.layer_data['cut_bit']
                 new_layer.cut_depth = self.layer_data['cut_depth']
                 new_layer.objects = self.layer_data['objects'].copy()
-                
+
                 # Restore position
                 self.layer_manager.reorder_layer(new_layer, self.layer_position)
-                
+
                 self.layer = new_layer
                 return True
         except Exception as e:
@@ -413,14 +413,14 @@ class DeleteLayerCommand(Command):
 
 class ModifyLayerCommand(Command):
     """Command to modify layer properties."""
-    
+
     def __init__(self, layer_manager, layer, new_properties: dict, description: str = "Modify Layer"):
         super().__init__(description)
         self.layer_manager = layer_manager
         self.layer = layer
         self.new_properties = new_properties
         self.old_properties = None
-    
+
     def _capture_layer_properties(self, layer) -> dict:
         """Capture the current properties of a layer."""
         return {
@@ -431,13 +431,13 @@ class ModifyLayerCommand(Command):
             'cut_bit': layer.cut_bit,
             'cut_depth': layer.cut_depth
         }
-    
+
     def execute(self) -> bool:
         """Apply the new properties to the layer."""
         try:
             # Capture old properties
             self.old_properties = self._capture_layer_properties(self.layer)
-            
+
             # Apply new properties
             if 'name' in self.new_properties:
                 self.layer_manager.set_layer_name(self.layer, self.new_properties['name'])
@@ -451,12 +451,12 @@ class ModifyLayerCommand(Command):
                 self.layer_manager.set_layer_cut_bit(self.layer, self.new_properties['cut_bit'])
             if 'cut_depth' in self.new_properties:
                 self.layer_manager.set_layer_cut_depth(self.layer, self.new_properties['cut_depth'])
-            
+
             return True
         except Exception as e:
             print(f"Error executing ModifyLayerCommand: {e}")
             return False
-    
+
     def undo(self) -> bool:
         """Restore the old properties."""
         try:
@@ -476,14 +476,14 @@ class ModifyLayerCommand(Command):
 
 class ReorderLayerCommand(Command):
     """Command to reorder layers."""
-    
+
     def __init__(self, layer_manager, layer, new_position: int, description: str = "Reorder Layer"):
         super().__init__(description)
         self.layer_manager = layer_manager
         self.layer = layer
         self.new_position = new_position
         self.old_position = None
-    
+
     def execute(self) -> bool:
         """Move the layer to its new position."""
         old_layers = self.layer_manager._layers.copy()
@@ -500,7 +500,7 @@ class ReorderLayerCommand(Command):
             if self.old_position is not None:
                 self.layer_manager._layers = old_layers
             return False
-    
+
     def undo(self) -> bool:
         """Restore the layer to its old position."""
         old_layers = self.layer_manager._layers.copy()

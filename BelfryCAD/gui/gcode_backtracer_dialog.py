@@ -127,13 +127,13 @@ class GCodeBacktracerDialog(QDialog):
         right_panel = QVBoxLayout()
         path_group = QGroupBox("Tool Path Visualization")
         path_layout = QVBoxLayout()
-        
+
         # Create graphics scene and view
         self.scene = QGraphicsScene()
         self.view = ToolPathView()
         self.view.setScene(self.scene)
         path_layout.addWidget(self.view)
-        
+
         path_group.setLayout(path_layout)
         right_panel.addWidget(path_group)
 
@@ -271,12 +271,12 @@ class GCodeBacktracerDialog(QDialog):
             # Create path item
             path_item = QGraphicsPathItem(path)
             color = self._get_tool_color(tool)
-            
+
             # Set pen based on feed rate
             feed_rate = tool_feed_rates.get(tool, 0.0)
             pen_width = 1.0 + (feed_rate / 1000.0)  # Scale pen width with feed rate
             path_item.setPen(QPen(color, pen_width))
-            
+
             self.scene.addItem(path_item)
 
         # Draw tool change markers
@@ -295,4 +295,4 @@ class GCodeBacktracerDialog(QDialog):
                         break
 
         # Fit view to scene
-        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio) 
+        self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)

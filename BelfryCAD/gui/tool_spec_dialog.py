@@ -180,25 +180,25 @@ class ToolSpecDialog(QDialog):
         self.diameter_spin.setValue(self.tool_spec.diameter)
         self.length_spin.setValue(self.tool_spec.length)
         self.flutes_spin.setValue(self.tool_spec.flute_count)
-        
+
         # Set geometry
         geometry_index = self.geometry_combo.findText(self.tool_spec.geometry.value)
         if geometry_index >= 0:
             self.geometry_combo.setCurrentIndex(geometry_index)
-        
+
         # Set material
         material_index = self.material_combo.findText(self.tool_spec.material.value)
         if material_index >= 0:
             self.material_combo.setCurrentIndex(material_index)
-        
+
         # Set coating
         coating_index = self.coating_combo.findText(self.tool_spec.coating.value)
         if coating_index >= 0:
             self.coating_combo.setCurrentIndex(coating_index)
-        
+
         self.corner_spin.setValue(self.tool_spec.corner_radius)
         self.chamfer_spin.setValue(self.tool_spec.chamfer_angle)
-        
+
         # Handle optional angles
         if self.tool_spec.helix_angle is None:
             self.helix_check.setChecked(True)
@@ -207,7 +207,7 @@ class ToolSpecDialog(QDialog):
             self.helix_check.setChecked(False)
             self.helix_spin.setValue(self.tool_spec.helix_angle)
             self.helix_spin.setEnabled(True)
-        
+
         if self.tool_spec.rake_angle is None:
             self.rake_check.setChecked(True)
             self.rake_spin.setEnabled(False)
@@ -238,4 +238,4 @@ class ToolSpecDialog(QDialog):
             helix_angle=None if self.helix_check.isChecked() else self.helix_spin.value(),
             rake_angle=None if self.rake_check.isChecked() else self.rake_spin.value(),
             tool_id=self.tool_spec.tool_id
-        ) 
+        )

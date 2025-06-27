@@ -166,7 +166,7 @@ class SnapsPane(QWidget):
             button.setChecked(snaps_pane_info.snap_states[snap_type])
             button.setToolTip(display_name)
             button.setContentsMargins(0, 0, 0, 0)
-            
+
             # Set button size to 36x36 for icons with padding
             button.setFixedSize(QSize(36, 36))
             button.setStyleSheet("""
@@ -192,7 +192,7 @@ class SnapsPane(QWidget):
                 # If no icon, use text on button
                 button.setText(display_name[:2].upper())  # Use first 2 letters
                 button.setFont(QFont("Sans Serif", 8))
-                
+
             button.toggled.connect(
                 lambda checked, st=snap_type: self._on_snap_changed(
                     st, checked)
@@ -270,7 +270,7 @@ class SnapsPane(QWidget):
         """
         return snap_type in snaps_pane_info.snap_states
 
-    def add_snap(self, snap_type: str, snap_name: str, default_val: bool, 
+    def add_snap(self, snap_type: str, snap_name: str, default_val: bool,
                  icon_name: str = ""):
         """
         Add a new snap type.
@@ -367,7 +367,7 @@ class SnapsPane(QWidget):
         Returns:
             List of enabled snap type identifiers
         """
-        return [snap_type for snap_type, enabled in 
+        return [snap_type for snap_type, enabled in
                 snaps_pane_info.snap_states.items() if enabled]
 
     def set_all_snaps_enabled(self, enabled: bool):
@@ -423,7 +423,7 @@ def snap_exists(snap_type: str) -> bool:
     return snap_type in snaps_pane_info.snap_states
 
 
-def snap_add(snap_type: str, snap_name: str, default_val: bool, 
+def snap_add(snap_type: str, snap_name: str, default_val: bool,
              icon_name: str = ""):
     """
     Add a new snap type.

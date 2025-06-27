@@ -5,17 +5,17 @@ from .grid_info import GridInfo
 
 
 class DigitOnlyInputFilter(QObject):
-    """Input filter that only allows digits.""" 
+    """Input filter that only allows digits."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-    
+
     def eventFilter(self, obj, event):
         if event.type() == event.Type.KeyPress:
             key = event.key()
             # Allow digits 0-9, backspace, delete, home, end, left, right, enter
             if (key >= Qt.Key.Key_0 and key <= Qt.Key.Key_9) or \
-               key in [Qt.Key.Key_Backspace, Qt.Key.Key_Delete, 
+               key in [Qt.Key.Key_Backspace, Qt.Key.Key_Delete,
                       Qt.Key.Key_Home, Qt.Key.Key_End,
                       Qt.Key.Key_Left, Qt.Key.Key_Right,
                       Qt.Key.Key_Return, Qt.Key.Key_Enter]:
@@ -30,11 +30,11 @@ class ZoomEditWidget(QWidget):
     def __init__(self, view: QGraphicsView, parent=None):
         super().__init__(parent)
         self._view = view
-        
+
         # Create layout
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)  # Remove margins for compact appearance
-        
+
         self.zoom_label = QLabel("Zoom:")
         self.zoom_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -66,7 +66,7 @@ class ZoomEditWidget(QWidget):
     @property
     def view(self):
         return self._view
-    
+
     @view.setter
     def view(self, view: QGraphicsView):
         self._view = view
@@ -108,7 +108,7 @@ class ZoomEditWidget(QWidget):
             # Reset to current zoom if invalid input
             current_zoom = GridInfo.get_zoom(self.view)
             self.scale_label.setText(str(int(current_zoom)))
-        
+
         # Make the label read-only again
         self.scale_label.setReadOnly(True)
 

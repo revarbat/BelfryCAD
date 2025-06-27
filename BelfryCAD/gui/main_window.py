@@ -288,13 +288,13 @@ class MainWindow(QMainWindow):
         """Create the status bar with position labels."""
         # Create status bar
         status_bar = self.statusBar()
-        
+
         # Create position labels
         xlabel = QLabel('  X:')
         self.position_label_x = QLabel('0.000"')
         ylabel = QLabel('Y:')
         self.position_label_y = QLabel('0.000"')
-        
+
         # Set minimum width for labels to prevent jumping
         self.position_label_x.setMinimumWidth(100)
         self.position_label_y.setMinimumWidth(100)
@@ -1172,10 +1172,10 @@ class MainWindow(QMainWindow):
         self.preferences.set("window_geometry",
                            f"{geometry.width()}x{geometry.height()}+"
                            f"{geometry.x()}+{geometry.y()}")
-        
+
         # Save preferences
         self.preferences.save()
-        
+
         # Call parent's closeEvent
         super().closeEvent(event)
 
@@ -1276,25 +1276,25 @@ class MainWindow(QMainWindow):
             item for item in self.cad_scene.items()
             if not isinstance(item, (GridBackground, RulersForeground))
         ]
-        
+
         if not scene_items:
             # No items to fit, just reset to 100% zoom at origin
             self._reset_zoom()
             return
-        
+
         # Calculate bounding rect of all items
         bounding_rect = scene_items[0].sceneBoundingRect()
         for item in scene_items[1:]:
             bounding_rect = bounding_rect.united(item.sceneBoundingRect())
-        
+
         # Add some padding around the items (5% of the bounding rect size)
         padding = max(bounding_rect.width(), bounding_rect.height()) * 0.05
         bounding_rect.adjust(-padding, -padding, padding, padding)
         bounding_rect.adjust(0, 0, 0, bounding_rect.height()*0.05)
-        
+
         # Fit the view to the bounding rect
         self.cad_view.fitInView(bounding_rect, Qt.AspectRatioMode.KeepAspectRatio)
-        
+
         # Update the zoom widget with the new zoom level
         zoom = GridInfo.get_zoom(self.cad_view)
         self.zoom_edit_widget.set_zoom_value(zoom)
@@ -1311,7 +1311,7 @@ class MainWindow(QMainWindow):
                 except (RuntimeError, AttributeError, TypeError):
                     # Item may be invalid, continue with others
                     continue
-            
+
             # Then call clearSelection to ensure Qt's internal state is updated
             self.cad_scene.clearSelection()
         except (RuntimeError, AttributeError, TypeError) as e:
@@ -1363,7 +1363,7 @@ class MainWindow(QMainWindow):
             black, 0.08)
         circle1.setZValue(2)  # Above other shapes
         self.cad_scene.addItem(circle1)
-        
+
         # Add polylines
         # Triangle polyline
         triangle_points = [
@@ -1376,12 +1376,12 @@ class MainWindow(QMainWindow):
             triangle_points, black, 0.1)
         triangle.setZValue(1)
         self.cad_scene.addItem(triangle)
-        
+
         # Zigzag polyline
         zigzag_points = [
             QPointF(-4, -2),
             QPointF(-3, -1),
-            QPointF(-2, -2), 
+            QPointF(-2, -2),
             QPointF(-1, -1),
             QPointF(0, -2),
             QPointF(1, -1)
@@ -1390,7 +1390,7 @@ class MainWindow(QMainWindow):
             zigzag_points, black, 0.08)
         zigzag.setZValue(2)
         self.cad_scene.addItem(zigzag)
-                
+
         # Add line segments
         # Horizontal line
         line1 = LineCadItem(
@@ -1398,30 +1398,30 @@ class MainWindow(QMainWindow):
             black, 0.12)
         line1.setZValue(1)
         self.cad_scene.addItem(line1)
-        
+
         # Diagonal line
         line2 = LineCadItem(
             QPointF(-4, 1), QPointF(-2, 3),
             black, 0.08)
         line2.setZValue(2)
         self.cad_scene.addItem(line2)
-        
+
         # Vertical line
         line3 = LineCadItem(
             QPointF(4, -2), QPointF(4, 2),
             black, 0.1)
         line3.setZValue(2)
         self.cad_scene.addItem(line3)
-        
+
         # Add Bezier curves
         # Tight curve
         bezier3 = CubicBezierCadItem(
-            QPointF(-1, 1.5), QPointF(0, 3.5), 
+            QPointF(-1, 1.5), QPointF(0, 3.5),
             QPointF(1, 3.5), QPointF(2, 2),
             black, 0.1)
         bezier3.setZValue(2)
         self.cad_scene.addItem(bezier3)
-        
+
         # Add rectangles
         # Test rectangle
         rectangle1 = RectangleCadItem(
@@ -1430,7 +1430,7 @@ class MainWindow(QMainWindow):
             black, 0.08)
         rectangle1.setZValue(2)
         self.cad_scene.addItem(rectangle1)
-        
+
         # Add arcs
         # Test arc (quarter circle)
         arc1 = ArcCadItem(
@@ -1444,21 +1444,21 @@ class MainWindow(QMainWindow):
             black, 0.1)
         circ2.setZValue(2)
         self.cad_scene.addItem(circ2)
-        
+
         # Add Circle3PointsCadItem - valid circle
         circle3pt = Circle3PointsCadItem(
             QPointF(-3, -3), QPointF(-1, -4), QPointF(-2, -1),
             QColor(0, 150, 0), 0.08)
         circle3pt.setZValue(2)
         self.cad_scene.addItem(circle3pt)
-        
+
         # Add Circle3PointsCadItem - collinear points (becomes a line)
         line3pt = Circle3PointsCadItem(
             QPointF(4, 3), QPointF(5, 4), QPointF(6, 5),
             QColor(200, 0, 200), 0.1)
         line3pt.setZValue(2)
         self.cad_scene.addItem(line3pt)
-        
+
         # Add CircleCornerCadItem - circle tangent to two rays
         corner_circle = CircleCornerCadItem(
             QPointF(-5, 2),       # Corner point
@@ -1468,7 +1468,7 @@ class MainWindow(QMainWindow):
             QColor(0, 0, 255), 0.06)
         corner_circle.setZValue(2)
         self.cad_scene.addItem(corner_circle)
-        
+
         # Add ArcCornerCadItem - arc between tangent points on two rays
         corner_arc = ArcCornerCadItem(
             QPointF(5, -3),       # Corner point
@@ -1478,4 +1478,3 @@ class MainWindow(QMainWindow):
             QColor(255, 128, 0), 0.08)
         corner_arc.setZValue(2)
         self.cad_scene.addItem(corner_arc)
-        

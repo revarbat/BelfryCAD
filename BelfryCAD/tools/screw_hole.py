@@ -200,4 +200,4 @@ class ScrewHoleTool(Tool):
         self.object_created.emit(screw_hole)
 
         # Reset tool state
-        self.reset() 
+        self.reset()

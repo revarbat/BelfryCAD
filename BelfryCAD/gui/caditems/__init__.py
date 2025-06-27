@@ -15,7 +15,7 @@ from .arc_cad_item import ArcCadItem
 
 __all__ = [
     'LineCadItem',
-    'PolylineCadItem', 
+    'PolylineCadItem',
     'CircleCenterRadiusCadItem',
     'Circle2PointsCadItem',
     'Circle3PointsCadItem',
@@ -24,4 +24,4 @@ __all__ = [
     'CubicBezierCadItem',
     'RectangleCadItem',
     'ArcCadItem'
-] 
+]

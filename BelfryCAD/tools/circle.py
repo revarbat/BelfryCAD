@@ -53,7 +53,7 @@ class CircleObject(CADObject):
     @property
     def center(self) -> Point:
         return self.coords[0]
-    
+
     @center.setter
     def center(self, value: Point):
         self.coords[0] = value
@@ -64,7 +64,7 @@ class CircleObject(CADObject):
     def radius(self) -> float:
         delta = self.coords[1] - self.coords[0]
         return math.sqrt(delta.x**2 + delta.y**2)
-    
+
     @radius.setter
     def radius(self, value: float):
         delta = self.coords[1] - self.coords[0]
@@ -77,7 +77,7 @@ class CircleObject(CADObject):
     @property
     def diameter(self) -> float:
         return 2 * self.radius
-    
+
     @diameter.setter
     def diameter(self, value: float):
         self.radius = value / 2
@@ -134,7 +134,7 @@ class CircleTool(Tool):
         """Draw a preview of the circle being created"""
         # Clear previous preview
         self.clear_temp_objects()
-        
+
         if len(self.points) == 1:
             # Get the snapped point based on current snap settings
             point = self.get_snap_point(current_x, current_y)
@@ -367,7 +367,7 @@ class Circle2PTTool(Tool):
             ) / 2.0
 
             ellipse_item = QGraphicsEllipseItem(
-                QRectF(center_x - radius, center_y - radius, 
+                QRectF(center_x - radius, center_y - radius,
                        2 * radius, 2 * radius)
             )
             pen = QPen()

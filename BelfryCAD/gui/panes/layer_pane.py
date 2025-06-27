@@ -169,7 +169,7 @@ class LayerItem(QFrame):
         super().__init__(parent)
         self.id = LayerItem._next_id
         LayerItem._next_id += 1
-        
+
         self.layer = layer
         self.is_current = False
         self.is_dragging = False
@@ -375,7 +375,7 @@ class LayerItem(QFrame):
             self.drag_start_pos = event.pos()
             self.setSelected(True)
             self.selected.emit(self.layer)
-            
+
             # Ensure the selected item is visible in the scroll area
             if self.parent() and self.parent().parent():
                 scroll_area = self.parent().parent()
@@ -386,7 +386,7 @@ class LayerItem(QFrame):
                     scroll_pos = max(0, item_pos.y() - 20)  # 20 pixel margin
                     # Set the scroll position
                     scroll_area.verticalScrollBar().setValue(scroll_pos)
-                    
+
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -401,12 +401,12 @@ class LayerItem(QFrame):
                 mime_data = QMimeData()
                 mime_data.setData("application/x-layer", str(self.id).encode())
                 drag.setMimeData(mime_data)
-                
+
                 # Create a pixmap of the item for drag preview
                 pixmap = QPixmap(self.size())
                 self.render(pixmap)
                 drag.setPixmap(pixmap)
-                
+
                 # Start the drag
                 drag.exec(Qt.DropAction.MoveAction)
                 self.is_dragging = False
@@ -591,7 +591,7 @@ class LayerPane(QWidget):
             new_layer_item.setSelected(True)
             self.current_layer = new_layer_item.layer
             self.layer_selected.emit(new_layer_item.layer)
-            
+
             # Use a timer to scroll to the new item after layout is complete
             # Store reference to new layer item for the timer callback
             self._pending_scroll_item = new_layer_item
@@ -605,14 +605,14 @@ class LayerPane(QWidget):
                 # Force layout update
                 self.layer_list.updateGeometry()
                 self.scroll_area.viewport().update()
-                
+
                 # Get the item's position relative to the layer list
                 item_pos = new_layer_item.mapTo(self.scroll_area.widget(), QPoint(0, 0))
                 # Add a small margin to ensure visibility
                 scroll_pos = max(0, item_pos.y() - 20)  # 20 pixel margin
                 # Set the scroll position
                 self.scroll_area.verticalScrollBar().setValue(scroll_pos)
-            
+
             # Clear the pending item
             delattr(self, '_pending_scroll_item')
 
@@ -728,7 +728,7 @@ class LayerPane(QWidget):
             # Get the position in the layer list
             pos = event.position().toPoint()
             target_item = self.layer_list.childAt(pos)
-            
+
             # Find the target position in the layout
             if target_item:
                 target_index = self.layer_layout.indexOf(target_item)
@@ -745,7 +745,7 @@ class LayerPane(QWidget):
             # Get the position in the layer list
             pos = event.position().toPoint()
             target_item = self.layer_list.childAt(pos)
-            
+
             if target_item and self.drag_item:
                 # Get the target position in the layout
                 target_index = self.layer_layout.indexOf(target_item)
@@ -753,9 +753,9 @@ class LayerPane(QWidget):
                     # Move the dragged item in the layout
                     self.layer_layout.removeWidget(self.drag_item)
                     self.layer_layout.insertWidget(target_index, self.drag_item)
-                    
+
                     # Emit reorder signal
                     self.layer_reordered.emit(self.drag_item.layer, target_index)
-            
+
             self.drag_item = None
             event.acceptProposedAction()

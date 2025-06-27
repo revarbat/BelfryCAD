@@ -177,7 +177,7 @@ class FeedWizardDialog(QDialog):
         """Set up the dialog UI."""
         self.setWindowTitle("Speeds & Feeds Wizard")
         layout = QVBoxLayout()
-        
+
         # Material selection
         material_layout = QHBoxLayout()
         material_layout.addWidget(QLabel("Material to Mill:"))
@@ -186,7 +186,7 @@ class FeedWizardDialog(QDialog):
         self.material_combo.setCurrentText(self.info.stock_material)
         material_layout.addWidget(self.material_combo)
         layout.addLayout(material_layout)
-        
+
         # Tool selection
         tool_layout = QHBoxLayout()
         tool_layout.addWidget(QLabel("Tool:"))
@@ -194,14 +194,14 @@ class FeedWizardDialog(QDialog):
         self.tool_combo.setMinimumWidth(300)  # Make it wide enough to show tool details
         self.tool_combo.currentIndexChanged.connect(self._on_tool_changed)
         tool_layout.addWidget(self.tool_combo)
-        
+
         # Add tool table button
         tool_table_button = QPushButton("Tool Table...")
         tool_table_button.clicked.connect(self._open_tool_table)
         tool_layout.addWidget(tool_table_button)
-        
+
         layout.addLayout(tool_layout)
-        
+
         # Mill horsepower
         hp_layout = QHBoxLayout()
         hp_layout.addWidget(QLabel("Mill HorsePower:"))
@@ -210,7 +210,7 @@ class FeedWizardDialog(QDialog):
         self.hp_combo.setCurrentText(self.info.mill_horsepower)
         hp_layout.addWidget(self.hp_combo)
         layout.addLayout(hp_layout)
-        
+
         # Mill speeds
         speeds_layout = QHBoxLayout()
         speeds_layout.addWidget(QLabel("Mill Speeds:"))
@@ -218,7 +218,7 @@ class FeedWizardDialog(QDialog):
         self.discrete_check.setChecked(self.info.mill_speeds_discrete)
         speeds_layout.addWidget(self.discrete_check)
         layout.addLayout(speeds_layout)
-        
+
         # Min/Max speeds frame
         self.minmax_frame = QFrame()
         minmax_layout = QHBoxLayout()
@@ -230,7 +230,7 @@ class FeedWizardDialog(QDialog):
         minmax_layout.addWidget(self.max_rpm)
         self.minmax_frame.setLayout(minmax_layout)
         layout.addWidget(self.minmax_frame)
-        
+
         # Speed list frame
         self.speed_list_frame = QFrame()
         speed_list_layout = QVBoxLayout()
@@ -239,7 +239,7 @@ class FeedWizardDialog(QDialog):
         speed_list_layout.addWidget(self.speed_list)
         self.speed_list_frame.setLayout(speed_list_layout)
         layout.addWidget(self.speed_list_frame)
-        
+
         # Results frame
         results_frame = QFrame()
         results_frame.setFrameStyle(QFrame.Shape.StyledPanel)
@@ -255,12 +255,12 @@ class FeedWizardDialog(QDialog):
         results_layout.addWidget(self.depth_label)
         results_frame.setLayout(results_layout)
         layout.addWidget(results_frame)
-        
+
         self.setLayout(layout)
-        
+
         # Update visibility based on discrete speeds setting
         self._update_speed_visibility()
-        
+
         # Load tools into combo box
         self._load_tools()
 
@@ -276,12 +276,12 @@ class FeedWizardDialog(QDialog):
     def _load_tools(self):
         """Load tools from preferences into the combo box."""
         self.tool_combo.clear()
-        
+
         # Get tools from preferences
         if self.parent():
             main_window = cast('MainWindow', self.parent())
             tool_dicts = main_window.preferences.get('tool_table', [])
-            
+
             # Convert tool dicts to ToolSpecification objects
             for tool_dict in tool_dicts:
                 try:
@@ -455,4 +455,4 @@ class FeedWizardDialog(QDialog):
         self.rpm_label.setText(f"RPM Speed: {mill.get_rpm()}")
         self.plunge_label.setText(f"Plunge Rate: {plunge_rate:.1f} IPM")
         self.feed_label.setText(f"Feed Rate: {feed_rate:.1f} IPM")
-        self.depth_label.setText(f"Cut Depth: {depth:.3f}\"") 
+        self.depth_label.setText(f"Cut Depth: {depth:.3f}\"")

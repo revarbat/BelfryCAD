@@ -22,16 +22,16 @@ class CadSelectorTool(Tool):
 
     def __init__(self, scene, document, preferences):
         super().__init__(scene, document, preferences)
-        
+
         # Selection state
         self.selected_objects: List[CADObject] = []
         self.selection_changed_callbacks: List = []
-        
+
         # Rectangle selection state
         self._selection_start: Optional[QPointF] = None
         self._selection_rect: Optional[QGraphicsRectItem] = None
         self._is_rect_selecting = False
-        
+
         # Selection colors
         self.selection_color = QColor(255, 0, 0)  # Red for selected objects
         self.selection_rect_color = QColor(0, 0, 255, 64)  # Blue rect
@@ -49,16 +49,16 @@ class CadSelectorTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse press for selection operations."""
         scene_pos = event.scenePos()
-        
+
         # Check if clicking on existing object
         clicked_obj = self._find_object_at_point(scene_pos.x(), scene_pos.y())
-        
+
         # Check for modifier keys (if available)
         ctrl_pressed = False
         if hasattr(event, 'modifiers'):
-            ctrl_pressed = bool(event.modifiers() & 
+            ctrl_pressed = bool(event.modifiers() &
                               Qt.KeyboardModifier.ControlModifier)
-        
+
         if clicked_obj:
             # Handle object selection
             if ctrl_pressed:
@@ -71,7 +71,7 @@ class CadSelectorTool(Tool):
             # Start rectangle selection
             if not ctrl_pressed:
                 self._clear_selection()
-            
+
             self._start_rectangle_selection(scene_pos)
 
     def handle_mouse_move(self, event):
@@ -90,7 +90,7 @@ class CadSelectorTool(Tool):
         """Find CAD object at the given scene coordinates."""
         if not hasattr(self.document, 'objects'):
             return None
-            
+
         # Check all objects to see if point is within their bounds
         for obj_id, obj in self.document.objects.objects.items():
             if self._point_in_object(x, y, obj):
@@ -101,15 +101,15 @@ class CadSelectorTool(Tool):
         """Check if point is within object bounds."""
         if not obj.coords:
             return False
-            
+
         # Simple distance-based selection for now
         tolerance = 5.0  # Selection tolerance in scene units
-        
+
         for coord in obj.coords:
             distance = ((x - coord.x) ** 2 + (y - coord.y) ** 2) ** 0.5
             if distance <= tolerance:
                 return True
-        
+
         return False
 
     def _select_single_object(self, obj: CADObject):
@@ -140,7 +140,7 @@ class CadSelectorTool(Tool):
         """Start rectangle selection mode."""
         self._selection_start = start_pos
         self._is_rect_selecting = True
-        
+
         # Create selection rectangle visual
         pen = QPen(self.selection_rect_color)
         brush = QBrush(self.selection_rect_color)
@@ -152,58 +152,58 @@ class CadSelectorTool(Tool):
         """Update rectangle selection visual."""
         if not self._selection_rect or not self._selection_start:
             return
-            
+
         # Calculate rectangle bounds
         x1, y1 = self._selection_start.x(), self._selection_start.y()
         x2, y2 = current_pos.x(), current_pos.y()
-        
+
         rect = QRectF(
             min(x1, x2), min(y1, y2),
             abs(x2 - x1), abs(y2 - y1)
         )
-        
+
         self._selection_rect.setRect(rect)
 
     def _complete_rectangle_selection(self, end_pos: QPointF):
         """Complete rectangle selection and select objects within."""
         if not self._selection_start:
             return
-            
+
         # Calculate selection rectangle
         x1, y1 = self._selection_start.x(), self._selection_start.y()
         x2, y2 = end_pos.x(), end_pos.y()
-        
+
         min_x, max_x = min(x1, x2), max(x1, x2)
         min_y, max_y = min(y1, y2), max(y1, y2)
-        
+
         # Find objects within rectangle
         selected_in_rect = []
         if hasattr(self.document, 'objects'):
             for obj_id, obj in self.document.objects.objects.items():
                 if self._object_in_rectangle(obj, min_x, min_y, max_x, max_y):
                     selected_in_rect.append(obj)
-        
+
         # Add to selection
         for obj in selected_in_rect:
             if obj not in self.selected_objects:
                 self.selected_objects.append(obj)
                 obj.selected = True
-        
+
         # Clean up selection rectangle
         if self._selection_rect:
             self.scene.removeItem(self._selection_rect)
             self._selection_rect = None
-        
+
         self._selection_start = None
         self._is_rect_selecting = False
         self._notify_selection_changed()
 
-    def _object_in_rectangle(self, obj: CADObject, min_x: float, min_y: float, 
+    def _object_in_rectangle(self, obj: CADObject, min_x: float, min_y: float,
                            max_x: float, max_y: float) -> bool:
         """Check if object is within selection rectangle."""
         if not obj.coords:
             return False
-            
+
         # Check if any coordinate is within rectangle
         for coord in obj.coords:
             if min_x <= coord.x <= max_x and min_y <= coord.y <= max_y:
@@ -237,10 +237,10 @@ class CadSelectorTool(Tool):
         if self._selection_rect:
             self.scene.removeItem(self._selection_rect)
             self._selection_rect = None
-        
+
         self._selection_start = None
         self._is_rect_selecting = False
-        
+
         super().deactivate()
 
 

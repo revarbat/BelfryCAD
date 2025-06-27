@@ -20,7 +20,7 @@ class GridBackground(QGraphicsItem):
     def boundingRect(self):
         """Return the bounding rectangle of the grid."""
         return QRectF(-5000, -5000, 10000, 10000)
-    
+
     def paint(self, painter, option, widget=None):
         """Draw the grid."""
         widget = self.scene().views()[0]
@@ -90,7 +90,7 @@ class RulersForeground(QGraphicsItem):
     def boundingRect(self):
         """Return the bounding rectangle of the grid."""
         return QRectF(-5000, -5000, 10000, 10000)
-    
+
     def mouseDoubleClickEvent(self, event):
         """Handle double-click events to change grid units."""
         # Check if the click is in the unit label area
@@ -99,16 +99,16 @@ class RulersForeground(QGraphicsItem):
         visible_scene_rect = widget.mapToScene(viewport_rect).boundingRect()
         scaling = widget.transform().m11()
         backing_width = 40 / scaling
-        
+
         x0 = visible_scene_rect.left()
         y1 = visible_scene_rect.bottom()
-        
+
         # Unit label area (corner area)
         unit_label_rect = QRectF(
             x0, y1 - backing_width,
             backing_width, backing_width
         )
-        
+
         if unit_label_rect.contains(event.pos()):
             # Show unit selection dialog
             dialog = UnitSelectionDialog(self.grid_info.units, widget)
@@ -152,12 +152,12 @@ class RulersForeground(QGraphicsItem):
         painter.setFont(font)
         painter.translate(x, y)
         painter.scale(1.0 / scale, -1.0 / scale)
-        
+
         # Add subtle border for clickable labels
         if is_clickable:
             painter.setPen(QPen(QColor("lightgray"), 1.0))
             painter.drawRect(box.adjusted(-2, -2, 2, 2))
-        
+
         painter.setPen(QPen(QColor("white"), 2.0))
         painter.drawText(box, align, label)
         painter.setPen(QPen(QColor("black"), 1.0))
