@@ -85,23 +85,28 @@ class PolylineCadItem(CadItem):
 
     def _get_control_points(self):
         """Return control points for the polyline."""
-        return [
-            ControlPoint(f"p_{i}", self._points[i]) for i in range(len(self._points))
-        ]
+        control_points = []
+        for i in range(len(self._points)):
+            control_points.append(
+                ControlPoint(
+                    parent=self, 
+                    getter=lambda idx=i: self._get_point_position(idx),
+                    setter=lambda pos, ii=i: self._set_point_position(ii, pos))
+            )
+        return control_points
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        # Extract point index from control point name (e.g., "p_0" -> 0)
-        if name.startswith("p_"):
-            try:
-                point_index = int(name[2:])  # Remove "p_" prefix and convert to int
-                if 0 <= point_index < len(self._points):
-                    self._points[point_index] = new_position
-                    self.prepareGeometryChange()
-                    self.update()
-            except ValueError:
-                # Invalid point index, ignore the change
-                pass
+    def _get_point_position(self, index: int) -> QPointF:
+        """Get the position of a specific point."""
+        if 0 <= index < len(self._points):
+            return self._points[index]
+        return QPointF(0, 0)
+
+    def _set_point_position(self, index: int, new_position: QPointF):
+        """Set the position of a specific point."""
+        if 0 <= index < len(self._points):
+            self._points[index] = new_position
+            self.prepareGeometryChange()
+            self.update()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the polyline content."""

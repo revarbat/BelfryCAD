@@ -5,7 +5,7 @@ RectangleCadItem - A rectangle CAD item defined by four corner points.
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint
+from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
 from BelfryCAD.gui.cad_rect import CadRect
 
 
@@ -72,73 +72,114 @@ class RectangleCadItem(CadItem):
         return shape_path.contains(local_point)
 
     def _get_control_points(self):
-        """Return control points for the rectangle corners and center."""
+        """Return control points for the rectangle."""
+        return [
+            ControlPoint(
+                parent=self,
+                getter=self._get_top_left_position,
+                setter=self._set_top_left_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_top_right_position,
+                setter=self._set_top_right_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_bottom_right_position,
+                setter=self._set_bottom_right_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_bottom_left_position,
+                setter=self._set_bottom_left_position),
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_center_position,
+                setter=self._set_center_position)
+        ]
+
+    def _get_top_left_position(self) -> QPointF:
+        """Get the top-left corner position."""
+        return self._top_left
+
+    def _set_top_left_position(self, new_position: QPointF):
+        """Set the top-left corner position."""
+        # Moving top-left: adjust top-right and bottom-left to maintain right angles
+        self._top_left = new_position
+        # Top-right keeps its Y coordinate, takes new X from top-left
+        self._top_right = QPointF(self._top_right.x(), new_position.y())
+        # Bottom-left keeps its X coordinate, takes new Y from top-left
+        self._bottom_left = QPointF(new_position.x(), self._bottom_left.y())
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_top_right_position(self) -> QPointF:
+        """Get the top-right corner position."""
+        return self._top_right
+
+    def _set_top_right_position(self, new_position: QPointF):
+        """Set the top-right corner position."""
+        # Moving top-right: adjust top-left and bottom-right to maintain right angles
+        self._top_right = new_position
+        # Top-left keeps its Y coordinate, takes new X from top-right
+        self._top_left = QPointF(self._top_left.x(), new_position.y())
+        # Bottom-right keeps its X coordinate, takes new Y from top-right
+        self._bottom_right = QPointF(new_position.x(), self._bottom_right.y())
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_bottom_right_position(self) -> QPointF:
+        """Get the bottom-right corner position."""
+        return self._bottom_right
+
+    def _set_bottom_right_position(self, new_position: QPointF):
+        """Set the bottom-right corner position."""
+        # Moving bottom-right: adjust bottom-left and top-right to maintain right angles
+        self._bottom_right = new_position
+        # Bottom-left keeps its Y coordinate, takes new X from bottom-right
+        self._bottom_left = QPointF(self._bottom_left.x(), new_position.y())
+        # Top-right keeps its X coordinate, takes new Y from bottom-right
+        self._top_right = QPointF(new_position.x(), self._top_right.y())
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_bottom_left_position(self) -> QPointF:
+        """Get the bottom-left corner position."""
+        return self._bottom_left
+
+    def _set_bottom_left_position(self, new_position: QPointF):
+        """Set the bottom-left corner position."""
+        # Moving bottom-left: adjust bottom-right and top-left to maintain right angles
+        self._bottom_left = new_position
+        # Bottom-right keeps its Y coordinate, takes new X from bottom-left
+        self._bottom_right = QPointF(self._bottom_right.x(), new_position.y())
+        # Top-left keeps its X coordinate, takes new Y from bottom-left
+        self._top_left = QPointF(new_position.x(), self._top_left.y())
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_center_position(self) -> QPointF:
+        """Get the center position."""
         # Calculate center point
         center_x = (self._top_left.x() + self._bottom_right.x()) / 2
         center_y = (self._top_left.y() + self._bottom_right.y()) / 2
-        center = QPointF(center_x, center_y)
+        return QPointF(center_x, center_y)
 
-        return [
-            ControlPoint('top_left', self._top_left),
-            ControlPoint('top_right', self._top_right),
-            ControlPoint('bottom_right', self._bottom_right),
-            ControlPoint('bottom_left', self._bottom_left),
-            SquareControlPoint('center', center)
-        ]
+    def _set_center_position(self, new_position: QPointF):
+        """Set the center position."""
+        # Moving center: translate the entire rectangle
+        # Calculate current center
+        current_center_x = (self._top_left.x() + self._bottom_right.x()) / 2
+        current_center_y = (self._top_left.y() + self._bottom_right.y()) / 2
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes while maintaining rectangular shape."""
-        # When a corner is moved, adjust the adjacent corners to maintain rectangularity
+        # Calculate offset from current center to new position
+        offset_x = new_position.x() - current_center_x
+        offset_y = new_position.y() - current_center_y
+
+        # Move all corners by the offset
+        self._top_left = QPointF(self._top_left.x() + offset_x, self._top_left.y() + offset_y)
+        self._top_right = QPointF(self._top_right.x() + offset_x, self._top_right.y() + offset_y)
+        self._bottom_right = QPointF(self._bottom_right.x() + offset_x, self._bottom_right.y() + offset_y)
+        self._bottom_left = QPointF(self._bottom_left.x() + offset_x, self._bottom_left.y() + offset_y)
         self.prepareGeometryChange()
-
-        if name == 'center':
-            # Moving center: translate the entire rectangle
-            # Calculate current center
-            current_center_x = (self._top_left.x() + self._bottom_right.x()) / 2
-            current_center_y = (self._top_left.y() + self._bottom_right.y()) / 2
-
-            # Calculate offset from current center to new position
-            offset_x = new_position.x() - current_center_x
-            offset_y = new_position.y() - current_center_y
-
-            # Move all corners by the offset
-            self._top_left = QPointF(self._top_left.x() + offset_x, self._top_left.y() + offset_y)
-            self._top_right = QPointF(self._top_right.x() + offset_x, self._top_right.y() + offset_y)
-            self._bottom_right = QPointF(self._bottom_right.x() + offset_x, self._bottom_right.y() + offset_y)
-            self._bottom_left = QPointF(self._bottom_left.x() + offset_x, self._bottom_left.y() + offset_y)
-
-        elif name == 'top_left':
-            # Moving top-left: adjust top-right and bottom-left to maintain right angles
-            self._top_left = new_position
-            # Top-right keeps its Y coordinate, takes new X from top-left
-            self._top_right = QPointF(self._top_right.x(), new_position.y())
-            # Bottom-left keeps its X coordinate, takes new Y from top-left
-            self._bottom_left = QPointF(new_position.x(), self._bottom_left.y())
-
-        elif name == 'top_right':
-            # Moving top-right: adjust top-left and bottom-right to maintain right angles
-            self._top_right = new_position
-            # Top-left keeps its Y coordinate, takes new X from top-right
-            self._top_left = QPointF(self._top_left.x(), new_position.y())
-            # Bottom-right keeps its X coordinate, takes new Y from top-right
-            self._bottom_right = QPointF(new_position.x(), self._bottom_right.y())
-
-        elif name == 'bottom_right':
-            # Moving bottom-right: adjust bottom-left and top-right to maintain right angles
-            self._bottom_right = new_position
-            # Bottom-left keeps its Y coordinate, takes new X from bottom-right
-            self._bottom_left = QPointF(self._bottom_left.x(), new_position.y())
-            # Top-right keeps its X coordinate, takes new Y from bottom-right
-            self._top_right = QPointF(new_position.x(), self._top_right.y())
-
-        elif name == 'bottom_left':
-            # Moving bottom-left: adjust bottom-right and top-left to maintain right angles
-            self._bottom_left = new_position
-            # Bottom-right keeps its Y coordinate, takes new X from bottom-left
-            self._bottom_right = QPointF(self._bottom_right.x(), new_position.y())
-            # Top-left keeps its X coordinate, takes new Y from bottom-left
-            self._top_left = QPointF(new_position.x(), self._top_left.y())
-
         self.update()
 
     def paint_item(self, painter, option, widget=None):

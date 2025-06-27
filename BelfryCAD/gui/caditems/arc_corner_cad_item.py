@@ -116,38 +116,104 @@ class ArcCornerCadItem(CadItem):
         if not self._is_valid:
             return []
 
-        # Control points are relative to the calculated center
-        corner_local = self._corner_point - self._calculated_center
-        ray1_local = self._ray1_point - self._calculated_center
-        ray2_local = self._ray2_point - self._calculated_center
-
-        # Create radius datum if it doesn't exist
-        if not self._radius_datum:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self._radius * sc, self._radius * sc)
-            self._radius_datum = ControlDatum(
-                name="radius",
-                position=datum_pos,
-                value_getter=self._get_radius_value,
-                value_setter=self._set_radius_value,
-                prefix="R",
-                parent_item=self
-            )
-        else:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self._radius * sc, self._radius * sc)
-            self._radius_datum.position = datum_pos
-
         return [
-            SquareControlPoint('corner', corner_local),
-            ControlPoint('ray1', ray1_local),
-            ControlPoint('ray2', ray2_local),
-            SquareControlPoint('center', QPointF(0, 0)),
-            self._radius_datum
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_corner_position,
+                setter=self._set_corner_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_ray1_position,
+                setter=self._set_ray1_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_ray2_position,
+                setter=self._set_ray2_position),
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_center_position,
+                setter=self._set_center_position),
+            ControlDatum(
+                parent=self,
+                getter=self._get_radius_value,
+                setter=self._set_radius_value,
+                pos_getter=self._get_radius_datum_position,
+                prefix="R"
+            )
         ]
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
+    def _get_corner_position(self) -> QPointF:
+        """Get the corner position."""
+        return self._corner_point - self._calculated_center
+
+    def _set_corner_position(self, new_position: QPointF):
+        """Set the corner position."""
+        # When corner moves, recalculate and update center spec point
+        local_pos = self.mapToScene(new_position)
+        self._corner_point = local_pos
+        self._calculate_arc(update_center_spec=True)
+        self.setPos(self._calculated_center)
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_ray1_position(self) -> QPointF:
+        """Get the ray1 position."""
+        return self._ray1_point - self._calculated_center
+
+    def _set_ray1_position(self, new_position: QPointF):
+        """Set the ray1 position."""
+        # When ray1 moves, recalculate and update center spec point
+        local_pos = self.mapToScene(new_position)
+        self._ray1_point = local_pos
+        self._calculate_arc(update_center_spec=True)
+        self.setPos(self._calculated_center)
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_ray2_position(self) -> QPointF:
+        """Get the ray2 position."""
+        return self._ray2_point - self._calculated_center
+
+    def _set_ray2_position(self, new_position: QPointF):
+        """Set the ray2 position."""
+        # When ray2 moves, recalculate and update center spec point
+        local_pos = self.mapToScene(new_position)
+        self._ray2_point = local_pos
+        self._calculate_arc(update_center_spec=True)
+        self.setPos(self._calculated_center)
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_center_position(self) -> QPointF:
+        """Get the center position."""
+        return QPointF(0, 0)  # Center is always at origin in local coordinates
+
+    def _set_center_position(self, new_position: QPointF):
+        """Set the center position."""
+        # Constrain center movement to the angle bisector
+        local_pos = self.mapToScene(new_position)
+        self._move_center_along_bisector(local_pos)
+
+    def _get_radius_datum_position(self) -> QPointF:
+        """Get the position for the radius datum."""
+        if not self._is_valid:
+            return QPointF(0, 0)
+        import math
+        sc = math.sin(math.pi/4)
+        return QPointF(self._radius * sc, self._radius * sc)
+
+    def _get_radius_value(self):
+        """Get the current radius value."""
+        return self.radius
+
+    def _set_radius_value(self, new_radius):
+        """Set the radius value."""
+        if new_radius > 0:
+            # Use the same logic as circle corner item
+            self._set_radius(new_radius)
+
+    def _update_geometry_from_control_point(self, name: str, new_position: QPointF):
+        """Update the CAD item geometry based on control point changes."""
         self.prepareGeometryChange()
         local_pos = self.mapToScene(new_position)
 
@@ -497,66 +563,6 @@ class ArcCornerCadItem(CadItem):
         self.prepareGeometryChange()
         self.update()
 
-    def _get_radius_value(self):
-        """Get the current radius value."""
-        return self.radius
-
-    def _set_radius_value(self, new_radius):
-        """Set the radius value by moving the center point along the bisector."""
-        if not self._is_valid or new_radius <= 0:
-            return
-
-        corner = self._corner_point
-        ray1 = self._ray1_point
-        ray2 = self._ray2_point
-
-        # Calculate ray vectors and bisector
-        ray1_vec = QPointF(ray1.x() - corner.x(), ray1.y() - corner.y())
-        ray2_vec = QPointF(ray2.x() - corner.x(), ray2.y() - corner.y())
-
-        ray1_len = math.sqrt(ray1_vec.x() ** 2 + ray1_vec.y() ** 2)
-        ray2_len = math.sqrt(ray2_vec.x() ** 2 + ray2_vec.y() ** 2)
-
-        if ray1_len < 1e-6 or ray2_len < 1e-6:
-            return
-
-        ray1_unit = QPointF(ray1_vec.x() / ray1_len, ray1_vec.y() / ray1_len)
-        ray2_unit = QPointF(ray2_vec.x() / ray2_len, ray2_vec.y() / ray2_len)
-
-        # Calculate angle bisector
-        bisector_vec = QPointF(ray1_unit.x() + ray2_unit.x(), ray1_unit.y() + ray2_unit.y())
-        bisector_len = math.sqrt(bisector_vec.x() ** 2 + bisector_vec.y() ** 2)
-
-        if bisector_len < 1e-6:
-            return
-
-        bisector_unit = QPointF(bisector_vec.x() / bisector_len, bisector_vec.y() / bisector_len)
-
-        # Calculate the distance along bisector needed for the desired radius
-        # For an arc tangent to two rays, the distance from corner to center
-        # relates to radius by: distance = radius / sin(angle/2)
-        # where angle is the angle between the rays
-        dot_product = ray1_unit.x() * ray2_unit.x() + ray1_unit.y() * ray2_unit.y()
-        angle_between_rays = math.acos(max(-1.0, min(1.0, dot_product)))
-
-        if angle_between_rays < 1e-6 or angle_between_rays > math.pi - 1e-6:
-            return  # Degenerate cases
-
-        distance_to_center = new_radius / math.sin(angle_between_rays / 2)
-
-        # Calculate new center position
-        new_center = QPointF(
-            corner.x() + distance_to_center * bisector_unit.x(),
-            corner.y() + distance_to_center * bisector_unit.y()
-        )
-
-        # Update center specification point
-        self._center_point = new_center
-        self._calculate_arc(update_center_spec=False)
-        self.setPos(self._calculated_center)
-        self.prepareGeometryChange()
-        self.update()
-
     @property
     def center_point(self):
         """Get the calculated center point of the arc."""
@@ -655,4 +661,60 @@ class ArcCornerCadItem(CadItem):
     def line_width(self, value):
         self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
+        self.update()
+
+    def _set_radius(self, new_radius):
+        """Set the radius by moving the center point along the bisector."""
+        if not self._is_valid or new_radius <= 0:
+            return
+
+        corner = self._corner_point
+        ray1 = self._ray1_point
+        ray2 = self._ray2_point
+
+        # Calculate ray vectors and bisector
+        ray1_vec = QPointF(ray1.x() - corner.x(), ray1.y() - corner.y())
+        ray2_vec = QPointF(ray2.x() - corner.x(), ray2.y() - corner.y())
+
+        ray1_len = math.sqrt(ray1_vec.x() ** 2 + ray1_vec.y() ** 2)
+        ray2_len = math.sqrt(ray2_vec.x() ** 2 + ray2_vec.y() ** 2)
+
+        if ray1_len < 1e-6 or ray2_len < 1e-6:
+            return
+
+        ray1_unit = QPointF(ray1_vec.x() / ray1_len, ray1_vec.y() / ray1_len)
+        ray2_unit = QPointF(ray2_vec.x() / ray2_len, ray2_vec.y() / ray2_len)
+
+        # Calculate angle bisector
+        bisector_vec = QPointF(ray1_unit.x() + ray2_unit.x(), ray1_unit.y() + ray2_unit.y())
+        bisector_len = math.sqrt(bisector_vec.x() ** 2 + bisector_vec.y() ** 2)
+
+        if bisector_len < 1e-6:
+            return
+
+        bisector_unit = QPointF(bisector_vec.x() / bisector_len, bisector_vec.y() / bisector_len)
+
+        # Calculate the distance along bisector needed for the desired radius
+        # For an arc tangent to two rays, the distance from corner to center
+        # relates to radius by: distance = radius / sin(angle/2)
+        # where angle is the angle between the rays
+        dot_product = ray1_unit.x() * ray2_unit.x() + ray1_unit.y() * ray2_unit.y()
+        angle_between_rays = math.acos(max(-1.0, min(1.0, dot_product)))
+
+        if angle_between_rays < 1e-6 or angle_between_rays > math.pi - 1e-6:
+            return  # Degenerate cases
+
+        distance_to_center = new_radius / math.sin(angle_between_rays / 2)
+
+        # Calculate new center position
+        new_center = QPointF(
+            corner.x() + distance_to_center * bisector_unit.x(),
+            corner.y() + distance_to_center * bisector_unit.y()
+        )
+
+        # Update center specification point
+        self._center_point = new_center
+        self._calculate_arc(update_center_spec=False)
+        self.setPos(self._calculated_center)
+        self.prepareGeometryChange()
         self.update()

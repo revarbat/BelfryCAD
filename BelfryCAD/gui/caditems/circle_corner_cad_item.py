@@ -114,101 +114,99 @@ class CircleCornerCadItem(CadItem):
         if not self._is_valid:
             return []
 
-        # Control points are relative to the calculated center
-        corner_local = self._corner_point - self._calculated_center
-        ray1_local = self._ray1_point - self._calculated_center
-        ray2_local = self._ray2_point - self._calculated_center
-
-        # Create radius datum if it doesn't exist
-        if not self._radius_datum:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self._radius * sc, self._radius * sc)
-            self._radius_datum = ControlDatum(
-                name="radius",
-                position=datum_pos,
-                value_getter=self._get_radius_value,
-                value_setter=self._set_radius_value,
-                prefix="R",
-                parent_item=self
-            )
-        else:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self._radius * sc, self._radius * sc)
-            self._radius_datum.position = datum_pos
-
         return [
-            SquareControlPoint('corner', corner_local),
-            ControlPoint('ray1', ray1_local),
-            ControlPoint('ray2', ray2_local),
-            SquareControlPoint('center', QPointF(0, 0)),
-            self._radius_datum
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_corner_position,
+                setter=self._set_corner_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_ray1_position,
+                setter=self._set_ray1_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_ray2_position,
+                setter=self._set_ray2_position),
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_center_position,
+                setter=self._set_center_position),
+            ControlDatum(
+                parent=self,
+                getter=self._get_radius_value,
+                setter=self._set_radius_value,
+                pos_getter=self._get_radius_datum_position,
+                prefix="R"
+            )
         ]
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        self.prepareGeometryChange()
+    def _get_corner_position(self) -> QPointF:
+        """Get the corner position."""
+        return self._corner_point - self._calculated_center
+
+    def _set_corner_position(self, new_position: QPointF):
+        """Set the corner position."""
+        # When corner moves, recalculate and update center spec point
         local_pos = self.mapToScene(new_position)
+        self._corner_point = local_pos
+        self._calculate_circle(update_center_spec=True)
+        self.setPos(self._calculated_center)
+        self.prepareGeometryChange()
+        self.update()
 
-        if name == 'center' and self._is_valid:
-            # Constrain center movement to the angle bisector
-            self._move_center_along_bisector(local_pos)
-        elif name == 'corner':
-            # When corner moves, recalculate and update center spec point
-            self._corner_point = local_pos
-            self._calculate_circle(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'ray1':
-            # When ray1 moves, recalculate and update center spec point
-            self._ray1_point = local_pos
-            self._calculate_circle(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'ray2':
-            # When ray2 moves, recalculate and update center spec point
-            self._ray2_point = local_pos
-            self._calculate_circle(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
+    def _get_ray1_position(self) -> QPointF:
+        """Get the ray1 position."""
+        return self._ray1_point - self._calculated_center
 
-    def paint_item(self, painter, option, widget=None):
-        """Draw the circle and construction lines."""
-        painter.save()
+    def _set_ray1_position(self, new_position: QPointF):
+        """Set the ray1 position."""
+        # When ray1 moves, recalculate and update center spec point
+        local_pos = self.mapToScene(new_position)
+        self._ray1_point = local_pos
+        self._calculate_circle(update_center_spec=True)
+        self.setPos(self._calculated_center)
+        self.prepareGeometryChange()
+        self.update()
 
-        pen = QPen(self._color, self._line_width)
-        painter.setPen(pen)
+    def _get_ray2_position(self) -> QPointF:
+        """Get the ray2 position."""
+        return self._ray2_point - self._calculated_center
 
-        if self._is_valid and self._radius > 0:
-            # Draw the circle
-            painter.drawEllipse(QPointF(0, 0), self._radius, self._radius)
-        else:
-            # Draw construction points for invalid geometry
-            construction_pen = QPen(QColor(255, 0, 0), self._line_width)
-            construction_pen.setStyle(Qt.PenStyle.DashDotLine)
-            painter.setPen(construction_pen)
+    def _set_ray2_position(self, new_position: QPointF):
+        """Set the ray2 position."""
+        # When ray2 moves, recalculate and update center spec point
+        local_pos = self.mapToScene(new_position)
+        self._ray2_point = local_pos
+        self._calculate_circle(update_center_spec=True)
+        self.setPos(self._calculated_center)
+        self.prepareGeometryChange()
+        self.update()
 
-            # Convert points to local coordinates
-            corner_local = self._corner_point - self._calculated_center
-            ray1_local = self._ray1_point - self._calculated_center
-            ray2_local = self._ray2_point - self._calculated_center
+    def _get_center_position(self) -> QPointF:
+        """Get the center position."""
+        return QPointF(0, 0)  # Center is always at origin in local coordinates
 
-            # Draw lines to show the invalid configuration
-            painter.drawLine(corner_local, ray1_local)
-            painter.drawLine(corner_local, ray2_local)
+    def _set_center_position(self, new_position: QPointF):
+        """Set the center position."""
+        # Constrain center movement to the angle bisector
+        local_pos = self.mapToScene(new_position)
+        self._move_center_along_bisector(local_pos)
 
-        painter.restore()
+    def _get_radius_datum_position(self) -> QPointF:
+        """Get the position for the radius datum."""
+        if not self._is_valid:
+            return QPointF(0, 0)
+        import math
+        sc = math.sin(math.pi/4)
+        return QPointF(self._radius * sc, self._radius * sc)
 
     def _get_radius_value(self):
-        """Get the current radius value for the control datum."""
-        return self._radius if self._is_valid else 0.0
+        """Get the current radius value."""
+        return self.radius
 
     def _set_radius_value(self, new_radius):
-        """Set the radius value from the control datum."""
-        if new_radius > 0:
-            self._set_radius(new_radius)
+        """Set the radius value."""
+        self._set_radius(new_radius)
 
     def _calculate_circle(self, update_center_spec=True):
         """Calculate the circle center and radius from the four defining points."""

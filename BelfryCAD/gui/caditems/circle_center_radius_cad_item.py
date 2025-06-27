@@ -75,35 +75,66 @@ class CircleCenterRadiusCadItem(CadItem):
 
     def _get_control_points(self):
         """Return control points for the circle."""
-        perimeter_local = self._perimeter_point - self._center_point
-
-        # Create radius datum if it doesn't exist
-        if not self._radius_datum:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self.radius * sc, self.radius * sc)
-            self._radius_datum = ControlDatum(
-                name="radius",
-                position=datum_pos,
-                value_getter=self._get_radius_value,
-                value_setter=self._set_radius_value,
-                prefix="R",
-                parent_item=self
-            )
-        else:
-            # Update radius datum position
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self.radius * sc, self.radius * sc)
-            self._radius_datum.position = datum_pos
-
         return [
-            SquareControlPoint('center', QPointF(0, 0)),
-            ControlPoint('perimeter', perimeter_local),
-            self._radius_datum
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_center_position,
+                setter=self._set_center_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_perimeter_position,
+                setter=self._set_perimeter_position),
+            ControlDatum(
+                parent=self,
+                getter=self._get_radius_value,
+                setter=self._set_radius_value,
+                pos_getter=self._get_radius_datum_position,
+                prefix="R"
+            )
         ]
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes using the optimized update method."""
-        pass
+    def _get_center_position(self) -> QPointF:
+        """Get the center position."""
+        return QPointF(0, 0)  # Center is always at origin in local coordinates
+
+    def _set_center_position(self, new_position: QPointF):
+        """Set the center position."""
+        # new_position is in scene coordinates
+        # Update the center point in scene coordinates
+        old_center = self._center_point
+        self._center_point = new_position
+        # Move the CAD item to the new center
+        self.setPos(self._center_point)
+        # Update perimeter point to maintain the same relative position
+        delta = new_position - old_center
+        self._perimeter_point += delta
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_perimeter_position(self) -> QPointF:
+        """Get the perimeter position."""
+        return self._perimeter_point - self._center_point  # Convert to local coordinates
+
+    def _set_perimeter_position(self, new_position: QPointF):
+        """Set the perimeter position."""
+        # new_position is in scene coordinates
+        # Update perimeter point in scene coordinates
+        self._perimeter_point = new_position
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_radius_datum_position(self) -> QPointF:
+        """Get the position for the radius datum."""
+        sc = math.sin(math.pi/4)
+        return QPointF(self.radius * sc, self.radius * sc)
+
+    def _get_radius_value(self):
+        """Get the current radius value."""
+        return self.radius
+
+    def _set_radius_value(self, new_radius):
+        """Set the radius value."""
+        self.radius = new_radius
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""
@@ -162,32 +193,3 @@ class CircleCenterRadiusCadItem(CadItem):
         self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
         self.update()
-
-    def _update_geometry_from_control_point(self, name: str, new_position: QPointF):
-        """Update the CAD item geometry based on control point changes."""
-        if name == 'center':
-            # new_position is in scene coordinates
-            # Update the center point in scene coordinates
-            old_center = self._center_point
-            self._center_point = new_position
-            # Move the CAD item to the new center
-            self.setPos(self._center_point)
-            # Update perimeter point to maintain the same relative position
-            delta = new_position - old_center
-            self._perimeter_point += delta
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'perimeter':
-            # new_position is in scene coordinates
-            # Update perimeter point in scene coordinates
-            self._perimeter_point = new_position
-            self.prepareGeometryChange()
-            self.update()
-
-    def _get_radius_value(self):
-        """Get the current radius value."""
-        return self.radius
-
-    def _set_radius_value(self, new_radius):
-        """Set the radius value."""
-        self.radius = new_radius

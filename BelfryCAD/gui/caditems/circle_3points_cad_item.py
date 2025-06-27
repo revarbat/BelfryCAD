@@ -195,54 +195,143 @@ class Circle3PointsCadItem(CadItem):
         return shape_path.contains(local_point)
 
     def _get_control_points(self):
-        """Return control points for the circle or line."""
-        if self.is_line:
-            # For lines, use the midpoint as a reference and the three original points
-            midpoint = QPointF(
-                (self._point1.x() + self._point3.x()) / 2,
-                (self._point1.y() + self._point3.y()) / 2
-            )
-            # Convert to local coordinates relative to the line midpoint
-            point1_local = self._point1 - midpoint
-            point2_local = self._point2 - midpoint  # This may not be on the line, but it's our second definition point
-            point3_local = self._point3 - midpoint
-
-            return [
-                ControlPoint('point1', point1_local),
-                ControlPoint('point2', point2_local),
-                ControlPoint('point3', point3_local),
-            ]
-        else:
-            # For circles, control points are relative to the center
-            point1_local = self._point1 - self._center
-            point2_local = self._point2 - self._center
-            point3_local = self._point3 - self._center
-
-            # Create radius datum if it doesn't exist
-            if not self._radius_datum:
-                sc = math.sin(math.pi/4)
-                datum_pos = QPointF(self._radius * sc, self._radius * sc)
-                self._radius_datum = ControlDatum(
-                    name="radius",
-                    position=datum_pos,
-                    value_getter=self._get_radius_value,
-                    value_setter=self._set_radius_value,
-                    prefix="R",
-                    parent_item=self
+        """Return control points for the circle."""
+        cps = [
+            ControlPoint(
+                parent=self,
+                getter=self._get_point1_position,
+                setter=self._set_point1_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_point2_position,
+                setter=self._set_point2_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_point3_position,
+                setter=self._set_point3_position)
+        ]
+        if not self._is_line:
+            cps.extend([
+                SquareControlPoint(
+                    parent=self,
+                    getter=self._get_center_position,
+                    setter=self._set_center_position),
+                ControlDatum(
+                    parent=self,
+                    getter=self._get_radius_value,
+                    setter=self._set_radius_value,
+                    pos_getter=self._get_radius_datum_position,
+                    prefix="R"
                 )
-            else:
-                # Update radius datum position
-                sc = math.sin(math.pi/4)
-                datum_pos = QPointF(self._radius * sc, self._radius * sc)
-                self._radius_datum.position = datum_pos
+            ])
+        return cps
 
-            return [
-                ControlPoint('point1', point1_local),
-                ControlPoint('point2', point2_local),
-                ControlPoint('point3', point3_local),
-                SquareControlPoint('center', QPointF(0, 0)),
-                self._radius_datum
-            ]
+    def _get_point1_position(self) -> QPointF:
+        """Get the point1 position."""
+        if self.is_line:
+            # For lines, use midpoint as reference
+            midpoint = self._get_midpoint()
+            return self._point1 - midpoint
+        else:
+            # For circles, use center as reference
+            return self._point1 - self._center
+
+    def _set_point1_position(self, new_position: QPointF):
+        """Set the point1 position."""
+        local_pos = self.mapToScene(new_position)
+        self.point1 = local_pos
+
+    def _get_point2_position(self) -> QPointF:
+        """Get the point2 position."""
+        if self.is_line:
+            # For lines, use midpoint as reference
+            midpoint = self._get_midpoint()
+            return self._point2 - midpoint
+        else:
+            # For circles, use center as reference
+            return self._point2 - self._center
+
+    def _set_point2_position(self, new_position: QPointF):
+        """Set the point2 position."""
+        local_pos = self.mapToScene(new_position)
+        self.point2 = local_pos
+
+    def _get_point3_position(self) -> QPointF:
+        """Get the point3 position."""
+        if self.is_line:
+            # For lines, use midpoint as reference
+            midpoint = self._get_midpoint()
+            return self._point3 - midpoint
+        else:
+            # For circles, use center as reference
+            return self._point3 - self._center
+
+    def _set_point3_position(self, new_position: QPointF):
+        """Set the point3 position."""
+        local_pos = self.mapToScene(new_position)
+        self.point3 = local_pos
+
+    def _get_center_position(self) -> QPointF:
+        """Get the center position."""
+        if self.is_line:
+            return QPointF(0, 0)  # No center for lines
+        else:
+            return QPointF(0, 0)  # Center is always at origin in local coordinates
+
+    def _set_center_position(self, new_position: QPointF):
+        """Set the center position."""
+        if not self.is_line:
+            # Translate the entire circle (all three points)
+            # Calculate the delta from current center (which is at origin in local coords)
+            scene_delta = new_position - self._center
+            self._point1 += scene_delta
+            self._point2 += scene_delta
+            self._point3 += scene_delta
+            self._center += scene_delta
+            self.setPos(self.center_point)
+
+    def _get_radius_datum_position(self) -> QPointF:
+        """Get the position for the radius datum."""
+        if self.is_line:
+            return QPointF(0, 0)  # No radius datum for lines
+        import math
+        sc = math.sin(math.pi/4)
+        return QPointF(self._radius * sc, self._radius * sc)
+
+    def _get_radius_value(self):
+        """Get the current radius value."""
+        return self.radius
+
+    def _set_radius_value(self, new_radius):
+        """Set the radius value by adjusting the third point."""
+        if self.is_line or new_radius <= 0:
+            return
+
+        # Calculate new position for point3 to achieve the desired radius
+        # Keep point1 and point2 fixed, adjust point3
+        center = self._center
+        point1_vec = self._point1 - center
+        point2_vec = self._point2 - center
+
+        # Calculate the angle of point3 (average of point1 and point2 angles)
+        angle1 = math.atan2(point1_vec.y(), point1_vec.x())
+        angle2 = math.atan2(point2_vec.y(), point2_vec.x())
+
+        # Use the angle that's 120 degrees from the average
+        avg_angle = (angle1 + angle2) / 2
+        point3_angle = avg_angle + math.pi * 2 / 3  # 120 degrees
+
+        # Calculate new point3 position
+        new_point3 = QPointF(
+            center.x() + new_radius * math.cos(point3_angle),
+            center.y() + new_radius * math.sin(point3_angle)
+        )
+
+        self._point3 = new_point3
+        self._calculate_circle()
+        self.setPos(self._center)
+        self.prepareGeometryChange()
+        self.update()
 
     def _get_midpoint(self):
         """Get the midpoint between point1 and point3."""
@@ -360,79 +449,4 @@ class Circle3PointsCadItem(CadItem):
     def line_width(self, value):
         self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
-        self.update()
-
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        self.prepareGeometryChange()
-        local_pos = self.mapToScene(new_position)
-        if name == 'center' and not self.is_line:
-            # Translate the entire circle (all three points)
-            # Calculate the delta from current center (which is at origin in local coords)
-            scene_delta = local_pos - self._center
-            self._point1 += scene_delta
-            self._point2 += scene_delta
-            self._point3 += scene_delta
-            self._center += scene_delta
-            self.setPos(self.center_point)
-        elif name == 'point1':
-            # Change point1 position
-            self.point1 = local_pos
-        elif name == 'point2':
-            # Change point2 position
-            self.point2 = local_pos
-        elif name == 'point3':
-            # Change point3 position
-            self.point3 = local_pos
-
-    def set_points(self, point1, point2, point3):
-        """Set all three points at once."""
-        if isinstance(point1, (list, tuple)):
-            point1 = QPointF(point1[0], point1[1])
-        if isinstance(point2, (list, tuple)):
-            point2 = QPointF(point2[0], point2[1])
-        if isinstance(point3, (list, tuple)):
-            point3 = QPointF(point3[0], point3[1])
-
-        self._point1 = point1
-        self._point2 = point2
-        self._point3 = point3
-        self._calculate_circle()
-        self.setPos(self.center_point)
-        self.prepareGeometryChange()
-        self.update()
-
-    def _get_radius_value(self):
-        """Get the current radius value."""
-        return self.radius
-
-    def _set_radius_value(self, new_radius):
-        """Set the radius value by adjusting the third point."""
-        if self.is_line or new_radius <= 0:
-            return
-
-        # Calculate new position for point3 to achieve the desired radius
-        # Keep point1 and point2 fixed, adjust point3
-        center = self._center
-        point1_vec = self._point1 - center
-        point2_vec = self._point2 - center
-
-        # Calculate the angle of point3 (average of point1 and point2 angles)
-        angle1 = math.atan2(point1_vec.y(), point1_vec.x())
-        angle2 = math.atan2(point2_vec.y(), point2_vec.x())
-
-        # Use the angle that's 120 degrees from the average
-        avg_angle = (angle1 + angle2) / 2
-        point3_angle = avg_angle + math.pi * 2 / 3  # 120 degrees
-
-        # Calculate new point3 position
-        new_point3 = QPointF(
-            center.x() + new_radius * math.cos(point3_angle),
-            center.y() + new_radius * math.sin(point3_angle)
-        )
-
-        self._point3 = new_point3
-        self._calculate_circle()
-        self.setPos(self._center)
-        self.prepareGeometryChange()
         self.update()

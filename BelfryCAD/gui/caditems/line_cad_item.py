@@ -69,35 +69,64 @@ class LineCadItem(CadItem):
     def _get_control_points(self):
         """Return control points for the line."""
         return [
-            SquareControlPoint('start', self._start_point),
-            ControlPoint('end', self._end_point),
-            ControlPoint('midpoint', self.midpoint)
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_start_position,
+                setter=self._set_start_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_end_position,
+                setter=self._set_end_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_midpoint_position,
+                setter=self._set_midpoint_position)
         ]
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        if name == 'start':
-            # When start point moves, move end point to maintain the same relative position
-            # Calculate the current vector from start to end
-            current_vector = QPointF(self._end_point.x() - self._start_point.x(),
-                                   self._end_point.y() - self._start_point.y())
+    def _get_start_position(self) -> QPointF:
+        """Get the start point position."""
+        return self._start_point
 
-            # Update start point
-            self._start_point = new_position
+    def _set_start_position(self, new_position: QPointF):
+        """Set the start point position."""
+        # When start point moves, move end point to maintain the same relative position
+        # Calculate the current vector from start to end
+        current_vector = QPointF(self._end_point.x() - self._start_point.x(),
+                               self._end_point.y() - self._start_point.y())
 
-            # Move end point by the same vector from the new start position
-            self._end_point = QPointF(new_position.x() + current_vector.x(),
-                                     new_position.y() + current_vector.y())
-        elif name == 'end':
-            self._end_point = new_position
-        elif name == 'midpoint':
-            # Calculate the vector from start to new midpoint
-            start_to_mid = QPointF(new_position.x() - self._start_point.x(),
-                                  new_position.y() - self._start_point.y())
+        # Update start point
+        self._start_point = new_position
 
-            # The end point should be equidistant on the opposite side
-            self._end_point = QPointF(new_position.x() + start_to_mid.x(),
-                                     new_position.y() + start_to_mid.y())
+        # Move end point by the same vector from the new start position
+        self._end_point = QPointF(new_position.x() + current_vector.x(),
+                                 new_position.y() + current_vector.y())
+
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_end_position(self) -> QPointF:
+        """Get the end point position."""
+        return self._end_point
+
+    def _set_end_position(self, new_position: QPointF):
+        """Set the end point position."""
+        self._end_point = new_position
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_midpoint_position(self) -> QPointF:
+        """Get the midpoint position."""
+        return self.midpoint
+
+    def _set_midpoint_position(self, new_position: QPointF):
+        """Set the midpoint position."""
+        # Calculate the vector from start to new midpoint
+        start_to_mid = QPointF(new_position.x() - self._start_point.x(),
+                              new_position.y() - self._start_point.y())
+
+        # The end point should be equidistant on the opposite side
+        self._end_point = QPointF(new_position.x() + start_to_mid.x(),
+                                 new_position.y() + start_to_mid.y())
 
         self.prepareGeometryChange()
         self.update()

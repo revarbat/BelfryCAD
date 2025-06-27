@@ -76,25 +76,63 @@ class CubicBezierCadItem(CadItem):
         return shape_path.contains(local_point)
 
     def _get_control_points(self):
-        """Return control points for the Bezier curve."""
+        """Return control points for the cubic Bezier curve."""
         return [
-            SquareControlPoint('start', self._start_point),
-            ControlPoint('control1', self._control1),
-            ControlPoint('control2', self._control2),
-            DiamondControlPoint('end', self._end_point)
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_start_position,
+                setter=self._set_start_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_control1_position,
+                setter=self._set_control1_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_control2_position,
+                setter=self._set_control2_position),
+            DiamondControlPoint(
+                parent=self,
+                getter=self._get_end_position,
+                setter=self._set_end_position)
         ]
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
-        if name == 'start':
-            self._start_point = new_position
-        elif name == 'control1':
-            self._control1 = new_position
-        elif name == 'control2':
-            self._control2 = new_position
-        elif name == 'end':
-            self._end_point = new_position
+    def _get_start_position(self) -> QPointF:
+        """Get the start point position."""
+        return self._start_point
 
+    def _set_start_position(self, new_position: QPointF):
+        """Set the start point position."""
+        self._start_point = new_position
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_control1_position(self) -> QPointF:
+        """Get the control1 position."""
+        return self._control1
+
+    def _set_control1_position(self, new_position: QPointF):
+        """Set the control1 position."""
+        self._control1 = new_position
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_control2_position(self) -> QPointF:
+        """Get the control2 position."""
+        return self._control2
+
+    def _set_control2_position(self, new_position: QPointF):
+        """Set the control2 position."""
+        self._control2 = new_position
+        self.prepareGeometryChange()
+        self.update()
+
+    def _get_end_position(self) -> QPointF:
+        """Get the end point position."""
+        return self._end_point
+
+    def _set_end_position(self, new_position: QPointF):
+        """Set the end point position."""
+        self._end_point = new_position
         self.prepareGeometryChange()
         self.update()
 

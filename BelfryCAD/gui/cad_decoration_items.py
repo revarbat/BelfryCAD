@@ -46,8 +46,8 @@ class CenterlinesDecorationItem(CadDecorationItem):
         radius = 33/scale
 
         # Standardized centerline styling
-        dash_pattern = [10.0, 2.0, 2.0, 2.0]  # 10, 2, 2, 2 pattern
-        pen = QPen(QColor(128, 128, 128), 3.0)  # Gray color
+        dash_pattern = [10.0, 2.0, 2.0, 2.0]
+        pen = QPen(QColor(128, 128, 128), 3.0)
         pen.setCosmetic(True)
         pen.setDashPattern(dash_pattern)
         painter.setPen(pen)

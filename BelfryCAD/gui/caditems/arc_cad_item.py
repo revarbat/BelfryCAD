@@ -80,91 +80,134 @@ class ArcCadItem(CadItem):
 
     def _get_control_points(self):
         """Return control points for the arc."""
-        # Create radius datum if it doesn't exist
-        if not self._radius_datum:
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self.radius * sc, self.radius * sc) + self._center_point
-            self._radius_datum = ControlDatum(
-                name="radius",
-                position=datum_pos,
-                value_getter=self._get_radius_value,
-                value_setter=self._set_radius_value,
-                prefix="R",
-                parent_item=self
-            )
-        else:
-            # Update radius datum position
-            sc = math.sin(math.pi/4)
-            datum_pos = QPointF(self.radius * sc, self.radius * sc) + self._center_point
-            self._radius_datum.position = datum_pos
-
         return [
-            SquareControlPoint('center', self._center_point),
-            DiamondControlPoint('start', self._start_point),
-            ControlPoint('end', self._end_point),
-            self._radius_datum
+            SquareControlPoint(
+                parent=self,
+                getter=self._get_center_position,
+                setter=self._set_center_position),
+            DiamondControlPoint(
+                parent=self,
+                getter=self._get_start_position,
+                setter=self._set_start_position),
+            ControlPoint(
+                parent=self,
+                getter=self._get_end_position,
+                setter=self._set_end_position),
+            ControlDatum(
+                parent=self,
+                getter=self._get_radius_value,
+                setter=self._set_radius_value,
+                pos_getter=self._get_radius_datum_position,
+                prefix="R"
+            )
         ]
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes."""
+    def _get_center_position(self) -> QPointF:
+        """Get the center position."""
+        return self._center_point
+
+    def _set_center_position(self, new_position: QPointF):
+        """Set the center position."""
+        # Moving center: translate start and end points by the same offset
+        offset_x = new_position.x() - self._center_point.x()
+        offset_y = new_position.y() - self._center_point.y()
+
+        self._center_point = new_position
+        self._start_point = QPointF(self._start_point.x() + offset_x,
+                                   self._start_point.y() + offset_y)
+        self._end_point = QPointF(self._end_point.x() + offset_x,
+                                 self._end_point.y() + offset_y)
         self.prepareGeometryChange()
+        self.update()
 
-        if name == 'center':
-            # Moving center: translate start and end points by the same offset
-            offset_x = new_position.x() - self._center_point.x()
-            offset_y = new_position.y() - self._center_point.y()
+    def _get_start_position(self) -> QPointF:
+        """Get the start position."""
+        return self._start_point
 
-            self._center_point = new_position
-            self._start_point = QPointF(self._start_point.x() + offset_x,
-                                       self._start_point.y() + offset_y)
-            self._end_point = QPointF(self._end_point.x() + offset_x,
-                                     self._end_point.y() + offset_y)
+    def _set_start_position(self, new_position: QPointF):
+        """Set the start position."""
+        # Moving start point: changes radius and start angle, preserves relative angle to end point
+        # Calculate the current angular span between start and end points
+        current_start_angle = self._angle_from_center(self._start_point)
+        current_end_angle = self._angle_from_center(self._end_point)
 
-        elif name == 'start':
-            # Moving start point: changes radius and start angle, preserves relative angle to end point
-            # Calculate the current angular span between start and end points
-            current_start_angle = self._angle_from_center(self._start_point)
-            current_end_angle = self._angle_from_center(self._end_point)
+        # Calculate the current span angle (counter-clockwise from start to end)
+        span_angle = current_end_angle - current_start_angle
+        if span_angle < 0:
+            span_angle += 2 * math.pi
 
-            # Calculate the current span angle (counter-clockwise from start to end)
-            span_angle = current_end_angle - current_start_angle
-            if span_angle < 0:
-                span_angle += 2 * math.pi
+        # Calculate the new radius and start angle
+        new_radius = self._distance(self._center_point, new_position)
+        new_start_angle = self._angle_from_center(new_position)
 
-            # Calculate the new radius and start angle
-            new_radius = self._distance(self._center_point, new_position)
-            new_start_angle = self._angle_from_center(new_position)
+        # Update start point
+        self._start_point = new_position
 
-            # Update start point
-            self._start_point = new_position
+        # Calculate new end angle by preserving the span
+        new_end_angle = new_start_angle + span_angle
 
-            # Calculate new end angle by preserving the span
-            new_end_angle = new_start_angle + span_angle
+        # Position end point at the new angle with the new radius
+        self._end_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(new_end_angle),
+            self._center_point.y() + new_radius * math.sin(new_end_angle)
+        )
+        self.prepareGeometryChange()
+        self.update()
 
-            # Position end point at the new angle with the new radius
-            self._end_point = QPointF(
-                self._center_point.x() + new_radius * math.cos(new_end_angle),
-                self._center_point.y() + new_radius * math.sin(new_end_angle)
-            )
+    def _get_end_position(self) -> QPointF:
+        """Get the end position."""
+        return self._end_point
 
-        elif name == 'end':
-            # Moving end point: changes end angle and adjusts start point radius to match
-            # Calculate the new radius from center to end point
-            new_radius = self._distance(self._center_point, new_position)
+    def _set_end_position(self, new_position: QPointF):
+        """Set the end position."""
+        # Moving end point: changes end angle and adjusts start point radius to match
+        # Calculate the new radius from center to end point
+        new_radius = self._distance(self._center_point, new_position)
 
-            # Calculate the current start angle
-            start_angle = self._angle_from_center(self._start_point)
+        # Calculate the current start angle
+        start_angle = self._angle_from_center(self._start_point)
 
-            # Update end point
-            self._end_point = new_position
+        # Update end point
+        self._end_point = new_position
 
-            # Adjust start point to have the same radius as the new end point
-            # Account for flipped Y-axis: negate the sin component
-            self._start_point = QPointF(
-                self._center_point.x() + new_radius * math.cos(start_angle),
-                self._center_point.y() + new_radius * math.sin(start_angle)
-            )
+        # Adjust start point to have the same radius as the new end point
+        # Account for flipped Y-axis: negate the sin component
+        self._start_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(start_angle),
+            self._center_point.y() + new_radius * math.sin(start_angle)
+        )
+        self.prepareGeometryChange()
+        self.update()
 
+    def _get_radius_datum_position(self) -> QPointF:
+        """Get the position for the radius datum."""
+        sc = math.sin(math.pi/4)
+        return QPointF(self.radius * sc, self.radius * sc) + self._center_point
+
+    def _get_radius_value(self):
+        """Get the current radius value."""
+        return self.radius
+
+    def _set_radius_value(self, new_radius):
+        """Set the radius value by adjusting both start and end points."""
+        if new_radius <= 0:
+            return
+
+        # Calculate current angles
+        start_angle = self._angle_from_center(self._start_point)
+        end_angle = self._angle_from_center(self._end_point)
+
+        # Update both points to the new radius
+        self._start_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(start_angle),
+            self._center_point.y() + new_radius * math.sin(start_angle)
+        )
+        self._end_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(end_angle),
+            self._center_point.y() + new_radius * math.sin(end_angle)
+        )
+
+        self.prepareGeometryChange()
         self.update()
 
     def paint_item(self, painter, option, widget=None):
@@ -231,41 +274,6 @@ class ArcCadItem(CadItem):
         path.arcTo(arc_rect, -start_degrees, -span_degrees)
 
         return path
-
-    def _get_radius_value(self):
-        """Get the current radius value."""
-        return self.radius
-
-    def _set_radius_value(self, new_radius):
-        """Set the radius value by adjusting both start and end points."""
-        if new_radius <= 0:
-            return
-
-        # Calculate current angles
-        start_angle = self._angle_from_center(self._start_point)
-        end_angle = self._angle_from_center(self._end_point)
-
-        # Update both points to the new radius
-        self._start_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(start_angle),
-            self._center_point.y() + new_radius * math.sin(start_angle)
-        )
-        self._end_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(end_angle),
-            self._center_point.y() + new_radius * math.sin(end_angle)
-        )
-
-        self.prepareGeometryChange()
-        self.update()
-
-    def _create_decorations(self):
-        """Create decoration items for this arc."""
-        # Add centerlines decoration
-        self._add_centerlines(self._center_point)
-
-        # Add dashed circle at the radius
-        radius = self._distance(self._center_point, self._start_point)
-        self._add_dashed_circle(self._center_point, radius, self._color, self._line_width)
 
     @property
     def center_point(self):
