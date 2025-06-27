@@ -172,7 +172,7 @@ class Circle3PointsCadItem(CadItem):
             (self._point1.y() + self._point3.y()) / 2
         )
     
-    def _boundingRect(self):
+    def boundingRect(self):
         """Return the bounding rectangle of the circle or line."""
         if self.is_line:
             # For lines, get bounding box of all three points
@@ -200,7 +200,7 @@ class Circle3PointsCadItem(CadItem):
             
             return rect
     
-    def _shape(self):
+    def shape(self):
         """Return the exact shape of the circle or line for collision detection."""
         if self.is_line:
             # Create a line path from point1 to point3
@@ -222,28 +222,12 @@ class Circle3PointsCadItem(CadItem):
             
             return stroker.createStroke(path)
         else:
-            # For circles, create a circular path
+            # For circles, create a proper ellipse path
             radius = self._radius
             
-            # Create a custom 90-point circle path
             path = QPainterPath()
-            num_points = 90
-            
-            # Calculate the first point
-            angle = 0
-            x = radius * math.cos(angle)
-            y = radius * math.sin(angle)
-            path.moveTo(x, y)
-            
-            # Add the remaining 89 points
-            for i in range(1, num_points):
-                angle = (2 * math.pi * i) / num_points
-                x = radius * math.cos(angle)
-                y = radius * math.sin(angle)
-                path.lineTo(x, y)
-            
-            # Close the path back to the starting point
-            path.closeSubpath()
+            rect = QRectF(-radius, -radius, 2 * radius, 2 * radius)
+            path.addEllipse(rect)
             
             # Use QPainterPathStroker to create a stroked path with line width
             stroker = QPainterPathStroker()
@@ -253,7 +237,7 @@ class Circle3PointsCadItem(CadItem):
             
             return stroker.createStroke(path)
     
-    def _contains(self, point):
+    def contains(self, point):
         """Check if a point is inside the circle or near the line."""
         # Convert point to local coordinates if it's in scene coordinates
         if hasattr(point, 'x') and hasattr(point, 'y'):
@@ -264,7 +248,7 @@ class Circle3PointsCadItem(CadItem):
             local_point = self.mapFromScene(point)
         
         # Use the stroked shape for accurate contains check
-        shape_path = self._shape()
+        shape_path = self.shape()
         return shape_path.contains(local_point)
     
     def paint_item(self, painter, option, widget=None):

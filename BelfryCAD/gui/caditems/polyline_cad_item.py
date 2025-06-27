@@ -45,7 +45,7 @@ class PolylineCadItem(CadItem):
         # Call parent method to refresh all control points
         super()._control_point_changed(name, new_position)
 
-    def _boundingRect(self):
+    def boundingRect(self):
         """Return the bounding rectangle of the polyline."""
         if len(self._points) < 2:
             # If we don't have at least 2 points, return a small default rect
@@ -61,7 +61,7 @@ class PolylineCadItem(CadItem):
         
         return rect
     
-    def _shape(self):
+    def shape(self):
         """Return the exact shape of the polyline for collision detection."""
         path = QPainterPath()
         
@@ -81,7 +81,7 @@ class PolylineCadItem(CadItem):
         
         return stroker.createStroke(path)
     
-    def _contains(self, point):
+    def contains(self, point):
         """Check if a point is near the polyline."""
         if len(self._points) < 2:
             return False

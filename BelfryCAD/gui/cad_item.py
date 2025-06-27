@@ -321,44 +321,6 @@ class CadItem(QGraphicsItem):
         """Override to return list of control point graphics items."""
         return []
     
-    def boundingRect(self):
-        """Return bounding rectangle including decorations."""
-        base_rect = self._boundingRect()
-        # Include decoration items
-        for decoration_item in self._decoration_items:
-            if hasattr(decoration_item, 'boundingRect'):
-                dec_rect = decoration_item.boundingRect()
-                dec_rect.translate(decoration_item.pos())
-                base_rect = base_rect.united(dec_rect)
-        return base_rect
-    
-    def shape(self):
-        """Return the shape for hit testing."""
-        return self._shape()
-    
-    def contains(self, point):
-        """Check if point is within the item, excluding control point areas."""
-        # First check if the point is within any control point
-        for control_point in self._control_point_items:
-            # Convert point to control point's local coordinates
-            control_local_point = control_point.mapFromScene(point)
-            if control_point.contains(control_local_point):
-                # Point is within a control point, so don't claim it
-                return False
-        
-        # Point is not within any control point, check if it's within this item
-        result = self._contains(point)
-        return result
-    
-    def _boundingRect(self):
-        return QRectF()
-    
-    def _shape(self):
-        return QPainterPath()
-    
-    def _contains(self, point) -> bool:
-        return False
-    
     def _control_point_changed(self, name: str, new_position: QPointF):
         """Handle control point changes. Override in subclasses to update geometry."""
         # Prevent recursion with timeout protection

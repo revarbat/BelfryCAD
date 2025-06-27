@@ -144,7 +144,7 @@ class ArcCadItem(CadItem):
             angle -= 2 * math.pi
         return angle
 
-    def _boundingRect(self):
+    def boundingRect(self):
         """Return the bounding rectangle of the arc."""
         # Get the radius from center to start point
         radius = self._distance(self._center_point, self._start_point)
@@ -195,51 +195,19 @@ class ArcCadItem(CadItem):
 
         return path
     
-    def _shape(self):
+    def shape(self):
         """Return the exact shape of the arc for collision detection."""
-        path = QPainterPath()
+        path = self._create_arc_path()
         
-        # Calculate radius and angles
-        radius = self._distance(self._center_point, self._start_point)
-        start_angle = self._angle_from_center(self._start_point)
-        end_angle = self._angle_from_center(self._end_point)
-        
-        # Convert to degrees for easier iteration
-        start_degrees = math.degrees(start_angle)
-        end_degrees = math.degrees(end_angle)
-        
-        # Calculate span angle (counter-clockwise)
-        span_degrees = end_degrees - start_degrees
-        if span_degrees < 0:
-            span_degrees += 360
-        
-        # Create a point for every degree along the arc
-        num_points = int(span_degrees) + 1
-        for i in range(num_points):
-            # Calculate angle for this point
-            angle_degrees = start_degrees + (span_degrees * i / (num_points - 1))
-            angle_radians = math.radians(angle_degrees)
-            
-            # Calculate point position
-            x = self._center_point.x() + radius * math.cos(angle_radians)
-            y = self._center_point.y() + radius * math.sin(angle_radians)  # Flip Y-axis
-            
-            point = QPointF(x, y)
-            
-            if i == 0:
-                path.moveTo(point)
-            else:
-                path.lineTo(point)
-        
-        # Create a stroked path with the line width for better selection
+        # Use QPainterPathStroker to create a stroked path with line width
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.1))  # Minimum width for selection
+        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
         stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         
         return stroker.createStroke(path)
 
-    def _contains(self, point):
+    def contains(self, point):
         """Check if a point is near the arc."""
         # Convert point to local coordinates if needed
         if hasattr(point, 'x') and hasattr(point, 'y'):
@@ -248,7 +216,7 @@ class ArcCadItem(CadItem):
             local_point = self.mapFromScene(point)
         
         # Use the stroked shape for accurate contains check
-        shape_path = self._shape()
+        shape_path = self.shape()
         return shape_path.contains(local_point)
 
     def paint_item(self, painter, option, widget=None):

@@ -59,7 +59,7 @@ class CubicBezierCadItem(CadItem):
         # Call parent method to refresh all control points
         super()._control_point_changed(name, new_position)
 
-    def _boundingRect(self):
+    def boundingRect(self):
         """Return the bounding rectangle of the Bezier curve."""
         # For a cubic Bezier, the bounding box includes all four control points
         # plus some padding for the curve that might extend beyond the control polygon
@@ -84,32 +84,19 @@ class CubicBezierCadItem(CadItem):
         path.cubicTo(self._control1, self._control2, self._end_point)
         return path
     
-    def _shape(self):
-        """Return the exact shape of the Bezier curve for collision detection using 64 line segments."""
-        path = QPainterPath()
+    def shape(self):
+        """Return the exact shape of the Bezier curve for collision detection."""
+        path = self._create_bezier_path()
         
-        # Create the curve using 64 line segments
-        num_segments = 64
-        
-        # Start the path at the first point
-        start_point = self.point_at_parameter(0.0)
-        path.moveTo(start_point)
-        
-        # Add line segments for each step
-        for i in range(1, num_segments + 1):
-            t = i / num_segments
-            point = self.point_at_parameter(t)
-            path.lineTo(point)
-        
-        # Create a stroked path with the line width for better selection
+        # Use QPainterPathStroker to create a stroked path with line width
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.1))  # Minimum width for selection
+        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
         stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         
         return stroker.createStroke(path)
     
-    def _contains(self, point):
+    def contains(self, point):
         """Check if a point is near the Bezier curve."""
         # Convert point to local coordinates if needed
         if hasattr(point, 'x') and hasattr(point, 'y'):
@@ -118,7 +105,7 @@ class CubicBezierCadItem(CadItem):
             local_point = self.mapFromScene(point)
         
         # Use the stroked shape for accurate contains check
-        shape_path = self._shape()
+        shape_path = self.shape()
         return shape_path.contains(local_point)
     
     def paint_item(self, painter, option, widget=None):

@@ -65,7 +65,7 @@ class LineCadItem(CadItem):
         # Call parent method to refresh all control points
         super()._control_point_changed(name, new_position)
 
-    def _boundingRect(self):
+    def boundingRect(self):
         """Return the bounding rectangle of the line."""
         # Create a CadRect containing both points
         rect = CadRect()
@@ -77,7 +77,7 @@ class LineCadItem(CadItem):
         
         return rect
     
-    def _shape(self):
+    def shape(self):
         """Return the exact shape of the line for collision detection."""
         path = QPainterPath()
         path.moveTo(self._start_point)
@@ -91,7 +91,7 @@ class LineCadItem(CadItem):
         
         return stroker.createStroke(path)
     
-    def _contains(self, point):
+    def contains(self, point):
         """Check if a point is near the line segment."""
         # Convert point to local coordinates if needed
         if hasattr(point, 'x') and hasattr(point, 'y'):

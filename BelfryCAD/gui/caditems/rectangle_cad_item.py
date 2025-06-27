@@ -106,7 +106,7 @@ class RectangleCadItem(CadItem):
         # Call parent method to refresh all control points
         super()._control_point_changed(name, new_position)
 
-    def _boundingRect(self):
+    def boundingRect(self):
         """Return the bounding rectangle of the rectangle."""
         # Create a CadRect containing all four corner points
         rect = CadRect()
@@ -130,7 +130,7 @@ class RectangleCadItem(CadItem):
         path.closeSubpath()  # Close the rectangle
         return path
     
-    def _shape(self):
+    def shape(self):
         """Return the exact shape of the rectangle for collision detection."""
         path = self._create_rectangle_path()
         
@@ -142,7 +142,7 @@ class RectangleCadItem(CadItem):
         
         return stroker.createStroke(path)
     
-    def _contains(self, point):
+    def contains(self, point):
         """Check if a point is near the rectangle outline."""
         # Convert point to local coordinates if needed
         if hasattr(point, 'x') and hasattr(point, 'y'):
@@ -151,7 +151,7 @@ class RectangleCadItem(CadItem):
             local_point = self.mapFromScene(point)
         
         # Use the stroked shape for accurate contains check
-        shape_path = self._shape()
+        shape_path = self.shape()
         return shape_path.contains(local_point)
     
     def paint_item(self, painter, option, widget=None):

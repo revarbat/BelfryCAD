@@ -266,7 +266,7 @@ class ArcCornerCadItem(CadItem):
             self._radius_datum
         ]
     
-    def _boundingRect(self):
+    def boundingRect(self):
         """Return the bounding rectangle of the arc."""
         if not self._is_valid or self._radius <= 0:
             # Fallback to bounding box of all points
@@ -302,7 +302,7 @@ class ArcCornerCadItem(CadItem):
         
         return rect
     
-    def _shape(self):
+    def shape(self):
         """Return the exact shape of the arc for collision detection."""
         if not self._is_valid or self._radius <= 0:
             # Return empty path for invalid arcs
@@ -372,7 +372,7 @@ class ArcCornerCadItem(CadItem):
         
         return path
     
-    def _contains(self, point):
+    def contains(self, point):
         """Check if a point is near the arc."""
         if not self._is_valid:
             return False
@@ -386,7 +386,7 @@ class ArcCornerCadItem(CadItem):
             local_point = self.mapFromScene(point)
         
         # Use the stroked shape for accurate contains check
-        shape_path = self._shape()
+        shape_path = self.shape()
         return shape_path.contains(local_point)
     
     def paint_item(self, painter, option, widget=None):
