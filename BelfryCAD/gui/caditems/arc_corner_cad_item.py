@@ -111,88 +111,98 @@ class ArcCornerCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def _get_control_points(self):
-        """Return control points for the arc."""
+    def createControls(self):
+        """Create control points for the arc and return them."""
+        # Create control points with direct setters
+        self._corner_cp = SquareControlPoint(
+            cad_item=self,
+            setter=self._set_corner
+        )
+        self._ray1_cp = ControlPoint(
+            cad_item=self,
+            setter=self._set_ray1
+        )
+        self._ray2_cp = ControlPoint(
+            cad_item=self,
+            setter=self._set_ray2
+        )
+        self._center_cp = SquareControlPoint(
+            cad_item=self,
+            setter=self._set_center
+        )
+        self._radius_datum = ControlDatum(
+            setter=self._set_radius_value,
+            prefix="R",
+            cad_item=self
+        )
+        self.updateControls()
+
+        # Return the list of control points
+        return [self._corner_cp, self._ray1_cp, self._ray2_cp, self._center_cp, self._radius_datum]
+
+    def updateControls(self):
+        """Update control point positions and values."""
+        if hasattr(self, '_corner_cp') and self._corner_cp:
+            self._corner_cp.setPos(self._corner_point - self._calculated_center)
+        if hasattr(self, '_ray1_cp') and self._ray1_cp:
+            self._ray1_cp.setPos(self._ray1_point - self._calculated_center)
+        if hasattr(self, '_ray2_cp') and self._ray2_cp:
+            self._ray2_cp.setPos(self._ray2_point - self._calculated_center)
+        if hasattr(self, '_center_cp') and self._center_cp:
+            self._center_cp.setPos(QPointF(0, 0))
         if not self._is_valid:
-            return []
+            return
+        if hasattr(self, '_radius_datum') and self._radius_datum:
+            # Update both position and value for the datum
+            radius_value = self._get_radius_value()
+            radius_position = self._get_radius_datum_position()
+            self._radius_datum.update_datum(radius_value, radius_position)
 
-        return [
-            SquareControlPoint(
-                parent=self,
-                getter=self._get_corner_position,
-                setter=self._set_corner_position),
-            ControlPoint(
-                parent=self,
-                getter=self._get_ray1_position,
-                setter=self._set_ray1_position),
-            ControlPoint(
-                parent=self,
-                getter=self._get_ray2_position,
-                setter=self._set_ray2_position),
-            SquareControlPoint(
-                parent=self,
-                getter=self._get_center_position,
-                setter=self._set_center_position),
-            ControlDatum(
-                parent=self,
-                getter=self._get_radius_value,
-                setter=self._set_radius_value,
-                pos_getter=self._get_radius_datum_position,
-                prefix="R"
-            )
-        ]
-
-    def _get_corner_position(self) -> QPointF:
-        """Get the corner position."""
-        return self._corner_point - self._calculated_center
-
-    def _set_corner_position(self, new_position: QPointF):
-        """Set the corner position."""
+    def _set_corner(self, new_position):
+        """Set corner point from control point movement."""
         # When corner moves, recalculate and update center spec point
         local_pos = self.mapToScene(new_position)
         self._corner_point = local_pos
         self._calculate_arc(update_center_spec=True)
         self.setPos(self._calculated_center)
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_ray1_position(self) -> QPointF:
-        """Get the ray1 position."""
-        return self._ray1_point - self._calculated_center
-
-    def _set_ray1_position(self, new_position: QPointF):
-        """Set the ray1 position."""
+    def _set_ray1(self, new_position):
+        """Set ray1 point from control point movement."""
         # When ray1 moves, recalculate and update center spec point
         local_pos = self.mapToScene(new_position)
         self._ray1_point = local_pos
         self._calculate_arc(update_center_spec=True)
         self.setPos(self._calculated_center)
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_ray2_position(self) -> QPointF:
-        """Get the ray2 position."""
-        return self._ray2_point - self._calculated_center
-
-    def _set_ray2_position(self, new_position: QPointF):
-        """Set the ray2 position."""
+    def _set_ray2(self, new_position):
+        """Set ray2 point from control point movement."""
         # When ray2 moves, recalculate and update center spec point
         local_pos = self.mapToScene(new_position)
         self._ray2_point = local_pos
         self._calculate_arc(update_center_spec=True)
         self.setPos(self._calculated_center)
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_center_position(self) -> QPointF:
-        """Get the center position."""
-        return QPointF(0, 0)  # Center is always at origin in local coordinates
-
-    def _set_center_position(self, new_position: QPointF):
-        """Set the center position."""
+    def _set_center(self, new_position):
+        """Set center from control point movement."""
         # Constrain center movement to the angle bisector
         local_pos = self.mapToScene(new_position)
         self._move_center_along_bisector(local_pos)
+        
+        self.prepareGeometryChange()
+        self.updateControls()
+        self.update()
 
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
@@ -211,6 +221,9 @@ class ArcCornerCadItem(CadItem):
         if new_radius > 0:
             # Use the same logic as circle corner item
             self._set_radius(new_radius)
+        self.prepareGeometryChange()
+        self.updateControls()
+        self.update()
 
     def _update_geometry_from_control_point(self, name: str, new_position: QPointF):
         """Update the CAD item geometry based on control point changes."""

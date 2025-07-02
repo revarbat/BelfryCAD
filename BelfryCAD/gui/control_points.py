@@ -2,9 +2,13 @@
 ControlPoint - A class representing a control point for CAD items.
 """
 
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
-from PySide6.QtGui import QPen, QBrush, QColor, QFont, QFontMetrics, QPainter, QPainterPath
-from PySide6.QtWidgets import QGraphicsItem, QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QDialogButtonBox
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import (
+    QPen, QBrush, QColor, QFont, QFontMetrics, QPainterPath
+)
+from PySide6.QtWidgets import (
+    QGraphicsItem, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
+)
 
 
 class ControlPoint(QGraphicsItem):
@@ -12,35 +16,23 @@ class ControlPoint(QGraphicsItem):
 
     def __init__(
             self,
-            parent=None,
-            getter=None,
+            cad_item=None,
             setter=None
     ):
-        super().__init__(parent)  # Use parent-child relationship
-        self.getter = getter
+        super().__init__()  # Use parent-child relationship
         self.setter = setter
+        self.cad_item = cad_item
+        self.control_size = 9
         
-        # Use Qt's built-in flags
+        # Use Qt's built-in flags (movable disabled since parent handles movement)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)  # Parent handles movement
         self.setAcceptHoverEvents(True)
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         
         # Set high Z value to appear above other items
         self.setZValue(10000)
-        
-        # Set initial position from getter if available
-        self.set_position_from_getter()
-
-    def get_position(self):
-        """Get the current position, using getter if available."""
-        if self.getter:
-            try:
-                return self.getter()
-            except (RuntimeError, AttributeError, TypeError):
-                pass
-        return QPointF(0, 0)  # Default fallback
 
     def set_position(self, new_position):
         """Set the position, using setter if available."""
@@ -51,14 +43,9 @@ class ControlPoint(QGraphicsItem):
                 pass
         self.setPos(new_position)
 
-    def set_position_from_getter(self):
-        """Set the position using the getter callback."""
-        position = self.get_position()
-        self.setPos(position)
-
     def _get_control_size_in_scene_coords(self, painter):
         """Get control point size in scene coordinates based on current zoom level."""
-        pixel_size = 8
+        pixel_size = self.control_size
         scale = painter.transform().m11()
         return pixel_size / scale
 
@@ -70,11 +57,11 @@ class ControlPoint(QGraphicsItem):
             # Get the first view's transform to determine current scale
             view = scene.views()[0]
             scale = view.transform().m11()
-            # Convert 8 pixels to scene coordinates
-            control_size = 8.0 / scale
+            # Convert pixel size to scene coordinates
+            control_size = float(self.control_size) / scale
         else:
             # Fallback to a reasonable size if no scene/view available
-            control_size = 0.15
+            control_size = 0.3
         
         control_padding = control_size / 2
         return QRectF(-control_padding, -control_padding, control_size, control_size)
@@ -96,43 +83,26 @@ class ControlPoint(QGraphicsItem):
         painter.setPen(control_pen)
         painter.setBrush(control_brush)
 
-        # Get control point size in scene coordinates based on current zoom
-        control_size = self._get_control_size_in_scene_coords(painter)
-        control_padding = control_size / 2
-
         # Draw the control point ellipse
-        control_rect = QRectF(
-            -control_padding,
-            -control_padding,
-            control_size, control_size
-        )
+        control_rect = self.boundingRect()
         painter.drawEllipse(control_rect)
 
         painter.restore()
 
     def itemChange(self, change, value):
         """Handle item state changes using Qt's built-in system."""
-        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange:
-            # Position is changing - notify via setter
-            if self.setter:
-                try:
-                    self.setter(value)
-                except (RuntimeError, AttributeError, TypeError):
-                    pass
+        # Position changes are now handled by the parent CadItem's mouse event system
         return super().itemChange(change, value)
 
     def mousePressEvent(self, event):
-        """Handle mouse press using Qt's built-in system."""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            event.accept()
-        else:
-            event.ignore()
+        """Mouse events are now handled by the parent CadItem."""
+        # Let the parent CadItem handle all mouse events
+        event.ignore()
 
     def mouseReleaseEvent(self, event):
-        """Handle mouse release using Qt's built-in system."""
-        self.setCursor(Qt.CursorShape.ArrowCursor)
-        event.accept()
+        """Mouse events are now handled by the parent CadItem."""
+        # Let the parent CadItem handle all mouse events
+        event.ignore()
 
 
 class SquareControlPoint(ControlPoint):
@@ -149,16 +119,8 @@ class SquareControlPoint(ControlPoint):
         painter.setPen(control_pen)
         painter.setBrush(control_brush)
 
-        # Get control point size in scene coordinates based on current zoom
-        control_size = self._get_control_size_in_scene_coords(painter)
-        control_padding = control_size / 2
-
         # Draw the control point as a square
-        control_rect = QRectF(
-            -control_padding,
-            -control_padding,
-            control_size, control_size
-        )
+        control_rect = self.boundingRect()
         painter.drawRect(control_rect)
 
         painter.restore()
@@ -203,74 +165,79 @@ class DiamondControlPoint(ControlPoint):
     def shape(self):
         """Return diamond shape for hit testing."""
         path = QPainterPath()
-        path.addRect(self.boundingRect())  # Use bounding rect for max hit area
+        
+        # Get the current scale from the scene to make shape scale independent
+        scene = self.scene()
+        if scene and scene.views():
+            # Get the first view's transform to determine current scale
+            view = scene.views()[0]
+            scale = view.transform().m11()
+            # Convert pixels to scene coordinates
+            control_size = float(self.control_size) / scale
+        else:
+            # Fallback to a reasonable size if no scene/view available
+            control_size = 0.3
+        
+        # Create diamond shape using the same logic as paint method
+        base_size = control_size
+        control_size = base_size * 1.44  # 44% larger (same as paint method)
+        control_padding = control_size / 2
+        
+        # Create diamond shape using QPainterPath
+        path.moveTo(0, -control_padding)  # Top
+        path.lineTo(control_padding, 0)  # Right
+        path.lineTo(0, control_padding)  # Bottom
+        path.lineTo(-control_padding, 0)  # Left
+        path.closeSubpath()
+        
         return path
 
 
 class ControlDatum(ControlPoint):
     """A control datum graphics item for displaying and editing data values."""
 
-    def __init__(self, getter, setter=None, pos_getter=None,
-                 format_string="{:.3f}", prefix="", suffix="", parent=None):
+    def __init__(self, setter=None, format_string="{:.3f}", prefix="", suffix="", cad_item=None):
         super().__init__(
-            parent=parent,
-            getter=getter, setter=setter)
-        self.pos_getter = pos_getter
+            cad_item=cad_item,
+            setter=setter)
         self.format_string = format_string
         self.prefix = prefix
         self.suffix = suffix
         self._is_editing = False
-        
-        # Set initial position from pos_getter if available
-        self.set_position_from_getter()
+        self._current_value = 0.0
+        self._current_position = QPointF(0, 0)
 
     def get_position(self):
-        """Get the current position, using pos_getter if available."""
-        if self.pos_getter:
-            try:
-                return self.pos_getter()
-            except (RuntimeError, AttributeError, TypeError):
-                pass
-        return QPointF(0, 0)  # Default fallback
+        """Get the current position."""
+        return self._current_position
 
-    def set_position_from_getter(self):
-        """Set the position using the pos_getter callback."""
-        position = self.get_position()
+    def update_datum(self, value, position):
+        """Update both the value and position of the datum."""
+        self._current_value = value
+        self._current_position = position
         self.setPos(position)
+        self.update()  # Trigger repaint
 
     def mousePressEvent(self, event):
-        """Handle mouse press to start editing or allow dragging."""
-        if event.button() == Qt.MouseButton.LeftButton:
-            if self.setter:
-                self.start_editing()
-            else:
-                super().mousePressEvent(event)
-        else:
-            super().mousePressEvent(event)
+        """Mouse events are now handled by the parent CadItem."""
+        # Let the parent CadItem handle all mouse events
+        event.ignore()
 
     def boundingRect(self):
         """Return the bounding rectangle of this datum label."""
         # Defensive check for attributes
         if not hasattr(self, 'prefix') or not hasattr(self, 'suffix') or not hasattr(self, 'format_string'):
             return super().boundingRect()
-            
-        try:
-            if self.getter:
-                value = self.getter()
-            else:
-                return super().boundingRect()
-        except:
-            return super().boundingRect()
 
         # Format text
         if self.prefix and self.suffix:
-            text = f"{self.prefix}{self.format_string.format(value)}{self.suffix}"
+            text = f"{self.prefix}{self.format_string.format(self._current_value)}{self.suffix}"
         elif self.prefix:
-            text = f"{self.prefix}{self.format_string.format(value)}"
+            text = f"{self.prefix}{self.format_string.format(self._current_value)}"
         elif self.suffix:
-            text = f"{self.format_string.format(value)}{self.suffix}"
+            text = f"{self.format_string.format(self._current_value)}{self.suffix}"
         else:
-            text = self.format_string.format(value)
+            text = self.format_string.format(self._current_value)
 
         # Estimate text size
         text_width = len(text) * 8
@@ -305,14 +272,6 @@ class ControlDatum(ControlPoint):
         if self._is_editing:
             return
 
-        try:
-            if self.getter:
-                value = self.getter()
-            else:
-                return
-        except:
-            return
-
         # Set up font
         scale = painter.transform().m11()
         font = QFont("Arial", 12)
@@ -321,13 +280,13 @@ class ControlDatum(ControlPoint):
 
         # Format text
         if self.prefix and self.suffix:
-            text = f"{self.prefix}{self.format_string.format(value)}{self.suffix}"
+            text = f"{self.prefix}{self.format_string.format(self._current_value)}{self.suffix}"
         elif self.prefix:
-            text = f"{self.prefix}{self.format_string.format(value)}"
+            text = f"{self.prefix}{self.format_string.format(self._current_value)}"
         elif self.suffix:
-            text = f"{self.format_string.format(value)}{self.suffix}"
+            text = f"{self.format_string.format(self._current_value)}{self.suffix}"
         else:
-            text = self.format_string.format(value)
+            text = self.format_string.format(self._current_value)
 
         # Calculate text metrics
         font_metrics = QFontMetrics(font)
@@ -373,13 +332,8 @@ class ControlDatum(ControlPoint):
         self._is_editing = True
         self.update()
 
-        try:
-            if self.getter:
-                current_value = self.getter()
-            else:
-                current_value = 0.0
-        except:
-            current_value = 0.0
+        # Use the current stored value
+        current_value = self._current_value
 
         # Create editing dialog
         dialog = QDialog()
@@ -393,14 +347,44 @@ class ControlDatum(ControlPoint):
         label = QLabel("Enter new value:")
         layout.addWidget(label)
 
-        # Add line edit
+        # Add line edit with validation
         line_edit = QLineEdit()
         line_edit.setText(str(current_value))
         line_edit.selectAll()
+        
+        # Create validator for digits, '-', and '.' only
+        from PySide6.QtGui import QRegularExpressionValidator
+        from PySide6.QtCore import QRegularExpression
+        validator = QRegularExpressionValidator(QRegularExpression(r"^-?\d*\.?\d*$"))
+        line_edit.setValidator(validator)
+        
         layout.addWidget(line_edit)
 
         # Add buttons
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        set_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
+        set_button.setText("Set")
+        cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
+        cancel_button.setText("Cancel")
+        
+        # Initially disable Set button until valid input
+        set_button.setEnabled(False)
+        
+        # Connect validation
+        def validate_input():
+            try:
+                text = line_edit.text()
+                if text and text != "-" and text != "." and text != "-.":
+                    float(text)
+                    set_button.setEnabled(True)
+                else:
+                    set_button.setEnabled(False)
+            except ValueError:
+                set_button.setEnabled(False)
+        
+        line_edit.textChanged.connect(validate_input)
+        validate_input()  # Initial validation
+        
         button_box.accepted.connect(lambda: self._finish_editing(dialog, line_edit))
         button_box.rejected.connect(lambda: self._cancel_editing(dialog))
         layout.addWidget(button_box)

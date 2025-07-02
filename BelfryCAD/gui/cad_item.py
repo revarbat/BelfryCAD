@@ -25,6 +25,7 @@ class CadItem(QGraphicsItem):
         super().__init__()
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+        self.setHandlesChildEvents(False)
 
         # Selection animation
         self._selection_animation_offset = 0.0
@@ -40,6 +41,9 @@ class CadItem(QGraphicsItem):
         
         # Track selection state for detecting changes
         self._was_singly_selected = False
+        
+        # Control points are now managed by the scene, not created automatically
+        # QTimer.singleShot(0, self._create_control_points_impl)
 
     def __del__(self):
         """Destructor to ensure timer is stopped."""
@@ -61,18 +65,21 @@ class CadItem(QGraphicsItem):
             else:  # Becoming deselected
                 self._stop_selection_animation()
                 self._clear_decorations()
-                self.destroyControlPoints()
+                self.hideControls()
                 self._was_singly_selected = False
         elif change == QGraphicsItem.GraphicsItemChange.ItemSceneChange:
             # Item is being removed from scene
             if value is None:  # Being removed from scene
                 self._stop_selection_animation()
                 self._clear_decorations()
-                self.destroyControlPoints()
+                self.hideControls()
                 self._was_singly_selected = False
         elif change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             # Update control point positions when the item moves
             self.updateControlPoints()
+            # Ensure controls are shown if still singly selected
+            if self.isSelected() and self._is_singly_selected():
+                self.showControls()
         return super().itemChange(change, value)
 
     def _is_singly_selected(self):
@@ -88,22 +95,14 @@ class CadItem(QGraphicsItem):
         return len(selected_items) == 1 and self in selected_items
 
     def _check_selection_state(self):
-        """Check if control points should be created or destroyed based on selection state."""
-        if self.isSelected():
-            is_singly_selected = self._is_singly_selected()
-            
-            if is_singly_selected:
-                # Single selection - create control points if not already created
-                if not hasattr(self, '_control_point_items') or not self._control_point_items:
-                    self.createControlPoints()
-                self._was_singly_selected = True
-            else:
-                # Multiple selection - destroy control points
-                self.destroyControlPoints()
-                self._was_singly_selected = False
+        """Check if control points should be shown or hidden based on selection state."""
+        if self.isSelected() and self._is_singly_selected():
+            # Single selection - create/show control points
+            self.createControlPoints()
+            self._was_singly_selected = True
         else:
-            # Not selected - destroy control points
-            self.destroyControlPoints()
+            # Not selected or multiple selection - hide control points
+            self.hideControls()
             self._was_singly_selected = False
 
     def _start_selection_animation(self):
@@ -199,30 +198,11 @@ class CadItem(QGraphicsItem):
         self._decoration_items.append(decoration)
 
     def createControlPoints(self):
-        """Create control points for this CAD item. Called when item is singly selected."""
-        # Clear existing control points first
+        """Show control points for this CAD item. Called when item is singly selected."""
+        # Control points are now managed by the scene, not by the CAD item
+        # Clean up any old control points that might exist
         self.destroyControlPoints()
-
-        # Get control point definitions from subclass
-        try:
-            control_points = self._get_control_points()
-        except (RuntimeError, AttributeError, TypeError):
-            return
-
-        # Create graphics items for each control point
-        for cp in control_points:
-            try:
-                # Create control point as child of this item
-                cp.setParentItem(self)
-                
-                # Set up getter and setter callbacks
-                cp.getter = lambda name=cp.name: self._get_control_point_position(name)
-                cp.setter = lambda pos, name=cp.name: self._control_point_changed(name, pos)
-                
-                self._control_point_items.append(cp)
-            except (RuntimeError, AttributeError, TypeError) as e:
-                print(f"Warning: Failed to create control point: {e}")
-                continue
+        pass
 
     def destroyControlPoints(self):
         """Destroy all control points for this CAD item."""
@@ -241,54 +221,47 @@ class CadItem(QGraphicsItem):
         self._control_point_items.clear()
 
     def updateControlPoints(self):
-        """Update control point positions using their getter callbacks."""
-        if not hasattr(self, '_control_point_items') or not self._control_point_items or not self.isSelected():
+        """Update control point positions and values."""
+        if not hasattr(self, '_control_point_items') or not self._control_point_items:
             return
 
-        # Update positions of existing control points using their getters
-        for item in self._control_point_items:
-            try:
-                if item.getter:
-                    # Get current position from the getter callback
-                    current_pos = item.getter()
-                    # Update the control point's position
-                    item.set_position(current_pos)
-            except Exception as e:
-                print(f"Error updating control point position: {e}")
-                continue
+        # Call the subclass implementation to update control points
+        try:
+            self.updateControls()
+        except Exception as e:
+            print(f"Error updating control points: {e}")
 
-    def _get_control_points(self):
-        """Override to return list of control point definitions."""
+    def createControls(self):
+        """Override to create and return a list of control points."""
         return []
 
-    def _get_control_point_position(self, name: str) -> QPointF:
-        """Get the current position of a control point. Override in subclasses."""
-        # Default implementation - subclasses should override this
-        return QPointF(0, 0)
+    def _create_control_points_impl(self):
+        """Create control points immediately after instantiation."""
+        try:
+            control_points = self.createControls()
+            if control_points:
+                self._control_point_items.extend(control_points)
+                # Hide control points by default
+                self.hideControls()
+        except (RuntimeError, AttributeError, TypeError):
+            pass
 
-    def _control_point_changed(self, name: str, new_position: QPointF):
-        """Handle control point changes. Override in subclasses to update geometry."""
-        # Convert from local to scene coordinates for geometry update
-        scene_pos = self.mapToScene(new_position)
-        self._update_geometry_from_control_point(name, scene_pos)
-        # Update control point positions after geometry change
-        self.updateControlPoints()
-
-    def _update_geometry_from_control_point(self, name: str, new_position: QPointF):
-        """Update the CAD item geometry based on control point changes. Override in subclasses."""
+    def updateControls(self):
+        """Override to update control point positions and values."""
         pass
 
-    def mousePressEvent(self, event):
-        """Handle mouse press events."""
-        super().mousePressEvent(event)
+    def hideControls(self):
+        """Hide all control points and control datums for this CAD item."""
+        # Control points are now managed by the scene, not by the CAD item
+        # Clean up any old control points that might exist
+        self.destroyControlPoints()
+        pass
 
-    def mouseMoveEvent(self, event):
-        """Handle mouse move events."""
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        """Handle mouse release events."""
-        super().mouseReleaseEvent(event)
+    def showControls(self):
+        """Show all control points and control datums for this CAD item."""
+        # Control points are now managed by the scene, not by the CAD item
+        # This method is kept for compatibility but does nothing
+        pass
 
     def _clear_decorations(self):
         """Clear all decoration items."""
@@ -311,16 +284,4 @@ class CadItem(QGraphicsItem):
             # Check selection state after mouse release (when selection might have changed)
             if self.isSelected():
                 self._check_selection_state()
-            else:
-                self.destroyControlPoints()
-                self._was_singly_selected = False
         return super().sceneEvent(event)
-
-    def _on_selection_changed(self):
-        """Called when the overall selection in the scene changes."""
-        # This method can be called by the scene or view when selection changes
-        if self.isSelected():
-            self._check_selection_state()
-        else:
-            self.destroyControlPoints()
-            self._was_singly_selected = False

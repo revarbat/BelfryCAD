@@ -73,25 +73,38 @@ class CircleCenterRadiusCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def _get_control_points(self):
-        """Return control points for the circle."""
-        return [
-            SquareControlPoint(
-                parent=self,
-                getter=self._get_center_position,
-                setter=self._set_center_position),
-            ControlPoint(
-                parent=self,
-                getter=self._get_perimeter_position,
-                setter=self._set_perimeter_position),
-            ControlDatum(
-                parent=self,
-                getter=self._get_radius_value,
-                setter=self._set_radius_value,
-                pos_getter=self._get_radius_datum_position,
-                prefix="R"
-            )
-        ]
+    def createControls(self):
+        """Create control points for the circle and return them."""
+        # Create control points with setter callbacks only
+        self._center_cp = SquareControlPoint(
+            cad_item=self,
+            setter=self._set_center_position
+        )
+        self._perimeter_cp = ControlPoint(
+            cad_item=self,
+            setter=self._set_perimeter_position
+        )
+        self._radius_datum = ControlDatum(
+            setter=self._set_radius_value,
+            prefix="R",
+            cad_item=self
+        )
+        self.updateControls()
+        
+        # Return the list of control points
+        return [self._center_cp, self._perimeter_cp, self._radius_datum]
+
+    def updateControls(self):
+        """Update control point positions and values."""
+        if hasattr(self, '_center_cp') and self._center_cp:
+            self._center_cp.setPos(QPointF(0, 0))  # Center is always at origin in local coordinates
+        if hasattr(self, '_perimeter_cp') and self._perimeter_cp:
+            self._perimeter_cp.setPos(self._perimeter_point - self._center_point)  # Convert to local coordinates
+        if hasattr(self, '_radius_datum') and self._radius_datum:
+            # Update both position and value for the datum
+            radius_value = self._get_radius_value()
+            radius_position = self._get_radius_datum_position()
+            self._radius_datum.update_datum(radius_value, radius_position)
 
     def _get_center_position(self) -> QPointF:
         """Get the center position."""
@@ -109,6 +122,7 @@ class CircleCenterRadiusCadItem(CadItem):
         delta = new_position - old_center
         self._perimeter_point += delta
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
     def _get_perimeter_position(self) -> QPointF:
@@ -121,6 +135,7 @@ class CircleCenterRadiusCadItem(CadItem):
         # Update perimeter point in scene coordinates
         self._perimeter_point = new_position
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
     def _get_radius_datum_position(self) -> QPointF:
@@ -135,6 +150,9 @@ class CircleCenterRadiusCadItem(CadItem):
     def _set_radius_value(self, new_radius):
         """Set the radius value."""
         self.radius = new_radius
+        self.prepareGeometryChange()
+        self.updateControls()
+        self.update()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""

@@ -83,29 +83,41 @@ class PolylineCadItem(CadItem):
 
         return False
 
-    def _get_control_points(self):
-        """Return control points for the polyline."""
-        control_points = []
+    def createControls(self):
+        """Create control points for the polyline and return them."""
+        # Create control points with direct setters
+        self._point_control_points = []
         for i in range(len(self._points)):
-            control_points.append(
-                ControlPoint(
-                    parent=self, 
-                    getter=lambda idx=i: self._get_point_position(idx),
-                    setter=lambda pos, ii=i: self._set_point_position(ii, pos))
+            # Use a default argument to capture the current value of i
+            def make_setter(index):
+                return lambda pos: self._set_point(index, pos)
+            
+            cp = ControlPoint(
+                cad_item=self,
+                setter=make_setter(i)
             )
-        return control_points
+            self._point_control_points.append(cp)
+        
+        self.updateControls()
 
-    def _get_point_position(self, index: int) -> QPointF:
-        """Get the position of a specific point."""
-        if 0 <= index < len(self._points):
-            return self._points[index]
-        return QPointF(0, 0)
+        # Return the list of control points
+        return self._point_control_points
 
-    def _set_point_position(self, index: int, new_position: QPointF):
-        """Set the position of a specific point."""
+    def updateControls(self):
+        """Update control point positions."""
+        for i, cp in enumerate(self._point_control_points):
+            if cp and i < len(self._points):
+                # Points are already in local coordinates
+                cp.setPos(self._points[i])
+
+    def _set_point(self, index, new_position):
+        """Set a specific point from control point movement."""
+        # new_position is already in local coordinates
+        
         if 0 <= index < len(self._points):
             self._points[index] = new_position
             self.prepareGeometryChange()
+            self.updateControls()
             self.update()
 
     def paint_item(self, painter, option, widget=None):

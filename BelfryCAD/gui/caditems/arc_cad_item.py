@@ -78,105 +78,77 @@ class ArcCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def _get_control_points(self):
-        """Return control points for the arc."""
-        return [
-            SquareControlPoint(
-                parent=self,
-                getter=self._get_center_position,
-                setter=self._set_center_position),
-            DiamondControlPoint(
-                parent=self,
-                getter=self._get_start_position,
-                setter=self._set_start_position),
-            ControlPoint(
-                parent=self,
-                getter=self._get_end_position,
-                setter=self._set_end_position),
-            ControlDatum(
-                parent=self,
-                getter=self._get_radius_value,
-                setter=self._set_radius_value,
-                pos_getter=self._get_radius_datum_position,
-                prefix="R"
-            )
-        ]
+    def createControls(self):
+        """Create control points for the arc and return them."""
+        # Create control points with direct setters
+        self._center_cp = SquareControlPoint(
+            cad_item=self,
+            setter=self._set_center
+        )
+        self._start_cp = DiamondControlPoint(
+            cad_item=self,
+            setter=self._set_start
+        )
+        self._end_cp = ControlPoint(
+            cad_item=self,
+            setter=self._set_end
+        )
+        self._radius_datum = ControlDatum(
+            setter=self._set_radius_value,
+            prefix="R",
+            cad_item=self
+        )
 
-    def _get_center_position(self) -> QPointF:
-        """Get the center position."""
-        return self._center_point
+        self.updateControls()
+        
+        # Return the list of control points
+        return [self._center_cp, self._start_cp, self._end_cp, self._radius_datum]
 
-    def _set_center_position(self, new_position: QPointF):
-        """Set the center position."""
-        # Moving center: translate start and end points by the same offset
-        offset_x = new_position.x() - self._center_point.x()
-        offset_y = new_position.y() - self._center_point.y()
+    def updateControls(self):
+        """Update control point positions and values."""
+        if hasattr(self, '_center_cp') and self._center_cp:
+            self._center_cp.setPos(QPointF(0, 0))  # Center is always at origin in local coordinates
+        if hasattr(self, '_start_cp') and self._start_cp:
+            self._start_cp.setPos(self._start_point - self._center_point)
+        if hasattr(self, '_end_cp') and self._end_cp:
+            self._end_cp.setPos(self._end_point - self._center_point)
+        if hasattr(self, '_radius_datum') and self._radius_datum:
+            # Update both position and value for the datum
+            radius_value = self._get_radius_value()
+            radius_position = self._get_radius_datum_position()
+            self._radius_datum.update_datum(radius_value, radius_position)
 
-        self._center_point = new_position
-        self._start_point = QPointF(self._start_point.x() + offset_x,
-                                   self._start_point.y() + offset_y)
-        self._end_point = QPointF(self._end_point.x() + offset_x,
-                                 self._end_point.y() + offset_y)
+    def _set_center(self, new_position):
+        """Set the center from control point movement."""
+        # Translate the entire arc
+        scene_delta = self.mapToScene(new_position) - self._center_point
+        self._start_point += scene_delta
+        self._end_point += scene_delta
+        self._center_point += scene_delta
+        self.setPos(self._center_point)
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_start_position(self) -> QPointF:
-        """Get the start position."""
-        return self._start_point
-
-    def _set_start_position(self, new_position: QPointF):
-        """Set the start position."""
-        # Moving start point: changes radius and start angle, preserves relative angle to end point
-        # Calculate the current angular span between start and end points
-        current_start_angle = self._angle_from_center(self._start_point)
-        current_end_angle = self._angle_from_center(self._end_point)
-
-        # Calculate the current span angle (counter-clockwise from start to end)
-        span_angle = current_end_angle - current_start_angle
-        if span_angle < 0:
-            span_angle += 2 * math.pi
-
-        # Calculate the new radius and start angle
-        new_radius = self._distance(self._center_point, new_position)
-        new_start_angle = self._angle_from_center(new_position)
-
+    def _set_start(self, new_position):
+        """Set the start point from control point movement."""
         # Update start point
-        self._start_point = new_position
-
-        # Calculate new end angle by preserving the span
-        new_end_angle = new_start_angle + span_angle
-
-        # Position end point at the new angle with the new radius
-        self._end_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(new_end_angle),
-            self._center_point.y() + new_radius * math.sin(new_end_angle)
-        )
+        scene_pos = self.mapToScene(new_position)
+        self._start_point = scene_pos
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_end_position(self) -> QPointF:
-        """Get the end position."""
-        return self._end_point
-
-    def _set_end_position(self, new_position: QPointF):
-        """Set the end position."""
-        # Moving end point: changes end angle and adjusts start point radius to match
-        # Calculate the new radius from center to end point
-        new_radius = self._distance(self._center_point, new_position)
-
-        # Calculate the current start angle
-        start_angle = self._angle_from_center(self._start_point)
-
+    def _set_end(self, new_position):
+        """Set the end point from control point movement."""
         # Update end point
-        self._end_point = new_position
-
-        # Adjust start point to have the same radius as the new end point
-        # Account for flipped Y-axis: negate the sin component
-        self._start_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(start_angle),
-            self._center_point.y() + new_radius * math.sin(start_angle)
-        )
+        scene_pos = self.mapToScene(new_position)
+        self._end_point = scene_pos
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
     def _get_radius_datum_position(self) -> QPointF:
@@ -208,6 +180,7 @@ class ArcCadItem(CadItem):
         )
 
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
     def paint_item(self, painter, option, widget=None):

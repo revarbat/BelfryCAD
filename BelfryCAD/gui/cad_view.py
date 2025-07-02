@@ -45,7 +45,7 @@ class CadView(QGraphicsView):
         self._update_timer.setInterval(16)  # ~60 FPS
 
     def mousePressEvent(self, event):
-        """Handle mouse press events."""
+        """Handle mouse press events for rubber band selection."""
         if event.button() == Qt.MouseButton.LeftButton:
             # Convert view coordinates to scene coordinates
             scene_pos = self.mapToScene(event.position().toPoint())
@@ -66,8 +66,6 @@ class CadView(QGraphicsView):
                 self._start_pos = scene_pos
                 self._rubber_band_rect = QRectF()
                 self.setCursor(Qt.CursorShape.CrossCursor)
-                # Clear current selection
-                self.scene().clearSelection()
                 # Capture mouse to receive all mouse events
                 self.grabMouse()
                 # Start timer for rubber band updates
@@ -75,31 +73,14 @@ class CadView(QGraphicsView):
                 # Accept the event to prevent further processing
                 event.accept()
             else:
-                # Handle item selection manually
+                # Let the scene handle item selection and interaction
                 self._is_rubber_banding = False
-
-                if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                    # Ctrl+click: toggle selection
-                    item.setSelected(not item.isSelected())
-                    # Don't call super() to prevent Qt from also handling selection
-                    event.accept()
-                elif event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-                    # Shift+click: add to selection (don't deselect others)
-                    item.setSelected(True)
-                    # Don't call super() to prevent Qt from also handling selection
-                    event.accept()
-                else:
-                    # Normal click: only clear selection if clicking on an unselected item
-                    if not item.isSelected():
-                        self.scene().clearSelection()
-                        item.setSelected(True)
-                    # Let Qt handle the rest (like dragging)
-                    super().mousePressEvent(event)
+                super().mousePressEvent(event)
         else:
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        """Handle mouse move events."""
+        """Handle mouse move events for rubber band selection."""
         if self._is_rubber_banding:
             # Update rubber band rectangle in scene coordinates
             current_pos = self.mapToScene(event.position().toPoint())
@@ -110,7 +91,7 @@ class CadView(QGraphicsView):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        """Handle mouse release events."""
+        """Handle mouse release events for rubber band selection."""
         if self._is_rubber_banding and event.button() == Qt.MouseButton.LeftButton:
             # Let the timer handle the selection completion
             event.accept()

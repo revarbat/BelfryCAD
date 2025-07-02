@@ -75,65 +75,87 @@ class CubicBezierCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def _get_control_points(self):
-        """Return control points for the cubic Bezier curve."""
-        return [
-            SquareControlPoint(
-                parent=self,
-                getter=self._get_start_position,
-                setter=self._set_start_position),
-            ControlPoint(
-                parent=self,
-                getter=self._get_control1_position,
-                setter=self._set_control1_position),
-            ControlPoint(
-                parent=self,
-                getter=self._get_control2_position,
-                setter=self._set_control2_position),
-            DiamondControlPoint(
-                parent=self,
-                getter=self._get_end_position,
-                setter=self._set_end_position)
-        ]
+    def createControls(self):
+        """Create control points for the cubic Bezier curve and return them."""
+        # Create control points with direct setters
+        self._start_cp = SquareControlPoint(
+            cad_item=self,
+            setter=self._set_start
+        )
+        self._control1_cp = ControlPoint(
+            cad_item=self,
+            setter=self._set_control1
+        )
+        self._control2_cp = ControlPoint(
+            cad_item=self,
+            setter=self._set_control2
+        )
+        self._end_cp = DiamondControlPoint(
+            cad_item=self,
+            setter=self._set_end
+        )
+        self.updateControls()
+        
+        # Return the list of control points
+        return [self._start_cp, self._control1_cp, self._control2_cp, self._end_cp]
 
-    def _get_start_position(self) -> QPointF:
-        """Get the start point position."""
-        return self._start_point
+    def updateControls(self):
+        """Update control point positions."""
+        if hasattr(self, '_start_cp') and self._start_cp:
+            # Convert scene coordinates to local coordinates
+            local_start = self.mapFromScene(self._start_point)
+            self._start_cp.setPos(local_start)
+        if hasattr(self, '_control1_cp') and self._control1_cp:
+            # Convert scene coordinates to local coordinates
+            local_control1 = self.mapFromScene(self._control1)
+            self._control1_cp.setPos(local_control1)
+        if hasattr(self, '_control2_cp') and self._control2_cp:
+            # Convert scene coordinates to local coordinates
+            local_control2 = self.mapFromScene(self._control2)
+            self._control2_cp.setPos(local_control2)
+        if hasattr(self, '_end_cp') and self._end_cp:
+            # Convert scene coordinates to local coordinates
+            local_end = self.mapFromScene(self._end_point)
+            self._end_cp.setPos(local_end)
 
-    def _set_start_position(self, new_position: QPointF):
-        """Set the start point position."""
-        self._start_point = new_position
+    def _set_start(self, new_position):
+        """Set start point from control point movement."""
+        # Convert local coordinates to scene coordinates
+        scene_position = self.mapToScene(new_position)
+        self._start_point = scene_position
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_control1_position(self) -> QPointF:
-        """Get the control1 position."""
-        return self._control1
-
-    def _set_control1_position(self, new_position: QPointF):
-        """Set the control1 position."""
-        self._control1 = new_position
+    def _set_control1(self, new_position):
+        """Set control1 point from control point movement."""
+        # Convert local coordinates to scene coordinates
+        scene_position = self.mapToScene(new_position)
+        self._control1 = scene_position
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_control2_position(self) -> QPointF:
-        """Get the control2 position."""
-        return self._control2
-
-    def _set_control2_position(self, new_position: QPointF):
-        """Set the control2 position."""
-        self._control2 = new_position
+    def _set_control2(self, new_position):
+        """Set control2 point from control point movement."""
+        # Convert local coordinates to scene coordinates
+        scene_position = self.mapToScene(new_position)
+        self._control2 = scene_position
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_end_position(self) -> QPointF:
-        """Get the end point position."""
-        return self._end_point
-
-    def _set_end_position(self, new_position: QPointF):
-        """Set the end point position."""
-        self._end_point = new_position
+    def _set_end(self, new_position):
+        """Set end point from control point movement."""
+        # Convert local coordinates to scene coordinates
+        scene_position = self.mapToScene(new_position)
+        self._end_point = scene_position
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
     def paint_item(self, painter, option, widget=None):

@@ -3,10 +3,14 @@ LineCadItem - A line CAD item defined by two points.
 """
 
 import math
-from PySide6.QtCore import QPointF, QRectF
-from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
+from PySide6.QtCore import QPointF
+from PySide6.QtGui import (
+    QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
+)
 from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint
+from BelfryCAD.gui.control_points import (
+    ControlPoint, SquareControlPoint, DiamondControlPoint
+)
 from BelfryCAD.gui.cad_rect import CadRect
 
 
@@ -66,69 +70,75 @@ class LineCadItem(CadItem):
             local_point, self._start_point, self._end_point)
         return distance <= tolerance
 
-    def _get_control_points(self):
-        """Return control points for the line."""
-        return [
-            SquareControlPoint(
-                parent=self,
-                getter=self._get_start_position,
-                setter=self._set_start_position),
-            ControlPoint(
-                parent=self,
-                getter=self._get_end_position,
-                setter=self._set_end_position),
-            ControlPoint(
-                parent=self,
-                getter=self._get_midpoint_position,
-                setter=self._set_midpoint_position)
-        ]
+    def createControls(self):
+        """Create control points for the line and return them."""
+        # Create control points with direct setters
+        self._start_cp = SquareControlPoint(
+            cad_item=self,
+            setter=self._set_start_point
+        )
+        self._end_cp = ControlPoint(
+            cad_item=self,
+            setter=self._set_end_point
+        )
+        self._mid_cp = DiamondControlPoint(
+            cad_item=self,
+            setter=self._set_mid_point
+        )
+        self.updateControls()
 
-    def _get_start_position(self) -> QPointF:
-        """Get the start point position."""
-        return self._start_point
+        # Return the list of control points
+        return [self._start_cp, self._end_cp, self._mid_cp]
 
-    def _set_start_position(self, new_position: QPointF):
-        """Set the start point position."""
+    def updateControls(self):
+        """Update control point positions."""
+        if hasattr(self, '_start_cp') and self._start_cp:
+            # Points are already in local coordinates
+            self._start_cp.setPos(self._start_point)
+        if hasattr(self, '_end_cp') and self._end_cp:
+            # Points are already in local coordinates
+            self._end_cp.setPos(self._end_point)
+        if hasattr(self, '_mid_cp') and self._mid_cp:
+            # Midpoint is already in local coordinates
+            self._mid_cp.setPos(self.midpoint)
+
+    def _set_start_point(self, new_position):
+        """Set the start point from control point movement."""
+        # new_position is already in local coordinates
+        
         # When start point moves, move end point to maintain the same relative position
-        # Calculate the current vector from start to end
         current_vector = QPointF(self._end_point.x() - self._start_point.x(),
                                self._end_point.y() - self._start_point.y())
-
-        # Update start point
         self._start_point = new_position
-
-        # Move end point by the same vector from the new start position
         self._end_point = QPointF(new_position.x() + current_vector.x(),
                                  new_position.y() + current_vector.y())
-
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_end_position(self) -> QPointF:
-        """Get the end point position."""
-        return self._end_point
-
-    def _set_end_position(self, new_position: QPointF):
-        """Set the end point position."""
+    def _set_end_point(self, new_position):
+        """Set the end point from control point movement."""
+        # new_position is already in local coordinates
         self._end_point = new_position
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
-    def _get_midpoint_position(self) -> QPointF:
-        """Get the midpoint position."""
-        return self.midpoint
-
-    def _set_midpoint_position(self, new_position: QPointF):
-        """Set the midpoint position."""
+    def _set_mid_point(self, new_position):
+        """Set the midpoint from control point movement."""
+        # new_position is already in local coordinates
+        
         # Calculate the vector from start to new midpoint
         start_to_mid = QPointF(new_position.x() - self._start_point.x(),
                               new_position.y() - self._start_point.y())
-
         # The end point should be equidistant on the opposite side
         self._end_point = QPointF(new_position.x() + start_to_mid.x(),
                                  new_position.y() + start_to_mid.y())
-
+        
         self.prepareGeometryChange()
+        self.updateControls()
         self.update()
 
     def paint_item(self, painter, option, widget=None):
