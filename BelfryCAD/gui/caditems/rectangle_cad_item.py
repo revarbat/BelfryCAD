@@ -138,10 +138,6 @@ class RectangleCadItem(CadItem):
         # Bottom-left keeps its X coordinate, takes new Y from top-left
         self._bottom_left = QPointF(scene_position.x(), self._bottom_left.y())
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_top_right(self, new_position):
         """Set the top-right corner from control point movement."""
         # Convert local coordinates to scene coordinates
@@ -154,10 +150,6 @@ class RectangleCadItem(CadItem):
         # Bottom-right keeps its X coordinate, takes new Y from top-right
         self._bottom_right = QPointF(scene_position.x(), self._bottom_right.y())
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_bottom_right(self, new_position):
         """Set the bottom-right corner from control point movement."""
         # Convert local coordinates to scene coordinates
@@ -170,10 +162,6 @@ class RectangleCadItem(CadItem):
         # Top-right keeps its X coordinate, takes new Y from bottom-right
         self._top_right = QPointF(scene_position.x(), self._top_right.y())
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_bottom_left(self, new_position):
         """Set the bottom-left corner from control point movement."""
         # Convert local coordinates to scene coordinates
@@ -186,10 +174,6 @@ class RectangleCadItem(CadItem):
         # Top-left keeps its X coordinate, takes new Y from bottom-left
         self._top_left = QPointF(scene_position.x(), self._top_left.y())
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_center(self, new_position):
         """Set the center from control point movement."""
         # Convert local coordinates to scene coordinates
@@ -207,10 +191,6 @@ class RectangleCadItem(CadItem):
         self._top_right = QPointF(self._top_right.x() + offset_x, self._top_right.y() + offset_y)
         self._bottom_right = QPointF(self._bottom_right.x() + offset_x, self._bottom_right.y() + offset_y)
         self._bottom_left = QPointF(self._bottom_left.x() + offset_x, self._bottom_left.y() + offset_y)
-        
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the rectangle content."""

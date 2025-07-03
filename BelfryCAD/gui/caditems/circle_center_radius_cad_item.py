@@ -95,11 +95,11 @@ class CircleCenterRadiusCadItem(CadItem):
         return [self._center_cp, self._perimeter_cp, self._radius_datum]
 
     def updateControls(self):
-        """Update control point positions and values."""
+        """Update control point positions and values."""        
         if hasattr(self, '_center_cp') and self._center_cp:
-            self._center_cp.setPos(QPointF(0, 0))  # Center is always at origin in local coordinates
+            self._center_cp.setPos(self._center_point)  # Center is always at origin in local coordinates
         if hasattr(self, '_perimeter_cp') and self._perimeter_cp:
-            self._perimeter_cp.setPos(self._perimeter_point - self._center_point)  # Convert to local coordinates
+            self._perimeter_cp.setPos(self._perimeter_point)  # Convert to local coordinates
         if hasattr(self, '_radius_datum') and self._radius_datum:
             # Update both position and value for the datum
             radius_value = self._get_radius_value()
@@ -121,9 +121,6 @@ class CircleCenterRadiusCadItem(CadItem):
         # Update perimeter point to maintain the same relative position
         delta = new_position - old_center
         self._perimeter_point += delta
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def _get_perimeter_position(self) -> QPointF:
         """Get the perimeter position."""
@@ -134,14 +131,11 @@ class CircleCenterRadiusCadItem(CadItem):
         # new_position is in scene coordinates
         # Update perimeter point in scene coordinates
         self._perimeter_point = new_position
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
         sc = math.sin(math.pi/4)
-        return QPointF(self.radius * sc, self.radius * sc)
+        return QPointF(self.radius * sc, self.radius * sc) + self._center_point
 
     def _get_radius_value(self):
         """Get the current radius value."""
@@ -150,9 +144,6 @@ class CircleCenterRadiusCadItem(CadItem):
     def _set_radius_value(self, new_radius):
         """Set the radius value."""
         self.radius = new_radius
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""

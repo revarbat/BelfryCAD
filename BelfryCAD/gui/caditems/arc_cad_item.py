@@ -107,11 +107,11 @@ class ArcCadItem(CadItem):
     def updateControls(self):
         """Update control point positions and values."""
         if hasattr(self, '_center_cp') and self._center_cp:
-            self._center_cp.setPos(QPointF(0, 0))  # Center is always at origin in local coordinates
+            self._center_cp.setPos(self._center_point)
         if hasattr(self, '_start_cp') and self._start_cp:
-            self._start_cp.setPos(self._start_point - self._center_point)
+            self._start_cp.setPos(self._start_point)
         if hasattr(self, '_end_cp') and self._end_cp:
-            self._end_cp.setPos(self._end_point - self._center_point)
+            self._end_cp.setPos(self._end_point)
         if hasattr(self, '_radius_datum') and self._radius_datum:
             # Update both position and value for the datum
             radius_value = self._get_radius_value()
@@ -121,36 +121,32 @@ class ArcCadItem(CadItem):
     def _set_center(self, new_position):
         """Set the center from control point movement."""
         # Translate the entire arc
-        scene_delta = self.mapToScene(new_position) - self._center_point
+        scene_delta = new_position - self._center_point
         self._start_point += scene_delta
         self._end_point += scene_delta
         self._center_point += scene_delta
-        self.setPos(self._center_point)
+        #self.setPos(self._center_point)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_start(self, new_position):
         """Set the start point from control point movement."""
-        # Update start point
-        scene_pos = self.mapToScene(new_position)
-        self._start_point = scene_pos
+        self._start_point = new_position
+        end_angle = self._angle_from_center(self._end_point)
+        new_radius = self._distance(self._center_point, new_position)
+        self._end_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(end_angle),
+            self._center_point.y() + new_radius * math.sin(end_angle)
+        )
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_end(self, new_position):
         """Set the end point from control point movement."""
-        # Update end point
-        scene_pos = self.mapToScene(new_position)
-        self._end_point = scene_pos
+        self._end_point = new_position
+        start_angle = self._angle_from_center(self._start_point)
+        new_radius = self._distance(self._center_point, new_position)
+        self._start_point = QPointF(
+            self._center_point.x() + new_radius * math.cos(start_angle),
+            self._center_point.y() + new_radius * math.sin(start_angle)
+        )
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
         sc = math.sin(math.pi/4)
@@ -179,10 +175,6 @@ class ArcCadItem(CadItem):
             self._center_point.y() + new_radius * math.sin(end_angle)
         )
 
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def paint_item(self, painter, option, widget=None):
         """Draw the arc content."""
         painter.save()
@@ -196,6 +188,14 @@ class ArcCadItem(CadItem):
         # Draw the arc
         arc_path = self._create_arc_path()
         painter.drawPath(arc_path)
+
+        if self.isSelected():
+            pen = QPen(QColor(127, 127, 127), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2.0, 2.0])
+            painter.setPen(pen)
+            painter.drawLine(self._center_point, self._start_point)
+            painter.drawLine(self._center_point, self._end_point)
 
         painter.restore()
 

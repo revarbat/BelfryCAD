@@ -112,19 +112,11 @@ class LineCadItem(CadItem):
         self._start_point = new_position
         self._end_point = QPointF(new_position.x() + current_vector.x(),
                                  new_position.y() + current_vector.y())
-        
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def _set_end_point(self, new_position):
         """Set the end point from control point movement."""
         # new_position is already in local coordinates
         self._end_point = new_position
-        
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def _set_mid_point(self, new_position):
         """Set the midpoint from control point movement."""
@@ -136,10 +128,6 @@ class LineCadItem(CadItem):
         # The end point should be equidistant on the opposite side
         self._end_point = QPointF(new_position.x() + start_to_mid.x(),
                                  new_position.y() + start_to_mid.y())
-        
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the line content."""

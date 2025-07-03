@@ -253,8 +253,6 @@ class CadScene(QGraphicsScene):
         """Handle dragging of a control point."""
         if not self._dragging_control_point:
             return
-        if not hasattr(self._dragging_control_point, 'setter'):
-            return
         if not self._dragging_control_point.isVisible():
             return
 
@@ -263,10 +261,8 @@ class CadScene(QGraphicsScene):
         cad_item = cp.cad_item if hasattr(cp, 'cad_item') else None
         
         if cad_item:
-            # Call the setter with the scene coordinates
-            self._dragging_control_point.setter(scene_pos)
-            # Update the scene control point position
             self._dragging_control_point.setPos(scene_pos)
+            self._dragging_control_point.call_setter_with_updates(scene_pos)
         
         event.accept()
 
@@ -386,41 +382,16 @@ class CadScene(QGraphicsScene):
             # Get control points from the CAD item
             control_points = cad_item.createControls()
             if control_points:
-                # Store control points in scene coordinates
-                scene_control_points = []
                 for cp in control_points:
                     if cp:
-                        # Convert control point to scene coordinates
-                        scene_cp = self._convert_control_point_to_scene(cp, cad_item)
-                        if scene_cp:
-                            scene_control_points.append(scene_cp)
-                            self.addItem(scene_cp)
+                        self.addItem(cp)
                 
-                self._control_points[cad_item] = scene_control_points
+                self._control_points[cad_item] = control_points
                 
                 # Update control point positions after creation
                 self._update_control_points_for_item(cad_item)
         except Exception as e:
             print(f"Error creating control points: {e}")
-
-    def _convert_control_point_to_scene(self, control_point, cad_item: CadItem):
-        """Convert a control point to scene coordinates."""
-        # Create a new control point in scene coordinates
-        scene_cp = ControlPoint(
-            cad_item=cad_item,
-            setter=control_point.setter
-        )
-        
-        # Set the position in scene coordinates
-        if hasattr(control_point, 'pos'):
-            scene_pos = cad_item.mapToScene(control_point.pos())
-            scene_cp.setPos(scene_pos)
-        elif hasattr(control_point, 'x') and hasattr(control_point, 'y'):
-            # If the control point has x,y coordinates directly
-            scene_pos = cad_item.mapToScene(QPointF(control_point.x(), control_point.y()))
-            scene_cp.setPos(scene_pos)
-        
-        return scene_cp
 
     def _update_control_points_for_item(self, cad_item: CadItem):
         """Update control point positions for a CAD item."""
@@ -431,17 +402,6 @@ class CadScene(QGraphicsScene):
         if hasattr(cad_item, 'updateControls'):
             cad_item.updateControls()
         
-        # Update scene control point positions
-        for i, scene_cp in enumerate(self._control_points[cad_item]):
-            if scene_cp and hasattr(cad_item, '_control_point_items'):
-                if i < len(cad_item._control_point_items):
-                    # Get the local control point position
-                    local_cp = cad_item._control_point_items[i]
-                    if local_cp:
-                        # Convert to scene coordinates
-                        scene_pos = cad_item.mapToScene(local_cp.pos())
-                        scene_cp.setPos(scene_pos)
-
     def _update_selection_state(self):
         """Update selection state and control points."""
         # This method can be called periodically to ensure consistency

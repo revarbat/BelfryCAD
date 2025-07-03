@@ -7,7 +7,9 @@ import math
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
+from BelfryCAD.gui.control_points import (
+    ControlPoint, SquareControlPoint, ControlDatum, DiamondControlPoint
+)
 from BelfryCAD.gui.cad_rect import CadRect
 
 
@@ -126,7 +128,7 @@ class ArcCornerCadItem(CadItem):
             cad_item=self,
             setter=self._set_ray2
         )
-        self._center_cp = SquareControlPoint(
+        self._center_cp = DiamondControlPoint(
             cad_item=self,
             setter=self._set_center
         )
@@ -143,13 +145,13 @@ class ArcCornerCadItem(CadItem):
     def updateControls(self):
         """Update control point positions and values."""
         if hasattr(self, '_corner_cp') and self._corner_cp:
-            self._corner_cp.setPos(self._corner_point - self._calculated_center)
+            self._corner_cp.setPos(self._corner_point)
         if hasattr(self, '_ray1_cp') and self._ray1_cp:
-            self._ray1_cp.setPos(self._ray1_point - self._calculated_center)
+            self._ray1_cp.setPos(self._ray1_point)
         if hasattr(self, '_ray2_cp') and self._ray2_cp:
-            self._ray2_cp.setPos(self._ray2_point - self._calculated_center)
+            self._ray2_cp.setPos(self._ray2_point)
         if hasattr(self, '_center_cp') and self._center_cp:
-            self._center_cp.setPos(QPointF(0, 0))
+            self._center_cp.setPos(self._center_point)
         if not self._is_valid:
             return
         if hasattr(self, '_radius_datum') and self._radius_datum:
@@ -161,56 +163,39 @@ class ArcCornerCadItem(CadItem):
     def _set_corner(self, new_position):
         """Set corner point from control point movement."""
         # When corner moves, recalculate and update center spec point
-        local_pos = self.mapToScene(new_position)
-        self._corner_point = local_pos
+        delta = new_position - self._corner_point
+        self._corner_point = new_position
+        self._ray1_point += delta
+        self._ray2_point += delta
+        self._center_point += delta
         self._calculate_arc(update_center_spec=True)
         self.setPos(self._calculated_center)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_ray1(self, new_position):
         """Set ray1 point from control point movement."""
         # When ray1 moves, recalculate and update center spec point
-        local_pos = self.mapToScene(new_position)
-        self._ray1_point = local_pos
+        self._ray1_point = new_position
         self._calculate_arc(update_center_spec=True)
         self.setPos(self._calculated_center)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_ray2(self, new_position):
         """Set ray2 point from control point movement."""
         # When ray2 moves, recalculate and update center spec point
-        local_pos = self.mapToScene(new_position)
-        self._ray2_point = local_pos
+        self._ray2_point = new_position
         self._calculate_arc(update_center_spec=True)
         self.setPos(self._calculated_center)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_center(self, new_position):
         """Set center from control point movement."""
         # Constrain center movement to the angle bisector
-        local_pos = self.mapToScene(new_position)
-        self._move_center_along_bisector(local_pos)
+        self._move_center_along_bisector(new_position)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
         if not self._is_valid:
-            return QPointF(0, 0)
-        import math
+            return self._corner_point
         sc = math.sin(math.pi/4)
-        return QPointF(self._radius * sc, self._radius * sc)
+        return QPointF(self._radius * sc, self._radius * sc) + self._calculated_center
 
     def _get_radius_value(self):
         """Get the current radius value."""
@@ -221,43 +206,6 @@ class ArcCornerCadItem(CadItem):
         if new_radius > 0:
             # Use the same logic as circle corner item
             self._set_radius(new_radius)
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
-    def _update_geometry_from_control_point(self, name: str, new_position: QPointF):
-        """Update the CAD item geometry based on control point changes."""
-        self.prepareGeometryChange()
-        local_pos = self.mapToScene(new_position)
-
-        if name == 'center' and self._is_valid:
-            # Constrain center movement to the angle bisector
-            self._move_center_along_bisector(local_pos)
-        elif name == 'corner':
-            # When corner moves, recalculate and update center spec point
-            self._corner_point = local_pos
-            self._calculate_arc(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'ray1':
-            # When ray1 moves, recalculate and update center spec point
-            self._ray1_point = local_pos
-            self._calculate_arc(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
-        elif name == 'ray2':
-            # When ray2 moves, recalculate and update center spec point
-            self._ray2_point = local_pos
-            self._calculate_arc(update_center_spec=True)
-            self.setPos(self._calculated_center)
-            self.prepareGeometryChange()
-            self.update()
-        elif name in ['tangent1', 'tangent2']:
-            # Tangent points are read-only (calculated from other points)
-            # Don't allow direct manipulation
-            pass
 
     def paint_item(self, painter, option, widget=None):
         """Draw the arc and construction lines."""
@@ -265,6 +213,11 @@ class ArcCornerCadItem(CadItem):
 
         pen = QPen(self._color, self._line_width)
         painter.setPen(pen)
+
+        # Convert points to local coordinates
+        corner_local = self._corner_point - self._calculated_center
+        ray1_local = self._ray1_point - self._calculated_center
+        ray2_local = self._ray2_point - self._calculated_center
 
         if self._is_valid and self._radius > 0:
             # Draw the arc
@@ -276,14 +229,39 @@ class ArcCornerCadItem(CadItem):
             construction_pen.setStyle(Qt.PenStyle.DashDotLine)
             painter.setPen(construction_pen)
 
-            # Convert points to local coordinates
-            corner_local = self._corner_point - self._calculated_center
-            ray1_local = self._ray1_point - self._calculated_center
-            ray2_local = self._ray2_point - self._calculated_center
-
             # Draw lines to show the invalid configuration
             painter.drawLine(corner_local, ray1_local)
             painter.drawLine(corner_local, ray2_local)
+
+        if self.isSelected():
+            pen = QPen(QColor(127, 127, 127), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2.0, 2.0])
+            painter.setPen(pen)
+            center_local = self._center_point - self._calculated_center
+            painter.drawLine(corner_local, ray1_local)
+            painter.drawLine(corner_local, ray2_local)
+            painter.drawLine(corner_local, center_local)
+
+            if self._is_valid:
+                # Calculate ray vectors from corner
+                ray1_vec = self._ray1_point - self._corner_point
+                ray2_vec = self._ray2_point - self._corner_point
+
+                # Normalize ray vectors
+                ray1_len = math.sqrt(ray1_vec.x() ** 2 + ray1_vec.y() ** 2)
+                ray2_len = math.sqrt(ray2_vec.x() ** 2 + ray2_vec.y() ** 2)
+
+                ray1_unit = QPointF(ray1_vec.x() / ray1_len, ray1_vec.y() / ray1_len)
+                ray2_unit = QPointF(ray2_vec.x() / ray2_len, ray2_vec.y() / ray2_len)
+
+                tang_point1 = self._find_tangent_point(self._corner_point, ray1_unit) - self._center_point
+                tang_point2 = self._find_tangent_point(self._corner_point, ray2_unit) - self._center_point
+
+                painter.drawLine(tang_point1, QPointF(0, 0))
+                painter.drawLine(tang_point2, QPointF(0, 0))
+                rect = QRectF(-self.radius,-self.radius, 2 * self._radius, 2 * self._radius)
+                painter.drawEllipse(rect)
 
         painter.restore()
 
@@ -375,6 +353,9 @@ class ArcCornerCadItem(CadItem):
             self._tangent_point2.x() - self._calculated_center.x()
         )
 
+        self._ray1_point = self._tangent_point1
+        self._ray2_point = self._tangent_point2
+        
         # Determine the shorter arc direction
         angle_diff = self._end_angle - self._start_angle
         if angle_diff > math.pi:
@@ -529,32 +510,6 @@ class ArcCornerCadItem(CadItem):
         path.arcTo(rect, -angle1_deg, -sweep_angle)
 
         return path
-
-    def _create_decorations(self):
-        """Create decoration items for this arc."""
-        if self._is_valid and self._radius > 0:
-            # Add dashed circle outline
-            self._add_dashed_circle(QPointF(0, 0), self._radius)
-
-            # Add radius lines to tangent points
-            tangent1_local = self._tangent_point1 - self._calculated_center
-            tangent2_local = self._tangent_point2 - self._calculated_center
-            corner_local = self._corner_point - self._calculated_center
-
-            self._add_radius_lines(
-                QPointF(0, 0),
-                [tangent1_local, tangent2_local, corner_local]
-            )
-
-            # Add dashed rays from corner
-            corner_local = self._corner_point - self._calculated_center
-            ray1_local = self._ray1_point - self._calculated_center
-            ray2_local = self._ray2_point - self._calculated_center
-
-            self._add_dashed_lines([
-                (corner_local, ray1_local),
-                (corner_local, ray2_local)
-            ])
 
     def set_points(self, corner_point, ray1_point, ray2_point, center_point):
         """Set all four points at once."""

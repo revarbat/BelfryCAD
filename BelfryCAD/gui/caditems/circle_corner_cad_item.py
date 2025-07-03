@@ -168,10 +168,6 @@ class CircleCornerCadItem(CadItem):
         self._calculate_circle(update_center_spec=True)
         self.setPos(self._calculated_center)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_ray1(self, new_position):
         """Set ray1 point from control point movement."""
         # When ray1 moves, recalculate and update center spec point
@@ -180,10 +176,6 @@ class CircleCornerCadItem(CadItem):
         self._calculate_circle(update_center_spec=True)
         self.setPos(self._calculated_center)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_ray2(self, new_position):
         """Set ray2 point from control point movement."""
         # When ray2 moves, recalculate and update center spec point
@@ -192,20 +184,12 @@ class CircleCornerCadItem(CadItem):
         self._calculate_circle(update_center_spec=True)
         self.setPos(self._calculated_center)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_center(self, new_position):
         """Set center from control point movement."""
         # Constrain center movement to the angle bisector
         local_pos = self.mapToScene(new_position)
         self._move_center_along_bisector(local_pos)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
         if not self._is_valid:

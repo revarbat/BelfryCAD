@@ -124,19 +124,11 @@ class CubicBezierCadItem(CadItem):
         scene_position = self.mapToScene(new_position)
         self._start_point = scene_position
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_control1(self, new_position):
         """Set control1 point from control point movement."""
         # Convert local coordinates to scene coordinates
         scene_position = self.mapToScene(new_position)
         self._control1 = scene_position
-        
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def _set_control2(self, new_position):
         """Set control2 point from control point movement."""
@@ -144,20 +136,12 @@ class CubicBezierCadItem(CadItem):
         scene_position = self.mapToScene(new_position)
         self._control2 = scene_position
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_end(self, new_position):
         """Set end point from control point movement."""
         # Convert local coordinates to scene coordinates
         scene_position = self.mapToScene(new_position)
         self._end_point = scene_position
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def paint_item(self, painter, option, widget=None):
         """Draw the Bezier curve content."""
         painter.save()
@@ -174,28 +158,22 @@ class CubicBezierCadItem(CadItem):
 
         painter.restore()
 
+        if self.isSelected():
+            painter.save()
+            pen = QPen(QColor(127, 127, 127), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2.0, 2.0])
+            painter.setPen(pen)
+            painter.drawLine(self._start_point, self._control1)
+            painter.drawLine(self._control2, self._end_point)
+            painter.restore()
+
     def _create_bezier_path(self):
         """Create the Bezier curve path."""
         path = QPainterPath()
         path.moveTo(self._start_point)
         path.cubicTo(self._control1, self._control2, self._end_point)
         return path
-
-    def _draw_decorations(self, painter):
-        """Draw control polygon when selected."""
-        painter.save()
-
-        # Draw control polygon (dashed lines connecting control points)
-        control_pen = QPen(QColor(128, 128, 128), 3.0)
-        control_pen.setCosmetic(True)
-        #control_pen.setDashPattern([4.0, 4.0])  # Dashed line
-        painter.setPen(control_pen)
-
-        # Draw lines: start->control1, control1->control2, control2->end
-        painter.drawLine(self._start_point, self._control1)
-        painter.drawLine(self._control2, self._end_point)
-
-        painter.restore()
 
     @property
     def start_point(self):

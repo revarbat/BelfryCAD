@@ -116,9 +116,6 @@ class PolylineCadItem(CadItem):
         
         if 0 <= index < len(self._points):
             self._points[index] = new_position
-            self.prepareGeometryChange()
-            self.updateControls()
-            self.update()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the polyline content."""

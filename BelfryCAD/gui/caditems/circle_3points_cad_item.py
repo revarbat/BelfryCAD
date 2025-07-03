@@ -232,29 +232,17 @@ class Circle3PointsCadItem(CadItem):
     def updateControls(self):
         """Update control point positions and values."""
         if hasattr(self, '_point1_cp') and self._point1_cp:
-            if self.is_line:
-                midpoint = self._get_midpoint()
-                self._point1_cp.setPos(self._point1 - midpoint)
-            else:
-                self._point1_cp.setPos(self._point1 - self._center)
+            self._point1_cp.setPos(self._point1)
         
         if hasattr(self, '_point2_cp') and self._point2_cp:
-            if self.is_line:
-                midpoint = self._get_midpoint()
-                self._point2_cp.setPos(self._point2 - midpoint)
-            else:
-                self._point2_cp.setPos(self._point2 - self._center)
+            self._point2_cp.setPos(self._point2)
         
         if hasattr(self, '_point3_cp') and self._point3_cp:
-            if self.is_line:
-                midpoint = self._get_midpoint()
-                self._point3_cp.setPos(self._point3 - midpoint)
-            else:
-                self._point3_cp.setPos(self._point3 - self._center)
+            self._point3_cp.setPos(self._point3)
         
         if not self._is_line:
             if hasattr(self, '_center_cp') and self._center_cp:
-                self._center_cp.setPos(QPointF(0, 0))  # Center is always at origin in local coordinates
+                self._center_cp.setPos(self.center_point)  # Center is always at origin in local coordinates
             if hasattr(self, '_radius_datum') and self._radius_datum:
                 # Update both position and value for the datum
                 radius_value = self._get_radius_value()
@@ -263,31 +251,16 @@ class Circle3PointsCadItem(CadItem):
 
     def _set_point1(self, new_position):
         """Set point1 from control point movement."""
-        local_pos = self.mapToScene(new_position)
-        self.point1 = local_pos
+        self.point1 = new_position
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_point2(self, new_position):
         """Set point2 from control point movement."""
-        local_pos = self.mapToScene(new_position)
-        self.point2 = local_pos
+        self.point2 = new_position
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_point3(self, new_position):
         """Set point3 from control point movement."""
-        local_pos = self.mapToScene(new_position)
-        self.point3 = local_pos
+        self.point3 = new_position
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_center(self, new_position):
         """Set center from control point movement."""
         if not self.is_line:
@@ -300,17 +273,12 @@ class Circle3PointsCadItem(CadItem):
             self._center += scene_delta
             self.setPos(self.center_point)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
         if self.is_line:
-            return QPointF(0, 0)  # No radius datum for lines
-        import math
+            return self._point1  # No radius datum for lines
         sc = math.sin(math.pi/4)
-        return QPointF(self._radius * sc, self._radius * sc)
+        return QPointF(self._radius * sc, self._radius * sc) + self._center
 
     def _get_radius_value(self):
         """Get the current radius value."""
@@ -344,9 +312,6 @@ class Circle3PointsCadItem(CadItem):
         self._point3 = new_point3
         self._calculate_circle()
         self.setPos(self._center)
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def _get_midpoint(self):
         """Get the midpoint between point1 and point3."""

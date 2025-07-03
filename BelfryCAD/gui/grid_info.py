@@ -158,7 +158,7 @@ class GridInfo(object):
         unit_scale = self.unit_scale
         spacings = [
             space * unit_scale for space in self.grid_spacings
-            if space * unit_scale * scaling >= 15.0
+            if space * unit_scale * scaling >= 10.0
         ]
         if len(spacings) > 4:
             spacings = spacings[-4:]

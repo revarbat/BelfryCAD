@@ -102,11 +102,11 @@ class Circle2PointsCadItem(CadItem):
     def updateControls(self):
         """Update control point positions and values."""
         if hasattr(self, '_point1_cp') and self._point1_cp:
-            self._point1_cp.setPos(self._point1 - self.center_point)
+            self._point1_cp.setPos(self._point1)
         if hasattr(self, '_point2_cp') and self._point2_cp:
-            self._point2_cp.setPos(self._point2 - self.center_point)
+            self._point2_cp.setPos(self._point2)
         if hasattr(self, '_center_cp') and self._center_cp:
-            self._center_cp.setPos(QPointF(0, 0))  # Center is always at origin in local coordinates
+            self._center_cp.setPos(self.center_point)  # Center is always at origin in local coordinates
         if hasattr(self, '_radius_datum') and self._radius_datum:
             # Update both position and value for the datum
             radius_value = self._get_radius_value()
@@ -116,43 +116,28 @@ class Circle2PointsCadItem(CadItem):
     def _set_point1(self, new_position):
         """Set point1 from control point movement."""
         # Change point1 position
-        scene_pos = self.mapToScene(new_position)
-        self._point1 = scene_pos
+        self._point1 = new_position
         self.setPos(self.center_point)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_point2(self, new_position):
         """Set point2 from control point movement."""
         # Change point2 position
-        scene_pos = self.mapToScene(new_position)
-        self._point2 = scene_pos
+        self._point2 = new_position
         self.setPos(self.center_point)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _set_center(self, new_position):
         """Set center from control point movement."""
         # Translate the entire circle (both points)
         # Calculate the delta from current center (which is at origin in local coords)
-        delta = new_position  # new_position is the delta from origin
-        scene_delta = self.mapToScene(delta) - self.mapToScene(QPointF(0, 0))
+        scene_delta = new_position - self.center_point
         self._point1 += scene_delta
         self._point2 += scene_delta
         self.setPos(self.center_point)
         
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
-
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
         sc = math.sin(math.pi/4)
-        return QPointF(self.radius * sc, self.radius * sc)
+        return QPointF(self.radius * sc, self.radius * sc) + self.center_point
 
     def _get_radius_value(self):
         """Get the current radius value."""
@@ -161,9 +146,6 @@ class Circle2PointsCadItem(CadItem):
     def _set_radius_value(self, new_radius):
         """Set the radius value."""
         self.radius = new_radius
-        self.prepareGeometryChange()
-        self.updateControls()
-        self.update()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""

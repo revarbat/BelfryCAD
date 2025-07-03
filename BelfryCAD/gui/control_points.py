@@ -34,14 +34,24 @@ class ControlPoint(QGraphicsItem):
         # Set high Z value to appear above other items
         self.setZValue(10000)
 
-    def set_position(self, new_position):
-        """Set the position, using setter if available."""
-        if self.setter:
+    def call_setter_with_updates(self, value):
+        """Call the setter and handle all necessary updates."""
+        if self.setter and self.cad_item:
             try:
-                self.setter(new_position)
-            except (RuntimeError, AttributeError, TypeError):
-                pass
-        self.setPos(new_position)
+                # prepare CadItem for geometry change.
+                self.cad_item.prepareGeometryChange()
+
+                # Call the setter with the new position
+                self.setter(value)
+                
+                # Update control point positions if the CAD item has that method
+                if hasattr(self.cad_item, 'updateControls'):
+                    self.cad_item.updateControls()
+                    
+                self.cad_item.update()
+                
+            except (RuntimeError, AttributeError, TypeError) as e:
+                print(f"Error in control point setter: {e}")
 
     def _get_control_size_in_scene_coords(self, painter):
         """Get control point size in scene coordinates based on current zoom level."""
@@ -277,6 +287,7 @@ class ControlDatum(ControlPoint):
         font = QFont("Arial", 12)
         font.setPointSizeF(12.0)
         painter.setFont(font)
+        painter.scale(1.0/scale,-1.0/scale)
 
         # Format text
         if self.prefix and self.suffix:
@@ -293,32 +304,34 @@ class ControlDatum(ControlPoint):
         text_rect = font_metrics.boundingRect(text)
 
         # Position label with fixed pixel offset
-        pixel_offset = 15
-        scene_offset = pixel_offset / scale
+        pixel_offset = 10
+        scene_offset = pixel_offset
 
         # Calculate label position relative to datum position
         datum_pos = self.get_position()
         label_pos = QPointF(
             datum_pos.x() + scene_offset,
-            datum_pos.y() + scene_offset
+            datum_pos.y() - scene_offset
         )
 
         # Draw background rectangle
         background_rect = QRectF(
-            label_pos.x() - 2,
+            label_pos.x() - 4,
             label_pos.y() - text_rect.height() / 2 - 2,
-            text_rect.width() + 4,
+            text_rect.width() + 8,
             text_rect.height() + 4
         )
 
         # Draw background
-        painter.setPen(QPen(QColor(255, 255, 255), 1.0))
-        painter.setBrush(QBrush(QColor(255, 255, 255, 200)))
+        pen = QPen(QColor(0, 0, 0), 1.0)
+        pen.setCosmetic(True)
+        painter.setPen(pen)
+        painter.setBrush(QBrush(QColor(255, 255, 255, 191)))
         painter.drawRect(background_rect)
 
         # Draw text
         painter.setPen(QPen(QColor(0, 0, 0), 1.0))
-        painter.drawText(label_pos, text)
+        painter.drawText(background_rect, Qt.AlignmentFlag.AlignCenter, text)
 
     def start_editing(self):
         """Start editing the datum value."""
@@ -399,8 +412,7 @@ class ControlDatum(ControlPoint):
         """Finish editing and apply the new value."""
         try:
             new_value = float(line_edit.text())
-            if self.setter:
-                self.setter(new_value)
+            self.call_setter_with_updates(new_value)
         except ValueError:
             pass
 
