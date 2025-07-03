@@ -1418,7 +1418,7 @@ class MainWindow(QMainWindow):
         bezier3 = CubicBezierCadItem(
             [
                 QPointF(-1, 1.5), QPointF(0, 3.5),
-                QPointF(1, 3.5), QPointF(2, 2), QPointF(3, 0.5),
+                QPointF(1.5, 2.75), QPointF(2, 2), QPointF(3, 0.5),
                 QPointF(4, 2), QPointF(5, 3.5), QPointF(6, 1.5),
                 QPointF(7, 3.5), QPointF(8, 2), QPointF(9, 0.5),
                 QPointF(10, 2), QPointF(11, 3.5), QPointF(12, 1.5),

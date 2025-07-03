@@ -67,11 +67,15 @@ class CubicBezierCadItem(CadItem):
         """Initialize states for all path points based on their geometric relationships."""
         self._path_point_states = []
         for i in range(0, len(self._points), 3):
-            state = self._determine_path_point_state(i)
+            path_point_index = i // 3
+            state = self._determine_path_point_state(path_point_index)
             self._path_point_states.append(state)
 
-    def _determine_path_point_state(self, point_index):
+    def _determine_path_point_state(self, path_point_index):
         """Determine the state of a path point based on its adjacent control points."""
+        # Convert path point index to actual point index
+        point_index = path_point_index * 3
+        
         if point_index < 1 or point_index >= len(self._points) - 1:
             return PathPointState.DISJOINT  # Can't determine without both adjacent control points
         
