@@ -8,8 +8,11 @@ tools_text.tcl implementation.
 import math
 from typing import Optional, List
 
-from BelfryCAD.core.cad_objects import CADObject, ObjectType, Point
-from BelfryCAD.tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+from ..core.cad_objects import CADObject, ObjectType, Point
+from ..tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+from PySide6.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, QGraphicsLineItem
+from PySide6.QtCore import QRectF, Qt
+from PySide6.QtGui import QPen, QBrush, QFont
 
 
 class TextObject(CADObject):
@@ -96,10 +99,6 @@ class TextTool(Tool):
         font_spec = (self.font_family, self.font_size)
 
         # Draw the text using QGraphicsTextItem
-        from PySide6.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, QGraphicsLineItem
-        from PySide6.QtCore import QRectF, Qt
-        from PySide6.QtGui import QPen, QBrush, QFont
-
         text_item = QGraphicsTextItem(self.text)
         font = QFont(self.font_family, self.font_size)
         text_item.setFont(font)

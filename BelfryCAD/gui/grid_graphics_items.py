@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QGraphicsItem, QDialog
 from PySide6.QtCore import QRectF, QLineF, Qt
 from PySide6.QtGui import QPen, QColor, QPainter, QBrush, QFont
 
-from BelfryCAD.gui.grid_info import GridInfo, GridUnits, UnitSelectionDialog
+from BelfryCAD.gui.grid_info import GridInfo, UnitSelectionDialog
 
 
 class GridBackground(QGraphicsItem):
@@ -81,7 +81,7 @@ class RulersForeground(QGraphicsItem):
     def __init__(self, grid_info: GridInfo):
         super().__init__()
         self.grid_info = grid_info
-        self.setZValue(990)  # Draw above other items
+        self.setZValue(9999)  # Draw above other items
         self.setFlag(
             QGraphicsItem.GraphicsItemFlag.ItemUsesExtendedStyleOption, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)

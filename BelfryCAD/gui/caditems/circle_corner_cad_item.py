@@ -4,9 +4,8 @@ The circle is tangent to both rays, with center specified by a point on the angl
 """
 
 import math
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
-from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, QFont, QFontMetrics
-from PySide6.QtWidgets import QLineEdit, QGraphicsProxyWidget
+from PySide6.QtCore import QPointF, Qt
+from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker
 from BelfryCAD.gui.cad_item import CadItem
 from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
 from BelfryCAD.gui.cad_rect import CadRect

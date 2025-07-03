@@ -191,7 +191,7 @@ class SnapsPane(QWidget):
             else:
                 # If no icon, use text on button
                 button.setText(display_name[:2].upper())  # Use first 2 letters
-                button.setFont(QFont("Sans Serif", 8))
+                button.setFont(QFont("Arial", 8))
 
             button.toggled.connect(
                 lambda checked, st=snap_type: self._on_snap_changed(
@@ -317,7 +317,7 @@ class SnapsPane(QWidget):
         else:
             # If no icon, use text on button
             button.setText(display_name[:2].upper())
-            button.setFont(QFont("Sans Serif", 10))
+            button.setFont(QFont("Arial", 10))
 
         button.toggled.connect(
             lambda checked: self._on_snap_changed(snap_type, checked)
