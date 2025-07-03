@@ -339,3 +339,11 @@ class ArcCadItem(CadItem):
         self._line_width = value
         self.update()
 
+    def moveBy(self, dx, dy):
+        """Move all defining points by the specified offset."""
+        self.prepareGeometryChange()
+        self._start_point = QPointF(self._start_point.x() + dx, self._start_point.y() + dy)
+        self._end_point = QPointF(self._end_point.x() + dx, self._end_point.y() + dy)
+        self._center_point = QPointF(self._center_point.x() + dx, self._center_point.y() + dy)
+        self.update()
+

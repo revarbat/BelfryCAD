@@ -278,6 +278,20 @@ class CadItem(QGraphicsItem):
         self._decoration_items.clear()
         self._decorations_created = False
 
+    def moveBy(self, dx, dy):
+        """Move all underlying points by the specified offset. If the subclass has a 'points' property, move all points. Otherwise, must be overridden by subclass."""
+        if hasattr(self, 'points') and hasattr(self, 'points'):
+            pts = self.points
+            # Support both list and tuple of points
+            try:
+                new_pts = [QPointF(pt.x() + dx, pt.y() + dy) for pt in pts]
+                self.points = new_pts
+                self.update()
+            except Exception:
+                raise NotImplementedError("Subclass must implement moveBy or provide a points property.")
+        else:
+            raise NotImplementedError("Subclass must implement moveBy or provide a points property.")
+
     def sceneEvent(self, event):
         """Handle scene events to detect selection changes."""
         if event.type() == QEvent.Type.GraphicsSceneMouseRelease:

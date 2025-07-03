@@ -430,3 +430,11 @@ class Circle3PointsCadItem(CadItem):
         self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
         self.update()
+
+    def moveBy(self, dx, dy):
+        """Move all three points by the specified offset."""
+        self.prepareGeometryChange()
+        self._point1 = QPointF(self._point1.x() + dx, self._point1.y() + dy)
+        self._point2 = QPointF(self._point2.x() + dx, self._point2.y() + dy)
+        self._point3 = QPointF(self._point3.x() + dx, self._point3.y() + dy)
+        self.update()

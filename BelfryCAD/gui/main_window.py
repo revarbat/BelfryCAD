@@ -36,7 +36,7 @@ from .gear_wizard_dialog import GearWizardDialog
 from .gcode_backtracer_dialog import GCodeBacktracerDialog
 from .zoom_edit_widget import ZoomEditWidget
 from .caditems import (
-    LineCadItem, CubicBezierCadItem, CircleCenterRadiusCadItem,
+    LineCadItem, CubicBezierCadItem, QuadraticBezierCadItem, CircleCenterRadiusCadItem,
     Circle2PointsCadItem, Circle3PointsCadItem, CircleCornerCadItem, ArcCornerCadItem, RectangleCadItem, ArcCadItem, PolylineCadItem,
 )
 from .panes.layer_pane import LayerPane
@@ -1416,11 +1416,46 @@ class MainWindow(QMainWindow):
         # Add Bezier curves
         # Tight curve
         bezier3 = CubicBezierCadItem(
-            QPointF(-1, 1.5), QPointF(0, 3.5),
-            QPointF(1, 3.5), QPointF(2, 2),
+            [
+                QPointF(-1, 1.5), QPointF(0, 3.5),
+                QPointF(1, 3.5), QPointF(2, 2), QPointF(3, 0.5),
+                QPointF(4, 2), QPointF(5, 3.5), QPointF(6, 1.5),
+                QPointF(7, 3.5), QPointF(8, 2), QPointF(9, 0.5),
+                QPointF(10, 2), QPointF(11, 3.5), QPointF(12, 1.5),
+                QPointF(13, 3.5), QPointF(14, 2),
+            ],
             black, 0.1)
         bezier3.setZValue(2)
         self.cad_scene.addItem(bezier3)
+
+        # Add quadratic Bezier curves
+        # Simple quadratic curve
+        quad_bezier1 = QuadraticBezierCadItem(
+            [
+                QPointF(-6, 0),    # 1st path point
+                QPointF(-5, 2),    # control point
+                QPointF(-4, 0),    # 2nd path point
+                QPointF(-3, -2),   # control point
+                QPointF(-2, 0),    # 3rd path point
+            ],
+            QColor(255, 0, 255), 0.08)
+        quad_bezier1.setZValue(2)
+        self.cad_scene.addItem(quad_bezier1)
+
+        # Complex quadratic curve with multiple segments
+        quad_bezier2 = QuadraticBezierCadItem(
+            [
+                QPointF(6, -1),     # 1st path point
+                QPointF(7, 1),      # control point
+                QPointF(8, -1),     # 2nd path point
+                QPointF(9, -3),     # control point
+                QPointF(10, -1),    # 3rd path point
+                QPointF(11, 1),     # control point
+                QPointF(12, -1),    # 4th path point
+            ],
+            QColor(0, 255, 255), 0.1)
+        quad_bezier2.setZValue(2)
+        self.cad_scene.addItem(quad_bezier2)
 
         # Add rectangles
         # Test rectangle

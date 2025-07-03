@@ -22,7 +22,7 @@ class ControlPoint(QGraphicsItem):
         super().__init__()  # Use parent-child relationship
         self.setter = setter
         self.cad_item = cad_item
-        self.control_size = 9
+        self.control_size = 7
         
         # Use Qt's built-in flags (movable disabled since parent handles movement)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)

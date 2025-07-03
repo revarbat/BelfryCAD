@@ -341,3 +341,12 @@ class RectangleCadItem(CadItem):
         center_x = (self._top_left.x() + self._bottom_right.x()) / 2
         center_y = (self._top_left.y() + self._bottom_right.y()) / 2
         return QPointF(center_x, center_y)
+
+    def moveBy(self, dx, dy):
+        """Move all four corner points by the specified offset."""
+        self.prepareGeometryChange()
+        self._top_left = QPointF(self._top_left.x() + dx, self._top_left.y() + dy)
+        self._top_right = QPointF(self._top_right.x() + dx, self._top_right.y() + dy)
+        self._bottom_right = QPointF(self._bottom_right.x() + dx, self._bottom_right.y() + dy)
+        self._bottom_left = QPointF(self._bottom_left.x() + dx, self._bottom_left.y() + dy)
+        self.update()

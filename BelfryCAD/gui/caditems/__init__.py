@@ -10,6 +10,7 @@ from .circle_3points_cad_item import Circle3PointsCadItem
 from .circle_corner_cad_item import CircleCornerCadItem
 from .arc_corner_cad_item import ArcCornerCadItem
 from .cubic_bezier_cad_item import CubicBezierCadItem
+from .quadratic_bezier_cad_item import QuadraticBezierCadItem
 from .rectangle_cad_item import RectangleCadItem
 from .arc_cad_item import ArcCadItem
 
@@ -22,6 +23,7 @@ __all__ = [
     'CircleCornerCadItem',
     'ArcCornerCadItem',
     'CubicBezierCadItem',
+    'QuadraticBezierCadItem',
     'RectangleCadItem',
     'ArcCadItem'
 ]

@@ -220,3 +220,9 @@ class PolylineCadItem(CadItem):
         self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
         self.update()
+
+    def moveBy(self, dx, dy):
+        """Move all points by the specified offset."""
+        self.prepareGeometryChange()
+        self._points = [QPointF(pt.x() + dx, pt.y() + dy) for pt in self._points]
+        self.update()

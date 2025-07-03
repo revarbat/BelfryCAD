@@ -302,3 +302,10 @@ class LineCadItem(CadItem):
 
         self.prepareGeometryChange()
         self.update()
+
+    def moveBy(self, dx, dy):
+        """Move both endpoints by the specified offset."""
+        self.prepareGeometryChange()
+        self._start_point = QPointF(self._start_point.x() + dx, self._start_point.y() + dy)
+        self._end_point = QPointF(self._end_point.x() + dx, self._end_point.y() + dy)
+        self.update()

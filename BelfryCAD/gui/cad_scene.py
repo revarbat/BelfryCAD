@@ -219,6 +219,20 @@ class CadScene(QGraphicsScene):
             # Start editing the control datum
             control.start_editing()
         else:
+            # Check for Command-click cycling on CubicBezierCadItem control points
+            ctrl_pressed = event.modifiers() & Qt.KeyboardModifier.ControlModifier
+            if ctrl_pressed and hasattr(control, 'cad_item'):
+                cad_item = control.cad_item
+                # Check if this is a CubicBezierCadItem
+                if hasattr(cad_item, '_handle_control_point_click'):
+                    # Find the control point index
+                    if hasattr(cad_item, '_control_points') and control in cad_item._control_points:
+                        point_index = cad_item._control_points.index(control)
+                        # Call the control point click handler
+                        if cad_item._handle_control_point_click(point_index, event.modifiers()):
+                            event.accept()
+                            return
+            
             # Start dragging the control point
             self._dragging_control_point = control
             self._drag_start_pos = event.scenePos()

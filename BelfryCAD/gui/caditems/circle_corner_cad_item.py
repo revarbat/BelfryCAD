@@ -568,3 +568,12 @@ class CircleCornerCadItem(CadItem):
         self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
         self.update()
+
+    def moveBy(self, dx, dy):
+        """Move all defining points by the specified offset."""
+        self.prepareGeometryChange()
+        self._corner_point = QPointF(self._corner_point.x() + dx, self._corner_point.y() + dy)
+        self._ray1_point = QPointF(self._ray1_point.x() + dx, self._ray1_point.y() + dy)
+        self._ray2_point = QPointF(self._ray2_point.x() + dx, self._ray2_point.y() + dy)
+        self._center_point = QPointF(self._center_point.x() + dx, self._center_point.y() + dy)
+        self.update()

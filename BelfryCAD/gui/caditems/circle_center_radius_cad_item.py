@@ -202,3 +202,10 @@ class CircleCenterRadiusCadItem(CadItem):
         self.prepareGeometryChange()  # Line width affects bounding rect
         self._line_width = value
         self.update()
+
+    def moveBy(self, dx, dy):
+        """Move center and radius points by the specified offset."""
+        self.prepareGeometryChange()
+        self._center_point = QPointF(self._center_point.x() + dx, self._center_point.y() + dy)
+        self._perimeter_point = QPointF(self._perimeter_point.x() + dx, self._perimeter_point.y() + dy)
+        self.update()
