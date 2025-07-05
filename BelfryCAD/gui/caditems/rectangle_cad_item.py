@@ -23,6 +23,11 @@ class RectangleCadItem(CadItem):
         self._bottom_left = bottom_left if bottom_left else QPointF(0, 0)
         self._color = color
         self._line_width = line_width
+        self._top_left_cp = None
+        self._top_right_cp = None
+        self._bottom_right_cp = None
+        self._bottom_left_cp = None
+        self._center_cp = None
 
         # Convert points to QPointF if they aren't already
         if isinstance(self._top_left, (list, tuple)):
