@@ -3,6 +3,7 @@ ArcCadItem - An arc CAD item defined by center point, start radius point, and en
 """
 
 import math
+from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
@@ -22,6 +23,9 @@ class ArcCadItem(CadItem):
         self._end_point = end_point if end_point else QPointF(0, 1)
         self._color = color
         self._line_width = line_width
+        self._center_cp = None
+        self._start_cp = None
+        self._end_cp = None
         self._radius_datum = None
 
         # Convert points to QPointF if they aren't already
@@ -117,6 +121,14 @@ class ArcCadItem(CadItem):
             radius_value = self._get_radius_value()
             radius_position = self._get_radius_datum_position()
             self._radius_datum.update_datum(radius_value, radius_position)
+
+    def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
+        """Return list of control point positions (excluding ControlDatums)."""
+        out = []
+        for cp in [self._center_cp, self._start_cp, self._end_cp]:
+            if cp and (exclude_cps is None or cp not in exclude_cps):
+                out.append(cp.pos())
+        return out
 
     def _set_center(self, new_position):
         """Set the center from control point movement."""

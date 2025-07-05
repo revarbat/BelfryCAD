@@ -5,6 +5,7 @@ Points follow the pattern: [path_point, control_point, path_point, control_point
 
 import math
 from enum import Enum
+from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
@@ -47,6 +48,7 @@ class QuadraticBezierCadItem(CadItem):
         self._points = []
         self._color = color
         self._line_width = line_width
+        self._control_points = []
         
         # Track state for each path point (every 2nd point)
         self._path_point_states = []
@@ -440,6 +442,19 @@ class QuadraticBezierCadItem(CadItem):
             if cp and i < len(self._points):
                 # Points are already in local coordinates
                 cp.setPos(self._points[i])
+
+    def getControlPoints(
+            self,
+            exclude_cps: Optional[List['ControlPoint']] = None
+    ) -> List[QPointF]:
+        """Return list of control point positions (excluding ControlDatums)."""
+        if exclude_cps is None:
+            return self._points.copy()
+        control_points = []
+        for i, pt in enumerate(self._points):
+            if not self._should_exclude_control_point(i, exclude_cps):
+                control_points.append(pt)
+        return control_points
 
     def _set_point(self, index, new_position):
         """Set a specific point from control point movement."""

@@ -2,6 +2,7 @@
 RectangleCadItem - A rectangle CAD item defined by four corner points.
 """
 
+from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
@@ -125,6 +126,17 @@ class RectangleCadItem(CadItem):
             scene_center = QPointF(center_x, center_y)
             local_center = self.mapFromScene(scene_center)
             self._center_cp.setPos(local_center)
+
+    def getControlPoints(
+            self,
+            exclude_cps: Optional[List['ControlPoint']] = None
+    ) -> List[QPointF]:
+        """Return list of control point positions (excluding ControlDatums)."""
+        out = []
+        for cp in [self._top_left_cp, self._top_right_cp, self._bottom_right_cp, self._bottom_left_cp, self._center_cp]:
+            if cp and (exclude_cps is None or cp not in exclude_cps):
+                out.append(cp.pos())
+        return out
 
     def _set_top_left(self, new_position):
         """Set the top-left corner from control point movement."""

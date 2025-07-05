@@ -270,6 +270,13 @@ class CadScene(QGraphicsScene):
         if not self._dragging_control_point.isVisible():
             return
 
+        mainwin = self.parent()
+        if mainwin is not None and hasattr(mainwin, 'snaps_system'):
+            scene_pos = mainwin.snaps_system.get_snap_point(
+                scene_pos,
+                exclude_cps=[self._dragging_control_point]
+            )
+
         # Find the CAD item that owns this control point
         cp = self._dragging_control_point
         cad_item = cp.cad_item if hasattr(cp, 'cad_item') else None

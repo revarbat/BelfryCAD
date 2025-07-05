@@ -2,6 +2,7 @@
 Base CAD item class for graphics items with animated selection and control points.
 """
 
+from typing import List, Optional
 from PySide6.QtWidgets import QGraphicsItem
 from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QEvent
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath
@@ -249,6 +250,59 @@ class CadItem(QGraphicsItem):
     def updateControls(self):
         """Override to update control point positions and values."""
         pass
+
+    def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
+        """
+        Return a list of QPointF positions where control points should be positioned.
+        This method should return the same positions that updateControls() sets
+        for the control points, but without creating the actual control point objects.
+        ControlDatums should not be included in this list.
+        
+        Args:
+            exclude_cps: List of ControlPoint objects to exclude from the result.
+                        Control points associated with these objects will be excluded.
+        
+        Returns:
+            List of QPointF positions for control points (excluding ControlDatums and excluded points)
+        """
+        # Default implementation returns empty list
+        # Subclasses should override this method
+        return []
+    
+    def _should_exclude_control_point(self, cp_index: int, exclude_cps: Optional[List['ControlPoint']] = None) -> bool:
+        """
+        Helper method to determine if a control point at the given index should be excluded.
+        
+        Args:
+            cp_index: Index of the control point to check
+            exclude_cps: List of ControlPoint objects to exclude from the result.
+        
+        Returns:
+            True if the control point should be excluded, False otherwise
+        """
+        if not exclude_cps:
+            return False
+        
+        # Get the control point objects for this CAD item
+        control_point_objects = self._get_control_point_objects()
+        
+        if cp_index < len(control_point_objects):
+            cp_object = control_point_objects[cp_index]
+            return cp_object in exclude_cps
+        
+        return False
+    
+    def _get_control_point_objects(self) -> List['ControlPoint']:
+        """
+        Get the list of ControlPoint objects for this CAD item.
+        This method should be overridden by subclasses to provide the actual control point objects.
+        
+        Returns:
+            List of ControlPoint objects for this CAD item
+        """
+        # Default implementation returns empty list
+        # Subclasses should override this method
+        return []
 
     def hideControls(self):
         """Hide all control points and control datums for this CAD item."""

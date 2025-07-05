@@ -3,6 +3,7 @@ CircleCenterRadiusCadItem - A circle CAD item defined by center point and perime
 """
 
 import math
+from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
@@ -20,6 +21,8 @@ class CircleCenterRadiusCadItem(CadItem):
         self._color = color
         self._line_width = line_width
         self._radius_datum = None
+        self._center_cp = None
+        self._perimeter_cp = None
 
         # Convert points to QPointF if they aren't already
         if isinstance(self._center_point, (list, tuple)):
@@ -105,6 +108,17 @@ class CircleCenterRadiusCadItem(CadItem):
             radius_value = self._get_radius_value()
             radius_position = self._get_radius_datum_position()
             self._radius_datum.update_datum(radius_value, radius_position)
+
+    def getControlPoints(
+            self,
+            exclude_cps: Optional[List['ControlPoint']] = None
+    ) -> List[QPointF]:
+        """Return list of control point positions (excluding ControlDatums)."""
+        out = []
+        for cp in [self._center_cp, self._perimeter_cp]:
+            if cp and (exclude_cps is None or cp not in exclude_cps):
+                out.append(cp.pos())
+        return out
 
     def _get_center_position(self) -> QPointF:
         """Get the center position."""

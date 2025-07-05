@@ -4,6 +4,7 @@ The arc is drawn between the tangent points where a circle would touch the rays.
 """
 
 import math
+from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
@@ -24,6 +25,10 @@ class ArcCornerCadItem(CadItem):
         self._center_point = center_point if center_point is not None else QPointF(0.5, 0.5)
         self._color = color
         self._line_width = line_width
+        self._corner_cp = None
+        self._ray1_cp = None
+        self._ray2_cp = None
+        self._center_cp = None
         self._radius_datum = None
 
         # Convert points to QPointF if they aren't already
@@ -159,6 +164,14 @@ class ArcCornerCadItem(CadItem):
             radius_value = self._get_radius_value()
             radius_position = self._get_radius_datum_position()
             self._radius_datum.update_datum(radius_value, radius_position)
+
+    def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
+        """Return list of control point positions (excluding ControlDatums)."""
+        out = []
+        for cp in [self._corner_cp, self._ray1_cp, self._ray2_cp, self._center_cp]:
+            if cp and (exclude_cps is None or cp not in exclude_cps):
+                out.append(cp.pos())
+        return out
 
     def _set_corner(self, new_position):
         """Set corner point from control point movement."""

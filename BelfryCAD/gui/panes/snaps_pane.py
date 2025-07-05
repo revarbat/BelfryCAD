@@ -30,11 +30,8 @@ class SnapsPaneInfo:
         self.snap_types = [
             ("grid", "&Grid", True, "snap-grid"),
             ("controlpoints", "Contro&l Points", True, "snap-controlpoints"),
-            ("endpoint", "&Endpoints", False, "snap-endpoint"),
             ("midpoints", "&Midpoints", True, "snap-midpoint"),
-            ("center", "&Centers", False, "snap-center"),
             ("quadrants", "&Quadrants", True, "snap-quadrant"),
-            ("centerlines", "Centerline&s", False, "snap-centerlines"),
             ("tangents", "&Tangents", False, "snap-tangent"),
             ("contours", "C&ontours", False, "snap-contours"),
             ("perpendicular", "&Perpendicular", False, "snap-perpendicular"),
@@ -82,38 +79,16 @@ class SnapsPane(QWidget):
         """Initialize the user interface."""
         self.setWindowTitle("Snaps")
         self.setContentsMargins(0, 0, 0, 0)
-        self.setMaximumHeight(160)
-        self.setMinimumHeight(160)
-        self.setMinimumWidth(250)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.setMaximumHeight(100)
+        #self.setMinimumHeight(120)
+        #self.setMinimumWidth(250)
+        #self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
-        # Create main layout
-        main_layout = QVBoxLayout()
-        main_layout.setSpacing(3)
-        self.setLayout(main_layout)
-
-        # Create "All Snaps" checkbox at the top
-        self.all_snaps_checkbox = QCheckBox("All Snaps")
-        self.all_snaps_checkbox.setChecked(snaps_pane_info.snap_all)
-        self.all_snaps_checkbox.toggled.connect(self._on_all_snaps_changed)
-        main_layout.addWidget(self.all_snaps_checkbox)
-
-        # Create scroll area for snap checkboxes
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll_area.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        main_layout.addWidget(self.scroll_area)
-
-        # Create scrollable content widget
-        self.scroll_content = QWidget()
-        self.scroll_layout = QGridLayout(self.scroll_content)
-        self.scroll_layout.setContentsMargins(5, 5, 0, 0)
-        self.scroll_layout.setSpacing(3)
-        self.scroll_area.setWidget(self.scroll_content)
-        self.scroll_area.setFrameShape(self.scroll_area.Shape.NoFrame)
+        # Create main layout directly as grid layout
+        self.main_layout = QGridLayout()
+        self.main_layout.setContentsMargins(0, 5, 0, 0)
+        self.main_layout.setSpacing(3)
+        self.setLayout(self.main_layout)
 
         # Initialize snap checkboxes
         self._create_snap_checkboxes()
@@ -122,7 +97,7 @@ class SnapsPane(QWidget):
         """Setup keyboard shortcuts for snap toggles."""
         # Alt+A for "All Snaps"
         all_shortcut = QShortcut(QKeySequence("Alt+A"), self)
-        all_shortcut.activated.connect(self.all_snaps_checkbox.toggle)
+        all_shortcut.activated.connect(self.all_snaps_button.toggle)
 
         # Setup shortcuts for individual snaps
         for snap_type, snap_name, default_val, icon_name in snaps_pane_info.snap_types:
@@ -146,6 +121,45 @@ class SnapsPane(QWidget):
         row = 0
         col = 0
 
+        alt_rep = "⌥" if platform.system() == "Darwin" else "Alt+"
+
+        # Create "All Snaps" icon button at the beginning
+        self.all_snaps_button = QPushButton()
+        self.all_snaps_button.setCheckable(True)
+        self.all_snaps_button.setChecked(snaps_pane_info.snap_all)
+        self.all_snaps_button.setToolTip(f"Snaps Enabled ({alt_rep}A)")
+        self.all_snaps_button.setContentsMargins(0, 0, 0, 0)
+        self.all_snaps_button.setFixedSize(QSize(36, 36))
+        self.all_snaps_button.setStyleSheet("""
+            QPushButton {
+                border: 0;
+                margin: 0;
+                padding: 0;
+                border: 1px solid #aaaaaa;
+                border-radius: 5px;
+                background-color: #ffdddd;
+            }
+            QPushButton:checked {
+                background-color: #ccccff;
+            }
+            QPushButton:disabled {
+                background-color: #dddddd;
+            }
+        """)
+        
+        # Set initial icon based on state
+        self._update_all_snaps_icon()
+        
+        # Connect to state change to update icon
+        self.all_snaps_button.toggled.connect(self._update_all_snaps_icon)
+        self.all_snaps_button.toggled.connect(self._on_all_snaps_changed)
+        
+        # Add to grid layout at position (0, 0)
+        self.main_layout.addWidget(self.all_snaps_button, 0, 0)
+        
+        # Start individual snap buttons at row 0, col 1
+        col = 1
+
         for snap_type, snap_name, default_val, icon_name in snaps_pane_info.snap_types:
             # Initialize snap state
             if snap_type not in snaps_pane_info.snap_states:
@@ -155,10 +169,7 @@ class SnapsPane(QWidget):
             display_name = snap_name.replace("&", "")
             accel = self._extract_accelerator(snap_name)
             if accel:
-                if platform.system() == "Darwin":
-                    display_name = f"Snap to {display_name} (⌥{accel.upper()})"
-                else:
-                    display_name = f"Snap to {display_name} (Alt+{accel.upper()})"
+                display_name = f"Snap to {display_name} ({alt_rep}{accel.upper()})"
 
             # Create toggle button instead of checkbox
             button = QPushButton()
@@ -179,7 +190,11 @@ class SnapsPane(QWidget):
                     background-color: #dddddd;
                 }
                 QPushButton:checked {
-                    background-color: #bbbbbb;
+                    background-color: #ccccff;
+                }
+                QPushButton:disabled {
+                    background-color: #eeeeee;
+                    border: 1px solid #cccccc;
                 }
             """)
 
@@ -199,7 +214,7 @@ class SnapsPane(QWidget):
             )
 
             # Add to grid layout in two columns
-            self.scroll_layout.addWidget(button, row, col)
+            self.main_layout.addWidget(button, row, col)
             snaps_pane_info.snap_buttons[snap_type] = button
 
             # Move to next position
@@ -212,7 +227,7 @@ class SnapsPane(QWidget):
         spacer = QSpacerItem(
             20, 40, QSizePolicy.Policy.Minimum,
             QSizePolicy.Policy.Expanding)
-        self.scroll_layout.addItem(spacer, row + 1, 0, 1, 2)
+        self.main_layout.addItem(spacer, row + 1, 0, 1, 2)
 
     def _toggle_snap(self, snap_type: str):
         """Toggle a specific snap type."""
@@ -234,6 +249,27 @@ class SnapsPane(QWidget):
         """Handle individual snap checkbox change."""
         snaps_pane_info.snap_states[snap_type] = checked
         self.snap_changed.emit(snap_type, checked)
+    
+    def _update_all_snaps_icon(self):
+        """Update the All Snaps button icon and tooltip based on its state."""
+        is_checked = self.all_snaps_button.isChecked()
+        icon_name = "snap-enable" if is_checked else "snap-disable"
+        alt_rep = "⌥" if platform.system() == "Darwin" else "Alt+"
+        tooltip_text = f"Snaps Enabled ({alt_rep}A)" if is_checked else \
+            f"Snaps Disabled ({alt_rep}A)"
+
+        # Update icon
+        icon = get_icon(icon_name)
+        if not icon.isNull():
+            self.all_snaps_button.setIcon(icon)
+            self.all_snaps_button.setIconSize(QSize(24, 24))
+        else:
+            # Fallback to text if icon not found
+            self.all_snaps_button.setText("All")
+            self.all_snaps_button.setFont(QFont("Arial", 8))
+        
+        # Update tooltip
+        self.all_snaps_button.setToolTip(tooltip_text)
 
     def update_snaps(self):
         """Update snap buttons based on current state."""
@@ -285,7 +321,7 @@ class SnapsPane(QWidget):
         snaps_pane_info.snap_states[snap_type] = default_val
 
         # If window is already created, add the button
-        if hasattr(self, 'scroll_layout'):
+        if hasattr(self, 'main_layout'):
             self._add_snap_button(snap_type, snap_name, default_val, icon_name)
 
     def _add_snap_button(
@@ -324,7 +360,7 @@ class SnapsPane(QWidget):
         )
 
         # Add to grid layout
-        self.scroll_layout.addWidget(button)
+        self.main_layout.addWidget(button)
         snaps_pane_info.snap_buttons[snap_type] = button
 
         # Setup shortcut for new snap
@@ -378,7 +414,7 @@ class SnapsPane(QWidget):
             enabled: Whether all snaps should be enabled
         """
         snaps_pane_info.snap_all = enabled
-        self.all_snaps_checkbox.setChecked(enabled)
+        self.all_snaps_button.setChecked(enabled)
         self._on_all_snaps_changed(enabled)
 
 

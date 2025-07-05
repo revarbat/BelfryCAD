@@ -7,7 +7,7 @@ in the pyBelfryCad application.
 """
 
 from PySide6.QtWidgets import QGraphicsScene
-from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtCore import Qt, QObject, Signal, QPointF
 from PySide6.QtGui import QCursor
 from typing import Dict, List, Optional, Callable
 from enum import Enum
@@ -198,7 +198,15 @@ class Tool(QObject):
 
     def get_snap_point(self, x: float, y: float) -> Point:
         """Get the snapped point based on snap settings"""
-        # TODO: Implement snap logic
+        # Get the snaps system from the main window
+        if hasattr(self.main_window, 'snaps_system'):
+            mouse_pos = QPointF(x, y)
+            recent_points = [QPointF(p.x, p.y) for p in self.points]
+            snapped_point = self.main_window.snaps_system.get_snap_point(mouse_pos, recent_points)
+            if snapped_point:
+                return Point(snapped_point.x(), snapped_point.y())
+        
+        # Fallback to original position if no snap system or no snap found
         return Point(x, y)
 
     def draw_preview(self, current_x: float, current_y: float):

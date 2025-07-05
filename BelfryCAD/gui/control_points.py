@@ -2,9 +2,12 @@
 ControlPoint - A class representing a control point for CAD items.
 """
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import (
+    QPointF, QRectF, Qt, QRegularExpression
+)
 from PySide6.QtGui import (
-    QPen, QBrush, QColor, QFont, QFontMetrics, QPainterPath
+    QPen, QBrush, QColor, QFont, QFontMetrics, QPainterPath,
+    QRegularExpressionValidator
 )
 from PySide6.QtWidgets import (
     QGraphicsItem, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
@@ -362,12 +365,10 @@ class ControlDatum(ControlPoint):
 
         # Add line edit with validation
         line_edit = QLineEdit()
-        line_edit.setText(str(current_value))
+        line_edit.setText(f"{current_value:.5g}")
         line_edit.selectAll()
         
         # Create validator for digits, '-', and '.' only
-        from PySide6.QtGui import QRegularExpressionValidator
-        from PySide6.QtCore import QRegularExpression
         validator = QRegularExpressionValidator(QRegularExpression(r"^-?\d*\.?\d*$"))
         line_edit.setValidator(validator)
         

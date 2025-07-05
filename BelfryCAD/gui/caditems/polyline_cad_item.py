@@ -2,6 +2,7 @@
 PolylineCadItem - A polyline CAD item defined by a list of points.
 """
 
+from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
@@ -17,6 +18,7 @@ class PolylineCadItem(CadItem):
         self._points = points if points else []
         self._color = color
         self._line_width = line_width
+        self._point_control_points = []
 
         # Convert points to QPointF if they aren't already
         self._points = [QPointF(p[0], p[1]) if isinstance(p, (list, tuple)) else p
@@ -109,6 +111,21 @@ class PolylineCadItem(CadItem):
             if cp and i < len(self._points):
                 # Points are already in local coordinates
                 cp.setPos(self._points[i])
+
+    def getControlPoints(
+            self,
+            exclude_cps: Optional[List['ControlPoint']] = None
+    ) -> List[QPointF]:
+        """Return list of control point positions (excluding ControlDatums)."""
+        out = []
+        for cp in self._point_control_points:
+            if cp and (exclude_cps is None or cp not in exclude_cps):
+                out.append(cp.pos())
+        return out
+    
+    def _get_control_point_objects(self) -> List['ControlPoint']:
+        """Get the list of ControlPoint objects for this CAD item."""
+        return self._point_control_points
 
     def _set_point(self, index, new_position):
         """Set a specific point from control point movement."""

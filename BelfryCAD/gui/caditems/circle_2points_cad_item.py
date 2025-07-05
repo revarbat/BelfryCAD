@@ -3,6 +3,7 @@ Circle2PointsCadItem - A circle CAD item defined by two points on opposite sides
 """
 
 import math
+from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
 from BelfryCAD.gui.cad_item import CadItem
@@ -18,6 +19,9 @@ class Circle2PointsCadItem(CadItem):
         self._point2 = point2 if point2 is not None else QPointF(1, 0)
         self._color = color
         self._line_width = line_width
+        self._point1_cp = None
+        self._point2_cp = None
+        self._center_cp = None
         self._radius_datum = None
 
         # Convert points to QPointF if they aren't already
@@ -112,6 +116,14 @@ class Circle2PointsCadItem(CadItem):
             radius_value = self._get_radius_value()
             radius_position = self._get_radius_datum_position()
             self._radius_datum.update_datum(radius_value, radius_position)
+
+    def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
+        """Return list of control point positions (excluding ControlDatums)."""
+        out = []
+        for cp in [self._point1_cp, self._point2_cp, self._center_cp]:
+            if cp and (exclude_cps is None or cp not in exclude_cps):
+                out.append(cp.pos())
+        return out
 
     def _set_point1(self, new_position):
         """Set point1 from control point movement."""

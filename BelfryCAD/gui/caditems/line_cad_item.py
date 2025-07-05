@@ -3,6 +3,7 @@ LineCadItem - A line CAD item defined by two points.
 """
 
 import math
+from typing import List, Optional
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import (
     QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
@@ -23,6 +24,9 @@ class LineCadItem(CadItem):
         self._end_point = end_point if end_point else QPointF(1, 0)
         self._color = color
         self._line_width = line_width
+        self._start_cp = None
+        self._end_cp = None
+        self._mid_cp = None
 
         # Convert points to QPointF if they aren't already
         if isinstance(self._start_point, (list, tuple)):
@@ -101,6 +105,21 @@ class LineCadItem(CadItem):
         if hasattr(self, '_mid_cp') and self._mid_cp:
             # Midpoint is already in local coordinates
             self._mid_cp.setPos(self.midpoint)
+
+    def getControlPoints(
+            self,
+            exclude_cps: Optional[List['ControlPoint']] = None
+    ) -> List[QPointF]:
+        """Return list of control point positions (excluding ControlDatums)."""
+        out = []
+        for cp in [self._start_cp, self._end_cp, self._mid_cp]:
+            if cp and (exclude_cps is None or cp not in exclude_cps):
+                out.append(cp.pos())
+        return out
+    
+    def _get_control_point_objects(self) -> List['ControlPoint']:
+        """Get the list of ControlPoint objects for this CAD item."""
+        return [x for x in [self._start_cp, self._end_cp, self._mid_cp] if x]
 
     def _set_start_point(self, new_position):
         """Set the start point from control point movement."""

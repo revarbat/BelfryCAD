@@ -1,8 +1,8 @@
 import math
 
 from PySide6.QtWidgets import QGraphicsItem, QDialog
-from PySide6.QtCore import QRectF, QLineF, Qt
-from PySide6.QtGui import QPen, QColor, QPainter, QBrush, QFont
+from PySide6.QtCore import QRectF, QLineF, Qt, QPointF
+from PySide6.QtGui import QPen, QColor, QPainter, QBrush, QFont, QPainterPath
 
 from BelfryCAD.gui.grid_info import GridInfo, UnitSelectionDialog
 
@@ -81,7 +81,7 @@ class RulersForeground(QGraphicsItem):
     def __init__(self, grid_info: GridInfo):
         super().__init__()
         self.grid_info = grid_info
-        self.setZValue(9999)  # Draw above other items
+        self.setZValue(99999)  # Draw above other items
         self.setFlag(
             QGraphicsItem.GraphicsItemFlag.ItemUsesExtendedStyleOption, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
@@ -248,6 +248,70 @@ class RulersForeground(QGraphicsItem):
         RulersForeground.draw_label(
             painter, x0, y1 - backing_width/2,
             self.grid_info.unit_label, is_horizontal=False, is_clickable=True)
+        painter.restore()
+
+
+class SnapCursorItem(QGraphicsItem):
+    """Custom grid cursor for the scene."""
+    def __init__(self):
+        super().__init__()
+        self.control_size = 7
+        self.setZValue(10001)  # Draw above other items
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)
+    
+    def _get_control_size_in_scene_coords(self, painter):
+        """Get control point size in scene coordinates based on current zoom level."""
+        pixel_size = self.control_size
+        scale = painter.transform().m11()
+        return pixel_size / scale
+
+    def boundingRect(self):
+        """Return bounding rectangle for hit testing."""
+        # Get the current scale from the scene to make bounding rect scale independent
+        scene = self.scene()
+        if scene and scene.views():
+            # Get the first view's transform to determine current scale
+            view = scene.views()[0]
+            scale = view.transform().m11()
+            # Convert pixel size to scene coordinates
+            control_size = float(self.control_size) / scale
+        else:
+            # Fallback to a reasonable size if no scene/view available
+            control_size = 0.3
+        
+        control_padding = control_size / 2
+        return QRectF(-control_padding, -control_padding, control_size, control_size)
+
+
+    def paint(self, painter, option, widget=None):
+        """Paint the snap cursor as a red X-shaped cross."""
+        painter.save()
+
+        # Get the size of the cross in scene coordinates
+        cross_size = self._get_control_size_in_scene_coords(painter)
+        half_size = cross_size / 2
+
+        # Set up red pen with linewidth 2 and cosmetic drawing
+        cross_pen = QPen(QColor(255, 0, 0), 3.0)
+        cross_pen.setCosmetic(True)
+        painter.setPen(cross_pen)
+        painter.setBrush(QBrush())  # No fill
+
+        # Draw the X-shaped cross
+        # Diagonal line from top-left to bottom-right
+        painter.drawLine(
+            QPointF(-half_size, -half_size),
+            QPointF(half_size, half_size)
+        )
+        
+        # Diagonal line from top-right to bottom-left
+        painter.drawLine(
+            QPointF(half_size, -half_size),
+            QPointF(-half_size, half_size)
+        )
+
         painter.restore()
 
 

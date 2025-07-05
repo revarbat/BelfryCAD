@@ -21,7 +21,9 @@ from ..tools import available_tools
 
 from .mainmenu import MainMenuBar
 from .grid_info import GridInfo, GridUnits
-from .grid_graphics_items import GridBackground, RulersForeground
+from .grid_graphics_items import (
+    GridBackground, RulersForeground, SnapCursorItem
+)
 from .palette_system import create_default_palettes
 from .panes.category_button import CategoryToolButton
 from .cad_scene import CadScene
@@ -35,6 +37,7 @@ from .preferences_dialog import PreferencesDialog
 from .gear_wizard_dialog import GearWizardDialog
 from .gcode_backtracer_dialog import GCodeBacktracerDialog
 from .zoom_edit_widget import ZoomEditWidget
+from .snaps_system import SnapsSystem
 from .caditems import (
     LineCadItem, CubicBezierCadItem, QuadraticBezierCadItem, CircleCenterRadiusCadItem,
     Circle2PointsCadItem, Circle3PointsCadItem, CircleCornerCadItem, ArcCornerCadItem, RectangleCadItem, ArcCadItem, PolylineCadItem,
@@ -64,8 +67,19 @@ class MainWindow(QMainWindow):
 
         # Track graphics items by object ID for updates/deletion
         self.graphics_items = {}  # object_id -> list of graphics items
+        
+        # Initialize snaps system (will be set up after scene creation)
+        self._snaps_system = None
 
         self._setup_ui()
+
+    @property
+    def snaps_system(self):
+        return self._snaps_system
+    
+    @snaps_system.setter
+    def snaps_system(self, value):
+        self._snaps_system = value
 
     def _setup_ui(self):
         self.setWindowTitle(self.config.APP_NAME)
@@ -339,8 +353,14 @@ class MainWindow(QMainWindow):
         self.rulers = RulersForeground(self.grid_info)
         self.cad_scene.addItem(self.rulers)
 
+        self.snap_cursor = SnapCursorItem()
+        self.cad_scene.addItem(self.snap_cursor)
+
         # Set the CAD scene as the central widget
         self.setCentralWidget(self.cad_view)
+        
+        # Initialize the snaps system
+        self.snaps_system = SnapsSystem(self.cad_scene, self.grid_info)
 
     def _setup_palettes(self):
         """Setup the palette system with dockable windows."""
@@ -1244,12 +1264,16 @@ class MainWindow(QMainWindow):
             label = ""
         elif label == "Yard":
             label = ""
-        cursor_x = self.grid_info.format_label(pos.x(), no_subs=False)
-        cursor_y = self.grid_info.format_label(pos.y(), no_subs=False)
-        cursor_x = cursor_x.replace("\n", " ")
-        cursor_y = cursor_y.replace("\n", " ")
-        self.position_label_x.setText(f"{cursor_x}{label}")
-        self.position_label_y.setText(f"{cursor_y}{label}")
+        if hasattr(self, 'snaps_system') and self.snaps_system is not None:
+            pos = self.snaps_system.get_snap_point(pos)
+        if pos is not None:
+            cursor_x = self.grid_info.format_label(pos.x(), no_subs=False)
+            cursor_y = self.grid_info.format_label(pos.y(), no_subs=False)
+            cursor_x = cursor_x.replace("\n", " ")
+            cursor_y = cursor_y.replace("\n", " ")
+            self.position_label_x.setText(f"{cursor_x}{label}")
+            self.position_label_y.setText(f"{cursor_y}{label}")
+            self.snap_cursor.setPos(pos)
         # Call original mouse move event
         QGraphicsView.mouseMoveEvent(self.cad_view, event)
 
