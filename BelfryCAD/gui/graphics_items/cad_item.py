@@ -4,14 +4,10 @@ Base CAD item class for graphics items with animated selection and control point
 
 from typing import List, Optional
 from PySide6.QtWidgets import QGraphicsItem
-from PySide6.QtCore import Qt, QRectF, QPointF, QTimer, QEvent
-from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath
-from .control_points import (
-    ControlPoint, SquareControlPoint,
-    DiamondControlPoint, ControlDatum
-)
+from PySide6.QtCore import QPointF, QTimer, QEvent
+from PySide6.QtGui import QPen, QColor, QBrush
+from .control_points import ControlPoint
 from .cad_decoration_items import (
-    CadDecorationItem,
     CenterlinesDecorationItem,
     DashedCircleDecorationItem,
     DashedLinesDecorationItem,

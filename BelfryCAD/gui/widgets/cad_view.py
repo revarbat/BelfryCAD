@@ -8,8 +8,8 @@ from PySide6.QtCore import Qt, QTimer, QPointF, QRectF
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QCursor
 
-from .grid_graphics_items import GridBackground, RulersForeground
-from .cad_item import CadItem
+from ..graphics_items.grid_graphics_items import GridBackground, RulersForeground
+from ..graphics_items.cad_item import CadItem
 
 
 class CadView(QGraphicsView):

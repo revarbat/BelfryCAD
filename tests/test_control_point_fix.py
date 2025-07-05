@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'BelfryCAD'))
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
-from BelfryCAD.gui.caditems.polyline_cad_item import PolylineCadItem
+from BelfryCAD.gui.graphics_items.caditems.polyline_cad_item import PolylineCadItem
 
 def test_control_point_coordinates():
     """Test that control point coordinates are handled correctly."""

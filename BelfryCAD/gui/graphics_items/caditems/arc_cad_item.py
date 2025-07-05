@@ -3,12 +3,14 @@ ArcCadItem - An arc CAD item defined by center point, start radius point, and en
 """
 
 import math
+
 from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
-from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, DiamondControlPoint, ControlDatum
-from BelfryCAD.gui.cad_rect import CadRect
+
+from ..cad_item import CadItem
+from ..control_points import ControlPoint, SquareControlPoint, DiamondControlPoint, ControlDatum
+from ..cad_rect import CadRect
 
 
 class ArcCadItem(CadItem):

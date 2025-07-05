@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'BelfryCAD'))
 from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsView
 from PySide6.QtGui import QPainter
-from BelfryCAD.gui.grid_graphics_items import SnapCursorItem
+from BelfryCAD.gui.graphics_items.grid_graphics_items import SnapCursorItem
 from BelfryCAD.gui.grid_info import GridInfo, GridUnits
 
 def test_snap_cursor_shape():

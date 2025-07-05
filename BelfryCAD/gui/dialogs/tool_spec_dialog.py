@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from BelfryCAD.mlcnc.cutting_params import (
+from ...mlcnc.cutting_params import (
     ToolSpecification, ToolGeometry, ToolMaterial, ToolCoating
 )
 

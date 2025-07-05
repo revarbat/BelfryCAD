@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QRectF, QPointF
 from PySide6.QtGui import QPainter, QPen, QColor, QPainterPath, QBrush
 
-from ..mlcnc.gcode_backtracer import GCodeBacktracer, GCodeCommand
+from ...mlcnc.gcode_backtracer import GCodeBacktracer, GCodeCommand
 
 
 class ToolPathView(QGraphicsView):

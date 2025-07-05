@@ -20,11 +20,11 @@ from dataclasses import dataclass
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPainterPath
 
-from .cad_scene import CadScene
-from .cad_item import CadItem
+from .widgets.cad_scene import CadScene
 from .grid_info import GridInfo
 from .panes.snaps_pane import snaps_pane_info
-from .control_points import ControlPoint
+from .graphics_items.cad_item import CadItem
+from .graphics_items.control_points import ControlPoint
 
 
 class SnapType(Enum):
@@ -353,8 +353,8 @@ class SnapsSystem:
         
         # Only circles have tangent points
         if hasattr(item, '_center_point') and hasattr(item, 'radius'):
-            center_point = item._center_point
-            radius = item.radius
+            center_point = item._center_point # type: ignore
+            radius = item.radius # type: ignore
             
             # Calculate distance from reference point to center
             delta = ref_point - center_point
@@ -511,12 +511,12 @@ class SnapsSystem:
         # For line-like items, find nearest point on the line
         if hasattr(item, '_start_point') and hasattr(item, '_end_point'):
             return self._point_to_line_nearest(
-                mouse_local, item._start_point, item._end_point, item)
+                mouse_local, item._start_point, item._end_point, item) # type: ignore
         
         # For circle-like items, find nearest point on the circle
         elif hasattr(item, '_center_point') and hasattr(item, 'radius'):
             return self._point_to_circle_nearest(
-                mouse_local, item._center_point, item.radius, item)
+                mouse_local, item._center_point, item.radius, item) # type: ignore
         
         return None
     

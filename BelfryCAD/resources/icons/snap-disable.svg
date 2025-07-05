@@ -23,7 +23,7 @@
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="26"
-     inkscape:cx="8"
+     inkscape:cx="8.4615385"
      inkscape:cy="8"
      inkscape:window-width="1232"
      inkscape:window-height="847"
@@ -31,30 +31,27 @@
      inkscape:window-y="25"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg8" />
-  <g
-     id="g2"
-     style="display:inline">
-    <path
-       style="fill:none;stroke:#000000;stroke-width:3;stroke-linecap:square;stroke-dasharray:none;stroke-dashoffset:1.5;stroke-opacity:1"
-       d="M 12.251141,12.25114 3.7488592,3.7488604"
-       id="path1-4-0" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:3;stroke-linecap:square;stroke-dasharray:none;stroke-dashoffset:1.5;stroke-opacity:1"
-       d="M 3.7488603,12.251141 12.25114,3.7488589"
-       id="path1-8" />
-  </g>
   <!-- Circle with quadrant points -->
   <!-- Quadrant crosshairs -->
-  <g
-     id="g1"
-     style="display:inline">
-    <path
-       style="fill:none;stroke:#ff0000;stroke-width:2;stroke-linecap:square;stroke-dasharray:none;stroke-dashoffset:1.5;stroke-opacity:1"
-       d="M 3.7488602,12.251141 12.25114,3.7488589"
-       id="path1" />
-    <path
-       style="fill:none;stroke:#ff0000;stroke-width:2;stroke-linecap:square;stroke-dasharray:none;stroke-dashoffset:1.5;stroke-opacity:1"
-       d="M 12.251141,12.25114 3.7488591,3.7488603"
-       id="path1-4" />
-  </g>
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.949;stroke-linecap:square;stroke-dasharray:0.949, 0.949;stroke-dashoffset:0.1898"
+     x="0.42187947"
+     y="9.4114571"
+     id="text1"><tspan
+       sodipodi:role="line"
+       id="tspan1"
+       x="0.42187947"
+       y="9.4114571"
+       style="font-size:5.33333px">Snaps</tspan></text>
+  <circle
+     style="fill:none;fill-opacity:1;stroke:#ff0101;stroke-width:1.5;stroke-linecap:round;stroke-dasharray:none;stroke-dashoffset:0.2;stroke-opacity:1"
+     id="path1"
+     cy="8"
+     cx="8"
+     r="6.6346154" />
+  <path
+     style="fill:none;fill-opacity:1;stroke:#ff0101;stroke-width:1.5;stroke-linecap:round;stroke-dasharray:none;stroke-dashoffset:0.2;stroke-opacity:1"
+     d="M 3.2115383,12.5 12.788462,3.5000002"
+     id="path2" />
 </svg>

@@ -3,12 +3,15 @@ Circle2PointsCadItem - A circle CAD item defined by two points on opposite sides
 """
 
 import math
+
 from typing import List, Optional
+
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
-from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
-from BelfryCAD.gui.cad_rect import CadRect
+
+from ..cad_item import CadItem
+from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
+from ..cad_rect import CadRect
 
 
 class Circle2PointsCadItem(CadItem):

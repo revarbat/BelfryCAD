@@ -15,13 +15,13 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from ..mlcnc.cutting_params import (
+from ...mlcnc.cutting_params import (
     ToolSpecification, ToolGeometry, ToolMaterial, ToolCoating
 )
 from .tool_spec_dialog import ToolSpecDialog
 
 if TYPE_CHECKING:
-    from .main_window import MainWindow
+    from ..main_window import MainWindow
 
 
 logger = logging.getLogger(__name__)

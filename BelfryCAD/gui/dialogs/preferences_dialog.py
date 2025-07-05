@@ -18,14 +18,14 @@ from PySide6.QtGui import QColor
 
 
 try:
-    from ..core.preferences import PreferencesManager
-    from ..config import AppConfig
+    from ...core.preferences import PreferencesManager
+    from ...config import AppConfig
 except ImportError:
     # Fallback for direct execution
     import sys
     from pathlib import Path
     sys.path.append(str(Path(__file__).parent.parent))
-    from core.preferences import PreferencesManager
+    from ...core.preferences import PreferencesManager
     from config import AppConfig
 
 
@@ -414,7 +414,7 @@ class PreferencesDialog(QDialog):
         # Center dialog on parent or screen
         if self.parent():
             # Center on parent
-            parent_geom = self.parent().geometry()
+            parent_geom = self.parent().geometry() # type: ignore
             x = parent_geom.x() + (parent_geom.width() - self.width()) // 2
             y = parent_geom.y() + (parent_geom.height() - self.height()) // 2
             self.move(x, y)

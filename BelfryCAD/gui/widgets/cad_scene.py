@@ -1,8 +1,8 @@
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
 from PySide6.QtCore import Qt, QPointF, QTimer
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath
-from .cad_item import CadItem
-from .control_points import ControlPoint, ControlDatum
+from ..graphics_items.cad_item import CadItem
+from ..graphics_items.control_points import ControlPoint, ControlDatum
 
 
 class CadScene(QGraphicsScene):

@@ -4,12 +4,15 @@ If the three points are collinear, it draws a line instead.
 """
 
 import math
+
 from typing import List, Optional
+
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
-from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
-from BelfryCAD.gui.cad_rect import CadRect
+
+from ..cad_item import CadItem
+from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
+from ..cad_rect import CadRect
 
 
 class Circle3PointsCadItem(CadItem):

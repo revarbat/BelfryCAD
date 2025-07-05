@@ -14,7 +14,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 
 from BelfryCAD.core.cad_objects import CADObject, Point
-from BelfryCAD.gui.cad_scene import CadScene
+from BelfryCAD.gui.widgets.cad_scene import CadScene
 
 
 class ToolState(Enum):
@@ -163,8 +163,10 @@ class Tool(QObject):
 
     def clear_temp_objects(self):
         """Clear any temporary preview objects"""
-        cad_scene = self.main_window.get_scene().scene
-        cad_scene.removeItemsByTags(["Construction"])
+        # Get the drawing manager from the main window
+        drawing_manager = self.main_window.drawing_manager
+        if drawing_manager:
+            drawing_manager.remove_items_by_tag("Construction")
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""

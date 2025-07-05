@@ -11,9 +11,9 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PySide6.QtCore import Qt, QTimer, QPointF
 from PySide6.QtGui import QPen, QColor
 
-from BelfryCAD.gui.cad_scene import CadScene
-from BelfryCAD.gui.cad_view import CadView
-from BelfryCAD.gui.caditems.line_cad_item import LineCadItem
+from BelfryCAD.gui.widgets.cad_scene import CadScene
+from BelfryCAD.gui.widgets.cad_view import CadView
+from BelfryCAD.gui.graphics_items.caditems.line_cad_item import LineCadItem
 
 
 class TestWindow(QMainWindow):

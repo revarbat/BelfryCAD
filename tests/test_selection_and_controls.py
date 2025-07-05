@@ -11,11 +11,11 @@ from PySide6.QtGui import QColor
 # Add the BelfryCAD directory to the path
 sys.path.insert(0, 'BelfryCAD')
 
-from BelfryCAD.gui.cad_scene import CadScene
-from BelfryCAD.gui.cad_view import CadView
-from BelfryCAD.gui.caditems.line_cad_item import LineCadItem
-from BelfryCAD.gui.caditems.rectangle_cad_item import RectangleCadItem
-from BelfryCAD.gui.caditems.circle_center_radius_cad_item import CircleCenterRadiusCadItem
+from BelfryCAD.gui.widgets.cad_scene import CadScene
+from BelfryCAD.gui.widgets.cad_view import CadView
+from BelfryCAD.gui.graphics_items.caditems.line_cad_item import LineCadItem
+from BelfryCAD.gui.graphics_items.caditems.rectangle_cad_item import RectangleCadItem
+from BelfryCAD.gui.graphics_items.caditems.circle_center_radius_cad_item import CircleCenterRadiusCadItem
 
 
 class TestWindow(QMainWindow):

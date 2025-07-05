@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
-from BelfryCAD.gui.caditems import CubicBezierCadItem
+from BelfryCAD.gui.graphics_items.caditems.cubic_bezier_cad_item import CubicBezierCadItem, PathPointState
 
 def test_cubic_bezier_states():
     """Test the CubicBezierCadItem state cycling implementation."""
@@ -36,7 +36,7 @@ def test_cubic_bezier_states():
     print("\nTesting state cycling...")
     
     # Import the enum
-    from BelfryCAD.gui.caditems.cubic_bezier_cad_item import PathPointState
+    # from BelfryCAD.gui.caditems.cubic_bezier_cad_item import PathPointState
     
     # Cycle first path point to EQUIDISTANT
     bezier.set_path_point_state(0, PathPointState.EQUIDISTANT)

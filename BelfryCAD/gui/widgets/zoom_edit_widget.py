@@ -1,7 +1,7 @@
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QGraphicsView, QWidget
 
-from .grid_info import GridInfo
+from ..grid_info import GridInfo
 
 
 class DigitOnlyInputFilter(QObject):

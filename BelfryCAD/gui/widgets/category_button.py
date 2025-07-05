@@ -5,14 +5,15 @@ A toolbar button that represents a tool category and can change its icon
 to show the currently selected tool in that category.
 """
 
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+if TYPE_CHECKING:
+    from ...tools.base import ToolDefinition, ToolCategory
 
 from PySide6.QtWidgets import QToolButton
 from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtGui import QMouseEvent
 
-from ...tools.base import ToolDefinition, ToolCategory
-from .tool_palette import ToolPalette
+from ..panes.tool_palette import ToolPalette
 
 
 class CategoryToolButton(QToolButton):
@@ -31,15 +32,21 @@ class CategoryToolButton(QToolButton):
             cls._current_visible_palette.hide()
             cls._current_visible_palette = None
 
-    def __init__(self, category: ToolCategory, tools: List[ToolDefinition],
-                 icon_loader, parent=None):
+    def __init__(
+            self,
+            category: 'ToolCategory',
+            tools: List['ToolDefinition'],
+            icon_loader,
+            parent=None
+    ):
         super().__init__(parent)
+        self.iconsize = 40
         self.category = category
         self.tools = tools
         self.icon_loader = icon_loader
         # Default to first tool
         self.current_tool = tools[0] if tools else None
-        self.palette = None
+        self.tool_palette = None
         # Track if this category's tool is currently active
         self.is_active = False
 
@@ -52,8 +59,8 @@ class CategoryToolButton(QToolButton):
 
     def _setup_ui(self):
         """Set up the button UI"""
-        self.setFixedSize(32, 32)
-        self.setIconSize(QSize(40, 40))  # Ensure icons are 48x48
+        self.setFixedSize(self.iconsize, self.iconsize)
+        self.setIconSize(QSize(self.iconsize, self.iconsize))
 
         # Update tooltip based on whether category has one or multiple tools
         if len(self.tools) == 1:
@@ -134,21 +141,21 @@ class CategoryToolButton(QToolButton):
         # Dismiss any currently visible palette before showing this one
         self._dismiss_current_palette()
 
-        if not self.palette:
-            self.palette = ToolPalette(
+        if not self.tool_palette:
+            self.tool_palette = ToolPalette(
                 self.category, self.tools, self.icon_loader, self.parent()
             )
-            self.palette.tool_selected.connect(self._on_tool_selected)
+            self.tool_palette.tool_selected.connect(self._on_tool_selected)
 
         # Position palette to the right of this button
         button_rect = self.geometry()
-        global_pos = self.parent().mapToGlobal(button_rect.topRight())
+        global_pos = self.parent().mapToGlobal(button_rect.topRight()) # type: ignore
         global_pos.setX(global_pos.x() + 5)  # Small gap
 
         # Track this palette as the currently visible one
-        CategoryToolButton._current_visible_palette = self.palette
+        CategoryToolButton._current_visible_palette = self.tool_palette
 
-        self.palette.show_at_position(global_pos)
+        self.tool_palette.show_at_position(global_pos)
 
     def _on_tool_selected(self, tool_token: str):
         """Handle tool selection from palette"""
@@ -185,7 +192,7 @@ class CategoryToolButton(QToolButton):
 
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse press events for press-and-hold behavior"""
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             # Start timer for press-and-hold behavior (500ms = 0.5 seconds)
             # This applies to both single and multi-tool categories
             if len(self.tools) == 1:
@@ -207,7 +214,7 @@ class CategoryToolButton(QToolButton):
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         """Handle mouse release events"""
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             # Stop the hold timer for both single and multi-tool categories
             self.hold_timer.stop()
 
@@ -219,8 +226,8 @@ class CategoryToolButton(QToolButton):
             else:
                 # Multi-tool: activate current tool on quick click
                 # if palette not visible
-                palette_not_visible = (not self.palette or
-                                       not self.palette.isVisible())
+                palette_not_visible = (not self.tool_palette or
+                                       not self.tool_palette.isVisible())
                 if palette_not_visible and self.current_tool:
                     self._dismiss_current_palette()
                     self.tool_selected.emit(self.current_tool.token)

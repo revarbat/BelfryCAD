@@ -21,24 +21,24 @@ from ..tools import available_tools
 
 from .mainmenu import MainMenuBar
 from .grid_info import GridInfo, GridUnits
-from .grid_graphics_items import (
+from .graphics_items.grid_graphics_items import (
     GridBackground, RulersForeground, SnapCursorItem
 )
 from .palette_system import create_default_palettes
-from .panes.category_button import CategoryToolButton
-from .cad_scene import CadScene
-from .cad_view import CadView
+from .widgets.category_button import CategoryToolButton
+from .widgets.cad_scene import CadScene
+from .widgets.cad_view import CadView
 from .icon_manager import get_icon
-from .cad_item import CadItem
+from .graphics_items.cad_item import CadItem
 from .print_manager import CadPrintManager
-from .feed_wizard import FeedWizardDialog
-from .tool_table_dialog import ToolTableDialog
-from .preferences_dialog import PreferencesDialog
-from .gear_wizard_dialog import GearWizardDialog
-from .gcode_backtracer_dialog import GCodeBacktracerDialog
-from .zoom_edit_widget import ZoomEditWidget
+from .dialogs.feed_wizard import FeedWizardDialog
+from .dialogs.tool_table_dialog import ToolTableDialog
+from .dialogs.preferences_dialog import PreferencesDialog
+from .dialogs.gear_wizard_dialog import GearWizardDialog
+from .dialogs.gcode_backtracer_dialog import GCodeBacktracerDialog
+from .widgets.zoom_edit_widget import ZoomEditWidget
 from .snaps_system import SnapsSystem
-from .caditems import (
+from .graphics_items.caditems import (
     LineCadItem, CubicBezierCadItem, QuadraticBezierCadItem, CircleCenterRadiusCadItem,
     Circle2PointsCadItem, Circle3PointsCadItem, CircleCornerCadItem, ArcCornerCadItem, RectangleCadItem, ArcCadItem, PolylineCadItem,
 )
@@ -113,6 +113,7 @@ class MainWindow(QMainWindow):
         self._create_menu()
         self._create_toolbar()
         self._create_canvas()
+        self._create_snaps_toolbar()  # Add snaps toolbar
         self._create_status_bar()  # Add status bar
         self._setup_palettes()  # Add palette system setup
         self._setup_tools()
@@ -254,7 +255,7 @@ class MainWindow(QMainWindow):
         self.main_menu.show_info_panel_toggled.connect(self.toggle_info_panel)
         self.main_menu.show_properties_toggled.connect(self.toggle_properties)
         self.main_menu.show_layers_toggled.connect(self.toggle_layers)
-        self.main_menu.show_snap_settings_toggled.connect(self.toggle_snap_settings)
+        # Snaps are now in toolbar, no longer need toggle
 
         # CAM menu connections
         self.main_menu.configure_mill_triggered.connect(self.configure_mill)
@@ -273,6 +274,8 @@ class MainWindow(QMainWindow):
 
     def _create_toolbar(self):
         """Create a toolbar with drawing tools"""
+        from .widgets.two_column_toolbar import TwoColumnToolbarWidget
+        
         self.toolbar = self.addToolBar("Tools")
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
         # Set the icon size to 48x48 for 150% size visibility
@@ -293,10 +296,93 @@ class MainWindow(QMainWindow):
                 border: none;
             }
         """)
-        # We'll populate this with category buttons in _setup_tools()
-
+        
+        # Create two-column widget for tools
+        self.tools_widget = TwoColumnToolbarWidget()
+        self.toolbar.addWidget(self.tools_widget)
+        
         # Store category buttons for reference
         self.category_buttons = {}
+
+    def _create_snaps_toolbar(self):
+        """Create a toolbar for snap settings"""
+        from .panes.snaps_pane import create_snaps_toolbar
+        
+        self.snaps_toolbar = create_snaps_toolbar(self.cad_scene, None)
+        
+        # Make the toolbar movable and allow it to be docked in different areas
+        self.snaps_toolbar.setMovable(True)
+        self.snaps_toolbar.setAllowedAreas(
+            Qt.ToolBarArea.TopToolBarArea |
+            Qt.ToolBarArea.BottomToolBarArea |
+            Qt.ToolBarArea.LeftToolBarArea |
+            Qt.ToolBarArea.RightToolBarArea
+        )
+        
+        # Add to top toolbar area by default
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.snaps_toolbar)
+        
+        # Connect snap signals to the snaps system
+        self.snaps_toolbar.snap_changed.connect(self._on_snap_changed)
+        self.snaps_toolbar.all_snaps_changed.connect(self._on_all_snaps_changed)
+        
+        # Restore toolbar position from preferences
+        self._restore_snaps_toolbar_position()
+        
+        # Connect toolbar area changes to save position
+        self.snaps_toolbar.orientationChanged.connect(self._on_snaps_toolbar_moved)
+
+    def _on_snap_changed(self, snap_type: str, enabled: bool):
+        """Handle individual snap type changes"""
+        # The snaps system will automatically pick up changes from snaps_pane_info
+        pass
+
+    def _on_all_snaps_changed(self, enabled: bool):
+        """Handle all snaps toggle changes"""
+        # The snaps system will automatically pick up changes from snaps_pane_info
+        pass
+
+    def _restore_snaps_toolbar_position(self):
+        """Restore snaps toolbar position from preferences."""
+        toolbar_area = self.preferences.get("snaps_toolbar_area", "top")
+        
+        # Remove from current area
+        self.removeToolBar(self.snaps_toolbar)
+        
+        # Add to preferred area
+        area_map = {
+            "top": Qt.ToolBarArea.TopToolBarArea,
+            "bottom": Qt.ToolBarArea.BottomToolBarArea,
+            "left": Qt.ToolBarArea.LeftToolBarArea,
+            "right": Qt.ToolBarArea.RightToolBarArea,
+        }
+        
+        qt_area = area_map.get(toolbar_area, Qt.ToolBarArea.TopToolBarArea)
+        self.addToolBar(qt_area, self.snaps_toolbar)
+        
+        # Restore visibility
+        visible = self.preferences.get("snaps_toolbar_visible", True)
+        self.snaps_toolbar.setVisible(visible)
+
+    def _save_snaps_toolbar_position(self):
+        """Save snaps toolbar position to preferences."""
+        # Determine current area
+        area = self.toolBarArea(self.snaps_toolbar)
+        area_map = {
+            Qt.ToolBarArea.TopToolBarArea: "top",
+            Qt.ToolBarArea.BottomToolBarArea: "bottom",
+            Qt.ToolBarArea.LeftToolBarArea: "left",
+            Qt.ToolBarArea.RightToolBarArea: "right",
+        }
+        
+        toolbar_area = area_map.get(area, "top")
+        self.preferences.set("snaps_toolbar_area", toolbar_area)
+        self.preferences.set("snaps_toolbar_visible", self.snaps_toolbar.isVisible())
+
+    def _on_snaps_toolbar_moved(self, orientation):
+        """Handle snaps toolbar movement."""
+        # Save the new position after a short delay to ensure the move is complete
+        QTimer.singleShot(100, self._save_snaps_toolbar_position)
 
     def _create_status_bar(self):
         """Create the status bar with position labels."""
@@ -619,8 +705,8 @@ class MainWindow(QMainWindow):
             # Connect category button to tool activation
             category_button.tool_selected.connect(self.activate_tool)
 
-            # Add to toolbar
-            self.toolbar.addWidget(category_button)
+            # Add to two-column widget
+            self.tools_widget.add_button(category_button)
             self.category_buttons[category] = category_button
 
         # Activate the selector tool by default
@@ -1193,6 +1279,10 @@ class MainWindow(QMainWindow):
                            f"{geometry.width()}x{geometry.height()}+"
                            f"{geometry.x()}+{geometry.y()}")
 
+        # Save snaps toolbar position
+        if hasattr(self, 'snaps_toolbar'):
+            self._save_snaps_toolbar_position()
+
         # Save preferences
         self.preferences.save()
 
@@ -1218,11 +1308,7 @@ class MainWindow(QMainWindow):
         self.palette_manager.set_palette_visibility("layer_pane", show)
         self._sync_palette_menu_states()
 
-    def toggle_snap_settings(self, show):
-        """Handle Snaps panel visibility toggle."""
-        self.preferences.set("show_snap_settings", show)
-        self.palette_manager.set_palette_visibility("snaps_pane", show)
-        self._sync_palette_menu_states()
+
 
     def _sync_palette_menu_states(self):
         """Sync the palette menu checkbox states with actual visibility."""
@@ -1237,8 +1323,7 @@ class MainWindow(QMainWindow):
             self.preferences.set("show_properties", visible)
         elif palette_id == "layer_pane":
             self.preferences.set("show_layers", visible)
-        elif palette_id == "snaps_pane":
-            self.preferences.set("show_snap_settings", visible)
+
 
         # Sync the menu checkboxes with the new state
         self._sync_palette_menu_states()

@@ -11,10 +11,10 @@ from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QColor
 
-from BelfryCAD.gui.caditems.line_cad_item import LineCadItem
-from BelfryCAD.gui.caditems.polyline_cad_item import PolylineCadItem
-from BelfryCAD.gui.caditems.circle_3points_cad_item import Circle3PointsCadItem
-from BelfryCAD.gui.control_points import ControlPoint
+from BelfryCAD.gui.graphics_items.caditems.line_cad_item import LineCadItem
+from BelfryCAD.gui.graphics_items.caditems.polyline_cad_item import PolylineCadItem
+from BelfryCAD.gui.graphics_items.caditems.circle_3points_cad_item import Circle3PointsCadItem
+from BelfryCAD.gui.graphics_items.control_points import ControlPoint
 
 def test_line_cad_item_exclusion():
     """Test control point exclusion for LineCadItem."""
@@ -113,7 +113,7 @@ def test_snaps_system_integration():
     print("Testing snaps system integration...")
     
     from BelfryCAD.gui.snaps_system import SnapsSystem
-    from BelfryCAD.gui.cad_scene import CadScene
+    from BelfryCAD.gui.widgets.cad_scene import CadScene
     from BelfryCAD.gui.grid_info import GridInfo
     
     # Create a scene and snaps system

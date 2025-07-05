@@ -4,7 +4,7 @@ Floating Tool Palette
 A popup widget that shows all tools in a specific category
 """
 
-from typing import List, Dict
+from typing import TYPE_CHECKING, List, Dict
 
 from PySide6.QtWidgets import (
     QHBoxLayout, QToolButton, QFrame
@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QKeyEvent
 
-from ...tools.base import ToolDefinition, ToolCategory
+if TYPE_CHECKING:
+    from ...tools.base import ToolDefinition, ToolCategory
 
 
 class ToolPalette(QFrame):
@@ -21,7 +22,7 @@ class ToolPalette(QFrame):
     # Signal emitted when a tool is selected
     tool_selected = Signal(str)  # tool_token
 
-    def __init__(self, category: ToolCategory, tools: List[ToolDefinition],
+    def __init__(self, category: 'ToolCategory', tools: List['ToolDefinition'],
                  icon_loader, parent=None):
         super().__init__(parent)
         self.category = category

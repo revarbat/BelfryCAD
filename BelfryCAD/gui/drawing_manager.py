@@ -139,7 +139,7 @@ class DrawingManager:
     def get_items_by_tag(self, tag: str) -> List[QGraphicsItem]:
         """Get all graphics items with a specific tag"""
         if self.cad_scene:
-            return self.cad_scene.scene.getItemsByTag(tag)
+            return self.cad_scene.getItemsByTag(tag)
         else:
             return []
 
@@ -339,7 +339,8 @@ class DrawingManager:
 
         if not color_name or color_name == "none":
             # Get layer color if object has no explicit color
-            layer_color = self.get_layer_color(obj.layer)
+            layer_color = None if obj.layer is None \
+                else self.get_layer_color(obj.layer.id) # type: ignore
             if layer_color:
                 color_name = layer_color
             else:
@@ -378,7 +379,7 @@ class DrawingManager:
 
         # Check layer visibility - skip drawing if layer is hidden
         if hasattr(obj, 'layer') and obj.layer:
-            if not self.get_layer_visibility(obj.layer):
+            if not self.get_layer_visibility(obj.layer.id): # type: ignore
                 return items
 
         # Handle GROUP type objects
@@ -1062,7 +1063,7 @@ class DrawingManager:
         """Complete redraw of all objects - translates cadobjects_redraw"""
         # Clear scene
         if self.cad_scene:
-            self.cad_scene.scene.clear()
+            self.cad_scene.clear()
 
         # Redraw grid - now handled by CadScene
         if self.cad_scene:

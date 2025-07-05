@@ -18,7 +18,6 @@ from PySide6.QtCore import Qt, Signal, QPoint, QSize, QObject
 # Import the translated palette components
 from .panes.info_pane import InfoPane
 from .panes.config_pane import ConfigPane
-from .panes.snaps_pane import SnapsPane
 from .panes.layer_pane import LayerPane
 
 
@@ -285,7 +284,13 @@ class PaletteManager(QObject):
         elif palette_type == PaletteType.CONFIG_PANE:
             return ConfigPane()
         elif palette_type == PaletteType.SNAPS_PANE:
-            return SnapsPane()
+            # Snaps are now handled by toolbar, return placeholder
+            widget = QWidget()
+            widget.setMinimumSize(200, 150)
+            layout = QVBoxLayout()
+            layout.addWidget(QLabel("Snaps are now available in the toolbar"))
+            widget.setLayout(layout)
+            return widget
         elif palette_type == PaletteType.LAYER_PANE:
             return LayerPane(parent=self.main_window)
         else:
@@ -460,8 +465,7 @@ def create_default_palettes(main_window) -> PaletteManager:
     manager.create_palette(PaletteType.CONFIG_PANE)
     manager.create_palette(PaletteType.LAYER_PANE)
 
-    # Snaps pane is created but hidden by default
-    manager.create_palette(PaletteType.SNAPS_PANE)
+    # Snaps are now handled by toolbar, no longer need palette
 
     return manager
 

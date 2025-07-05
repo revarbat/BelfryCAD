@@ -23,7 +23,7 @@ from BelfryCAD.mlcnc.cutting_params import (
 from .tool_table_dialog import ToolTableDialog
 
 if TYPE_CHECKING:
-    from .main_window import MainWindow
+    from ..main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 

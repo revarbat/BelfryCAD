@@ -1,37 +1,41 @@
 """
-QuadraticBezierCadItem - A quadratic Bezier curve CAD item defined by an arbitrary number of points.
-Points follow the pattern: [path_point, control_point, path_point, control_point, ...]
+CubicBezierCadItem - A cubic Bezier curve CAD item defined by an arbitrary number of points.
+Points follow the pattern: [path_point, control1, control2, path_point, control1, control2, ...]
 """
 
 import math
+
 from enum import Enum
 from typing import List, Optional
-from PySide6.QtCore import QPointF, QRectF
-from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
-from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, DiamondControlPoint
-from BelfryCAD.gui.cad_rect import CadRect
+
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker
+
+from ..cad_item import CadItem
+from ..control_points import ControlPoint, SquareControlPoint, DiamondControlPoint
+from ..cad_rect import CadRect
 
 
 class PathPointState(Enum):
-    """States for path points in quadratic Bezier curves."""
+    """States for path points in cubic Bezier curves."""
     SMOOTH = "smooth"           # Control points at opposite angles
     EQUIDISTANT = "equidistant" # Control points at opposite angles and equal distances
     DISJOINT = "disjoint"       # No constraints on control points
 
 
-class QuadraticBezierCadItem(CadItem):
-    """A quadratic Bezier curve CAD item defined by an arbitrary number of points.
+class CubicBezierCadItem(CadItem):
+    """A cubic Bezier curve CAD item defined by an arbitrary number of points.
     
     Points follow the pattern:
     - 1st point: path point (on the curve)
     - 2nd point: control point for 1st segment
-    - 3rd point: path point (on the curve)
-    - 4th point: control point for 2nd segment
-    - 5th point: path point (on the curve)
+    - 3rd point: control point for 1st segment
+    - 4th point: path point (on the curve)
+    - 5th point: control point for 2nd segment
+    - 6th point: control point for 2nd segment
     - And so on...
     
-    This creates a smooth curve that passes through every other point.
+    This creates a smooth curve that passes through every 3rd point.
     """
 
     def __init__(self, points=None, color=QColor(0, 0, 255), line_width=0.05):
@@ -41,8 +45,9 @@ class QuadraticBezierCadItem(CadItem):
         if points is None:
             points = [
                 QPointF(0, 0),    # 1st path point
-                QPointF(1, 1),    # control point for 1st segment
-                QPointF(2, 0),    # 2nd path point
+                QPointF(1, 1),    # control1 for 1st segment
+                QPointF(2, -1),   # control2 for 1st segment
+                QPointF(3, 0),    # 2nd path point
             ]
         
         self._points = []
@@ -50,7 +55,7 @@ class QuadraticBezierCadItem(CadItem):
         self._line_width = line_width
         self._control_points = []
         
-        # Track state for each path point (every 2nd point)
+        # Track state for each path point (every 3rd point)
         self._path_point_states = []
         
         # Convert all points to QPointF
@@ -66,15 +71,15 @@ class QuadraticBezierCadItem(CadItem):
     def _initialize_path_point_states(self):
         """Initialize states for all path points based on their geometric relationships."""
         self._path_point_states = []
-        for i in range(0, len(self._points), 2):
-            path_point_index = i // 2
+        for i in range(0, len(self._points), 3):
+            path_point_index = i // 3
             state = self._determine_path_point_state(path_point_index)
             self._path_point_states.append(state)
 
     def _determine_path_point_state(self, path_point_index):
         """Determine the state of a path point based on its adjacent control points."""
         # Convert path point index to actual point index
-        point_index = path_point_index * 2
+        point_index = path_point_index * 3
         
         if point_index < 1 or point_index >= len(self._points) - 1:
             return PathPointState.DISJOINT  # Can't determine without both adjacent control points
@@ -122,7 +127,7 @@ class QuadraticBezierCadItem(CadItem):
 
     def _get_path_point_index(self, point_index):
         """Get the path point index for a given point index."""
-        return point_index // 2
+        return point_index // 3
 
     def _get_path_point_state(self, point_index):
         """Get the state of a path point."""
@@ -207,19 +212,21 @@ class QuadraticBezierCadItem(CadItem):
             avg_unit_x = (prev_unit_x + next_unit_x) / 2
             avg_unit_y = (prev_unit_y + next_unit_y) / 2
             
-            # Normalize the average unit vector
-            avg_length = math.sqrt(avg_unit_x**2 + avg_unit_y**2)
-            if avg_length > 0:
-                avg_unit_x /= avg_length
-                avg_unit_y /= avg_length
+            # Normalize to get the average angle
+            avg_magnitude = math.sqrt(avg_unit_x**2 + avg_unit_y**2)
+            if avg_magnitude > 0:
+                avg_unit_x /= avg_magnitude
+                avg_unit_y /= avg_magnitude
+                avg_angle = math.atan2(avg_unit_y, avg_unit_x)
+            else:
+                # Fallback: use the first angle
+                avg_angle = prev_angle
             
-            # Set both control points to be opposite to this average direction
-            # First control point in the average direction
+            # Set one control point to the average angle and the other to the opposite
             new_prev_control = QPointF(
                 path_point.x() + prev_distance * avg_unit_x,
                 path_point.y() + prev_distance * avg_unit_y
             )
-            # Second control point in the opposite direction
             new_next_control = QPointF(
                 path_point.x() + next_distance * (-avg_unit_x),
                 path_point.y() + next_distance * (-avg_unit_y)
@@ -230,133 +237,129 @@ class QuadraticBezierCadItem(CadItem):
 
     def _update_control_point_visual(self, point_index):
         """Update the visual representation of a control point based on its state."""
-        if hasattr(self, '_control_points') and self._control_points:
-            state = self._get_path_point_state(point_index)
-            
-            # Remove old control point from scene if it exists
-            if point_index < len(self._control_points):
-                old_cp = self._control_points[point_index]
-                if old_cp and old_cp.scene():
-                    old_cp.scene().removeItem(old_cp)
-            
-            # Create new control point with appropriate type
-            def make_setter(index):
-                return lambda pos: self._set_point(index, pos)
-            
-            if state == PathPointState.SMOOTH:
-                new_cp = SquareControlPoint(
-                    cad_item=self,
-                    setter=make_setter(point_index)
-                )
-            elif state == PathPointState.EQUIDISTANT:
-                new_cp = ControlPoint(
-                    cad_item=self,
-                    setter=make_setter(point_index)
-                )
-            else:  # DISJOINT
-                new_cp = DiamondControlPoint(
-                    cad_item=self,
-                    setter=make_setter(point_index)
-                )
-            
-            # Update the control point list
-            if point_index < len(self._control_points):
-                self._control_points[point_index] = new_cp
-            else:
-                # Extend the list if needed
-                while len(self._control_points) <= point_index:
-                    self._control_points.append(None)
-                self._control_points[point_index] = new_cp
-            
-            # Update position
-            if point_index < len(self._points):
-                new_cp.setPos(self._points[point_index])
-            
-            # Add the new control point to the scene
-            if self.scene():
-                self.scene().addItem(new_cp)
+        if not hasattr(self, '_control_points') or point_index >= len(self._control_points):
+            return
+        
+        state = self._get_path_point_state(point_index)
+        current_cp = self._control_points[point_index]
+        
+        # Create new control point with appropriate type
+        if state == PathPointState.SMOOTH:
+            new_cp = SquareControlPoint(cad_item=self, setter=current_cp.setter)
+        elif state == PathPointState.EQUIDISTANT:
+            new_cp = ControlPoint(cad_item=self, setter=current_cp.setter)
+        else:  # DISJOINT
+            new_cp = DiamondControlPoint(cad_item=self, setter=current_cp.setter)
+        
+        # Copy position and other properties
+        new_cp.setPos(current_cp.pos())
+        new_cp.setZValue(current_cp.zValue())
+        
+        # Remove the old control point from the scene
+        scene = current_cp.scene() if hasattr(current_cp, 'scene') else None
+        if scene is not None:
+            scene.removeItem(current_cp)
+        
+        # Replace the control point in the list
+        self._control_points[point_index] = new_cp
+        
+        # Add the new control point to the scene if needed
+        if scene is not None:
+            scene.addItem(new_cp)
 
     def _apply_path_point_constraints(self, point_index):
-        """Apply constraints when a control point is moved."""
-        # This method can be called when control points are moved to maintain state constraints
+        """Apply constraints for a path point based on its state. Only applies when the path point itself is moved."""
+        state = self._get_path_point_state(point_index)
+        if state == PathPointState.DISJOINT:
+            return  # No constraints
+        # Only apply when the path point itself is moved
+        # (i.e., do not adjust angles/distances for control point moves)
+        # When a path point is moved, move both adjacent control points by the same delta (already handled in _set_point)
+        # No further action needed here for SMOOTH/EQUIDISTANT
         pass
 
     def _adjust_control_point_angles(self, path_point_index, moved_control_index):
-        """Adjust the opposite control point when one is moved to maintain state constraints."""
-        point_index = path_point_index * 2
-        state = self._get_path_point_state(point_index)
+        """Adjust control point angles when a control point is moved.
         
+        Args:
+            path_point_index: Index of the path point (on-bezier point)
+            moved_control_index: Index of the control point that was moved
+        """
+        state = self._get_path_point_state(path_point_index)
         if state == PathPointState.DISJOINT:
-            return  # No constraints to apply
+            return  # No angle constraints for disjoint state
         
-        path_point = self._points[point_index]
-        prev_control = self._points[point_index - 1]
-        next_control = self._points[point_index + 1]
+        path_point = self._points[path_point_index]
+        prev_control = None
+        next_control = None
         
-        # Determine which control point was moved and which needs adjustment
-        if moved_control_index == point_index - 1:
-            # Previous control was moved, adjust next control
-            moved_control = prev_control
-            target_control = next_control
-            target_index = point_index + 1
-        elif moved_control_index == point_index + 1:
-            # Next control was moved, adjust previous control
-            moved_control = next_control
-            target_control = prev_control
-            target_index = point_index - 1
-        else:
-            return  # Not a relevant control point
+        if path_point_index > 0:
+            prev_control = self._points[path_point_index - 1]
+        if path_point_index < len(self._points) - 1:
+            next_control = self._points[path_point_index + 1]
         
-        # Calculate vector from path point to moved control
-        moved_vector = moved_control - path_point
-        moved_angle = math.atan2(moved_vector.y(), moved_vector.x())
-        moved_distance = math.sqrt(moved_vector.x()**2 + moved_vector.y()**2)
+        if prev_control is None or next_control is None:
+            return
         
-        if state == PathPointState.SMOOTH:
-            # Make the target control point opposite in angle
-            target_angle = moved_angle + math.pi
-            target_distance = math.sqrt((target_control.x() - path_point.x())**2 + 
-                                      (target_control.y() - path_point.y())**2)
+        if moved_control_index == path_point_index - 1:  # prev_control was moved
+            moved_vector = prev_control - path_point
+            moved_angle = math.atan2(moved_vector.y(), moved_vector.x())
+            moved_distance = math.sqrt(moved_vector.x()**2 + moved_vector.y()**2)
+            opposite_angle = moved_angle + math.pi
             
-            new_target_control = QPointF(
-                path_point.x() + target_distance * math.cos(target_angle),
-                path_point.y() + target_distance * math.sin(target_angle)
-            )
+            if state == PathPointState.EQUIDISTANT:
+                # Set the other control point to the same distance, opposite angle
+                new_next_control = QPointF(
+                    path_point.x() + moved_distance * math.cos(opposite_angle),
+                    path_point.y() + moved_distance * math.sin(opposite_angle)
+                )
+                self._points[path_point_index + 1] = new_next_control
+            else:  # SMOOTH
+                # Keep the other control point's distance, but set to opposite angle
+                other_vector = next_control - path_point
+                other_distance = math.sqrt(other_vector.x()**2 + other_vector.y()**2)
+                new_next_control = QPointF(
+                    path_point.x() + other_distance * math.cos(opposite_angle),
+                    path_point.y() + other_distance * math.sin(opposite_angle)
+                )
+                self._points[path_point_index + 1] = new_next_control
+                
+        elif moved_control_index == path_point_index + 1:  # next_control was moved
+            moved_vector = next_control - path_point
+            moved_angle = math.atan2(moved_vector.y(), moved_vector.x())
+            moved_distance = math.sqrt(moved_vector.x()**2 + moved_vector.y()**2)
+            opposite_angle = moved_angle + math.pi
             
-        elif state == PathPointState.EQUIDISTANT:
-            # Make the target control point opposite in angle and equal in distance
-            target_angle = moved_angle + math.pi
-            
-            new_target_control = QPointF(
-                path_point.x() + moved_distance * math.cos(target_angle),
-                path_point.y() + moved_distance * math.sin(target_angle)
-            )
-        
-        else:
-            return  # DISJOINT state, no constraints
-        
-        # Update the target control point
-        self._points[target_index] = new_target_control
-        
-        # Update the visual representation
-        if hasattr(self, '_control_points') and target_index < len(self._control_points):
-            cp = self._control_points[target_index]
-            if cp:
-                cp.setPos(new_target_control)
+            if state == PathPointState.EQUIDISTANT:
+                # Set the other control point to the same distance, opposite angle
+                new_prev_control = QPointF(
+                    path_point.x() + moved_distance * math.cos(opposite_angle),
+                    path_point.y() + moved_distance * math.sin(opposite_angle)
+                )
+                self._points[path_point_index - 1] = new_prev_control
+            else:  # SMOOTH
+                # Keep the other control point's distance, but set to opposite angle
+                other_vector = prev_control - path_point
+                other_distance = math.sqrt(other_vector.x()**2 + other_vector.y()**2)
+                new_prev_control = QPointF(
+                    path_point.x() + other_distance * math.cos(opposite_angle),
+                    path_point.y() + other_distance * math.sin(opposite_angle)
+                )
+                self._points[path_point_index - 1] = new_prev_control
 
     def _handle_control_point_click(self, point_index, modifiers):
-        """Handle control point clicks for state cycling."""
-        # Check if this is a path point (every 2nd point)
-        if point_index % 2 == 0:
-            # Check for Command key (Ctrl on Windows/Linux, Cmd on Mac)
-            if modifiers & Qt.KeyboardModifier.ControlModifier:
-                self._cycle_path_point_state(point_index)
-                return True
+        """Handle control point click events."""
+        # Check if this is a path point (every 3rd point) and Command is pressed
+        if point_index % 3 == 0 and modifiers & Qt.KeyboardModifier.ControlModifier:
+            self._cycle_path_point_state(point_index)
+            self.updateControls()
+            self.update()
+            return True
         return False
 
     def boundingRect(self):
         """Return the bounding rectangle of the Bezier curve."""
-        if len(self._points) < 3:
+        if len(self._points) < 4:
             # If we don't have enough points, return a small default rect
             return CadRect(-0.1, -0.1, 0.2, 0.2)
 
@@ -405,29 +408,17 @@ class QuadraticBezierCadItem(CadItem):
             def make_setter(index):
                 return lambda pos: self._set_point(index, pos)
             
-            # Use different control point styles based on state for path points
-            if i % 2 == 0:  # Path points (every 2nd point, starting with 0)
+            # Use different control point styles based on position and state
+            if i % 3 == 0:  # Path points (every 3rd point, starting with 0)
                 state = self._get_path_point_state(i)
                 if state == PathPointState.SMOOTH:
-                    cp = SquareControlPoint(
-                        cad_item=self,
-                        setter=make_setter(i)
-                    )
+                    cp = SquareControlPoint(cad_item=self, setter=make_setter(i))
                 elif state == PathPointState.EQUIDISTANT:
-                    cp = ControlPoint(
-                        cad_item=self,
-                        setter=make_setter(i)
-                    )
+                    cp = ControlPoint(cad_item=self, setter=make_setter(i))
                 else:  # DISJOINT
-                    cp = DiamondControlPoint(
-                        cad_item=self,
-                        setter=make_setter(i)
-                    )
+                    cp = DiamondControlPoint(cad_item=self, setter=make_setter(i))
             else:  # Control points
-                cp = ControlPoint(
-                    cad_item=self,
-                    setter=make_setter(i)
-                )
+                cp = ControlPoint(cad_item=self, setter=make_setter(i))
             
             self._control_points.append(cp)
         
@@ -438,15 +429,14 @@ class QuadraticBezierCadItem(CadItem):
 
     def updateControls(self):
         """Update control point positions."""
+        if not hasattr(self, '_control_points'):
+            return
         for i, cp in enumerate(self._control_points):
             if cp and i < len(self._points):
                 # Points are already in local coordinates
                 cp.setPos(self._points[i])
 
-    def getControlPoints(
-            self,
-            exclude_cps: Optional[List['ControlPoint']] = None
-    ) -> List[QPointF]:
+    def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
         """Return list of control point positions (excluding ControlDatums)."""
         if exclude_cps is None:
             return self._points.copy()
@@ -461,19 +451,47 @@ class QuadraticBezierCadItem(CadItem):
         # new_position is already in local coordinates
         
         if 0 <= index < len(self._points):
+            old_position = self._points[index]
             self._points[index] = new_position
-            
-            # Apply state constraints if this is a control point adjacent to a path point
-            if index % 2 == 1:  # Control point
-                # Check if this control point is adjacent to a path point
-                if index > 0 and index < len(self._points) - 1:
-                    # This control point is between two path points
-                    path_point_index = index // 2
-                    self._adjust_control_point_angles(path_point_index, index)
+
+            # If this is an on-bezier point, move adjacent control points by the same delta
+            if index % 3 == 0:
+                delta = new_position - old_position
+                if index - 1 >= 0:
+                    self._points[index - 1] = self._points[index - 1] + delta
+                if index + 1 < len(self._points):
+                    self._points[index + 1] = self._points[index + 1] + delta
+
+            # Handle control point angle adjustment, only if not DISJOINT
+            if index % 3 == 1:  # This is control1, affects previous path point
+                prev_path_index = index - 1
+                if prev_path_index >= 0:
+                    state = self._get_path_point_state(prev_path_index)
+                    if state != PathPointState.DISJOINT:
+                        self._adjust_control_point_angles(prev_path_index, index)
+            elif index % 3 == 2:  # This is control2, affects next path point
+                next_path_index = index + 1
+                if next_path_index < len(self._points):
+                    state = self._get_path_point_state(next_path_index)
+                    if state != PathPointState.DISJOINT:
+                        self._adjust_control_point_angles(next_path_index, index)
+
+            # Only apply constraints if the path point is not in DISJOINT state
+            if index % 3 == 0:  # This is a path point
+                if self._get_path_point_state(index) != PathPointState.DISJOINT:
+                    self._apply_path_point_constraints(index)
+            elif index % 3 == 1:  # This is control1, affects previous path point
+                prev_path_index = index - 1
+                if prev_path_index >= 0 and self._get_path_point_state(prev_path_index) != PathPointState.DISJOINT:
+                    self._apply_path_point_constraints(prev_path_index)
+            elif index % 3 == 2:  # This is control2, affects next path point
+                next_path_index = index + 1
+                if next_path_index < len(self._points) and self._get_path_point_state(next_path_index) != PathPointState.DISJOINT:
+                    self._apply_path_point_constraints(next_path_index)
 
     def paint_item(self, painter, option, widget=None):
         """Draw the Bezier curve content."""
-        if len(self._points) < 3:
+        if len(self._points) < 4:
             return
 
         painter.save()
@@ -499,11 +517,11 @@ class QuadraticBezierCadItem(CadItem):
             painter.setPen(pen)
             
             # Draw control lines for each segment
-            for i in range(0, len(self._points) - 2, 2):
-                if i + 2 < len(self._points):
+            for i in range(0, len(self._points) - 3, 3):
+                if i + 3 < len(self._points):
                     # Draw control lines for this segment
-                    painter.drawLine(self._points[i], self._points[i + 1])      # path to control
-                    painter.drawLine(self._points[i + 1], self._points[i + 2])  # control to next path
+                    painter.drawLine(self._points[i], self._points[i + 1])      # path to control1
+                    painter.drawLine(self._points[i + 2], self._points[i + 3])  # control2 to next path
             
             painter.restore()
 
@@ -511,71 +529,78 @@ class QuadraticBezierCadItem(CadItem):
         """Create the Bezier curve path."""
         path = QPainterPath()
         
-        if len(self._points) < 3:
+        if len(self._points) < 4:
             return path
         
         # Start at the first point
         path.moveTo(self._points[0])
         
-        # Create quadratic Bezier segments
-        for i in range(0, len(self._points) - 2, 2):
-            if i + 2 < len(self._points):
-                # Each segment uses 3 points: current, control, next
-                path.quadTo(
-                    self._points[i + 1],  # control point
-                    self._points[i + 2]   # next path point
+        # Create cubic Bezier segments
+        for i in range(0, len(self._points) - 3, 3):
+            if i + 3 < len(self._points):
+                # Each segment uses 4 points: current, control1, control2, next
+                path.cubicTo(
+                    self._points[i + 1],  # control1
+                    self._points[i + 2],  # control2
+                    self._points[i + 3]   # next path point
                 )
         
         return path
 
-    def add_segment(self, control_point, end_point):
+    def add_segment(self, control1, control2, end_point):
         """Add a new segment to the Bezier curve."""
-        if isinstance(control_point, (list, tuple)):
-            control_point = QPointF(control_point[0], control_point[1])
+        if isinstance(control1, (list, tuple)):
+            control1 = QPointF(control1[0], control1[1])
+        if isinstance(control2, (list, tuple)):
+            control2 = QPointF(control2[0], control2[1])
         if isinstance(end_point, (list, tuple)):
             end_point = QPointF(end_point[0], end_point[1])
         
-        self._points.extend([control_point, end_point])
+        self._points.extend([control1, control2, end_point])
 
-    def insert_segment(self, segment_index, control_point, end_point):
+    def insert_segment(self, segment_index, control1, control2, end_point):
         """Insert a new segment at the specified index."""
-        if isinstance(control_point, (list, tuple)):
-            control_point = QPointF(control_point[0], control_point[1])
+        if isinstance(control1, (list, tuple)):
+            control1 = QPointF(control1[0], control1[1])
+        if isinstance(control2, (list, tuple)):
+            control2 = QPointF(control2[0], control2[1])
         if isinstance(end_point, (list, tuple)):
             end_point = QPointF(end_point[0], end_point[1])
         
-        # Calculate the insertion index (2 points per segment)
-        insert_index = segment_index * 2 + 1
+        # Calculate the insertion index (3 points per segment)
+        insert_index = segment_index * 3 + 1
         
         if insert_index <= len(self._points):
-            self._points.insert(insert_index, control_point)
-            self._points.insert(insert_index + 1, end_point)
+            self._points.insert(insert_index, control1)
+            self._points.insert(insert_index + 1, control2)
+            self._points.insert(insert_index + 2, end_point)
 
     def remove_segment(self, segment_index):
         """Remove a segment at the specified index."""
-        # Calculate the start index of the segment (2 points per segment)
-        start_index = segment_index * 2 + 1
+        # Calculate the start index of the segment (3 points per segment)
+        start_index = segment_index * 3 + 1
         
-        if start_index + 1 < len(self._points):
-            # Remove the 2 points of the segment
-            del self._points[start_index:start_index + 2]
+        if start_index + 2 < len(self._points):
+            # Remove the 3 points of the segment
+            del self._points[start_index:start_index + 3]
 
     def get_path_points(self):
-        """Get all path points (every 2nd point, starting with 0)."""
-        return [self._points[i] for i in range(0, len(self._points), 2)]
+        """Get all path points (every 3rd point, starting with 0)."""
+        return [self._points[i] for i in range(0, len(self._points), 3)]
 
     def get_control_points(self):
         """Get all control points (not path points)."""
-        return [self._points[i] for i in range(len(self._points)) if i % 2 != 0]
+        return [self._points[i] for i in range(len(self._points)) if i % 3 != 0]
 
     def get_segment(self, segment_index):
-        """Get the 3 points of a specific segment."""
-        start_index = segment_index * 2
-        if start_index + 2 < len(self._points):
+        """Get the 4 points of a specific segment."""
+        start_index = segment_index * 3
+        if start_index + 3 < len(self._points):
             return [
                 self._points[start_index],     # path point
-                self._points[start_index + 1], # control point
-                self._points[start_index + 2]  # next path point
+                self._points[start_index + 1], # control1
+                self._points[start_index + 2], # control2
+                self._points[start_index + 3]  # next path point
             ]
         return None
 
@@ -593,6 +618,9 @@ class QuadraticBezierCadItem(CadItem):
                 self._points.append(QPointF(point[0], point[1]))
             else:
                 self._points.append(QPointF(point))
+        
+        # Reinitialize path point states
+        self._initialize_path_point_states()
 
     @property
     def color(self):
@@ -616,13 +644,13 @@ class QuadraticBezierCadItem(CadItem):
     @property
     def segment_count(self):
         """Get the number of segments in the Bezier curve."""
-        if len(self._points) < 3:
+        if len(self._points) < 4:
             return 0
-        return (len(self._points) - 1) // 2
+        return (len(self._points) - 1) // 3
 
     def point_at_parameter(self, t):
         """Get a point on the curve at parameter t (0.0 to 1.0)."""
-        if len(self._points) < 3:
+        if len(self._points) < 4:
             return QPointF(0, 0)
         
         # Calculate which segment t falls into
@@ -637,27 +665,29 @@ class QuadraticBezierCadItem(CadItem):
         # Clamp segment_index to valid range
         segment_index = max(0, min(segment_index, total_segments - 1))
         
-        # Get the 3 points for this segment
+        # Get the 4 points for this segment
         segment = self.get_segment(segment_index)
         if not segment:
             return self._points[0] if self._points else QPointF(0, 0)
         
-        # Calculate quadratic Bezier point
-        p0, p1, p2 = segment
+        # Calculate cubic Bezier point
+        p0, p1, p2, p3 = segment
         
-        # Quadratic Bezier formula: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+        # Cubic Bezier formula: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
         t2 = local_t * local_t
+        t3 = t2 * local_t
         mt = 1 - local_t
         mt2 = mt * mt
+        mt3 = mt2 * mt
         
-        x = mt2 * p0.x() + 2 * mt * local_t * p1.x() + t2 * p2.x()
-        y = mt2 * p0.y() + 2 * mt * local_t * p1.y() + t2 * p2.y()
+        x = mt3 * p0.x() + 3 * mt2 * local_t * p1.x() + 3 * mt * t2 * p2.x() + t3 * p3.x()
+        y = mt3 * p0.y() + 3 * mt2 * local_t * p1.y() + 3 * mt * t2 * p2.y() + t3 * p3.y()
         
         return QPointF(x, y)
 
     def tangent_at_parameter(self, t):
         """Get the tangent vector at parameter t (0.0 to 1.0)."""
-        if len(self._points) < 3:
+        if len(self._points) < 4:
             return QPointF(1, 0)
         
         # Calculate which segment t falls into
@@ -672,19 +702,21 @@ class QuadraticBezierCadItem(CadItem):
         # Clamp segment_index to valid range
         segment_index = max(0, min(segment_index, total_segments - 1))
         
-        # Get the 3 points for this segment
+        # Get the 4 points for this segment
         segment = self.get_segment(segment_index)
         if not segment:
             return QPointF(1, 0)
         
-        # Calculate quadratic Bezier tangent
-        p0, p1, p2 = segment
+        # Calculate cubic Bezier tangent
+        p0, p1, p2, p3 = segment
         
-        # Tangent formula: B'(t) = 2(1-t)(P₁-P₀) + 2t(P₂-P₁)
+        # Tangent formula: B'(t) = 3(1-t)²(P₁-P₀) + 6(1-t)t(P₂-P₁) + 3t²(P₃-P₂)
+        t2 = local_t * local_t
         mt = 1 - local_t
+        mt2 = mt * mt
         
-        dx = 2 * mt * (p1.x() - p0.x()) + 2 * local_t * (p2.x() - p1.x())
-        dy = 2 * mt * (p1.y() - p0.y()) + 2 * local_t * (p2.y() - p1.y())
+        dx = 3 * mt2 * (p1.x() - p0.x()) + 6 * mt * local_t * (p2.x() - p1.x()) + 3 * t2 * (p3.x() - p2.x())
+        dy = 3 * mt2 * (p1.y() - p0.y()) + 6 * mt * local_t * (p2.y() - p1.y()) + 3 * t2 * (p3.y() - p2.y())
         
         # Normalize the tangent vector
         length = (dx * dx + dy * dy) ** 0.5
@@ -699,28 +731,53 @@ class QuadraticBezierCadItem(CadItem):
         self._points = [QPointF(pt.x() + dx, pt.y() + dy) for pt in self._points]
         self.update()
 
+    def sceneEvent(self, event):
+        """Handle scene events to detect Command-clicks on path points."""
+        if (event.type() == event.Type.GraphicsSceneMousePress and 
+            event.button() == Qt.MouseButton.LeftButton and
+            event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            
+            # Check if click is on a path point control point
+            for i in range(0, len(self._points), 3):
+                if i < len(self._control_points):
+                    cp = self._control_points[i]
+                    if cp and cp.contains(event.pos() - cp.scenePos()):
+                        self._cycle_path_point_state(i)
+                        self.updateControls()
+                        self.update()
+                        return True
+        
+        return super().sceneEvent(event)
+
     def get_path_point_state(self, path_point_index):
-        """Get the state of a path point by its path point index."""
+        """Get the state of a path point by its index (0, 1, 2, etc.)."""
         if 0 <= path_point_index < len(self._path_point_states):
             return self._path_point_states[path_point_index]
         return PathPointState.DISJOINT
 
     def set_path_point_state(self, path_point_index, state):
-        """Set the state of a path point by its path point index."""
+        """Set the state of a path point by its index (0, 1, 2, etc.)."""
         if 0 <= path_point_index < len(self._path_point_states):
             self._path_point_states[path_point_index] = state
-            # Update the visual representation
-            point_index = path_point_index * 2
-            self._update_control_point_visual(point_index)
+            # Apply constraints
+            point_index = path_point_index * 3
+            if point_index < len(self._points):
+                self._apply_path_point_constraints(point_index)
+                self._update_control_point_visual(point_index)
+            self.updateControls()
+            self.update()
 
     def get_all_path_point_states(self):
-        """Get all path point states."""
+        """Get all path point states as a list."""
         return self._path_point_states.copy()
 
     def set_all_path_point_states(self, states):
-        """Set all path point states."""
+        """Set all path point states from a list."""
         if len(states) == len(self._path_point_states):
             self._path_point_states = states.copy()
-            # Update all visual representations
-            for i in range(0, len(self._points), 2):
-                self._update_control_point_visual(i) 
+            # Apply constraints to all path points
+            for i in range(0, len(self._points), 3):
+                self._apply_path_point_constraints(i)
+                self._update_control_point_visual(i)
+            self.updateControls()
+            self.update()

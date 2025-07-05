@@ -8,9 +8,9 @@ info panes, configuration panes, layer panes, snaps panes, and tool palettes.
 from .info_pane import InfoPane, create_info_pane
 from .config_pane import ConfigPane
 from .layer_pane import LayerPane, LayerPaneInfo
-from .snaps_pane import SnapsPane, SnapsPaneInfo, create_snaps_pane
+from .snaps_pane import SnapsToolBar, SnapsPaneInfo, create_snaps_toolbar
 from .tool_palette import ToolPalette
-from .category_button import CategoryToolButton
+
 
 __all__ = [
     'InfoPane',
@@ -18,9 +18,8 @@ __all__ = [
     'ConfigPane',
     'LayerPane',
     'LayerPaneInfo',
-    'SnapsPane',
+    'SnapsToolBar',
     'SnapsPaneInfo',
-    'create_snaps_pane',
-    'ToolPalette',
-    'CategoryToolButton',
+    'create_snaps_toolbar',
+    'ToolPalette'
 ]

@@ -12,9 +12,9 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
 from PySide6.QtCore import Qt
 
-from BelfryCAD.gui.cad_scene import CadScene
-from BelfryCAD.gui.cad_view import CadView
-from BelfryCAD.gui.caditems.cubic_bezier_cad_item import CubicBezierCadItem
+from BelfryCAD.gui.widgets.cad_scene import CadScene
+from BelfryCAD.gui.widgets.cad_view import CadView
+from BelfryCAD.gui.graphics_items.caditems.cubic_bezier_cad_item import CubicBezierCadItem
 
 
 def main():

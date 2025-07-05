@@ -4,12 +4,15 @@ The circle is tangent to both rays, with center specified by a point on the angl
 """
 
 import math
+
 from typing import List, Optional
+
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker
-from BelfryCAD.gui.cad_item import CadItem
-from BelfryCAD.gui.control_points import ControlPoint, SquareControlPoint, ControlDatum
-from BelfryCAD.gui.cad_rect import CadRect
+
+from ..cad_item import CadItem
+from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
+from ..cad_rect import CadRect
 
 
 class CircleCornerCadItem(CadItem):
