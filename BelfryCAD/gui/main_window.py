@@ -43,6 +43,7 @@ from .graphics_items.caditems import (
     Circle2PointsCadItem, Circle3PointsCadItem, CircleCornerCadItem, ArcCornerCadItem, RectangleCadItem, ArcCadItem, PolylineCadItem,
 )
 from .panes.layer_pane import LayerPane
+from .widgets.columnar_toolbar import ColumnarToolbarWidget
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +256,8 @@ class MainWindow(QMainWindow):
         self.main_menu.show_info_panel_toggled.connect(self.toggle_info_panel)
         self.main_menu.show_properties_toggled.connect(self.toggle_properties)
         self.main_menu.show_layers_toggled.connect(self.toggle_layers)
-        # Snaps are now in toolbar, no longer need toggle
+        self.main_menu.show_snap_settings_toggled.connect(self.toggle_snap_settings)
+        self.main_menu.show_tools_toggled.connect(self.toggle_tools)
 
         # CAM menu connections
         self.main_menu.configure_mill_triggered.connect(self.configure_mill)
@@ -274,10 +276,18 @@ class MainWindow(QMainWindow):
 
     def _create_toolbar(self):
         """Create a toolbar with drawing tools"""
-        from .widgets.two_column_toolbar import TwoColumnToolbarWidget
-        
         self.toolbar = self.addToolBar("Tools")
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.toolbar)
+        
+        # Make the toolbar movable and allow it to be docked in different areas
+        self.toolbar.setMovable(True)
+        self.toolbar.setAllowedAreas(
+            Qt.ToolBarArea.TopToolBarArea |
+            Qt.ToolBarArea.BottomToolBarArea |
+            Qt.ToolBarArea.LeftToolBarArea |
+            Qt.ToolBarArea.RightToolBarArea
+        )
+        
         # Set the icon size to 48x48 for 150% size visibility
         self.toolbar.setIconSize(QSize(48, 48))
         # Set spacing between toolbar buttons to 2 pixels using stylesheet
@@ -298,11 +308,20 @@ class MainWindow(QMainWindow):
         """)
         
         # Create two-column widget for tools
-        self.tools_widget = TwoColumnToolbarWidget()
+        self.tools_widget = ColumnarToolbarWidget()
         self.toolbar.addWidget(self.tools_widget)
         
         # Store category buttons for reference
         self.category_buttons = {}
+        
+        # Connect toolbar area changes to update column layout
+        self.toolbar.orientationChanged.connect(self._on_tools_toolbar_moved)
+        # Also connect to visibility changes to catch dock area changes
+        self.toolbar.visibilityChanged.connect(self._on_tools_toolbar_moved)
+        
+        # Restore toolbar visibility from preferences
+        visible = self.preferences.get("show_tools", True)
+        self.toolbar.setVisible(visible)
 
     def _create_snaps_toolbar(self):
         """Create a toolbar for snap settings"""
@@ -319,8 +338,8 @@ class MainWindow(QMainWindow):
             Qt.ToolBarArea.RightToolBarArea
         )
         
-        # Add to top toolbar area by default
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.snaps_toolbar)
+        # Add to left toolbar area by default, below the tools toolbar
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.snaps_toolbar)
         
         # Connect snap signals to the snaps system
         self.snaps_toolbar.snap_changed.connect(self._on_snap_changed)
@@ -331,6 +350,8 @@ class MainWindow(QMainWindow):
         
         # Connect toolbar area changes to save position
         self.snaps_toolbar.orientationChanged.connect(self._on_snaps_toolbar_moved)
+        # Also connect to visibility changes to catch dock area changes
+        self.snaps_toolbar.visibilityChanged.connect(self._on_snaps_toolbar_moved)
 
     def _on_snap_changed(self, snap_type: str, enabled: bool):
         """Handle individual snap type changes"""
@@ -344,7 +365,7 @@ class MainWindow(QMainWindow):
 
     def _restore_snaps_toolbar_position(self):
         """Restore snaps toolbar position from preferences."""
-        toolbar_area = self.preferences.get("snaps_toolbar_area", "top")
+        toolbar_area = self.preferences.get("snaps_toolbar_area", "left")
         
         # Remove from current area
         self.removeToolBar(self.snaps_toolbar)
@@ -357,7 +378,7 @@ class MainWindow(QMainWindow):
             "right": Qt.ToolBarArea.RightToolBarArea,
         }
         
-        qt_area = area_map.get(toolbar_area, Qt.ToolBarArea.TopToolBarArea)
+        qt_area = area_map.get(toolbar_area, Qt.ToolBarArea.LeftToolBarArea)
         self.addToolBar(qt_area, self.snaps_toolbar)
         
         # Restore visibility
@@ -381,8 +402,37 @@ class MainWindow(QMainWindow):
 
     def _on_snaps_toolbar_moved(self, orientation):
         """Handle snaps toolbar movement."""
+        # Use a timer to ensure the move is complete before checking dock area
+        QTimer.singleShot(50, self._update_snaps_toolbar_columns)
         # Save the new position after a short delay to ensure the move is complete
         QTimer.singleShot(100, self._save_snaps_toolbar_position)
+
+    def _update_snaps_toolbar_columns(self):
+        """Update the snaps toolbar columns based on current dock area."""
+        if hasattr(self, 'snaps_toolbar') and self.snaps_toolbar:
+            area = self.toolBarArea(self.snaps_toolbar)
+            if area in [Qt.ToolBarArea.LeftToolBarArea, Qt.ToolBarArea.RightToolBarArea]:
+                # Left/right docks: use 2 columns for vertical layout
+                self.snaps_toolbar.snaps_widget.set_max_columns(2)
+            else:
+                # Top/bottom docks: use many columns (999) for horizontal layout
+                self.snaps_toolbar.snaps_widget.set_max_columns(999)
+
+    def _on_tools_toolbar_moved(self, orientation):
+        """Handle tools toolbar movement."""
+        # Use a timer to ensure the move is complete before checking dock area
+        QTimer.singleShot(50, self._update_tools_toolbar_columns)
+
+    def _update_tools_toolbar_columns(self):
+        """Update the tools toolbar columns based on current dock area."""
+        if hasattr(self, 'toolbar') and self.toolbar:
+            area = self.toolBarArea(self.toolbar)
+            if area in [Qt.ToolBarArea.LeftToolBarArea, Qt.ToolBarArea.RightToolBarArea]:
+                # Left/right docks: use 2 columns for vertical layout
+                self.tools_widget.set_max_columns(2)
+            else:
+                # Top/bottom docks: use many columns (999) for horizontal layout
+                self.tools_widget.set_max_columns(999)
 
     def _create_status_bar(self):
         """Create the status bar with position labels."""
@@ -1307,6 +1357,21 @@ class MainWindow(QMainWindow):
         self.preferences.set("show_layers", show)
         self.palette_manager.set_palette_visibility("layer_pane", show)
         self._sync_palette_menu_states()
+
+    def toggle_snap_settings(self, show):
+        """Toggle the snaps toolbar visibility."""
+        if hasattr(self, 'snaps_toolbar'):
+            self.snaps_toolbar.setVisible(show)
+            # Save the visibility state to preferences
+            self.preferences.set("snaps_toolbar_visible", show)
+            self.preferences.set("show_snap_settings", show)
+
+    def toggle_tools(self, show):
+        """Toggle the tools toolbar visibility."""
+        if hasattr(self, 'toolbar'):
+            self.toolbar.setVisible(show)
+            # Save the visibility state to preferences
+            self.preferences.set("show_tools", show)
 
 
 

@@ -36,7 +36,7 @@ class SnapType(Enum):
     TANGENT = "tangents"
     PERPENDICULAR = "perpendicular"
     INTERSECTION = "intersect"
-    NEAREST = "nearest"
+    ANGLES = "angles"
 
 
 @dataclass

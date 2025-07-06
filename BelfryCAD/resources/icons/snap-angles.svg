@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="16"
-   height="16"
-   viewBox="0 0 16 16"
+   width="32"
+   height="32"
+   viewBox="0 0 32 32"
    version="1.1"
    id="svg4"
    sodipodi:docname="snap-angles.svg"
@@ -22,9 +22,9 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="18.384776"
-     inkscape:cx="8.0229425"
-     inkscape:cy="7.995746"
+     inkscape:zoom="13"
+     inkscape:cx="12.153846"
+     inkscape:cy="15.615385"
      inkscape:window-width="1216"
      inkscape:window-height="847"
      inkscape:window-x="0"
@@ -33,53 +33,60 @@
      inkscape:current-layer="svg4" />
   <!-- Centerline (dashed line through center) -->
   <line
-     x1="1.7405703"
-     y1="13.784932"
-     x2="15.046"
-     y2="13.784932"
+     x1="3.5851235"
+     y1="27.505245"
+     x2="28.90453"
+     y2="27.505245"
      stroke="#ff0000"
      stroke-width="1.5"
      stroke-dasharray="3, 1"
      id="line1"
-     style="stroke:#808080;stroke-width:0.948997;stroke-dasharray:0.948997, 0.948997;stroke-dashoffset:0;stroke-opacity:1" />
+     style="stroke:#808080;stroke-width:1;stroke-dasharray:1,1;stroke-dashoffset:0;stroke-opacity:1" />
   <line
-     x1="1.9778194"
-     y1="13.848501"
-     x2="13.500659"
-     y2="7.1957884"
+     x1="3.8736994"
+     y1="27.582569"
+     x2="25.800951"
+     y2="14.922869"
      stroke="#ff0000"
      stroke-width="1.5"
      stroke-dasharray="3, 1"
      id="line1-0"
-     style="stroke:#808080;stroke-width:0.948997;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
+     style="stroke:#808080;stroke-width:1;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1" />
   <line
-     x1="2.1514981"
-     y1="14.022179"
-     x2="8.8042107"
-     y2="2.4993424"
+     x1="4.0849514"
+     y1="27.793821"
+     x2="16.744642"
+     y2="5.8665872"
      stroke="#ff0000"
      stroke-width="1.5"
      stroke-dasharray="3, 1"
      id="line1-7"
-     style="stroke:#808080;stroke-width:0.948997;stroke-dasharray:0.94899702,0.94899702;stroke-dashoffset:0;stroke-opacity:1" />
+     style="stroke:#808080;stroke-width:1;stroke-dasharray:1,1;stroke-dashoffset:0;stroke-opacity:1" />
   <line
-     x1="2.2140994"
-     y1="14.259428"
-     x2="2.214098"
-     y2="1.0083942"
+     x1="4.1622777"
+     y1="28.082397"
+     x2="4.1622748"
+     y2="2.8665144"
      stroke="#ff0000"
      stroke-width="1.5"
      stroke-dasharray="3, 1"
      id="line1-5-0-5-2-5-9"
-     style="stroke:#808080;stroke-width:0.947056;stroke-dasharray:0.947056, 0.947056;stroke-dashoffset:0;stroke-opacity:1" />
+     style="stroke:#808080;stroke-width:1;stroke-dasharray:1,1;stroke-dashoffset:0;stroke-opacity:1" />
   <!-- Vertical centerline -->
   <!-- Center crosshair -->
-  <circle
-     cx="13.03128"
-     cy="7.4289308"
-     r="1"
-     fill="#ff0000"
-     id="circle4"
-     style="stroke:#ff0000;stroke-width:1" />
   <!-- CL text indicator -->
+  <g
+     id="g1"
+     transform="translate(9.4357738,-0.94884102)">
+    <path
+       style="fill:none;fill-opacity:1;stroke:#ff0000;stroke-width:1;stroke-linecap:butt;stroke-dasharray:none;stroke-opacity:1"
+       d="m 13.763933,18.236067 4.472134,-4.472134"
+       id="path1-1"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;fill-opacity:1;stroke:#ff0000;stroke-width:1;stroke-linecap:butt;stroke-dasharray:none;stroke-opacity:1"
+       d="M 18.236067,18.236067 13.763933,13.763933"
+       id="path1-1-6"
+       sodipodi:nodetypes="cc" />
+  </g>
 </svg>

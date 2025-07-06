@@ -158,6 +158,7 @@ class MainMenuBar(QObject):
     show_properties_toggled = Signal(bool)
     show_layers_toggled = Signal(bool)
     show_snap_settings_toggled = Signal(bool)
+    show_tools_toggled = Signal(bool)
 
     # CAM menu signals
     configure_mill_triggered = Signal()
@@ -528,11 +529,33 @@ class MainMenuBar(QObject):
         view_menu.addSeparator()
 
         # Palette visibility controls
+        self.show_tools_action = QAction(
+            "Show &Tools", self.parent_window)
+        self.show_tools_action.setCheckable(True)
+        self.show_tools_action.setChecked(
+            self.preferences.get("show_tools", True)
+        )
+        self.show_tools_action.triggered.connect(
+            lambda checked: self.show_tools_toggled.emit(checked)
+        )
+        view_menu.addAction(self.show_tools_action)
+
+        self.show_snap_settings_action = QAction(
+            "Show &Snaps", self.parent_window)
+        self.show_snap_settings_action.setCheckable(True)
+        self.show_snap_settings_action.setChecked(
+            self.preferences.get("snaps_toolbar_visible", True)
+        )
+        self.show_snap_settings_action.triggered.connect(
+            lambda checked: self.show_snap_settings_toggled.emit(checked)
+        )
+        view_menu.addAction(self.show_snap_settings_action)
+
         self.show_info_panel_action = QAction(
             "Show &Info Panel", self.parent_window)
         self.show_info_panel_action.setCheckable(True)
         self.show_info_panel_action.setChecked(
-            self.preferences.get("show_info_panel", True)
+            self.preferences.get("show_info_panel", False)
         )
         self.show_info_panel_action.triggered.connect(
             lambda checked: self.show_info_panel_toggled.emit(checked)
@@ -560,25 +583,9 @@ class MainMenuBar(QObject):
         )
         view_menu.addAction(self.show_layers_action)
 
-        self.show_snap_settings_action = QAction(
-            "Show &Snaps", self.parent_window)
-        self.show_snap_settings_action.setCheckable(True)
-        self.show_snap_settings_action.setChecked(
-            self.preferences.get("show_snap_settings", False)
-        )
-        self.show_snap_settings_action.triggered.connect(
-            lambda checked: self.show_snap_settings_toggled.emit(checked)
-        )
-        view_menu.addAction(self.show_snap_settings_action)
-
     def _create_cam_menu(self):
         """Create the CAM menu."""
         cam_menu = self.menubar.addMenu("&CAM")
-
-        # Configure Mill
-        #configure_action = QAction("Configure &Mill...", self.parent_window)
-        #configure_action.triggered.connect(self.configure_mill_triggered.emit)
-        #cam_menu.addAction(configure_action)
 
         # Tool Table
         tool_table_action = QAction("&Tool Table...", self.parent_window)
@@ -675,7 +682,7 @@ class MainMenuBar(QObject):
             )
         if self.show_snap_settings_action:
             self.show_snap_settings_action.setChecked(
-                self.preferences.get("show_snap_settings", False)
+                self.preferences.get("snaps_toolbar_visible", True)
             )
 
     def sync_palette_menu_states(self, palette_manager):

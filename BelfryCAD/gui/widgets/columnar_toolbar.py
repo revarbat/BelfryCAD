@@ -8,14 +8,15 @@ from PySide6.QtWidgets import QWidget, QGridLayout, QToolButton
 from PySide6.QtCore import Qt, QSize
 
 
-class TwoColumnToolbarWidget(QWidget):
+class ColumnarToolbarWidget(QWidget):
     """
     A widget that provides a two-column layout for toolbar buttons.
     """
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, max_cols=2):
         super().__init__(parent)
         self.buttons = []
+        self.max_cols = max_cols
         self._setup_ui()
     
     def _setup_ui(self):
@@ -38,18 +39,9 @@ class TwoColumnToolbarWidget(QWidget):
         """
         if row == -1 or column == -1:
             # Auto-place: find the next available position
-            if len(self.buttons) % 2 == 0:
-                # Even number of buttons, place in first column
-                row = len(self.buttons) // 2
-                column = 0
-            else:
-                # Odd number of buttons, place in second column
-                row = len(self.buttons) // 2
-                column = 1
-        else:
-            # Use specified position
-            row = max(0, min(row, 1))  # Ensure 0 or 1
-            column = max(0, min(column, 1))  # Ensure 0 or 1
+            btn_cnt = len(self.buttons)
+            row = len(self.buttons) // self.max_cols
+            column = btn_cnt % self.max_cols
         
         self._layout.addWidget(button, row, column)
         self.buttons.append(button)
@@ -73,4 +65,23 @@ class TwoColumnToolbarWidget(QWidget):
     def set_icon_size(self, size: QSize):
         """Set the icon size for all buttons."""
         for button in self.buttons:
-            button.setIconSize(size) 
+            button.setIconSize(size)
+    
+    def set_max_columns(self, max_cols: int):
+        """Update the maximum number of columns and reorganize the layout."""
+        if self.max_cols != max_cols:
+            self.max_cols = max_cols
+            
+            # Clear the current layout
+            for button in self.buttons:
+                self._layout.removeWidget(button)
+            
+            # Re-add all buttons with the new column layout
+            for i, button in enumerate(self.buttons):
+                row = i // self.max_cols
+                column = i % self.max_cols
+                self._layout.addWidget(button, row, column)
+            
+            # Update column stretches
+            for col in range(self.max_cols):
+                self._layout.setColumnStretch(col, 0) 

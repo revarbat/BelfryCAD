@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="16"
-   height="16"
-   viewBox="0 0 16 16"
+   width="32"
+   height="32"
+   viewBox="0 0 32 32"
    version="1.1"
    id="svg3"
-   sodipodi:docname="snap_nearest.svg"
+   sodipodi:docname="snap-nearest.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -22,49 +22,50 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="26"
-     inkscape:cx="8"
-     inkscape:cy="8"
+     inkscape:zoom="13"
+     inkscape:cx="14.923077"
+     inkscape:cy="14.461538"
      inkscape:window-width="1200"
      inkscape:window-height="847"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg3" />
+  <line
+     x1="16"
+     y1="16.615387"
+     x2="16"
+     y2="25.769234"
+     stroke="#ff0000"
+     stroke-width="0.617584"
+     stroke-dasharray="1, 1"
+     id="line3"
+     style="stroke:#808080;stroke-width:1;stroke-dasharray:1, 1;stroke-dashoffset:0;stroke-opacity:1" />
   <!-- Curved line (arc) -->
   <path
-     d="m 3.0000003,3.3389914 q 5,10.0000006 9.9999997,0"
+     d="M 3.9442025,4.5006904 Q 16,28.612287 28.055797,4.5006904"
      stroke="#666666"
      stroke-width="2"
      fill="none"
      id="path1"
-     style="stroke-width:1;stroke-dasharray:none;stroke:#000000;stroke-opacity:1" />
+     style="stroke:#000000;stroke-width:1;stroke-dasharray:none;stroke-opacity:1" />
   <!-- Nearest point crosshair -->
   <circle
-     cx="8"
-     cy="8"
+     cx="16"
+     cy="16.615387"
      r="1"
      fill="#ff0000"
      id="circle2"
      style="stroke:#ff0000;stroke-width:1" />
   <!-- Distance indicator line -->
-  <line
-     x1="8"
-     y1="7.7692299"
-     x2="8"
-     y2="13.76923"
-     stroke="#ff0000"
-     stroke-width="0.5"
-     stroke-dasharray="1, 1"
-     id="line3"
-     style="stroke-dasharray:0.5, 0.5;stroke-dashoffset:0" />
   <!-- Target point -->
   <circle
-     cx="8"
-     cy="14"
+     cx="16"
+     cy="25.69231"
      r="1"
      stroke="#ff0000"
      stroke-width="1"
      fill="none"
-     id="circle3" />
+     id="circle3"
+     style="fill:#ffffff;fill-opacity:1" />
 </svg>

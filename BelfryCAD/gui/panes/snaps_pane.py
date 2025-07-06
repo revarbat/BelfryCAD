@@ -31,9 +31,9 @@ class SnapsPaneInfo:
             ("quadrants", "&Quadrants", True, "snap-quadrant"),
             ("tangents", "&Tangents", False, "snap-tangent"),
             ("contours", "C&ontours", False, "snap-contours"),
-            ("perpendicular", "&Perpendicular", False, "snap-perpendicular"),
             ("intersect", "&Intersections", False, "snap-intersection"),
-            ("nearest", "&Nearest", False, "snap-nearest"),
+            ("perpendicular", "&Perpendicular", False, "snap-perpendicular"),
+            ("angles", "A&ngles", False, "snap-angles"),
         ]
         self.snap_states = {}
         self.snap_all = True
@@ -109,8 +109,8 @@ class SnapsToolBar(QToolBar):
         """)
 
         # Create two-column widget for snaps
-        from ..widgets.two_column_toolbar import TwoColumnToolbarWidget
-        self.snaps_widget = TwoColumnToolbarWidget()
+        from ..widgets.columnar_toolbar import ColumnarToolbarWidget
+        self.snaps_widget = ColumnarToolbarWidget()
         self.addWidget(self.snaps_widget)
         
         # Initialize snap buttons
