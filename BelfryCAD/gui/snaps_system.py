@@ -37,6 +37,7 @@ class SnapType(Enum):
     PERPENDICULAR = "perpendicular"
     INTERSECTION = "intersect"
     ANGLES = "angles"
+    CONTOURS = "contours"
 
 
 @dataclass
@@ -106,8 +107,10 @@ class SnapsSystem:
                     snap_points.extend(self._find_perpendicular_snaps(mouse_pos, recent_points))
             elif snap_type == SnapType.INTERSECTION:
                 snap_points.extend(self._find_intersection_snaps(mouse_pos))
-            elif snap_type == SnapType.NEAREST:
+            elif snap_type == SnapType.CONTOURS:
                 snap_points.extend(self._find_nearest_snaps(mouse_pos))
+            elif snap_type == SnapType.ANGLES:
+                snap_points.extend(self._find_angles_snaps(mouse_pos, recent_points[-1]))
         
         # Find the closest snap point
         scaling = self._get_current_scaling()
@@ -495,7 +498,7 @@ class SnapsSystem:
                 
                 snap_points.append(SnapPoint(
                     point=nearest_point,
-                    snap_type=SnapType.NEAREST,
+                    snap_type=SnapType.CONTOURS,
                     distance=distance,
                     source_item=item
                 ))
@@ -579,4 +582,27 @@ class SnapsSystem:
     
     def clear_cache(self):
         """Clear the snap calculation cache."""
-        self._snap_cache.clear() 
+        self._snap_cache.clear()
+
+    def _find_angles_snaps(
+            self,
+            mouse_pos: QPointF,
+            ref_point: QPointF
+    ) -> List[SnapPoint]:
+        """Find angle snap points near the mouse position."""
+        snap_points = []
+        delta = ref_point - mouse_pos
+        radius = (delta.x()**2 + delta.y()**2)**0.5
+        angle = math.degrees(math.atan2(delta.y(), delta.x()))
+        snap_angle = round(angle / 15) * 15
+        snap_point = ref_point + radius * QPointF(
+            math.cos(math.radians(snap_angle)),
+            math.sin(math.radians(snap_angle))
+        )
+        snap_points.append(SnapPoint(
+            point=snap_point,
+            snap_type=SnapType.ANGLES,
+            distance=0,
+        ))
+                
+        return snap_points
