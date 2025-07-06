@@ -6,8 +6,12 @@ This is the main entry point for the application.
 """
 
 import sys
+import os
 from PySide6.QtWidgets import QApplication, QMessageBox
 import traceback
+
+# Add src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 # Import main application modules
 from BelfryCAD.app import BelfryCadApplication

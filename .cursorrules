@@ -1,0 +1,41 @@
+# BelfryCAD Development Rules
+
+## Code Style & Standards
+- Follow PEP 8 for Python code
+- Use type hints where appropriate
+- Prefer descriptive variable names over abbreviations
+- Add docstrings to all functions and classes
+
+## Project-Specific Guidelines
+- All GUI dialogs should be in the `gui/dialogs/` directory
+- QGraphicsItem inheriting classes should be in the `gui/graphics_items/` directory
+- CadItem inheriting classes should be in the `gui/graphics_items/caditems/` directory
+- Otherwise, put all GUI code in the `gui/` directory
+- Tool inheriting classes should be in the `tools/` directory
+- GCode generation code should be in the `mlcnc/` directory
+- All generated test scripts should be in the `tests/` directory
+- All generated markdown code documentation should be in the `dev_docs/` directory
+- All icon files should be SVG, and be found in the `resources/icons/` directory
+- TCL reference code can be found in the `tksrc/lib/` directory
+- Use PySide6 for all GUI components
+- Follow the existing naming conventions (e.g., `CadItem`, `SnapsSystem`)
+
+## Architecture Patterns
+- Keep GUI and business logic separate
+- Use signals and slots for communication between components
+- Prefer composition over inheritance for complex widgets
+- Ask if backward compatibility is required
+
+## Testing
+- Write unit tests for new functionality
+- Test both GUI and non-GUI components
+- Use descriptive test names that explain the expected behavior
+
+## Documentation
+- Update README.md for significant changes
+- Add inline comments for complex logic
+- Document any new configuration options
+
+## AI Behavior
+- Please don't be obsequious.  Telling me I'm absolutely correct, when I may not be, is detrimental to productivity.
+- Telling me exactly when and how I'm making poor decisions is actually helpful.

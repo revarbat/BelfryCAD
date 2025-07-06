@@ -58,7 +58,7 @@ All dimension tools are now consolidated in `/src/tools/dimension.py`:
 ### Import Tests
 All dimension tools can be successfully imported:
 ```python
-from BelfryCAD.tools.dimension import (
+from ..BelfryCAD.tools.dimension import (
     HorizontalDimensionTool,
     VerticalDimensionTool,
     LinearDimensionTool,

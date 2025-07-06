@@ -1,0 +1,4 @@
+include README.rst
+include LICENSE
+recursive-include src/BelfryCAD/resources/icons *.svg
+recursive-include src/BelfryCAD/resources/cncfonts *.cncfont

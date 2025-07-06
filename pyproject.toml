@@ -51,3 +51,12 @@ dependencies = [
 "Usage" = "https://github.com/revarbat/BelfryCAD/README.rst"
 "Documentation" = "https://github.com/revarbat/BelfryCAD/wiki/"
 
+[tool.setuptools]
+include_package_data = True
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"BelfryCAD.resources.icons" = ["*.svg", "*.png", "*.gif"]
+
