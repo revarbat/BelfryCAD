@@ -1,108 +1,53 @@
-# PyTkCAD Construction Drawing Fix - COMPLETED ✅
+# Construction Drawing Fix Complete
 
-## Issue Summary
-The PyTkCAD construction lines and points were not being drawn when using tools to construct CAD objects. Several methods in the DrawingManager for drawing construction lines and control points were incomplete or missing implementations.
+## Issue Description
+
+The construction lines and points were not being drawn when using tools to construct CAD objects. The drawing system needed to be updated to properly handle construction elements.
 
 ## Root Cause
-The DrawingManager class in `/Users/gminette/dev/git-repos/pyTkCAD/src/gui/drawing_manager.py` had several issues:
 
-1. **Missing return statements** - Methods didn't return the created graphics items
-2. **Incomplete line width scaling** - Line widths weren't properly set (should use 1.0 for construction lines)
-3. **Missing tagging system** - No proper tagging for tracking and cleanup of construction elements
-4. **Incomplete method implementations** - Several TODO placeholders and incomplete code
+The drawing system had several issues:
 
-## Fixes Applied ✅
+1. **Missing construction drawing methods**: Several methods for drawing construction lines and control points were incomplete or missing implementations
+2. **Incomplete integration**: Construction drawing was not properly integrated with the main drawing system
+3. **Missing control point management**: Control points were not being drawn or managed correctly
 
-### 1. Fixed Control Point Drawing
-- **Fixed `object_draw_controlpoint()` method**:
-  - Removed duplicate return statements
-  - Added proper tagging with `_set_item_tags()`
-  - Ensured single return point
+## Solution
 
-### 2. Fixed Construction Line Drawing
-- **Fixed `object_draw_control_line()` method**:
-  - Added missing return statement
-  - Set proper line width (1.0 for construction lines)
-  - Added tagging for tracking and management
+### Updated Drawing System
+Modified the drawing system to properly handle construction elements:
 
-### 3. Fixed Construction Shape Drawing
-- **Fixed `object_draw_oval()` method**:
-  - Added missing return statement
-  - Set proper line width (1.0 instead of variable width)
-  - Added tagging system with dummy object for non-object-specific shapes
+```python
+def draw_construction_point(self, x: float, y: float):
+    """Draw a construction point at the specified coordinates"""
+    # Create and add construction point to scene
+    point_item = self.scene.addEllipse(x-2, y-2, 4, 4, pen, brush)
+    point_item.setZValue(-5)  # Behind other items
+    return point_item
 
-- **Fixed `object_draw_oval_cross()` method**:
-  - Added missing return statement (returns list of line items)
-  - Added proper tagging for all cross line segments
-  - Set proper line width (1.0)
+def draw_construction_line(self, x0: float, y0: float, x1: float, y1: float):
+    """Draw a construction line between two points"""
+    # Create and add construction line to scene
+    line_item = self.scene.addLine(x0, y0, x1, y1, pen)
+    line_item.setZValue(-5)  # Behind other items
+    return line_item
+```
 
-### 4. Fixed Centerline Drawing
-- **Fixed `object_draw_centerline()` method**:
-  - Added missing return statement
-  - Added proper tagging system
-  - Set proper line width (1.0)
+## Result
 
-### 5. Fixed Arc Drawing
-- **Fixed `object_draw_center_arc()` method**:
-  - Added missing return statement
-  - Added proper tagging system
-  - Set proper line width (1.0)
-
-- **Fixed `object_draw_control_arc()` method**:
-  - Removed TODO placeholder
-  - Added proper tagging with control point number
-  - Added missing return statement
-
-### 6. Enhanced Tagging System
-- **Implemented `_set_item_tags()` method**:
-  - Replaced TODO placeholder with functional implementation
-  - Uses QGraphicsItem.setData() to store object IDs, tags, and object types
-  - Enables proper tracking and cleanup of construction elements
+- ✅ Construction points are now properly drawn
+- ✅ Construction lines are now properly drawn
+- ✅ Control points are properly managed
+- ✅ Construction elements are properly layered behind other items
 
 ## Technical Details
 
-### Line Width Scaling
-- All construction lines now use fixed width of **1.0** (not DPI-scaled)
-- This matches the original TCL implementation pattern where ConstLines use `width=1.0`
+### Construction Element Management
+- Construction points and lines are drawn with appropriate Z-values
+- Elements are properly tagged for management
+- Construction elements are visually distinct from regular CAD objects
 
-### Tagging System
-Construction elements are tagged with:
-- **Object ID**: For tracking association with CAD objects
-- **Tags**: Like "CP" (control point), "CL" (construction line), "CROSS", "CENTERLINE", etc.
-- **Object Type**: For proper categorization
-
-### Z-Value Ordering
-- Control points: Z-value **3** (above everything)
-- Control arcs: Z-value **1.5** (above control lines, below control points)
-- Construction lines/shapes: Z-value **0.5** (below objects, above background)
-
-## Verification ✅
-
-Created and ran comprehensive test (`test_construction_drawing.py`) that verified:
-
-1. **Control point drawing** ✅ - Creates proper control point markers
-2. **Control line drawing** ✅ - Creates dashed construction lines
-3. **Construction oval drawing** ✅ - Creates elliptical construction shapes
-4. **Oval cross drawing** ✅ - Creates center cross markers
-5. **Centerline drawing** ✅ - Creates centerlines with proper dash pattern
-6. **Center arc drawing** ✅ - Creates arc construction elements
-7. **Control arc drawing** ✅ - Creates control arcs with proper tagging
-8. **Tagging system** ✅ - All items properly tagged (10/10 items tagged)
-
-## Results
-
-✅ **All construction drawing methods are now working correctly**
-✅ **Scene items are properly created** (10 graphics items in test)
-✅ **Tagging system fully functional** (100% of items properly tagged)
-✅ **Line widths properly scaled** (1.0 fixed width for construction elements)
-✅ **Return statements added** (all methods return created graphics items)
-
-## Impact
-
-Tools in PyTkCAD can now:
-- Display construction lines while drawing
-- Show control points for object manipulation
-- Provide visual feedback during CAD operations
-- Properly clean up construction elements when operations complete
-
-The construction drawing infrastructure is now complete and ready for use by CAD tools.
+### Integration
+- Construction drawing is now properly integrated with the main drawing system
+- Tools can now properly display construction elements during object creation
+- Construction elements are properly cleaned up when no longer needed

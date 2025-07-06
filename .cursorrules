@@ -21,7 +21,7 @@
 - Follow the existing naming conventions (e.g., `CadItem`, `SnapsSystem`)
 
 ## Architecture Patterns
-- Keep GUI and business logic separate
+- Keep GUI and business logic separate, using the MVVM design patter.
 - Use signals and slots for communication between components
 - Prefer composition over inheritance for complex widgets
 - Ask if backward compatibility is required

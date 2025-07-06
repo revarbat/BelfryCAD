@@ -61,6 +61,7 @@ From Source
 
       python main.py
 
+
 Development Setup
 ~~~~~~~~~~~~~~~~~
 
@@ -167,7 +168,8 @@ Coding Standards
 Architecture Guidelines
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-* **GUI Separation**: Keep GUI and business logic separate
+* **GUI Separation**: Keep GUI and business logic separate using the MVVM
+   design pattern.
 * **Signals and Slots**: Use PySide6 signals for component communication
 * **Tool Structure**: All tools inherit from the base `Tool` class
 * **Resource Management**: Use `importlib.resources` for package resources
@@ -239,7 +241,9 @@ Support
 Roadmap
 -------
 
-* Enhanced 3D support
+* CadObjects are the Model, CadItems are the View.
+* Implement ViewModels for CadObjects, linking with CadItems.
+* Get Tools to generate new CadObjects, using CadItems for display.
 * More CAM toolpath strategies
 * Plugin system for custom tools
 * Cloud storage integration

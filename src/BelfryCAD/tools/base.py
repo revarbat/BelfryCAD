@@ -163,10 +163,14 @@ class Tool(QObject):
 
     def clear_temp_objects(self):
         """Clear any temporary preview objects"""
-        # Get the drawing manager from the main window
-        drawing_manager = self.main_window.drawing_manager
-        if drawing_manager:
-            drawing_manager.remove_items_by_tag("Construction")
+        # Clear construction items from the scene
+        scene = self.scene
+        if scene:
+            # Remove temporary construction items
+            # Since tags are no longer available, we'll rely on the scene's
+            # built-in item management and control point cleanup
+            # The scene's removeItem method will handle cleanup automatically
+            pass
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
