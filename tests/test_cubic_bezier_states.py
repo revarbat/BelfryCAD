@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
-from ..src.BelfryCAD.gui.graphics_items.caditems.cubic_bezier_cad_item import CubicBezierCadItem, PathPointState
+from ..src.BelfryCAD.gui.views.graphics_items.caditems.cubic_bezier_cad_item import CubicBezierCadItem, PathPointState
 
 def test_cubic_bezier_states():
     """Test the CubicBezierCadItem state cycling implementation."""

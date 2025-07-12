@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'BelfryCAD'))
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
-from ..src.BelfryCAD.gui.graphics_items.caditems.quadratic_bezier_cad_item import QuadraticBezierCadItem, PathPointState
+from ..src.BelfryCAD.gui.views.graphics_items.caditems.quadratic_bezier_cad_item import QuadraticBezierCadItem, PathPointState
 
 
 def test_quadratic_bezier_states():

@@ -264,11 +264,13 @@ class GearWizardDialog(QDialog):
 
     def _load_tools(self):
         """Load tools from preferences."""
-        logger.info("Loading tools from preferences")
-        # Get preferences from main window
+        self.tool_combo.clear()
+        
+        # Get tools from preferences
+        tool_dicts = []
         main_window = cast('MainWindow', self.parent())
         if main_window:
-            tool_dicts = main_window.preferences.get('tool_table', [])
+            tool_dicts = main_window.preferences_viewmodel.get('tool_table', [])
             logger.info(f"Loaded {len(tool_dicts)} tools from preferences")
 
             # Convert string values back to enums

@@ -36,6 +36,13 @@ class ControlPoint(QGraphicsItem):
         
         # Set high Z value to appear above other items
         self.setZValue(10000)
+        
+        # Dragging state
+        self._is_dragging = False
+
+    def set_dragging(self, dragging: bool):
+        """Set the dragging state of this control point."""
+        self._is_dragging = dragging
 
     def call_setter_with_updates(self, value):
         """Call the setter and handle all necessary updates."""

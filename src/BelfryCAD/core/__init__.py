@@ -8,12 +8,11 @@ preferences, and CAD object handling.
 
 from .document import Document
 from .layers import LayerManager, Layer
-from .preferences import PreferencesManager
 from .cad_objects import *
+
 
 __all__ = [
     'Document',
     'LayerManager',
     'Layer',
-    'PreferencesManager',
 ]

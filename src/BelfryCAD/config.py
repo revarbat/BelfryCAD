@@ -63,7 +63,6 @@ class AppConfig:
 
         # Default preferences
         self.default_prefs = {
-            "antialiasing": True,
             "grid_visible": True,
             "snap_to_grid": True,
             "show_rulers": True,

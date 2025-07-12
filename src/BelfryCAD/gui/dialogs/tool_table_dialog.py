@@ -284,8 +284,8 @@ class ToolTableDialog(QDialog):
         # Get preferences from main window
         main_window = cast('MainWindow', self.parent())
         if main_window:
-            main_window.preferences.set('tool_table', tool_dicts)
-            main_window.preferences.save()
+            main_window.preferences_viewmodel.set('tool_table', tool_dicts)
+            main_window.preferences_viewmodel.save_preferences()
             logger.info("Tools saved to preferences")
         else:
             logger.warning("No main window found, tools not saved")
@@ -298,7 +298,7 @@ class ToolTableDialog(QDialog):
         tool_dicts = []
         if parent:
             main_window = cast('MainWindow', parent)
-            tool_dicts = main_window.preferences.get('tool_table', [])
+            tool_dicts = main_window.preferences_viewmodel.get('tool_table', [])
             logger.info(f"Loaded {len(tool_dicts)} tools from preferences: {tool_dicts}")
         else:
             logger.warning("No parent window provided, loading empty tool table")

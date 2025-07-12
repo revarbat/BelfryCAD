@@ -278,9 +278,9 @@ class FeedWizardDialog(QDialog):
         self.tool_combo.clear()
 
         # Get tools from preferences
-        if self.parent():
-            main_window = cast('MainWindow', self.parent())
-            tool_dicts = main_window.preferences.get('tool_table', [])
+        tool_dicts = []
+        if main_window:
+            tool_dicts = main_window.preferences_viewmodel.get('tool_table', [])
 
             # Convert tool dicts to ToolSpecification objects
             for tool_dict in tool_dicts:

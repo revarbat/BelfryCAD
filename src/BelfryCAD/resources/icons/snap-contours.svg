@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="32"
-   height="32"
-   viewBox="0 0 32 32"
+   width="48"
+   height="48"
+   viewBox="0 0 48 48"
    version="1.1"
    id="svg4"
    sodipodi:docname="snap-contours.svg"
@@ -23,25 +23,25 @@
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="9.1923882"
-     inkscape:cx="15.77392"
-     inkscape:cy="11.966422"
+     inkscape:cx="20.778061"
+     inkscape:cy="22.844988"
      inkscape:window-width="1176"
      inkscape:window-height="815"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg4" />
-  <path
-     style="fill:none;stroke:#000000;stroke-width:1;stroke-dasharray:none;stroke-dashoffset:1.5"
-     d="m 3.0295711,9.9628768 c 0,0 2.3223034,8.6538292 12.7951549,6.2839942 12.719115,-2.878128 14.249744,6.479367 14.249744,6.479367"
-     id="path4"
-     sodipodi:nodetypes="csc" />
   <!-- Combined line and arc -->
   <!-- Snap point crosshair -->
   <!-- Line/Arc connection point -->
+  <path
+     style="fill:none;stroke:#000000;stroke-width:1.5;stroke-dasharray:none;stroke-dashoffset:1.5"
+     d="m 3.7084291,14.464139 c 0,0 3.483456,12.980743 19.1927329,9.425991 19.078672,-4.317192 21.374616,9.71905 21.374616,9.71905"
+     id="path4"
+     sodipodi:nodetypes="csc" />
   <g
      id="g1"
-     transform="translate(0,0.10878566)">
+     transform="matrix(1.5,0,0,1.5,-0.5572848,-0.2113322)">
     <path
        style="fill:none;fill-opacity:1;stroke:#ff0000;stroke-width:1;stroke-linecap:butt;stroke-dasharray:none;stroke-opacity:1"
        d="m 13.763933,18.236067 4.472134,-4.472134"

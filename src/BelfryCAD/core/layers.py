@@ -424,7 +424,7 @@ class LayerManager:
         # Add to destination layer
         return self.add_object_to_layer(to_layer, object_id)
 
-    # Serialization methods
+    # Serialization methods - now just delegates to Layer class
     def serialize_layer(self, layer: Layer) -> Dict[str, Any]:
         """
         Serialize a layer to a dictionary.
@@ -438,15 +438,11 @@ class LayerManager:
         if layer not in self._layers:
             return {}
 
-        return {
-            "pos": self.get_layer_position(layer),
-            "name": layer.name,
-            "visible": layer.visible,
-            "locked": layer.locked,
-            "color": layer.color,
-            "cutbit": layer.cut_bit,
-            "cutdepth": layer.cut_depth
-        }
+        # Delegate to Layer's own serialization method
+        data = layer.serialize()
+        # Add layer manager specific data
+        data["pos"] = self.get_layer_position(layer)
+        return data
 
     def deserialize_layer(self, layer_data: Dict[str, Any], force_new: bool = False) -> Layer:
         """
@@ -459,23 +455,15 @@ class LayerManager:
         Returns:
             Layer object of the deserialized layer
         """
-        required_fields = ["name", "visible", "locked", "color", "cutbit", "cutdepth", "pos"]
-        for field in required_fields:
-            if field not in layer_data:
-                raise ValueError(f"Serialization data missing required field: {field}")
-
-        # Create new layer
-        layer = self.create_layer(layer_data["name"])
-
-        # Set all properties
-        layer.visible = layer_data["visible"]
-        layer.locked = layer_data["locked"]
-        layer.color = layer_data["color"]
-        layer.cut_bit = layer_data["cutbit"]
-        layer.cut_depth = layer_data["cutdepth"]
-
-        # Reorder to correct position
-        self.reorder_layer(layer, layer_data["pos"])
+        # Use Layer's own deserialization method
+        layer = Layer.deserialize(layer_data)
+        
+        # Add to layer manager
+        self._layers.append(layer)
+        
+        # Reorder to correct position if specified
+        if "pos" in layer_data:
+            self.reorder_layer(layer, layer_data["pos"])
 
         return layer
 

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="32"
-   height="32"
-   viewBox="0 0 32 32"
+   width="48"
+   height="48"
+   viewBox="0 0 48 48"
    version="1.1"
    id="svg8"
    sodipodi:docname="snap-grid.svg"
@@ -22,9 +22,9 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="13"
-     inkscape:cx="14"
-     inkscape:cy="14"
+     inkscape:zoom="9.1923882"
+     inkscape:cx="22.029096"
+     inkscape:cy="19.690204"
      inkscape:window-width="1192"
      inkscape:window-height="847"
      inkscape:window-x="0"
@@ -32,60 +32,64 @@
      inkscape:window-maximized="0"
      inkscape:current-layer="svg8" />
   <!-- Grid lines -->
-  <line
-     x1="7.0769238"
-     y1="3.3076918"
-     x2="7.0769238"
-     y2="28.692308"
-     id="line1"
-     style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
-  <line
-     x1="16"
-     y1="3.3076918"
-     x2="16"
-     y2="28.692308"
-     id="line2"
-     style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:1.99999797,0.99999899;stroke-dashoffset:0.2999997" />
-  <line
-     x1="25.000002"
-     y1="3.3076918"
-     x2="25.000002"
-     y2="28.692308"
-     id="line3"
-     style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
-  <line
-     x1="3.3076918"
-     y1="7.000001"
-     x2="28.692308"
-     y2="7.000001"
-     id="line4"
-     style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
-  <line
-     x1="3.3076918"
-     y1="16"
-     x2="28.692308"
-     y2="16"
-     id="line5"
-     style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:1.99999797,0.99999899;stroke-dashoffset:0.2999997" />
-  <line
-     x1="3.3076918"
-     y1="25.000002"
-     x2="28.692308"
-     y2="25.000002"
-     id="line6"
-     style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
   <!-- Snap point crosshair -->
   <g
-     id="g1">
-    <path
-       style="fill:none;fill-opacity:1;stroke:#ff0000;stroke-width:1;stroke-linecap:butt;stroke-dasharray:none;stroke-opacity:1"
-       d="m 13.763933,18.236067 4.472134,-4.472134"
-       id="path1-1"
-       sodipodi:nodetypes="cc" />
-    <path
-       style="fill:none;fill-opacity:1;stroke:#ff0000;stroke-width:1;stroke-linecap:butt;stroke-dasharray:none;stroke-opacity:1"
-       d="M 18.236067,18.236067 13.763933,13.763933"
-       id="path1-1-6"
-       sodipodi:nodetypes="cc" />
+     id="g2"
+     transform="scale(1.5)">
+    <line
+       x1="7.0769238"
+       y1="3.3076918"
+       x2="7.0769238"
+       y2="28.692308"
+       id="line1"
+       style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
+    <line
+       x1="16"
+       y1="3.3076918"
+       x2="16"
+       y2="28.692308"
+       id="line2"
+       style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
+    <line
+       x1="25.000002"
+       y1="3.3076918"
+       x2="25.000002"
+       y2="28.692308"
+       id="line3"
+       style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
+    <line
+       x1="3.3076918"
+       y1="7.000001"
+       x2="28.692308"
+       y2="7.000001"
+       id="line4"
+       style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
+    <line
+       x1="3.3076918"
+       y1="16"
+       x2="28.692308"
+       y2="16"
+       id="line5"
+       style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
+    <line
+       x1="3.3076918"
+       y1="25.000002"
+       x2="28.692308"
+       y2="25.000002"
+       id="line6"
+       style="fill:none;stroke:#666666;stroke-width:0.999999;stroke-dasharray:2, 0.999999;stroke-dashoffset:0.3" />
+    <g
+       id="g1">
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ff0000;stroke-width:1;stroke-linecap:butt;stroke-dasharray:none;stroke-opacity:1"
+         d="m 13.763933,18.236067 4.472134,-4.472134"
+         id="path1-1"
+         sodipodi:nodetypes="cc" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#ff0000;stroke-width:1;stroke-linecap:butt;stroke-dasharray:none;stroke-opacity:1"
+         d="M 18.236067,18.236067 13.763933,13.763933"
+         id="path1-1-6"
+         sodipodi:nodetypes="cc" />
+    </g>
   </g>
 </svg>

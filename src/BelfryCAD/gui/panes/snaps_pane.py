@@ -63,10 +63,8 @@ class SnapsToolBar(QToolBar):
             parent: Parent widget, if any
         """
         super().__init__(parent)
-        self.iconsize = 40
+        self.iconsize = 36
         self.canvas = canvas
-        self.current_row = 1
-        self.current_col = 1
         self._init_ui()
         self._setup_shortcuts()
 
@@ -109,7 +107,7 @@ class SnapsToolBar(QToolBar):
         """)
 
         # Create two-column widget for snaps
-        from ..widgets.columnar_toolbar import ColumnarToolbarWidget
+        from ..views.widgets.columnar_toolbar import ColumnarToolbarWidget
         self.snaps_widget = ColumnarToolbarWidget()
         self.addWidget(self.snaps_widget)
         
@@ -128,13 +126,16 @@ class SnapsToolBar(QToolBar):
 
         # Setup shortcuts for individual snaps
         for snap_type, snap_name, default_val, icon_name in snaps_pane_info.snap_types:
-            accel = self._extract_accelerator(snap_name)
-            if accel:
-                shortcut = QShortcut(QKeySequence(
-                    f"Alt+{accel.upper()}"), self)
-                shortcut.activated.connect(
-                    lambda st=snap_type: self._toggle_snap(st)
-                )
+            self._setup_snap_shortcut(snap_type, snap_name)
+
+    def _setup_snap_shortcut(self, snap_type: str, snap_name: str):
+        """Setup keyboard shortcut for a specific snap type."""
+        accel = self._extract_accelerator(snap_name)
+        if accel:
+            shortcut = QShortcut(QKeySequence(f"Alt+{accel.upper()}"), self)
+            shortcut.activated.connect(
+                lambda st=snap_type: self._toggle_snap(st)
+            )
 
     def _extract_accelerator(self, name: str) -> Optional[str]:
         """Extract accelerator key from name with & marker."""
@@ -143,19 +144,47 @@ class SnapsToolBar(QToolBar):
             return name[pos + 1].lower()
         return None
 
+    def _process_display_name(self, snap_name: str) -> str:
+        """Process snap name to create display name with accelerator."""
+        display_name = snap_name.replace("&", "")
+        accel = self._extract_accelerator(snap_name)
+        if accel:
+            alt_rep = "⌥" if platform.system() == "Darwin" else "Alt+"
+            display_name = f"Snap to {display_name} ({alt_rep}{accel.upper()})"
+        return display_name
+
+    def _create_button_with_icon(self, icon_name: str, tooltip: str, 
+                                checked: bool = False, text_fallback: str = "") -> QToolButton:
+        """Create a button with icon or text fallback."""
+        button = QToolButton()
+        button.setCheckable(True)
+        button.setChecked(checked)
+        button.setToolTip(tooltip)
+        #button.setFixedSize(QSize(self.iconsize, self.iconsize))
+
+        # Load and set icon
+        icon = get_icon(icon_name)
+        if not icon.isNull():
+            button.setIcon(icon)
+            button.setIconSize(QSize(self.iconsize, self.iconsize))
+        else:
+            # If no icon, use text on button
+            button.setText(text_fallback or tooltip[:2].upper())
+            button.setFont(QFont("Arial", 8))
+
+        return button
+
     def _create_snap_buttons(self):
         """Create buttons for all snap types."""
         alt_rep = "⌥" if platform.system() == "Darwin" else "Alt+"
 
         # Create "All Snaps" icon button at the beginning
-        self.all_snaps_button = QToolButton()
-        self.all_snaps_button.setCheckable(True)
-        self.all_snaps_button.setChecked(snaps_pane_info.snap_all)
-        self.all_snaps_button.setToolTip(f"Snaps Enabled ({alt_rep}A)")
-        self.all_snaps_button.setFixedSize(QSize(self.iconsize, self.iconsize))
-        
-        # Set initial icon based on state
-        self._update_all_snaps_icon()
+        self.all_snaps_button = self._create_button_with_icon(
+            "snap-enable" if snaps_pane_info.snap_all else "snap-disable",
+            f"Snaps Enabled ({alt_rep}A)" if snaps_pane_info.snap_all else f"Snaps Disabled ({alt_rep}A)",
+            snaps_pane_info.snap_all,
+            "All"
+        )
         
         # Connect to state change to update icon
         self.all_snaps_button.toggled.connect(self._update_all_snaps_icon)
@@ -169,32 +198,16 @@ class SnapsToolBar(QToolBar):
             if snap_type not in snaps_pane_info.snap_states:
                 snaps_pane_info.snap_states[snap_type] = default_val
 
-            # Extract display name
-            display_name = snap_name.replace("&", "")
-            accel = self._extract_accelerator(snap_name)
-            if accel:
-                display_name = f"Snap to {display_name} ({alt_rep}{accel.upper()})"
-
-            # Create toggle button
-            button = QToolButton()
-            button.setCheckable(True)
-            button.setChecked(snaps_pane_info.snap_states[snap_type])
-            button.setToolTip(display_name)
-            button.setFixedSize(QSize(self.iconsize, self.iconsize))
-
-            # Load and set icon
-            icon = get_icon(icon_name)
-            if not icon.isNull():
-                button.setIcon(icon)
-                button.setIconSize(QSize(self.iconsize, self.iconsize))
-            else:
-                # If no icon, use text on button
-                button.setText(display_name[:2].upper())
-                button.setFont(QFont("Arial", 8))
+            # Create button using helper method
+            display_name = self._process_display_name(snap_name)
+            button = self._create_button_with_icon(
+                icon_name, display_name, 
+                snaps_pane_info.snap_states[snap_type],
+                display_name[:2].upper()
+            )
 
             button.toggled.connect(
-                lambda checked, st=snap_type: self._on_snap_changed(
-                    st, checked)
+                lambda checked, st=snap_type: self._on_snap_changed(st, checked)
             )
 
             # Add to two-column widget
@@ -227,20 +240,11 @@ class SnapsToolBar(QToolBar):
         is_checked = self.all_snaps_button.isChecked()
         icon_name = "snap-enable" if is_checked else "snap-disable"
         alt_rep = "⌥" if platform.system() == "Darwin" else "Alt+"
-        tooltip_text = f"Snaps Enabled ({alt_rep}A)" if is_checked else \
-            f"Snaps Disabled ({alt_rep}A)"
+        tooltip_text = f"Snaps Enabled ({alt_rep}A)" if is_checked else f"Snaps Disabled ({alt_rep}A)"
 
-        # Update icon
-        icon = get_icon(icon_name)
-        if not icon.isNull():
-            self.all_snaps_button.setIcon(icon)
-            self.all_snaps_button.setIconSize(QSize(self.iconsize, self.iconsize))
-        else:
-            # Fallback to text if icon not found
-            self.all_snaps_button.setText("All")
-            self.all_snaps_button.setFont(QFont("Arial", 8))
-        
-        # Update tooltip
+        # Update icon using helper method
+        new_button = self._create_button_with_icon(icon_name, tooltip_text, is_checked, "All")
+        self.all_snaps_button.setIcon(new_button.icon())
         self.all_snaps_button.setToolTip(tooltip_text)
 
     def update_snaps(self):
@@ -300,28 +304,11 @@ class SnapsToolBar(QToolBar):
             self, snap_type: str, snap_name: str, default_val: bool,
             icon_name: str = ""):
         """Add a button for a new snap type."""
-        # Extract display name
-        display_name = snap_name.replace("&", "")
-        accel = self._extract_accelerator(snap_name)
-        if accel:
-            display_name = display_name + f" ({accel.upper()})"
-
-        # Create toggle button
-        button = QToolButton()
-        button.setCheckable(True)
-        button.setChecked(default_val)
-        button.setToolTip(display_name)
-        button.setFixedSize(QSize(self.iconsize, self.iconsize))
-
-        # Load and set icon
-        icon = get_icon(icon_name)
-        if not icon.isNull():
-            button.setIcon(icon)
-            button.setIconSize(QSize(self.iconsize, self.iconsize))
-        else:
-            # If no icon, use text on button
-            button.setText(display_name[:2].upper())
-            button.setFont(QFont("Arial", 10))
+        # Create button using helper method
+        display_name = self._process_display_name(snap_name)
+        button = self._create_button_with_icon(
+            icon_name, display_name, default_val, display_name[:2].upper()
+        )
 
         button.toggled.connect(
             lambda checked: self._on_snap_changed(snap_type, checked)
@@ -332,11 +319,7 @@ class SnapsToolBar(QToolBar):
         snaps_pane_info.snap_buttons[snap_type] = button
 
         # Setup shortcut for new snap
-        if accel:
-            shortcut = QShortcut(QKeySequence(f"Alt+{accel.upper()}"), self)
-            shortcut.activated.connect(
-                lambda: self._toggle_snap(snap_type)
-            )
+        self._setup_snap_shortcut(snap_type, snap_name)
 
     def is_snap_enabled(self, snap_type: str) -> bool:
         """
@@ -427,57 +410,6 @@ def create_snaps_toolbar(
         A new SnapsToolBar instance
     """
     return SnapsToolBar(canvas, parent)
-
-
-def snap_types() -> List[Tuple[str, str, bool, str]]:
-    """
-    Get list of snap types.
-
-    Returns:
-        List of tuples (snap_type, snap_name, default_value, icon_name)
-    """
-    return snaps_pane_info.snap_types.copy()
-
-
-def snap_exists(snap_type: str) -> bool:
-    """
-    Check if a snap type exists.
-
-    Args:
-        snap_type: The snap type to check
-
-    Returns:
-        True if snap type exists
-    """
-    return snap_type in snaps_pane_info.snap_states
-
-
-def snap_add(snap_type: str, snap_name: str, default_val: bool,
-             icon_name: str = ""):
-    """
-    Add a new snap type.
-
-    Args:
-        snap_type: Internal snap type identifier
-        snap_name: Display name for the snap
-        default_val: Default enabled state
-        icon_name: Icon file name (without extension)
-    """
-    snaps_pane_info.snap_types.append((snap_type, snap_name, default_val, icon_name))
-    snaps_pane_info.snap_states[snap_type] = default_val
-
-
-def snap_is_enabled(snap_type: str) -> bool:
-    """
-    Check if a snap type is enabled.
-
-    Args:
-        snap_type: The snap type to check
-
-    Returns:
-        True if snap is enabled, False otherwise
-    """
-    return snaps_pane_info.snap_states.get(snap_type, False)
 
 
 if __name__ == "__main__":

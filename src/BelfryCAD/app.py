@@ -8,7 +8,8 @@ from typing import Optional
 
 from .config import AppConfig
 from .gui.main_window import MainWindow
-from .core.preferences import PreferencesManager
+from .models.preferences import PreferencesModel
+from .gui.viewmodels.preferences_viewmodel import PreferencesViewModel
 from .core.document import Document
 from .utils.logger import get_logger
 
@@ -25,8 +26,9 @@ class BelfryCadApplication:
         self.config = config
         self.logger = get_logger(self.__class__.__name__)
 
-        # Initialize core components
-        self.preferences = PreferencesManager(config)
+        # Initialize core components with MVVM preferences
+        self.preferences_model = PreferencesModel(config)
+        self.preferences_viewmodel = PreferencesViewModel(self.preferences_model)
         self.document = Document()
         self.main_window: Optional[MainWindow] = None
 
@@ -47,14 +49,14 @@ class BelfryCadApplication:
     def run(self):
         """Run the main application."""
         try:
-            # Load preferences
-            self.preferences.load()
+            # Load preferences using MVVM system
+            self.preferences_viewmodel.load_preferences()
             self.logger.info("Preferences loaded")
 
             # Create the main window
             self.logger.info("Creating main window...")
             self.main_window = MainWindow(
-                self.config, self.preferences, self.document)
+                self.config, self.preferences_viewmodel, self.document)
             self.logger.info("Main window created")
 
             # Show the window
@@ -96,15 +98,15 @@ class BelfryCadApplication:
                     if not self.save_document():
                         return False  # Save was cancelled or failed
 
-            # Save preferences
+            # Save preferences using MVVM system
             if self.main_window:
                 # Update window geometry in preferences
                 geometry = self.main_window.geometry()
-                self.preferences.set("window_geometry",
-                                     f"{geometry.width()}x{geometry.height()}+"
-                                     f"{geometry.x()}+{geometry.y()}")
+                self.preferences_viewmodel.set_window_geometry(
+                    f"{geometry.width()}x{geometry.height()}+"
+                    f"{geometry.x()}+{geometry.y()}")
 
-            self.preferences.save()
+            self.preferences_viewmodel.save_preferences()
 
             self.logger.info("Application closing normally")
             return True

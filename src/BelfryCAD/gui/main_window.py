@@ -20,38 +20,39 @@ from ..tools.base import ToolCategory, ToolManager
 
 from .mainmenu import MainMenuBar
 from .grid_info import GridInfo, GridUnits
-from .graphics_items.grid_graphics_items import (
+from .views.graphics_items.grid_graphics_items import (
     GridBackground, RulersForeground, SnapCursorItem
 )
 from .palette_system import create_default_palettes
-from .widgets.category_button import CategoryToolButton
-from .widgets.cad_scene import CadScene
-from .widgets.cad_view import CadView
+from .views.widgets.category_button import CategoryToolButton
+from .views.widgets.cad_scene import CadScene
+from .views.widgets.cad_view import CadView
 from .icon_manager import get_icon
-from .graphics_items.cad_item import CadItem
+from .views.graphics_items.cad_item import CadItem
 from .print_manager import CadPrintManager
 from .dialogs.feed_wizard import FeedWizardDialog
 from .dialogs.tool_table_dialog import ToolTableDialog
-from .dialogs.preferences_dialog import PreferencesDialog
+from .views.preferences_dialog import PreferencesDialog
 from .dialogs.gear_wizard_dialog import GearWizardDialog
 from .dialogs.gcode_backtracer_dialog import GCodeBacktracerDialog
-from .widgets.zoom_edit_widget import ZoomEditWidget
+from .views.widgets.zoom_edit_widget import ZoomEditWidget
 from .snaps_system import SnapsSystem
-from .graphics_items.caditems import (
+from .views.graphics_items.caditems import (
     LineCadItem, CubicBezierCadItem, QuadraticBezierCadItem, CircleCenterRadiusCadItem,
-    Circle2PointsCadItem, Circle3PointsCadItem, CircleCornerCadItem, ArcCornerCadItem, RectangleCadItem, ArcCadItem, PolylineCadItem,
+    Circle2PointsCadItem, Circle3PointsCadItem, CircleCornerCadItem, ArcCornerCadItem,
+    RectangleCadItem, ArcCadItem, PolylineCadItem,
 )
 from .panes.layer_pane import LayerPane
-from .widgets.columnar_toolbar import ColumnarToolbarWidget
+from .views.widgets.columnar_toolbar import ColumnarToolbarWidget
 
 logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, config, preferences, document):
+    def __init__(self, config, preferences_viewmodel, document):
         super().__init__()
         self.config = config
-        self.preferences = preferences
+        self.preferences_viewmodel = preferences_viewmodel
         self.document = document
 
         # Initialize undo/redo system
@@ -85,7 +86,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.config.APP_NAME)
 
         # Set window size - check preferences first, then default to 1024x768
-        saved_geometry = self.preferences.get("window_geometry", None)
+        saved_geometry = self.preferences_viewmodel.get("window_geometry", None)
         if saved_geometry:
             try:
                 # Parse saved geometry in format "WIDTHxHEIGHT+X+Y"
@@ -120,6 +121,33 @@ class MainWindow(QMainWindow):
         self._setup_category_shortcuts()
         self._update_shortcut_tooltips()
         self._draw_shapes()
+        
+        # Connect preference change signals
+        self._connect_preference_signals()
+
+    def _connect_preference_signals(self):
+        """Connect preference change signals to their handlers."""
+        # Connect grid visibility preference changes
+        self.preferences_viewmodel.preference_changed.connect(self._on_preference_changed)
+        # Connect preferences loaded signal
+        self.preferences_viewmodel.preferences_loaded.connect(self._refresh_visibility_from_preferences)
+
+    def _on_preference_changed(self, key: str, value):
+        """Handle preference changes."""
+        if key == "grid_visible" and hasattr(self, 'grid'):
+            self.grid.setVisible(value)
+        elif key == "show_rulers" and hasattr(self, 'rulers'):
+            self.rulers.setVisible(value)
+
+    def _refresh_visibility_from_preferences(self):
+        """Refresh grid and rulers visibility from preferences after they are loaded."""
+        if hasattr(self, 'grid'):
+            show_grid = self.preferences_viewmodel.get("grid_visible", True)
+            self.grid.setVisible(show_grid)
+        
+        if hasattr(self, 'rulers'):
+            show_rulers = self.preferences_viewmodel.get("show_rulers", True)
+            self.rulers.setVisible(show_rulers)
 
     def _setup_category_shortcuts(self):
         """Set up keyboard shortcuts for tool category activation"""
@@ -182,7 +210,7 @@ class MainWindow(QMainWindow):
     def _create_menu(self):
         """Create the comprehensive main menu system."""
         # Initialize the main menu bar
-        self.main_menu = MainMenuBar(self, self.preferences)
+        self.main_menu = MainMenuBar(self, self.preferences_viewmodel)
 
         # Connect menu signals to handlers
         self._connect_menu_signals()
@@ -248,8 +276,8 @@ class MainWindow(QMainWindow):
         self.main_menu.zoom_to_fit_triggered.connect(self._zoom_to_fit)
         self.main_menu.zoom_in_triggered.connect(self._zoom_in)
         self.main_menu.zoom_out_triggered.connect(self._zoom_out)
-        self.main_menu.show_origin_toggled.connect(self.toggle_show_origin)
         self.main_menu.show_grid_toggled.connect(self.toggle_show_grid)
+        self.main_menu.show_rulers_toggled.connect(self.toggle_show_rulers)
 
         # Palette visibility connections
         self.main_menu.show_info_panel_toggled.connect(self.toggle_info_panel)
@@ -319,7 +347,7 @@ class MainWindow(QMainWindow):
         self.toolbar.visibilityChanged.connect(self._on_tools_toolbar_moved)
         
         # Restore toolbar visibility from preferences
-        visible = self.preferences.get("show_tools", True)
+        visible = self.preferences_viewmodel.get("show_tools", True)
         self.toolbar.setVisible(visible)
 
     def _create_snaps_toolbar(self):
@@ -364,7 +392,7 @@ class MainWindow(QMainWindow):
 
     def _restore_snaps_toolbar_position(self):
         """Restore snaps toolbar position from preferences."""
-        toolbar_area = self.preferences.get("snaps_toolbar_area", "left")
+        toolbar_area = self.preferences_viewmodel.get("snaps_toolbar_area", "left")
         
         # Remove from current area
         self.removeToolBar(self.snaps_toolbar)
@@ -381,8 +409,10 @@ class MainWindow(QMainWindow):
         self.addToolBar(qt_area, self.snaps_toolbar)
         
         # Restore visibility
-        visible = self.preferences.get("snaps_toolbar_visible", True)
+        visible = self.preferences_viewmodel.get("snaps_toolbar_visible", True)
         self.snaps_toolbar.setVisible(visible)
+        
+        # Menu state will be synced after palette manager is created
 
     def _save_snaps_toolbar_position(self):
         """Save snaps toolbar position to preferences."""
@@ -396,8 +426,8 @@ class MainWindow(QMainWindow):
         }
         
         toolbar_area = area_map.get(area, "top")
-        self.preferences.set("snaps_toolbar_area", toolbar_area)
-        self.preferences.set("snaps_toolbar_visible", self.snaps_toolbar.isVisible())
+        self.preferences_viewmodel.set("snaps_toolbar_area", toolbar_area)
+        self.preferences_viewmodel.set("snaps_toolbar_visible", self.snaps_toolbar.isVisible())
 
     def _on_snaps_toolbar_moved(self, orientation):
         """Handle snaps toolbar movement."""
@@ -483,10 +513,18 @@ class MainWindow(QMainWindow):
         # Add grid background
         self.grid = GridBackground(self.grid_info)
         self.cad_scene.addItem(self.grid)
+        
+        # Set initial grid visibility based on preferences
+        show_grid = self.preferences_viewmodel.get("grid_visible", True)
+        self.grid.setVisible(show_grid)
 
         # Add rulers
         self.rulers = RulersForeground(self.grid_info)
         self.cad_scene.addItem(self.rulers)
+        
+        # Set initial rulers visibility based on preferences
+        show_rulers = self.preferences_viewmodel.get("show_rulers", True)
+        self.rulers.setVisible(show_rulers)
 
         self.snap_cursor = SnapCursorItem()
         self.cad_scene.addItem(self.snap_cursor)
@@ -511,9 +549,12 @@ class MainWindow(QMainWindow):
         self._connect_palette_content()
 
         # Restore palette layout from preferences if available
-        saved_layout = self.preferences.get("palette_layout", None)
+        saved_layout = self.preferences_viewmodel.get("palette_layout", None)
         if saved_layout:
             self.palette_manager.restore_palette_layout(saved_layout)
+        
+        # Sync menu states after all components are created
+        self._sync_palette_menu_states()
 
     def _connect_palette_content(self):
         """Connect palette content widgets to the main window functionality."""
@@ -532,7 +573,7 @@ class MainWindow(QMainWindow):
         # Connect layer pane to document layer management
         layer_pane = self.palette_manager.get_palette_content(
             "layer_pane")
-        if (layer_pane and hasattr(self, 'document') and
+        if (layer_pane and hasattr(self.document, 'layers') and
                 hasattr(self.document, 'layers')):
             self._connect_layer_pane(layer_pane)
 
@@ -706,7 +747,7 @@ class MainWindow(QMainWindow):
         from ..tools import available_tools  # Local import to avoid circular import
         # Initialize tool manager
         self.tool_manager = ToolManager(
-            self, self.document, self.preferences)
+            self, self.document, self.preferences_viewmodel)
 
         # Register all available tools and group by category
         self.tools = {}
@@ -767,7 +808,7 @@ class MainWindow(QMainWindow):
         """Get the DPI from the main window."""
         screen = self.screen()
         if screen:
-            return screen.logicalDotsPerInch()
+            return screen.physicalDotsPerInch()
         return 96.0  # Default DPI if screen info not available
 
     def activate_tool(self, tool_token):
@@ -1194,15 +1235,19 @@ class MainWindow(QMainWindow):
             "Intersection of Polygons functionality not yet implemented"
         )
 
-    def toggle_show_origin(self, show):
-        """Handle Show Origin toggle."""
-        self.preferences.set("show_origin", show)
-        # TODO: Actually toggle origin display
-
     def toggle_show_grid(self, show):
         """Handle Show Grid toggle."""
-        self.preferences.set("show_grid", show)
-        # TODO: Actually toggle grid display
+        self.preferences_viewmodel.set("grid_visible", show)
+        # Actually toggle grid display
+        if hasattr(self, 'grid'):
+            self.grid.setVisible(show)
+
+    def toggle_show_rulers(self, show):
+        """Handle Show Rulers toggle."""
+        self.preferences_viewmodel.set("show_rulers", show)
+        # Actually toggle rulers display
+        if hasattr(self, 'rulers'):
+            self.rulers.setVisible(show)
 
     # CAM menu handlers
     def configure_mill(self):
@@ -1259,7 +1304,7 @@ class MainWindow(QMainWindow):
     def show_preferences(self):
         """Show the preferences dialog."""
         # Create and show preferences dialog
-        dialog = PreferencesDialog(self)
+        dialog = PreferencesDialog(self.preferences_viewmodel, self)
         result = dialog.exec()
 
         if result == dialog.DialogCode.Accepted:
@@ -1325,16 +1370,16 @@ class MainWindow(QMainWindow):
         """Handle window close event."""
         # Save window geometry to preferences
         geometry = self.geometry()
-        self.preferences.set("window_geometry",
-                           f"{geometry.width()}x{geometry.height()}+"
-                           f"{geometry.x()}+{geometry.y()}")
+        self.preferences_viewmodel.set("window_geometry",
+                                     f"{geometry.width()}x{geometry.height()}+"
+                                     f"{geometry.x()}+{geometry.y()}")
 
         # Save snaps toolbar position
         if hasattr(self, 'snaps_toolbar'):
             self._save_snaps_toolbar_position()
 
         # Save preferences
-        self.preferences.save()
+        self.preferences_viewmodel.save_preferences()
 
         # Call parent's closeEvent
         super().closeEvent(event)
@@ -1342,19 +1387,19 @@ class MainWindow(QMainWindow):
     # Palette visibility handlers
     def toggle_info_panel(self, show):
         """Handle Info Panel visibility toggle."""
-        self.preferences.set("show_info_panel", show)
+        self.preferences_viewmodel.set("show_info_panel", show)
         self.palette_manager.set_palette_visibility("info_pane", show)
         self._sync_palette_menu_states()
 
     def toggle_properties(self, show):
         """Handle Properties panel visibility toggle."""
-        self.preferences.set("show_properties", show)
+        self.preferences_viewmodel.set("show_properties", show)
         self.palette_manager.set_palette_visibility("config_pane", show)
         self._sync_palette_menu_states()
 
     def toggle_layers(self, show):
         """Handle Layers panel visibility toggle."""
-        self.preferences.set("show_layers", show)
+        self.preferences_viewmodel.set("show_layers", show)
         self.palette_manager.set_palette_visibility("layer_pane", show)
         self._sync_palette_menu_states()
 
@@ -1363,31 +1408,48 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'snaps_toolbar'):
             self.snaps_toolbar.setVisible(show)
             # Save the visibility state to preferences
-            self.preferences.set("snaps_toolbar_visible", show)
-            self.preferences.set("show_snap_settings", show)
+            self.preferences_viewmodel.set("snaps_toolbar_visible", show)
+            self.preferences_viewmodel.set("show_snap_settings", show)
+            # Sync menu state
+            self._sync_snaps_toolbar_menu_state()
 
     def toggle_tools(self, show):
         """Toggle the tools toolbar visibility."""
         if hasattr(self, 'toolbar'):
             self.toolbar.setVisible(show)
             # Save the visibility state to preferences
-            self.preferences.set("show_tools", show)
+            self.preferences_viewmodel.set("show_tools", show)
 
 
 
     def _sync_palette_menu_states(self):
         """Sync the palette menu checkbox states with actual visibility."""
-        self.main_menu.sync_palette_menu_states(self.palette_manager)
+        # Sync palette states if palette manager exists
+        if hasattr(self, 'palette_manager'):
+            self.main_menu.sync_palette_menu_states(self.palette_manager)
+        
+        # Sync snaps toolbar menu state
+        if hasattr(self, 'snaps_toolbar') and hasattr(self.main_menu, 'show_snap_settings_action'):
+            visible = self.snaps_toolbar.isVisible()
+            if self.main_menu.show_snap_settings_action:
+                self.main_menu.show_snap_settings_action.setChecked(visible)
+
+    def _sync_snaps_toolbar_menu_state(self):
+        """Sync the snaps toolbar menu checkbox state with actual toolbar visibility."""
+        if hasattr(self, 'snaps_toolbar') and hasattr(self.main_menu, 'show_snap_settings_action'):
+            visible = self.snaps_toolbar.isVisible()
+            if self.main_menu.show_snap_settings_action:
+                self.main_menu.show_snap_settings_action.setChecked(visible)
 
     def _on_palette_visibility_changed(self, palette_id: str, visible: bool):
         """Handle palette visibility changes from the palette system."""
         # Update the preference for the palette
         if palette_id == "info_pane":
-            self.preferences.set("show_info_panel", visible)
+            self.preferences_viewmodel.set("show_info_panel", visible)
         elif palette_id == "config_pane":
-            self.preferences.set("show_properties", visible)
+            self.preferences_viewmodel.set("show_properties", visible)
         elif palette_id == "layer_pane":
-            self.preferences.set("show_layers", visible)
+            self.preferences_viewmodel.set("show_layers", visible)
 
 
         # Sync the menu checkboxes with the new state

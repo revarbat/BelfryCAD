@@ -72,6 +72,8 @@ class Document:
 
     def _save_native(self):
         data = self._serialize_native()
+        if not self._filename:
+            raise ValueError("No filename specified for saving.")
         with open(self._filename, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
@@ -81,31 +83,30 @@ class Document:
         self._deserialize_native(data)
 
     def _serialize_native(self):
-        # Serialize all objects and the new layer system
+        # Serialize all objects using their own serialization methods
         serialized_objects = []
         for obj in self.objects.get_all_objects():
-            obj_data = {
-                "object_id": obj.object_id,
-                "object_type": obj.object_type.value,  # Use .value for enum
-                "layer": obj.layer,
-                # Serialize Points properly
-                "coords": [{"x": pt.x, "y": pt.y} for pt in obj.coords],
-                "attributes": obj.attributes,
-                "selected": obj.selected,
-                "visible": obj.visible,
-                "locked": obj.locked
-            }
+            # Let each CADObject handle its own serialization
+            obj_data = obj.serialize()
             serialized_objects.append(obj_data)
+
+        # Serialize layers using their own serialization methods
+        serialized_layers = {}
+        for layer in self.layers.get_all_layers():
+            # Let each Layer handle its own serialization
+            layer_data = layer.serialize()
+            serialized_layers[layer.name] = layer_data
+
+        current_layer = self.layers.get_current_layer()
+        current_layer_name = current_layer.name if current_layer else "Layer 0"
 
         return {
             "objects": serialized_objects,
             "layers": {
-                "layer_data": {
-                    layer_id: self.layers.serialize_layer(layer_id)
-                    for layer_id in self.layers.get_layer_ids()
-                },
-                "current_layer": self.layers.get_current_layer(),
-                "layer_order": self.layers.get_layer_ids()
+                "layer_data": serialized_layers,
+                "current_layer": current_layer_name,
+                "layer_order": [layer.name for layer in 
+                               self.layers.get_all_layers()]
             }
         }
 
@@ -117,61 +118,56 @@ class Document:
         # Restore layer system
         layers_data = data.get("layers", {})
         if "layer_data" in layers_data:
-            # New format with LayerManager
-            for layer_id, layer_info in layers_data["layer_data"].items():
-                self.layers.deserialize_layer(layer_info)
+            # New format with Layer objects - use Layer's own deserialization
+            for layer_name, layer_info in layers_data["layer_data"].items():
+                # Let Layer handle its own deserialization
+                layer = Layer.deserialize(layer_info)
+                if layer:
+                    # Add to layer manager
+                    self._layers.append(layer)
+            
+            # Set current layer by name
             if "current_layer" in layers_data:
-                self.layers.set_current_layer(layers_data["current_layer"])
+                current_layer_name = layers_data["current_layer"]
+                # Find and set current layer
+                for layer in self.layers.get_all_layers():
+                    if layer.name == current_layer_name:
+                        self.layers.set_current_layer(layer)
+                        break
         else:
-            # Old format - convert to new system
-            old_layers = data.get(
-                "layers", {0: ["Layer 0", "black", True, False]})
+            # Old format - convert to new Layer object system
+            old_layers = data.get("layers", 
+                                 {0: ["Layer 0", "black", True, False]})
             for layer_id, layer_info in old_layers.items():
                 if isinstance(layer_info, list) and len(layer_info) >= 4:
                     name, color, visible, locked = layer_info[:4]
-                    new_layer_id = self.layers.create_layer(name)
-                    self.layers.set_layer_color(new_layer_id, color)
-                    self.layers.set_layer_visible(new_layer_id, visible)
-                    self.layers.set_layer_locked(new_layer_id, locked)
-            current_layer = data.get("current_layer", 0)
-            if self.layers.layer_exists(current_layer):
-                self.layers.set_current_layer(current_layer)
+                    layer = self.layers.create_layer(name)
+                    if layer:
+                        layer.color = color
+                        layer.visible = visible
+                        layer.locked = locked
+            
+            # Set current layer from old format
+            current_layer_id = data.get("current_layer", 0)
+            if isinstance(current_layer_id, int):
+                # Try to find layer by old ID position or use default
+                all_layers = self.layers.get_all_layers()
+                if (current_layer_id < len(all_layers) and 
+                    current_layer_id >= 0):
+                    self.layers.current_layer = all_layers[current_layer_id]
 
-        # Restore objects with proper deserialization
-        from .cad_objects import ObjectType, Point
+        # Restore objects using their own deserialization methods
         objects_data = data.get("objects", [])
         for obj_data in objects_data:
             try:
-                # Get object type
-                object_type_str = obj_data.get("object_type")
-                if isinstance(object_type_str, str):
-                    object_type = ObjectType(object_type_str)
-                else:
-                    object_type = object_type_str
-
-                # Rebuild coords from proper dict format
-                coords_data = obj_data.get("coords", [])
-                coords = []
-                for coord in coords_data:
-                    if isinstance(coord, dict) and "x" in coord and "y" in coord:
-                        coords.append(Point(coord["x"], coord["y"]))
-                    elif hasattr(coord, 'x') and hasattr(coord, 'y'):
-                        coords.append(Point(coord.x, coord.y))
-
-                # Create object with manager (don't pass attributes as kwargs)
-                obj = self.objects.create_object(
-                    object_type,
-                    *coords,
-                    layer=obj_data.get("layer", 0)
-                )
-
-                # Set attributes after creation
-                obj.attributes.update(obj_data.get("attributes", {}))
-
-                # Set additional properties
-                obj.selected = obj_data.get("selected", False)
-                obj.visible = obj_data.get("visible", True)
-                obj.locked = obj_data.get("locked", False)
+                # Let CADObject handle its own deserialization
+                from .cad_objects import CADObject
+                obj = CADObject.deserialize(obj_data, self.objects, self.layers)
+                
+                if obj:
+                    # CADObject.deserialize should handle adding to object manager
+                    # and setting layer references correctly
+                    pass
 
             except Exception as e:
                 print(f"Failed to deserialize object: {e}")

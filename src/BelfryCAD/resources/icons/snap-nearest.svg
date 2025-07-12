@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="32"
-   height="32"
-   viewBox="0 0 32 32"
+   width="48"
+   height="48"
+   viewBox="0 0 48 48"
    version="1.1"
    id="svg3"
    sodipodi:docname="snap-nearest.svg"
@@ -22,49 +22,49 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="13"
-     inkscape:cx="14.923077"
-     inkscape:cy="14.461538"
+     inkscape:zoom="9.1923882"
+     inkscape:cx="24.204809"
+     inkscape:cy="21.865917"
      inkscape:window-width="1200"
      inkscape:window-height="847"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="0"
      inkscape:current-layer="svg3" />
+  <!-- Curved line (arc) -->
+  <!-- Nearest point crosshair -->
+  <!-- Distance indicator line -->
+  <!-- Target point -->
   <line
-     x1="16"
-     y1="16.615387"
-     x2="16"
-     y2="25.769234"
+     x1="24"
+     y1="25.321035"
+     x2="24"
+     y2="39.051804"
      stroke="#ff0000"
      stroke-width="0.617584"
      stroke-dasharray="1, 1"
      id="line3"
-     style="stroke:#808080;stroke-width:1;stroke-dasharray:1, 1;stroke-dashoffset:0;stroke-opacity:1" />
-  <!-- Curved line (arc) -->
+     style="stroke:#808080;stroke-width:1.5;stroke-dasharray:1.5, 1.5;stroke-dashoffset:0;stroke-opacity:1" />
   <path
-     d="M 3.9442025,4.5006904 Q 16,28.612287 28.055797,4.5006904"
+     d="M 5.9163041,7.1489901 Q 24,43.316385 42.083696,7.1489901"
      stroke="#666666"
      stroke-width="2"
      fill="none"
      id="path1"
-     style="stroke:#000000;stroke-width:1;stroke-dasharray:none;stroke-opacity:1" />
-  <!-- Nearest point crosshair -->
+     style="stroke:#000000;stroke-width:1.5;stroke-dasharray:none;stroke-opacity:1" />
   <circle
-     cx="16"
-     cy="16.615387"
-     r="1"
+     cx="24"
+     cy="25.321035"
+     r="1.5"
      fill="#ff0000"
      id="circle2"
-     style="stroke:#ff0000;stroke-width:1" />
-  <!-- Distance indicator line -->
-  <!-- Target point -->
+     style="stroke:#ff0000;stroke-width:1.5" />
   <circle
-     cx="16"
-     cy="25.69231"
-     r="1"
+     cx="24"
+     cy="38.93642"
+     r="1.5"
      stroke="#ff0000"
-     stroke-width="1"
+     stroke-width="1.5"
      fill="none"
      id="circle3"
      style="fill:#ffffff;fill-opacity:1" />

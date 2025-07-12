@@ -14,7 +14,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 
 from ..core.cad_objects import CADObject, Point
-from ..gui.widgets.cad_scene import CadScene
+from ..gui.views.widgets.cad_scene import CadScene
 
 
 class ToolState(Enum):

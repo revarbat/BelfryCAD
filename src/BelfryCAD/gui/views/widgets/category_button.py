@@ -7,13 +7,13 @@ to show the currently selected tool in that category.
 
 from typing import TYPE_CHECKING, List, Optional
 if TYPE_CHECKING:
-    from ...tools.base import ToolDefinition, ToolCategory
+    from ....tools.base import ToolDefinition, ToolCategory
 
 from PySide6.QtWidgets import QToolButton
 from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtGui import QMouseEvent
 
-from ..panes.tool_palette import ToolPalette
+from ...panes.tool_palette import ToolPalette
 
 
 class CategoryToolButton(QToolButton):
@@ -40,7 +40,7 @@ class CategoryToolButton(QToolButton):
             parent=None
     ):
         super().__init__(parent)
-        self.iconsize = 40
+        self.iconsize = 36
         self.category = category
         self.tools = tools
         self.icon_loader = icon_loader
@@ -59,7 +59,7 @@ class CategoryToolButton(QToolButton):
 
     def _setup_ui(self):
         """Set up the button UI"""
-        self.setFixedSize(self.iconsize, self.iconsize)
+        #self.setFixedSize(self.iconsize, self.iconsize)
         self.setIconSize(QSize(self.iconsize, self.iconsize))
 
         # Update tooltip based on whether category has one or multiple tools
@@ -92,7 +92,7 @@ class CategoryToolButton(QToolButton):
                     background-color: rgba(0, 0, 0, 60);
                 }
                 QToolButton:pressed {
-                    background-color: rgba(0, 0, 0, 80);
+                    background-color: rgba(0, 0, 80, 80);
                 }
             """)
         else:

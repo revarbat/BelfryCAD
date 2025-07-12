@@ -13,7 +13,6 @@ from .tool_table_dialog import ToolTableDialog
 from .tool_spec_dialog import ToolSpecDialog
 from .gcode_backtracer_dialog import GCodeBacktracerDialog
 from .gear_wizard_dialog import GearWizardDialog
-from .preferences_dialog import PreferencesDialog
 from .feed_wizard import FeedWizardDialog
 
 __all__ = [
@@ -21,6 +20,5 @@ __all__ = [
     'ToolSpecDialog', 
     'GCodeBacktracerDialog',
     'GearWizardDialog',
-    'PreferencesDialog',
     'FeedWizardDialog'
 ] 

@@ -18,9 +18,9 @@ class RecentFilesManager(QObject):
     # Signal emitted when a recent file is selected
     file_selected = Signal(str)
 
-    def __init__(self, preferences, parent=None):
+    def __init__(self, preferences_viewmodel, parent=None):
         super().__init__(parent)
-        self.preferences = preferences
+        self.preferences_viewmodel = preferences_viewmodel
         self.recent_menu = None
 
     def create_recent_menu(self, parent_menu: QMenu) -> QMenu:
@@ -38,7 +38,7 @@ class RecentFilesManager(QObject):
         self.recent_menu.clear()
 
         # Get recent files from preferences
-        recent_files = self.preferences.get("recent_files", [])
+        recent_files = self.preferences_viewmodel.get("recent_files", [])
 
         # Add recent file entries
         count = 0
@@ -65,7 +65,7 @@ class RecentFilesManager(QObject):
 
     def add_recent_file(self, filename: str):
         """Add a file to the recent files list."""
-        recent_files = self.preferences.get("recent_files", [])
+        recent_files = self.preferences_viewmodel.get("recent_files", [])
 
         # Remove if already in list
         if filename in recent_files:
@@ -78,14 +78,14 @@ class RecentFilesManager(QObject):
         recent_files = recent_files[:10]
 
         # Save back to preferences
-        self.preferences.set("recent_files", recent_files)
+        self.preferences_viewmodel.set("recent_files", recent_files)
 
         # Update menu
         self.update_recent_menu()
 
     def clear_recent_files(self):
         """Clear the recent files list."""
-        self.preferences.set("recent_files", [])
+        self.preferences_viewmodel.set("recent_files", [])
         self.update_recent_menu()
 
 
@@ -150,8 +150,8 @@ class MainMenuBar(QObject):
     zoom_to_fit_triggered = Signal()
     zoom_in_triggered = Signal()
     zoom_out_triggered = Signal()
-    show_origin_toggled = Signal(bool)
     show_grid_toggled = Signal(bool)
+    show_rulers_toggled = Signal(bool)
 
     # Palette visibility signals
     show_info_panel_toggled = Signal(bool)
@@ -172,20 +172,20 @@ class MainMenuBar(QObject):
     minimize_triggered = Signal()
     cycle_windows_triggered = Signal()
 
-    def __init__(self, parent_window, preferences):
+    def __init__(self, parent_window, preferences_viewmodel):
         super().__init__(parent_window)
         self.parent_window = parent_window
-        self.preferences = preferences
+        self.preferences_viewmodel = preferences_viewmodel
         self.menubar = parent_window.menuBar()
 
         # Initialize recent files manager
-        self.recent_files_manager = RecentFilesManager(preferences, self)
+        self.recent_files_manager = RecentFilesManager(preferences_viewmodel, self)
         self.recent_files_manager.file_selected.connect(
             self._handle_recent_file)
 
         # Store references to checkable actions
-        self.show_origin_action = None
         self.show_grid_action = None
+        self.show_rulers_action = None
 
         # Store references to palette actions
         self.show_info_panel_action = None
@@ -504,27 +504,27 @@ class MainMenuBar(QObject):
 
         view_menu.addSeparator()
 
-        # Show Origin (checkable)
-        self.show_origin_action = QAction("Show &Origin", self.parent_window)
-        self.show_origin_action.setCheckable(True)
-        self.show_origin_action.setChecked(
-            self.preferences.get("show_origin", True)
-        )
-        self.show_origin_action.triggered.connect(
-            lambda checked: self.show_origin_toggled.emit(checked)
-        )
-        view_menu.addAction(self.show_origin_action)
-
         # Show Grid (checkable)
         self.show_grid_action = QAction("Show &Grid", self.parent_window)
         self.show_grid_action.setCheckable(True)
         self.show_grid_action.setChecked(
-            self.preferences.get("show_grid", True)
+            self.preferences_viewmodel.get("grid_visible", True)
         )
         self.show_grid_action.triggered.connect(
             lambda checked: self.show_grid_toggled.emit(checked)
         )
         view_menu.addAction(self.show_grid_action)
+
+        # Show Rulers (checkable)
+        self.show_rulers_action = QAction("Show &Rulers", self.parent_window)
+        self.show_rulers_action.setCheckable(True)
+        self.show_rulers_action.setChecked(
+            self.preferences_viewmodel.get("show_rulers", True)
+        )
+        self.show_rulers_action.triggered.connect(
+            lambda checked: self.show_rulers_toggled.emit(checked)
+        )
+        view_menu.addAction(self.show_rulers_action)
 
         view_menu.addSeparator()
 
@@ -533,7 +533,7 @@ class MainMenuBar(QObject):
             "Show &Tools", self.parent_window)
         self.show_tools_action.setCheckable(True)
         self.show_tools_action.setChecked(
-            self.preferences.get("show_tools", True)
+            self.preferences_viewmodel.get("show_tools", True)
         )
         self.show_tools_action.triggered.connect(
             lambda checked: self.show_tools_toggled.emit(checked)
@@ -543,9 +543,8 @@ class MainMenuBar(QObject):
         self.show_snap_settings_action = QAction(
             "Show &Snaps", self.parent_window)
         self.show_snap_settings_action.setCheckable(True)
-        self.show_snap_settings_action.setChecked(
-            self.preferences.get("snaps_toolbar_visible", True)
-        )
+        # Initial state will be set by the main window after toolbar creation
+        self.show_snap_settings_action.setChecked(True)  # Default to checked
         self.show_snap_settings_action.triggered.connect(
             lambda checked: self.show_snap_settings_toggled.emit(checked)
         )
@@ -555,7 +554,7 @@ class MainMenuBar(QObject):
             "Show &Info Panel", self.parent_window)
         self.show_info_panel_action.setCheckable(True)
         self.show_info_panel_action.setChecked(
-            self.preferences.get("show_info_panel", False)
+            self.preferences_viewmodel.get("show_info_panel", False)
         )
         self.show_info_panel_action.triggered.connect(
             lambda checked: self.show_info_panel_toggled.emit(checked)
@@ -566,7 +565,7 @@ class MainMenuBar(QObject):
             "Show &Properties", self.parent_window)
         self.show_properties_action.setCheckable(True)
         self.show_properties_action.setChecked(
-            self.preferences.get("show_properties", True)
+            self.preferences_viewmodel.get("show_properties", True)
         )
         self.show_properties_action.triggered.connect(
             lambda checked: self.show_properties_toggled.emit(checked)
@@ -576,7 +575,7 @@ class MainMenuBar(QObject):
         self.show_layers_action = QAction("Show &Layers", self.parent_window)
         self.show_layers_action.setCheckable(True)
         self.show_layers_action.setChecked(
-            self.preferences.get("show_layers", True)
+            self.preferences_viewmodel.get("show_layers", True)
         )
         self.show_layers_action.triggered.connect(
             lambda checked: self.show_layers_toggled.emit(checked)
@@ -657,33 +656,30 @@ class MainMenuBar(QObject):
 
     def update_view_preferences(self):
         """Update view menu checkboxes based on current preferences."""
-        if self.show_origin_action:
-            self.show_origin_action.setChecked(
-                self.preferences.get("show_origin", True)
-            )
         if self.show_grid_action:
             self.show_grid_action.setChecked(
-                self.preferences.get("show_grid", True)
+                self.preferences_viewmodel.get("grid_visible", True)
+            )
+        if self.show_rulers_action:
+            self.show_rulers_action.setChecked(
+                self.preferences_viewmodel.get("show_rulers", True)
             )
 
     def update_palette_preferences(self):
         """Update palette menu checkboxes based on current preferences."""
         if self.show_info_panel_action:
             self.show_info_panel_action.setChecked(
-                self.preferences.get("show_info_panel", True)
+                self.preferences_viewmodel.get("show_info_panel", True)
             )
         if self.show_properties_action:
             self.show_properties_action.setChecked(
-                self.preferences.get("show_properties", True)
+                self.preferences_viewmodel.get("show_properties", True)
             )
         if self.show_layers_action:
             self.show_layers_action.setChecked(
-                self.preferences.get("show_layers", True)
+                self.preferences_viewmodel.get("show_layers", True)
             )
-        if self.show_snap_settings_action:
-            self.show_snap_settings_action.setChecked(
-                self.preferences.get("snaps_toolbar_visible", True)
-            )
+        # Note: snaps toolbar state is handled separately in main window
 
     def sync_palette_menu_states(self, palette_manager):
         """Sync palette menu checkboxes with actual palette visibility."""
@@ -699,9 +695,7 @@ class MainMenuBar(QObject):
             visible = palette_manager.is_palette_visible("layer_pane")
             self.show_layers_action.setChecked(visible)
 
-        if self.show_snap_settings_action:
-            visible = palette_manager.is_palette_visible("snaps_pane")
-            self.show_snap_settings_action.setChecked(visible)
+        # Note: snaps toolbar state is handled separately in main window
 
     def set_document_state(
             self, has_document: bool, is_modified: bool = False

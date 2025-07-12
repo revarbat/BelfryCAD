@@ -237,25 +237,36 @@ class CadScene(QGraphicsScene):
         control_datums = []
         
         # Get control point data from the CAD item
-        cp_data = cad_item.get_control_points()
+        cp_data = cad_item.getControlPoints() if hasattr(cad_item, 'getControlPoints') else []
         if cp_data:
-            for i, (x, y, cp_type) in enumerate(cp_data):
-                cp = ControlPoint(x, y, cp_type, cad_item, i)
-                self.addItem(cp)
-                cp.setVisible(False)
-                control_points.append(cp)
+            for i, pos in enumerate(cp_data):
+                if isinstance(pos, QPointF):
+                    # Create a setter function for this control point
+                    def make_setter(index):
+                        return lambda new_pos: self._move_control_point(cad_item, index, new_pos)
+                    
+                    cp = ControlPoint(cad_item=cad_item, setter=make_setter(i))
+                    cp.setPos(pos)
+                    self.addItem(cp)
+                    cp.setVisible(False)
+                    control_points.append(cp)
         
-        # Get control datum data from the CAD item
-        cd_data = cad_item.get_control_datums()
-        if cd_data:
-            for i, (x, y, datum_type) in enumerate(cd_data):
-                cd = ControlDatum(x, y, datum_type, cad_item, i)
-                self.addItem(cd)
-                cd.setVisible(False)
-                control_datums.append(cd)
+        # Note: Control datums are handled by the CAD items themselves
+        # No need to create them here as they're part of the CAD item's control system
         
         self._control_points[cad_item] = control_points
         self._control_datums[cad_item] = control_datums
+
+    def _move_control_point(self, cad_item: CadItem, cp_index: int, new_pos: QPointF):
+        """Move a control point for a CAD item."""
+        # Convert scene coordinates to item coordinates
+        item_pos = cad_item.mapFromScene(new_pos)
+        
+        # Call the CAD item's control point movement method if available
+        if hasattr(cad_item, '_set_point'):
+            getattr(cad_item, '_set_point')(cp_index, item_pos)
+        elif hasattr(cad_item, 'move_control_point'):
+            getattr(cad_item, 'move_control_point')(cp_index, item_pos.x(), item_pos.y())
 
     def _update_control_points_for_item(self, cad_item: CadItem):
         """Update control points for a CAD item (e.g., after item modification)."""

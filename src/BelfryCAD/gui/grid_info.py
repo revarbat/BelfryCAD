@@ -273,15 +273,20 @@ class GridInfo(object):
             return f"{value:.{self.decimal_places}f}".rstrip("0").rstrip(".")
 
     @staticmethod
+    def get_dpi(view: QGraphicsView) -> float:
+        """Get the DPI from the view."""
+        return view.physicalDpiX()
+    
+    @staticmethod
     def get_zoom(view: QGraphicsView) -> float:
         """Get the zoom level, in percentage."""
-        dpi = view.logicalDpiX()
+        dpi = GridInfo.get_dpi(view)
         return view.transform().m11() / dpi * 100
 
     @staticmethod
     def set_zoom(view: QGraphicsView, zoom: float) -> float:
         """Set the zoom level, in percentage."""
-        dpi = view.logicalDpiX()
+        dpi = GridInfo.get_dpi(view)
         view.resetTransform()
         view.scale(dpi, -dpi)
         view.scale(zoom / 100.0, zoom / 100.0)

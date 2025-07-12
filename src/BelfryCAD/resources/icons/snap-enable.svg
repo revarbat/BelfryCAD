@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   width="32"
-   height="32"
-   viewBox="0 0 32 32"
+   width="48"
+   height="48"
+   viewBox="0 0 48 48"
    version="1.1"
    id="svg8"
    sodipodi:docname="snap-enable.svg"
@@ -12,7 +12,18 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs8" />
+     id="defs8">
+    <inkscape:path-effect
+       effect="circle_3pts"
+       id="path-effect2"
+       is_visible="true"
+       lpeversion="1" />
+    <inkscape:path-effect
+       effect="circle_with_radius"
+       id="path-effect1"
+       is_visible="true"
+       lpeversion="1" />
+  </defs>
   <sodipodi:namedview
      id="namedview8"
      pagecolor="#ffffff"
@@ -23,9 +34,9 @@
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="13"
-     inkscape:cx="14.538462"
-     inkscape:cy="13.230769"
-     inkscape:window-width="1232"
+     inkscape:cx="22.923077"
+     inkscape:cy="23.538462"
+     inkscape:window-width="1376"
      inkscape:window-height="847"
      inkscape:window-x="0"
      inkscape:window-y="25"
@@ -35,13 +46,13 @@
   <!-- Quadrant crosshairs -->
   <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:8px;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.949;stroke-linecap:square;stroke-dasharray:0.949, 0.949;stroke-dashoffset:0.1898"
-     x="4.6328125"
-     y="18.117188"
+     style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:13.3333px;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.4235;stroke-linecap:square;stroke-dasharray:1.4235, 1.4235;stroke-dashoffset:0.2847"
+     x="5.0546889"
+     y="27.528637"
      id="text1"><tspan
        sodipodi:role="line"
        id="tspan1"
-       x="4.6328125"
-       y="18.117188"
-       style="font-size:8px">Snaps</tspan></text>
+       x="5.0546889"
+       y="27.528637"
+       style="font-size:13.3333px;stroke-width:1.4235">Snaps</tspan></text>
 </svg>

@@ -36,7 +36,7 @@ class CadView(QGraphicsView):
         self.setInteractive(True)
         self.setCursor(Qt.CursorShape.ArrowCursor)
         self.resetTransform()
-        dpi = self.logicalDpiX()
+        dpi = self.physicalDpiX()
         self.scale(dpi, -dpi)
 
         # Create timer for rubber band updates

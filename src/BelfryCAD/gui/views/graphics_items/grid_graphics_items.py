@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QGraphicsItem, QDialog
 from PySide6.QtCore import QRectF, QLineF, Qt, QPointF
 from PySide6.QtGui import QPen, QColor, QPainter, QBrush, QFont
 
-from ..grid_info import GridInfo, UnitSelectionDialog
+from ...grid_info import GridInfo, UnitSelectionDialog
 
 
 class GridBackground(QGraphicsItem):
@@ -38,11 +38,11 @@ class GridBackground(QGraphicsItem):
         width = visible_scene_rect.width()
         height = visible_scene_rect.height()
         backing_width = 40 / scaling
-        start_x = round((x0 + backing_width) / spacing) * spacing
+        start_x = round(x0 / spacing) * spacing
         start_y = y0 // spacing * spacing
 
         steps = int(width / spacing + 0.5)
-        for i in range(steps + 1):
+        for i in range(steps + 2):
             x = start_x + i * spacing
             level = 0
             for space in spacings:
@@ -56,10 +56,10 @@ class GridBackground(QGraphicsItem):
             pen.setWidthF(line_width)
             pen.setCosmetic(True)
             painter.setPen(pen)
-            painter.drawLine(QLineF(x, y0, x, y1-backing_width))
+            painter.drawLine(QLineF(x, y0, x, y1))
 
         steps = int(height / spacing + 0.5)
-        for i in range(steps + 1):
+        for i in range(steps + 2):
             y = start_y + i * spacing
             level = 0
             for space in spacings:
@@ -73,7 +73,7 @@ class GridBackground(QGraphicsItem):
             pen.setWidthF(line_width)
             pen.setCosmetic(True)
             painter.setPen(pen)
-            painter.drawLine(QLineF(x0+backing_width, y, x1, y))
+            painter.drawLine(QLineF(x0, y, x1, y))
 
 
 class RulersForeground(QGraphicsItem):
