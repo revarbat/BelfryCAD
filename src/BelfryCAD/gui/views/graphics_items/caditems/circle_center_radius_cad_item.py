@@ -19,22 +19,16 @@ class CircleCenterRadiusCadItem(CadItem):
 
     def __init__(self, center_point=None, perimeter_point=None, color=QColor(255, 0, 0), line_width=0.05):
         super().__init__()
-        self._center_point = center_point if center_point else QPointF(0, 0)
-        self._perimeter_point = perimeter_point if perimeter_point else QPointF(1, 0)
+        self._center_point = center_point if center_point is not None else QPointF(0, 0)
+        self._perimeter_point = perimeter_point if perimeter_point is not None else QPointF(1, 0)
         self._color = color
         self._line_width = line_width
-        self._radius_datum = None
-        self._center_cp = None
-        self._perimeter_cp = None
-
-        # Convert points to QPointF if they aren't already
-        if isinstance(self._center_point, (list, tuple)):
-            self._center_point = QPointF(self._center_point[0], self._center_point[1])
-        if isinstance(self._perimeter_point, (list, tuple)):
-            self._perimeter_point = QPointF(self._perimeter_point[0], self._perimeter_point[1])
-
-        # Position the item at the center point
+        self.setZValue(1)
+        
+        # Position the circle at the center point
         self.setPos(self._center_point)
+        
+        self.createControls()
 
     def boundingRect(self):
         """Return the bounding rectangle of the circle."""
@@ -79,7 +73,7 @@ class CircleCenterRadiusCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the circle and return them."""
         # Create control points with setter callbacks only
         self._center_cp = SquareControlPoint(
@@ -97,31 +91,51 @@ class CircleCenterRadiusCadItem(CadItem):
         )
         self.updateControls()
         
+        # Store control points in the list that the scene expects
+        control_points = [self._center_cp, self._perimeter_cp, self._radius_datum]
+        self._control_point_items.extend(control_points)
+        
         # Return the list of control points
-        return [self._center_cp, self._perimeter_cp, self._radius_datum]
+        return control_points
 
     def updateControls(self):
         """Update control point positions and values."""        
         if hasattr(self, '_center_cp') and self._center_cp:
-            self._center_cp.setPos(self._center_point)  # Center is always at origin in local coordinates
+            # Center control point is at the circle's center in scene coordinates
+            self._center_cp.setPos(self._center_point)
         if hasattr(self, '_perimeter_cp') and self._perimeter_cp:
-            self._perimeter_cp.setPos(self._perimeter_point)  # Convert to local coordinates
+            # Perimeter control point is at the perimeter point in scene coordinates
+            self._perimeter_cp.setPos(self._perimeter_point)
         if hasattr(self, '_radius_datum') and self._radius_datum:
             # Update both position and value for the datum
             radius_value = self._get_radius_value()
-            radius_position = self._get_radius_datum_position()
-            self._radius_datum.update_datum(radius_value, radius_position)
+            # Get local position and convert to scene coordinates
+            local_position = self._get_radius_datum_position()
+            scene_position = self.mapToScene(local_position)
+            self._radius_datum.update_datum(radius_value, scene_position)
 
     def getControlPoints(
             self,
             exclude_cps: Optional[List['ControlPoint']] = None
     ) -> List[QPointF]:
-        """Return list of control point positions (excluding ControlDatums)."""
+        """Return list of control point positions in scene coordinates (excluding ControlDatums)."""
         out = []
-        for cp in [self._center_cp, self._perimeter_cp]:
-            if cp and (exclude_cps is None or cp not in exclude_cps):
-                out.append(cp.pos())
+        # Center control point is at the circle's center in scene coordinates
+        if self._center_cp and (exclude_cps is None or self._center_cp not in exclude_cps):
+            out.append(self._center_point)
+        # Perimeter control point is at the perimeter point in scene coordinates
+        if self._perimeter_cp and (exclude_cps is None or self._perimeter_cp not in exclude_cps):
+            out.append(self._perimeter_point)
         return out
+
+    def _get_control_point_objects(self) -> List['ControlPoint']:
+        """Get the list of ControlPoint objects for this CAD item."""
+        control_points = []
+        if hasattr(self, '_center_cp') and self._center_cp:
+            control_points.append(self._center_cp)
+        if hasattr(self, '_perimeter_cp') and self._perimeter_cp:
+            control_points.append(self._perimeter_cp)
+        return control_points
 
     def _get_center_position(self) -> QPointF:
         """Get the center position."""
@@ -130,6 +144,7 @@ class CircleCenterRadiusCadItem(CadItem):
     def _set_center_position(self, new_position: QPointF):
         """Set the center position."""
         # new_position is in scene coordinates
+        
         # Update the center point in scene coordinates
         old_center = self._center_point
         self._center_point = new_position
@@ -138,6 +153,9 @@ class CircleCenterRadiusCadItem(CadItem):
         # Update perimeter point to maintain the same relative position
         delta = new_position - old_center
         self._perimeter_point += delta
+        # Update the visual representation
+        self.prepareGeometryChange()
+        self.update()
 
     def _get_perimeter_position(self) -> QPointF:
         """Get the perimeter position."""
@@ -148,11 +166,14 @@ class CircleCenterRadiusCadItem(CadItem):
         # new_position is in scene coordinates
         # Update perimeter point in scene coordinates
         self._perimeter_point = new_position
+        # Update the visual representation
+        self.prepareGeometryChange()
+        self.update()
 
     def _get_radius_datum_position(self) -> QPointF:
-        """Get the position for the radius datum."""
+        """Get the position for the radius datum in local coordinates."""
         sc = math.sin(math.pi/4)
-        return QPointF(self.radius * sc, self.radius * sc) + self._center_point
+        return QPointF(self.radius * sc, self.radius * sc)
 
     def _get_radius_value(self):
         """Get the current radius value."""
@@ -162,18 +183,28 @@ class CircleCenterRadiusCadItem(CadItem):
         """Set the radius value."""
         self.radius = new_radius
 
-    def paint_item(self, painter, option, widget=None):
-        """Draw the circle content."""
+    def _get_line_width(self):
+        """Get the line width for this CAD item."""
+        return self._line_width
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the circle content with a specific color."""
         radius = self.radius
         rect = QRectF(-radius, -radius, 2*radius, 2*radius)
 
         painter.save()
 
-        pen = QPen(self._color, self._line_width)
+        # Use the provided color or fall back to the item's color
+        circle_color = color if color is not None else self._color
+        pen = QPen(circle_color, self._line_width)
         painter.setPen(pen)
         painter.drawEllipse(rect)
 
         painter.restore()
+
+    def paint_item(self, painter, option, widget=None):
+        """Draw the circle content."""
+        self.paint_item_with_color(painter, option, widget, self._color)
 
     def _create_decorations(self):
         """Create decoration items for this circle."""

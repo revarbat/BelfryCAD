@@ -18,28 +18,14 @@ class RectangleCadItem(CadItem):
     def __init__(self, top_left=None, top_right=None, bottom_right=None, bottom_left=None,
                  color=QColor(0, 0, 0), line_width=0.05):
         super().__init__()
-        # Default to a 2x1 rectangle if no points provided
-        self._top_left = top_left if top_left else QPointF(0, 1)
-        self._top_right = top_right if top_right else QPointF(2, 1)
-        self._bottom_right = bottom_right if bottom_right else QPointF(2, 0)
-        self._bottom_left = bottom_left if bottom_left else QPointF(0, 0)
+        self._top_left = top_left if top_left is not None else QPointF(0, 0)
+        self._top_right = top_right if top_right is not None else QPointF(1, 0)
+        self._bottom_right = bottom_right if bottom_right is not None else QPointF(1, 1)
+        self._bottom_left = bottom_left if bottom_left is not None else QPointF(0, 1)
         self._color = color
         self._line_width = line_width
-        self._top_left_cp = None
-        self._top_right_cp = None
-        self._bottom_right_cp = None
-        self._bottom_left_cp = None
-        self._center_cp = None
-
-        # Convert points to QPointF if they aren't already
-        if isinstance(self._top_left, (list, tuple)):
-            self._top_left = QPointF(self._top_left[0], self._top_left[1])
-        if isinstance(self._top_right, (list, tuple)):
-            self._top_right = QPointF(self._top_right[0], self._top_right[1])
-        if isinstance(self._bottom_right, (list, tuple)):
-            self._bottom_right = QPointF(self._bottom_right[0], self._bottom_right[1])
-        if isinstance(self._bottom_left, (list, tuple)):
-            self._bottom_left = QPointF(self._bottom_left[0], self._bottom_left[1])
+        self.setZValue(1)
+        self.createControls()
 
     def boundingRect(self):
         """Return the bounding rectangle of the rectangle."""
@@ -79,7 +65,7 @@ class RectangleCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the rectangle and return them."""
         # Create control points with direct setters
         self._top_left_cp = ControlPoint(
@@ -104,112 +90,149 @@ class RectangleCadItem(CadItem):
         )
         self.updateControls()
         
+        # Store control points in the list that the scene expects
+        control_points = [self._top_left_cp, self._top_right_cp, self._bottom_right_cp, 
+                         self._bottom_left_cp, self._center_cp]
+        self._control_point_items.extend(control_points)
+        
         # Return the list of control points
-        return [self._top_left_cp, self._top_right_cp, self._bottom_right_cp, 
-                self._bottom_left_cp, self._center_cp]
+        return control_points
 
     def updateControls(self):
         """Update control point positions."""
         if hasattr(self, '_top_left_cp') and self._top_left_cp:
-            # Convert scene coordinates to local coordinates
-            local_top_left = self.mapFromScene(self._top_left)
-            self._top_left_cp.setPos(local_top_left)
+            # Position control points in scene coordinates
+            self._top_left_cp.setPos(self._top_left)
         if hasattr(self, '_top_right_cp') and self._top_right_cp:
-            # Convert scene coordinates to local coordinates
-            local_top_right = self.mapFromScene(self._top_right)
-            self._top_right_cp.setPos(local_top_right)
+            # Position control points in scene coordinates
+            self._top_right_cp.setPos(self._top_right)
         if hasattr(self, '_bottom_right_cp') and self._bottom_right_cp:
-            # Convert scene coordinates to local coordinates
-            local_bottom_right = self.mapFromScene(self._bottom_right)
-            self._bottom_right_cp.setPos(local_bottom_right)
+            # Position control points in scene coordinates
+            self._bottom_right_cp.setPos(self._bottom_right)
         if hasattr(self, '_bottom_left_cp') and self._bottom_left_cp:
-            # Convert scene coordinates to local coordinates
-            local_bottom_left = self.mapFromScene(self._bottom_left)
-            self._bottom_left_cp.setPos(local_bottom_left)
+            # Position control points in scene coordinates
+            self._bottom_left_cp.setPos(self._bottom_left)
         if hasattr(self, '_center_cp') and self._center_cp:
-            # Calculate center point in scene coordinates, then convert to local
+            # Calculate center point in scene coordinates
             center_x = (self._top_left.x() + self._bottom_right.x()) / 2
             center_y = (self._top_left.y() + self._bottom_right.y()) / 2
             scene_center = QPointF(center_x, center_y)
-            local_center = self.mapFromScene(scene_center)
-            self._center_cp.setPos(local_center)
+            self._center_cp.setPos(scene_center)
 
     def getControlPoints(
             self,
             exclude_cps: Optional[List['ControlPoint']] = None
     ) -> List[QPointF]:
-        """Return list of control point positions (excluding ControlDatums)."""
+        """Return list of control point positions in scene coordinates (excluding ControlDatums)."""
         out = []
-        for cp in [self._top_left_cp, self._top_right_cp, self._bottom_right_cp, self._bottom_left_cp, self._center_cp]:
-            if cp and (exclude_cps is None or cp not in exclude_cps):
-                out.append(cp.pos())
+        # Return scene coordinates for all control points
+        if self._top_left_cp and (exclude_cps is None or self._top_left_cp not in exclude_cps):
+            out.append(self._top_left)
+        if self._top_right_cp and (exclude_cps is None or self._top_right_cp not in exclude_cps):
+            out.append(self._top_right)
+        if self._bottom_right_cp and (exclude_cps is None or self._bottom_right_cp not in exclude_cps):
+            out.append(self._bottom_right)
+        if self._bottom_left_cp and (exclude_cps is None or self._bottom_left_cp not in exclude_cps):
+            out.append(self._bottom_left)
+        if self._center_cp and (exclude_cps is None or self._center_cp not in exclude_cps):
+            center_x = (self._top_left.x() + self._bottom_right.x()) / 2
+            center_y = (self._top_left.y() + self._bottom_right.y()) / 2
+            out.append(QPointF(center_x, center_y))
         return out
+
+    def _get_control_point_objects(self) -> List['ControlPoint']:
+        """Get the list of ControlPoint objects for this CAD item."""
+        control_points = []
+        if hasattr(self, '_top_left_cp') and self._top_left_cp:
+            control_points.append(self._top_left_cp)
+        if hasattr(self, '_top_right_cp') and self._top_right_cp:
+            control_points.append(self._top_right_cp)
+        if hasattr(self, '_bottom_right_cp') and self._bottom_right_cp:
+            control_points.append(self._bottom_right_cp)
+        if hasattr(self, '_bottom_left_cp') and self._bottom_left_cp:
+            control_points.append(self._bottom_left_cp)
+        if hasattr(self, '_center_cp') and self._center_cp:
+            control_points.append(self._center_cp)
+        return control_points
 
     def _set_top_left(self, new_position):
         """Set the top-left corner from control point movement."""
-        # Convert local coordinates to scene coordinates
-        scene_position = self.mapToScene(new_position)
+        # new_position is in scene coordinates
         
         # Moving top-left: adjust top-right and bottom-left to maintain right angles
-        self._top_left = scene_position
+        self._top_left = new_position
         # Top-right keeps its Y coordinate, takes new X from top-left
-        self._top_right = QPointF(self._top_right.x(), scene_position.y())
+        self._top_right = QPointF(self._top_right.x(), new_position.y())
         # Bottom-left keeps its X coordinate, takes new Y from top-left
-        self._bottom_left = QPointF(scene_position.x(), self._bottom_left.y())
+        self._bottom_left = QPointF(new_position.x(), self._bottom_left.y())
         
     def _set_top_right(self, new_position):
         """Set the top-right corner from control point movement."""
-        # Convert local coordinates to scene coordinates
-        scene_position = self.mapToScene(new_position)
+        # new_position is in scene coordinates
         
         # Moving top-right: adjust top-left and bottom-right to maintain right angles
-        self._top_right = scene_position
+        self._top_right = new_position
         # Top-left keeps its Y coordinate, takes new X from top-right
-        self._top_left = QPointF(self._top_left.x(), scene_position.y())
+        self._top_left = QPointF(self._top_left.x(), new_position.y())
         # Bottom-right keeps its X coordinate, takes new Y from top-right
-        self._bottom_right = QPointF(scene_position.x(), self._bottom_right.y())
+        self._bottom_right = QPointF(new_position.x(), self._bottom_right.y())
         
     def _set_bottom_right(self, new_position):
         """Set the bottom-right corner from control point movement."""
-        # Convert local coordinates to scene coordinates
-        scene_position = self.mapToScene(new_position)
+        # new_position is in scene coordinates
         
         # Moving bottom-right: adjust bottom-left and top-right to maintain right angles
-        self._bottom_right = scene_position
+        self._bottom_right = new_position
         # Bottom-left keeps its Y coordinate, takes new X from bottom-right
-        self._bottom_left = QPointF(self._bottom_left.x(), scene_position.y())
+        self._bottom_left = QPointF(self._bottom_left.x(), new_position.y())
         # Top-right keeps its X coordinate, takes new Y from bottom-right
-        self._top_right = QPointF(scene_position.x(), self._top_right.y())
+        self._top_right = QPointF(new_position.x(), self._top_right.y())
         
     def _set_bottom_left(self, new_position):
         """Set the bottom-left corner from control point movement."""
-        # Convert local coordinates to scene coordinates
-        scene_position = self.mapToScene(new_position)
+        # new_position is in scene coordinates
         
         # Moving bottom-left: adjust bottom-right and top-left to maintain right angles
-        self._bottom_left = scene_position
+        self._bottom_left = new_position
         # Bottom-right keeps its Y coordinate, takes new X from bottom-left
-        self._bottom_right = QPointF(self._bottom_right.x(), scene_position.y())
+        self._bottom_right = QPointF(self._bottom_right.x(), new_position.y())
         # Top-left keeps its X coordinate, takes new Y from bottom-left
-        self._top_left = QPointF(scene_position.x(), self._top_left.y())
+        self._top_left = QPointF(new_position.x(), self._top_left.y())
         
     def _set_center(self, new_position):
         """Set the center from control point movement."""
-        # Convert local coordinates to scene coordinates
-        scene_position = self.mapToScene(new_position)
+        # new_position is in scene coordinates
         
         # Moving center: translate the entire rectangle
         # Calculate current center
         current_center_x = (self._top_left.x() + self._bottom_right.x()) / 2
         current_center_y = (self._top_left.y() + self._bottom_right.y()) / 2
         # Calculate offset from current center to new position
-        offset_x = scene_position.x() - current_center_x
-        offset_y = scene_position.y() - current_center_y
+        offset_x = new_position.x() - current_center_x
+        offset_y = new_position.y() - current_center_y
         # Move all corners by the offset
         self._top_left = QPointF(self._top_left.x() + offset_x, self._top_left.y() + offset_y)
         self._top_right = QPointF(self._top_right.x() + offset_x, self._top_right.y() + offset_y)
         self._bottom_right = QPointF(self._bottom_right.x() + offset_x, self._bottom_right.y() + offset_y)
         self._bottom_left = QPointF(self._bottom_left.x() + offset_x, self._bottom_left.y() + offset_y)
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the rectangle content with a custom color."""
+        painter.save()
+
+        # Use provided color or fall back to default
+        pen_color = color if color is not None else self._color
+        pen = QPen(pen_color, self._line_width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(QBrush())  # No fill
+
+        # Draw the rectangle
+        rectangle_path = self._create_rectangle_path()
+        painter.drawPath(rectangle_path)
+
+        painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the rectangle content."""

@@ -57,26 +57,21 @@ class CadItem(QGraphicsItem):
                 self._start_selection_animation()
                 if not self._decorations_created:
                     self._create_decorations()
-                # Check if we should create control points
+                # Check selection state (control points managed by scene)
                 self._check_selection_state()
             else:  # Becoming deselected
                 self._stop_selection_animation()
                 self._clear_decorations()
-                self.hideControls()
                 self._was_singly_selected = False
         elif change == QGraphicsItem.GraphicsItemChange.ItemSceneChange:
             # Item is being removed from scene
             if value is None:  # Being removed from scene
                 self._stop_selection_animation()
                 self._clear_decorations()
-                self.hideControls()
                 self._was_singly_selected = False
         elif change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
-            # Update control point positions when the item moves
-            self.updateControlPoints()
-            # Ensure controls are shown if still singly selected
-            if self.isSelected() and self._is_singly_selected():
-                self.showControls()
+            # Control points are managed by the scene, which will update them as needed
+            pass
         return super().itemChange(change, value)
 
     def _is_singly_selected(self):
@@ -93,13 +88,13 @@ class CadItem(QGraphicsItem):
 
     def _check_selection_state(self):
         """Check if control points should be shown or hidden based on selection state."""
+        # Control points are now managed by the scene, not by individual CAD items
+        # The scene will handle showing/hiding control points based on selection
         if self.isSelected() and self._is_singly_selected():
-            # Single selection - create/show control points
-            self.createControlPoints()
+            # Single selection - control points will be shown by the scene
             self._was_singly_selected = True
         else:
-            # Not selected or multiple selection - hide control points
-            self.hideControls()
+            # Not selected or multiple selection - control points will be hidden by the scene
             self._was_singly_selected = False
 
     def _start_selection_animation(self):
@@ -130,40 +125,65 @@ class CadItem(QGraphicsItem):
 
     def paint(self, painter, option, widget=None):
         """Main paint method that handles selection and calls paint_item."""
-        # Draw the main item
+        # Draw the main item with selection animation if selected
+        if self.isSelected():
+            self.paint_item_with_selection(painter, option, widget)
+        else:
+            self.paint_item(painter, option, widget)
+
+    def paint_item_with_selection(self, painter, option, widget=None):
+        """Paint the item with selection animation. Override in subclasses for custom selection behavior."""
+        # Default behavior: call paint_item with selection color
+        self.paint_item_with_color(painter, option, widget, self._get_selection_color())
+
+    def _get_selection_color(self):
+        """Get the current selection color based on animation offset."""
+        # Calculate color based on animation offset, avoiding very light colors
+        # Animation goes from 0.0 to 6.0 for full cycle
+        # Use a restricted color range that avoids green and cyan
+        # Map 0.0-6.0 to colors: red -> magenta -> blue -> orange -> red
+        
+        offset = self._selection_animation_offset
+        cycle = offset % 6.0  # Ensure we stay in 0-6 range
+        
+        if cycle < 1.5:
+            # Red to magenta (0.0-1.5)
+            hue = 0  # Red
+            saturation = 255
+            value = 255
+        elif cycle < 3.0:
+            # Magenta to blue (1.5-3.0)
+            hue = int(((cycle - 1.5) / 1.5) * 60) + 300  # 300-360 (magenta to blue)
+            saturation = 255
+            value = 255
+        elif cycle < 4.5:
+            # Blue to orange (3.0-4.5)
+            hue = int(((cycle - 3.0) / 1.5) * 60) + 240  # 240-300 (blue to magenta)
+            saturation = 255
+            value = 255
+        else:
+            # Orange to red (4.5-6.0)
+            hue = int(((cycle - 4.5) / 1.5) * 30) + 0  # 0-30 (red to orange)
+            saturation = 255
+            value = 255
+        
+        # Create color from HSV (Hue, Saturation, Value)
+        return QColor.fromHsv(hue, saturation, value)
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Paint the item with a specific color. Override in subclasses."""
+        # Default implementation: call paint_item
         self.paint_item(painter, option, widget)
 
-        # Draw selection shape if selected
-        if self.isSelected():
-            self._draw_selection(painter)
+    def _get_line_width(self):
+        """Get the line width for this CAD item. Override in subclasses."""
+        return 1.0  # Default line width
 
     def paint_item(self, painter, option, widget=None):
         """Override this method to paint the specific CAD item."""
         pass
 
-    def _draw_selection(self, painter):
-        """Draw rainbow cycling selection shape."""
-        painter.save()
 
-        # Calculate rainbow color based on animation offset
-        # Animation goes from 0.0 to 6.0 for full rainbow cycle
-        hue = (self._selection_animation_offset / 6.0) * 360.0  # Convert to 0-360 degrees
-        
-        # Create color from HSV (Hue, Saturation, Value)
-        selection_color = QColor.fromHsv(int(hue), 255, 255)
-        
-        # Create pen with rainbow color and thickness
-        pen = QPen(selection_color, 3.0)
-        pen.setCosmetic(True)
-        painter.setPen(pen)
-        painter.setBrush(QBrush())  # No fill
-
-        # Draw the selection outline using the item's shape
-        shape = self.shape()
-        if not shape.isEmpty():
-            painter.drawPath(shape)
-
-        painter.restore()
 
     def _create_decorations(self):
         """Create decoration items."""
@@ -229,6 +249,23 @@ class CadItem(QGraphicsItem):
             print(f"Error updating control points: {e}")
 
     def createControls(self):
+        """Override to create and return a list of control points."""
+        control_points = []
+        # Call the subclass implementation
+        try:
+            control_points = self._create_controls_impl()
+            if control_points:
+                # Store the control points in the expected attribute
+                self._control_point_items.extend(control_points)
+                # Hide control points by default
+                for cp in control_points:
+                    if cp:
+                        cp.setVisible(False)
+        except (RuntimeError, AttributeError, TypeError):
+            pass
+        return control_points
+
+    def _create_controls_impl(self):
         """Override to create and return a list of control points."""
         return []
 

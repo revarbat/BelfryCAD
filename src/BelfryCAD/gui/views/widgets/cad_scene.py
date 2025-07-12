@@ -22,6 +22,9 @@ class CadScene(QGraphicsScene):
         self._control_points = {}  # {cad_item: [control_points]}
         self._control_datums = {}  # {cad_item: [control_datums]}
         
+        # Snaps system reference (will be set by main window)
+        self._snaps_system = None
+        
         # Timer for selection state updates
         self._selection_timer = QTimer()
         self._selection_timer.timeout.connect(self._update_selection_state)
@@ -108,6 +111,13 @@ class CadScene(QGraphicsScene):
     def _handle_control_press(self, control, event: QGraphicsSceneMouseEvent):
         """Handle mouse press on a control point or control datum."""
         if event.button() == Qt.MouseButton.LeftButton:
+            # Handle ControlDatum differently - let it handle its own click event
+            if isinstance(control, ControlDatum):
+                # Let the ControlDatum handle its own mouse press event for editing
+                control.mousePressEvent(event)
+                return
+            
+            # For regular ControlPoints, start dragging
             self._dragging_control_point = control
             self._drag_start_pos = event.scenePos()
             control.set_dragging(True)
@@ -135,11 +145,39 @@ class CadScene(QGraphicsScene):
         else:
             super().mousePressEvent(event)
 
+    def set_snaps_system(self, snaps_system):
+        """Set the snaps system reference for this scene."""
+        self._snaps_system = snaps_system
+
     def _handle_control_drag(self, scene_pos: QPointF, event: QGraphicsSceneMouseEvent):
         """Handle dragging of a control point or control datum."""
         if self._dragging_control_point:
-            delta = scene_pos - self._last_mouse_pos
-            self._dragging_control_point.moveBy(delta.x(), delta.y())
+            # Don't drag ControlDatum items
+            if isinstance(self._dragging_control_point, ControlDatum):
+                return
+            
+            # Apply snapping if snaps system is available
+            snapped_pos = scene_pos
+            if self._snaps_system:
+                # Exclude the current control point from snapping to avoid self-snapping
+                exclude_cps = [self._dragging_control_point] if self._dragging_control_point else None
+                # Exclude the CAD item that owns this control point from quadrant snapping
+                exclude_cad_item = self._dragging_control_point.cad_item if self._dragging_control_point else None
+                snapped_pos = self._snaps_system.get_snap_point(scene_pos, exclude_cps=exclude_cps, exclude_cad_item=exclude_cad_item)
+            
+            # Update the control point position
+            self._dragging_control_point.setPos(snapped_pos)
+            
+            # Call the setter to update the CAD item
+            if hasattr(self._dragging_control_point, 'setter') and self._dragging_control_point.setter:
+                # Pass snapped coordinates to the setter
+                cad_item = self._dragging_control_point.cad_item
+                if cad_item:
+                    self._dragging_control_point.call_setter_with_updates(snapped_pos)
+                    
+                    # Update control point positions after CAD item modification
+                    self._update_control_points_for_cad_item(cad_item)
+            
             event.accept()
 
     def _handle_cad_item_drag(self, scene_pos: QPointF, event: QGraphicsSceneMouseEvent):
@@ -209,6 +247,9 @@ class CadScene(QGraphicsScene):
         if cad_item not in self._control_points:
             self._create_control_points_for_item(cad_item)
         
+        # Update control point positions to scene coordinates
+        self._update_control_point_positions(cad_item)
+        
         # Show control points
         for cp in self._control_points.get(cad_item, []):
             if cp:
@@ -236,23 +277,25 @@ class CadScene(QGraphicsScene):
         control_points = []
         control_datums = []
         
-        # Get control point data from the CAD item
-        cp_data = cad_item.getControlPoints() if hasattr(cad_item, 'getControlPoints') else []
-        if cp_data:
-            for i, pos in enumerate(cp_data):
-                if isinstance(pos, QPointF):
-                    # Create a setter function for this control point
-                    def make_setter(index):
-                        return lambda new_pos: self._move_control_point(cad_item, index, new_pos)
-                    
-                    cp = ControlPoint(cad_item=cad_item, setter=make_setter(i))
-                    cp.setPos(pos)
-                    self.addItem(cp)
-                    cp.setVisible(False)
-                    control_points.append(cp)
+        # Check if control points already exist
+        if not hasattr(cad_item, '_control_point_items') or not cad_item._control_point_items:
+            # Create control points by calling the CAD item's createControls method
+            cad_item.createControls()
         
-        # Note: Control datums are handled by the CAD items themselves
-        # No need to create them here as they're part of the CAD item's control system
+        # Use the control points created by the CAD item itself
+        if hasattr(cad_item, '_control_point_items') and cad_item._control_point_items:
+            for cp in cad_item._control_point_items:
+                if cp:
+                    # Add the control point to the scene if it's not already there
+                    if cp.scene() != self:
+                        self.addItem(cp)
+                    cp.setVisible(False)
+                    
+                    # Categorize control points vs control datums
+                    if hasattr(cp, 'prefix'):  # ControlDatum has prefix attribute
+                        control_datums.append(cp)
+                    else:
+                        control_points.append(cp)
         
         self._control_points[cad_item] = control_points
         self._control_datums[cad_item] = control_datums
@@ -287,6 +330,37 @@ class CadScene(QGraphicsScene):
         if cad_item in self._selected_items:
             self._create_control_points_for_item(cad_item)
             self._show_control_points_for_item(cad_item)
+
+    def _update_control_point_positions(self, cad_item: CadItem):
+        """Update control point positions to scene coordinates."""
+        if cad_item in self._control_points:
+            # Get the updated control point positions from the CAD item
+            cp_data = cad_item.getControlPoints() if hasattr(cad_item, 'getControlPoints') else []
+            
+            # Update control point positions
+            for i, cp in enumerate(self._control_points[cad_item]):
+                if cp and i < len(cp_data):
+                    # Use the positions directly (they are already in scene coordinates)
+                    cp.setPos(cp_data[i])
+        
+        # Update control datum positions
+        if cad_item in self._control_datums:
+            for cd in self._control_datums[cad_item]:
+                if cd and hasattr(cad_item, 'updateControls'):
+                    # Call updateControls to update datum positions and values
+                    cad_item.updateControls()
+
+    def _update_control_points_for_cad_item(self, cad_item: CadItem):
+        """Update control point positions for a CAD item after modification."""
+        if cad_item in self._control_points:
+            # Get the updated control point positions from the CAD item
+            cp_data = cad_item.getControlPoints() if hasattr(cad_item, 'getControlPoints') else []
+            
+            # Update control point positions
+            for i, cp in enumerate(self._control_points[cad_item]):
+                if cp and i < len(cp_data):
+                    # Use the positions directly (they are already in scene coordinates)
+                    cp.setPos(cp_data[i])
 
     def _update_selection_state(self):
         """Update the selection state (called by timer)."""

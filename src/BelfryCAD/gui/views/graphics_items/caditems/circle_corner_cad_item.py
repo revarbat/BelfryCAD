@@ -117,10 +117,10 @@ class CircleCornerCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the circle and return them."""
-        if not self._is_valid:
-            return []
+        # Always create control points, even for invalid circles
+        # This allows users to manipulate the points to make the circle valid
 
         # Create control points with direct setters
         self._corner_cp = SquareControlPoint(
@@ -146,22 +146,43 @@ class CircleCornerCadItem(CadItem):
         )
         self.updateControls()
         
+        # Store control points in the list that the scene expects
+        control_points = [self._corner_cp, self._ray1_cp, self._ray2_cp, self._center_cp, self._radius_datum]
+        self._control_point_items.extend(control_points)
+        
         # Return the list of control points
-        return [self._corner_cp, self._ray1_cp, self._ray2_cp, self._center_cp, self._radius_datum]
+        return control_points
+
+    def _get_control_point_objects(self) -> List['ControlPoint']:
+        """Get the list of ControlPoint objects for this CAD item."""
+        control_points = []
+        if hasattr(self, '_corner_cp') and self._corner_cp:
+            control_points.append(self._corner_cp)
+        if hasattr(self, '_ray1_cp') and self._ray1_cp:
+            control_points.append(self._ray1_cp)
+        if hasattr(self, '_ray2_cp') and self._ray2_cp:
+            control_points.append(self._ray2_cp)
+        if hasattr(self, '_center_cp') and self._center_cp:
+            control_points.append(self._center_cp)
+        return control_points
 
     def updateControls(self):
         """Update control point positions and values."""
-        if not self._is_valid:
-            return
+        # Always update control points, even for invalid circles
+        # This ensures control points are positioned correctly for manipulation
             
         if hasattr(self, '_corner_cp') and self._corner_cp:
-            self._corner_cp.setPos(self._corner_point - self._calculated_center)
+            # Position control points in scene coordinates
+            self._corner_cp.setPos(self._corner_point)
         if hasattr(self, '_ray1_cp') and self._ray1_cp:
-            self._ray1_cp.setPos(self._ray1_point - self._calculated_center)
+            # Position control points in scene coordinates
+            self._ray1_cp.setPos(self._ray1_point)
         if hasattr(self, '_ray2_cp') and self._ray2_cp:
-            self._ray2_cp.setPos(self._ray2_point - self._calculated_center)
+            # Position control points in scene coordinates
+            self._ray2_cp.setPos(self._ray2_point)
         if hasattr(self, '_center_cp') and self._center_cp:
-            self._center_cp.setPos(QPointF(0, 0))  # Center is always at origin in local coordinates
+            # Position control points in scene coordinates
+            self._center_cp.setPos(self._center_point)
         if hasattr(self, '_radius_datum') and self._radius_datum:
             # Update both position and value for the datum
             radius_value = self._get_radius_value()
@@ -172,50 +193,85 @@ class CircleCornerCadItem(CadItem):
             self,
             exclude_cps: Optional[List['ControlPoint']] = None
     ) -> List[QPointF]:
-        """Return list of control point positions (excluding ControlDatums)."""
+        """Return list of control point positions in scene coordinates (excluding ControlDatums)."""
         out = []
-        for cp in [self._corner_cp, self._ray1_cp, self._ray2_cp, self._center_cp]:
-            if cp and (exclude_cps is None or cp not in exclude_cps):
-                out.append(cp.pos())
+        # Return scene coordinates for all control points
+        if self._corner_cp and (exclude_cps is None or self._corner_cp not in exclude_cps):
+            out.append(self._corner_point)
+        if self._ray1_cp and (exclude_cps is None or self._ray1_cp not in exclude_cps):
+            out.append(self._ray1_point)
+        if self._ray2_cp and (exclude_cps is None or self._ray2_cp not in exclude_cps):
+            out.append(self._ray2_point)
+        if self._center_cp and (exclude_cps is None or self._center_cp not in exclude_cps):
+            out.append(self._center_point)
         return out
 
     def _set_corner(self, new_position):
-        """Set corner point from control point movement."""
-        # When corner moves, recalculate and update center spec point
-        local_pos = self.mapToScene(new_position)
-        self._corner_point = local_pos
+        """Set corner point from control point movement, preserving radius."""
+        # new_position is in scene coordinates
+        # Store the current radius before changing the corner
+        current_radius = self._radius if self._is_valid else 0
+        
+        # Update the corner point
+        self._corner_point = new_position
+        
+        # Recalculate the circle to get the new geometry
         self._calculate_circle(update_center_spec=True)
+        
+        # If we had a valid radius before, restore it by adjusting the center
+        if current_radius > 0 and self._is_valid:
+            self._set_radius(current_radius)
+        
         self.setPos(self._calculated_center)
         
     def _set_ray1(self, new_position):
-        """Set ray1 point from control point movement."""
-        # When ray1 moves, recalculate and update center spec point
-        local_pos = self.mapToScene(new_position)
-        self._ray1_point = local_pos
+        """Set ray1 point from control point movement, preserving radius."""
+        # new_position is in scene coordinates
+        # Store the current radius before changing the ray
+        current_radius = self._radius if self._is_valid else 0
+        
+        # Update the ray1 point
+        self._ray1_point = new_position
+        
+        # Recalculate the circle to get the new geometry
         self._calculate_circle(update_center_spec=True)
+        
+        # If we had a valid radius before, restore it by adjusting the center
+        if current_radius > 0 and self._is_valid:
+            self._set_radius(current_radius)
+        
         self.setPos(self._calculated_center)
         
     def _set_ray2(self, new_position):
-        """Set ray2 point from control point movement."""
-        # When ray2 moves, recalculate and update center spec point
-        local_pos = self.mapToScene(new_position)
-        self._ray2_point = local_pos
+        """Set ray2 point from control point movement, preserving radius."""
+        # new_position is in scene coordinates
+        # Store the current radius before changing the ray
+        current_radius = self._radius if self._is_valid else 0
+        
+        # Update the ray2 point
+        self._ray2_point = new_position
+        
+        # Recalculate the circle to get the new geometry
         self._calculate_circle(update_center_spec=True)
+        
+        # If we had a valid radius before, restore it by adjusting the center
+        if current_radius > 0 and self._is_valid:
+            self._set_radius(current_radius)
+        
         self.setPos(self._calculated_center)
         
     def _set_center(self, new_position):
         """Set center from control point movement."""
+        # new_position is in scene coordinates
         # Constrain center movement to the angle bisector
-        local_pos = self.mapToScene(new_position)
-        self._move_center_along_bisector(local_pos)
+        self._move_center_along_bisector(new_position)
         
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
         if not self._is_valid:
-            return QPointF(0, 0)
-        import math
+            return self._corner_point
         sc = math.sin(math.pi/4)
-        return QPointF(self._radius * sc, self._radius * sc)
+        return QPointF(self._radius * sc, self._radius * sc) + self._calculated_center
 
     def _get_radius_value(self):
         """Get the current radius value."""
@@ -456,27 +512,39 @@ class CircleCornerCadItem(CadItem):
         # Set the radius, which will adjust the center position
         self._set_radius(reasonable_radius)
 
-    def _create_decorations(self):
-        """Create decoration items for this circle."""
-        if self._is_valid and self._radius > 0:
-            # Add dashed circle outline
-            self._add_dashed_circle(QPointF(0, 0), self._radius)
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the circle content with a custom color."""
+        if not self._is_valid or self._radius <= 0:
+            return
 
-            # Add radius lines to tangent points
+        painter.save()
+
+        # Use provided color or fall back to default
+        pen_color = color if color is not None else self._color
+        pen = QPen(pen_color, self._line_width)
+        painter.setPen(pen)
+
+        # Draw the circle
+        painter.drawEllipse(QPointF(0, 0), self._radius, self._radius)
+
+        if self.isSelected():
+            cpen = QPen(QColor(0, 0, 0), 2.0)
+            cpen.setCosmetic(True)
+            cpen.setStyle(Qt.PenStyle.DashLine)
+            painter.setPen(cpen)
             corner_local = self._corner_point - self._calculated_center
             ray1_local = self._ray1_point - self._calculated_center
             ray2_local = self._ray2_point - self._calculated_center
+            painter.drawLine(corner_local, QPointF(0, 0))
+            painter.drawLine(corner_local, ray1_local)
+            painter.drawLine(corner_local, ray2_local)
 
-            self._add_radius_lines(
-                QPointF(0, 0),
-                [corner_local, ray1_local, ray2_local]
-            )
+        painter.restore()
 
-            # Add dashed rays from corner
-            self._add_dashed_lines([
-                (corner_local, ray1_local),
-                (corner_local, ray2_local)
-            ])
+    def paint_item(self, painter, option, widget=None):
+        """Draw the circle content."""
+        self.paint_item_with_color(painter, option, widget, self._color)
+
 
     def set_points(self, corner_point, ray1_point, ray2_point, center_point):
         """Set all four points at once."""

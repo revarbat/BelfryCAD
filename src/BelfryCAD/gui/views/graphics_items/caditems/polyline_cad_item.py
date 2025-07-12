@@ -15,12 +15,13 @@ from ..cad_rect import CadRect
 class PolylineCadItem(CadItem):
     """A polyline CAD item defined by a list of points."""
 
-    def __init__(self, points=None, color=QColor(0, 255, 0), line_width=0.05):
+    def __init__(self, points=None, color=QColor(0, 0, 0), line_width=0.05):
         super().__init__()
-        self._points = points if points else []
+        self._points = points if points is not None else [QPointF(0, 0), QPointF(1, 0)]
         self._color = color
         self._line_width = line_width
-        self._point_control_points = []
+        self.setZValue(1)
+        self.createControls()
 
         # Convert points to QPointF if they aren't already
         self._points = [QPointF(p[0], p[1]) if isinstance(p, (list, tuple)) else p
@@ -87,7 +88,7 @@ class PolylineCadItem(CadItem):
 
         return False
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the polyline and return them."""
         # Create control points with direct setters
         self._point_control_points = []
@@ -135,6 +136,27 @@ class PolylineCadItem(CadItem):
         
         if 0 <= index < len(self._points):
             self._points[index] = new_position
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the polyline content with a custom color."""
+        if len(self._points) < 2:
+            return
+
+        painter.save()
+
+        # Use provided color or fall back to default
+        pen_color = color if color is not None else self._color
+        pen = QPen(pen_color, self._line_width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(QBrush())  # No fill
+
+        # Draw lines between consecutive points
+        for i in range(len(self._points) - 1):
+            painter.drawLine(self._points[i], self._points[i + 1])
+
+        painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the polyline content."""

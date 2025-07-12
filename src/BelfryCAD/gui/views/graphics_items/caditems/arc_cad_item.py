@@ -37,6 +37,9 @@ class ArcCadItem(CadItem):
             self._start_point = QPointF(self._start_point[0], self._start_point[1])
         if isinstance(self._end_point, (list, tuple)):
             self._end_point = QPointF(self._end_point[0], self._end_point[1])
+            
+        # Create control points
+        self.createControls()
 
     def boundingRect(self):
         """Return the bounding rectangle of the arc."""
@@ -84,7 +87,7 @@ class ArcCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the arc and return them."""
         # Create control points with direct setters
         self._center_cp = SquareControlPoint(
@@ -107,8 +110,12 @@ class ArcCadItem(CadItem):
 
         self.updateControls()
         
+        # Store control points in the list that the scene expects
+        control_points = [self._center_cp, self._start_cp, self._end_cp, self._radius_datum]
+        self._control_point_items.extend(control_points)
+        
         # Return the list of control points
-        return [self._center_cp, self._start_cp, self._end_cp, self._radius_datum]
+        return control_points
 
     def updateControls(self):
         """Update control point positions and values."""
@@ -125,12 +132,27 @@ class ArcCadItem(CadItem):
             self._radius_datum.update_datum(radius_value, radius_position)
 
     def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
-        """Return list of control point positions (excluding ControlDatums)."""
+        """Return list of control point positions in scene coordinates (excluding ControlDatums)."""
         out = []
-        for cp in [self._center_cp, self._start_cp, self._end_cp]:
-            if cp and (exclude_cps is None or cp not in exclude_cps):
-                out.append(cp.pos())
+        # Return scene coordinates for all control points
+        if self._center_cp and (exclude_cps is None or self._center_cp not in exclude_cps):
+            out.append(self._center_point)
+        if self._start_cp and (exclude_cps is None or self._start_cp not in exclude_cps):
+            out.append(self._start_point)
+        if self._end_cp and (exclude_cps is None or self._end_cp not in exclude_cps):
+            out.append(self._end_point)
         return out
+
+    def _get_control_point_objects(self) -> List['ControlPoint']:
+        """Get the list of ControlPoint objects for this CAD item."""
+        control_points = []
+        if hasattr(self, '_center_cp') and self._center_cp:
+            control_points.append(self._center_cp)
+        if hasattr(self, '_start_cp') and self._start_cp:
+            control_points.append(self._start_cp)
+        if hasattr(self, '_end_cp') and self._end_cp:
+            control_points.append(self._end_cp)
+        return control_points
 
     def _set_center(self, new_position):
         """Set the center from control point movement."""
@@ -188,6 +210,32 @@ class ArcCadItem(CadItem):
             self._center_point.x() + new_radius * math.cos(end_angle),
             self._center_point.y() + new_radius * math.sin(end_angle)
         )
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the arc content with a custom color."""
+        painter.save()
+
+        # Use provided color or fall back to default
+        pen_color = color if color is not None else self._color
+        pen = QPen(pen_color, self._line_width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(QBrush())  # No fill
+
+        # Draw the arc
+        arc_path = self._create_arc_path()
+        painter.drawPath(arc_path)
+
+        if self.isSelected():
+            pen = QPen(QColor(127, 127, 127), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2.0, 2.0])
+            painter.setPen(pen)
+            painter.drawLine(self._center_point, self._start_point)
+            painter.drawLine(self._center_point, self._end_point)
+
+        painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the arc content."""

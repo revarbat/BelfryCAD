@@ -53,6 +53,9 @@ class Circle3PointsCadItem(CadItem):
             self.setPos(midpoint)
         else:
             self.setPos(self._center)
+            
+        # Create control points
+        self.createControls()
 
     def _calculate_circle(self):
         """Calculate center and radius from three points, or determine if it's a line."""
@@ -202,7 +205,7 @@ class Circle3PointsCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the circle and return them."""
         # Create control points with direct setters
         self._point1_cp = ControlPoint(
@@ -258,14 +261,18 @@ class Circle3PointsCadItem(CadItem):
                 self._radius_datum.update_datum(radius_value, radius_position)
 
     def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
-        """Return list of control point positions (excluding ControlDatums)."""
+        """Return list of control point positions in scene coordinates (excluding ControlDatums)."""
         out = []
-        for cp in [self._point1_cp, self._point2_cp, self._point3_cp]:
-            if cp and (exclude_cps is None or cp not in exclude_cps):
-                out.append(cp.pos())
+        # Return scene coordinates for all control points
+        if self._point1_cp and (exclude_cps is None or self._point1_cp not in exclude_cps):
+            out.append(self._point1)
+        if self._point2_cp and (exclude_cps is None or self._point2_cp not in exclude_cps):
+            out.append(self._point2)
+        if self._point3_cp and (exclude_cps is None or self._point3_cp not in exclude_cps):
+            out.append(self._point3)
         if not self._is_line and self._center_cp is not None:
             if exclude_cps is None or self._center_cp not in exclude_cps:
-                out.append(self.center_point)
+                out.append(self._center)
         return out
     
     def _get_control_point_objects(self) -> List['ControlPoint']:
@@ -311,31 +318,43 @@ class Circle3PointsCadItem(CadItem):
         return self.radius
 
     def _set_radius_value(self, new_radius):
-        """Set the radius value by adjusting the third point."""
+        """Set the radius value by adjusting all three points while maintaining their relative angles."""
         if self.is_line or new_radius <= 0:
             return
 
-        # Calculate new position for point3 to achieve the desired radius
-        # Keep point1 and point2 fixed, adjust point3
+        # Keep the center fixed
         center = self._center
+        
+        # Calculate the angles of all three points relative to the center
         point1_vec = self._point1 - center
         point2_vec = self._point2 - center
-
-        # Calculate the angle of point3 (average of point1 and point2 angles)
+        point3_vec = self._point3 - center
+        
         angle1 = math.atan2(point1_vec.y(), point1_vec.x())
         angle2 = math.atan2(point2_vec.y(), point2_vec.x())
-
-        # Use the angle that's 120 degrees from the average
-        avg_angle = (angle1 + angle2) / 2
-        point3_angle = avg_angle + math.pi * 2 / 3  # 120 degrees
-
-        # Calculate new point3 position
-        new_point3 = QPointF(
-            center.x() + new_radius * math.cos(point3_angle),
-            center.y() + new_radius * math.sin(point3_angle)
+        angle3 = math.atan2(point3_vec.y(), point3_vec.x())
+        
+        # Calculate new positions for all three points at the new radius
+        # while maintaining their original angles
+        new_point1 = QPointF(
+            center.x() + new_radius * math.cos(angle1),
+            center.y() + new_radius * math.sin(angle1)
         )
-
+        new_point2 = QPointF(
+            center.x() + new_radius * math.cos(angle2),
+            center.y() + new_radius * math.sin(angle2)
+        )
+        new_point3 = QPointF(
+            center.x() + new_radius * math.cos(angle3),
+            center.y() + new_radius * math.sin(angle3)
+        )
+        
+        # Update all three points
+        self._point1 = new_point1
+        self._point2 = new_point2
         self._point3 = new_point3
+        
+        # Recalculate the circle with the new points
         self._calculate_circle()
         self.setPos(self._center)
 
@@ -345,6 +364,34 @@ class Circle3PointsCadItem(CadItem):
             (self._point1.x() + self._point3.x()) / 2,
             (self._point1.y() + self._point3.y()) / 2
         )
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the circle or line content with a custom color."""
+        painter.save()
+
+        # Use provided color or fall back to default
+        pen_color = color if color is not None else self._color
+        pen = QPen(pen_color, self._line_width)
+        painter.setPen(pen)
+
+        if self.is_line:
+            # Draw a line from point1 to point3
+            midpoint = self._get_midpoint()
+
+            # Convert to local coordinates
+            start_local = self._point1 - midpoint
+            end_local = self._point3 - midpoint
+
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            painter.setPen(pen)
+            painter.drawLine(start_local, end_local)
+        else:
+            # Draw the circle
+            radius = self._radius
+            rect = QRectF(-radius, -radius, 2*radius, 2*radius)
+            painter.drawEllipse(rect)
+
+        painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle or line content."""

@@ -67,6 +67,9 @@ class CubicBezierCadItem(CadItem):
         
         # Initialize states for path points
         self._initialize_path_point_states()
+        
+        # Create control points
+        self.createControls()
 
     def _initialize_path_point_states(self):
         """Initialize states for all path points based on their geometric relationships."""
@@ -398,7 +401,7 @@ class CubicBezierCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the Bezier curve and return them."""
         # Create control points for all points
         self._control_points = []
@@ -488,6 +491,44 @@ class CubicBezierCadItem(CadItem):
                 next_path_index = index + 1
                 if next_path_index < len(self._points) and self._get_path_point_state(next_path_index) != PathPointState.DISJOINT:
                     self._apply_path_point_constraints(next_path_index)
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the Bezier curve content with a custom color."""
+        if len(self._points) < 4:
+            return
+
+        painter.save()
+
+        # Use provided color or fall back to default
+        pen_color = color if color is not None else self._color
+        pen = QPen(pen_color, self._line_width)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.setBrush(QBrush())  # No fill
+
+        # Draw the Bezier curve
+        bezier_path = self._create_bezier_path()
+        painter.drawPath(bezier_path)
+
+        painter.restore()
+
+        # Draw control lines when selected
+        if self.isSelected():
+            painter.save()
+            pen = QPen(QColor(127, 127, 127), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2.0, 2.0])
+            painter.setPen(pen)
+            
+            # Draw control lines for each segment
+            for i in range(0, len(self._points) - 3, 3):
+                if i + 3 < len(self._points):
+                    # Draw control lines for this segment
+                    painter.drawLine(self._points[i], self._points[i + 1])      # path to control1
+                    painter.drawLine(self._points[i + 2], self._points[i + 3])  # control2 to next path
+            
+            painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the Bezier curve content."""

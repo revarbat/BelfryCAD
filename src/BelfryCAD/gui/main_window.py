@@ -534,6 +534,9 @@ class MainWindow(QMainWindow):
         
         # Initialize the snaps system
         self.snaps_system = SnapsSystem(self.cad_scene, self.grid_info)
+        
+        # Set the snaps system reference in the scene for control point dragging
+        self.cad_scene.set_snaps_system(self.snaps_system)
 
     def _setup_palettes(self):
         """Setup the palette system with dockable windows."""
@@ -1592,11 +1595,12 @@ class MainWindow(QMainWindow):
     def _draw_shapes(self):
         """Draw test shapes on the scene."""
         black = QColor(0, 0, 0)
+        linewidth = 0.02
 
         # Add draggable circles
         circle1 = CircleCenterRadiusCadItem(
             QPointF(1, 0.5), QPointF(2, 0.5),
-            black, 0.08)
+            black, linewidth)
         circle1.setZValue(2)  # Above other shapes
         self.cad_scene.addItem(circle1)
 
@@ -1609,7 +1613,7 @@ class MainWindow(QMainWindow):
             QPointF(-3, 0)
         ]
         triangle = PolylineCadItem(
-            triangle_points, black, 0.1)
+            triangle_points, black, linewidth)
         triangle.setZValue(1)
         self.cad_scene.addItem(triangle)
 
@@ -1623,7 +1627,7 @@ class MainWindow(QMainWindow):
             QPointF(1, -1)
         ]
         zigzag = PolylineCadItem(
-            zigzag_points, black, 0.08)
+            zigzag_points, black, linewidth)
         zigzag.setZValue(2)
         self.cad_scene.addItem(zigzag)
 
@@ -1631,21 +1635,21 @@ class MainWindow(QMainWindow):
         # Horizontal line
         line1 = LineCadItem(
             QPointF(-2, 4), QPointF(2, 4),
-            black, 0.12)
+            black, linewidth)
         line1.setZValue(1)
         self.cad_scene.addItem(line1)
 
         # Diagonal line
         line2 = LineCadItem(
             QPointF(-4, 1), QPointF(-2, 3),
-            black, 0.08)
+            black, linewidth)
         line2.setZValue(2)
         self.cad_scene.addItem(line2)
 
         # Vertical line
         line3 = LineCadItem(
             QPointF(4, -2), QPointF(4, 2),
-            black, 0.1)
+            black, linewidth)
         line3.setZValue(2)
         self.cad_scene.addItem(line3)
 
@@ -1660,7 +1664,7 @@ class MainWindow(QMainWindow):
                 QPointF(10, 2), QPointF(11, 3.5), QPointF(12, 1.5),
                 QPointF(13, 3.5), QPointF(14, 2),
             ],
-            black, 0.1)
+            black, linewidth)
         bezier3.setZValue(2)
         self.cad_scene.addItem(bezier3)
 
@@ -1674,7 +1678,7 @@ class MainWindow(QMainWindow):
                 QPointF(-3, -2),   # control point
                 QPointF(-2, 0),    # 3rd path point
             ],
-            QColor(255, 0, 255), 0.08)
+            black, linewidth)
         quad_bezier1.setZValue(2)
         self.cad_scene.addItem(quad_bezier1)
 
@@ -1689,7 +1693,7 @@ class MainWindow(QMainWindow):
                 QPointF(11, 1),     # control point
                 QPointF(12, -1),    # 4th path point
             ],
-            QColor(0, 255, 255), 0.1)
+            black, linewidth)
         quad_bezier2.setZValue(2)
         self.cad_scene.addItem(quad_bezier2)
 
@@ -1698,7 +1702,7 @@ class MainWindow(QMainWindow):
         rectangle1 = RectangleCadItem(
             QPointF(3, 3), QPointF(5, 3),
             QPointF(5, 1), QPointF(3, 1),
-            black, 0.08)
+            black, 0.01)
         rectangle1.setZValue(2)
         self.cad_scene.addItem(rectangle1)
 
@@ -1706,27 +1710,27 @@ class MainWindow(QMainWindow):
         # Test arc (quarter circle)
         arc1 = ArcCadItem(
             QPointF(-1, -3), QPointF(0, -3), QPointF(-1, -2),
-            black, 0.1)
+            black, linewidth)
         arc1.setZValue(2)
         self.cad_scene.addItem(arc1)
 
         circ2 = Circle2PointsCadItem(
             QPointF(1, -2), QPointF(3, -2),
-            black, 0.1)
+            black, linewidth)
         circ2.setZValue(2)
         self.cad_scene.addItem(circ2)
 
         # Add Circle3PointsCadItem - valid circle
         circle3pt = Circle3PointsCadItem(
             QPointF(-3, -3), QPointF(-1, -4), QPointF(-2, -1),
-            QColor(0, 150, 0), 0.08)
+            black, linewidth)
         circle3pt.setZValue(2)
         self.cad_scene.addItem(circle3pt)
 
         # Add Circle3PointsCadItem - collinear points (becomes a line)
         line3pt = Circle3PointsCadItem(
             QPointF(4, 3), QPointF(5, 4), QPointF(6, 5),
-            QColor(200, 0, 200), 0.1)
+            black, linewidth)
         line3pt.setZValue(2)
         self.cad_scene.addItem(line3pt)
 
@@ -1736,7 +1740,7 @@ class MainWindow(QMainWindow):
             QPointF(-3, 3),       # Ray 1 point
             QPointF(-4, 4),       # Ray 2 point
             QPointF(-4.2, 2.8),   # Center spec point (on bisector)
-            QColor(0, 0, 255), 0.06)
+            black, linewidth)
         corner_circle.setZValue(2)
         self.cad_scene.addItem(corner_circle)
 
@@ -1746,6 +1750,6 @@ class MainWindow(QMainWindow):
             QPointF(7, -2),       # Ray 1 point
             QPointF(6, -1),       # Ray 2 point
             QPointF(6.0, -2.2),   # Center spec point (on bisector)
-            QColor(255, 128, 0), 0.08)
+            black, linewidth)
         corner_arc.setZValue(2)
         self.cad_scene.addItem(corner_arc)

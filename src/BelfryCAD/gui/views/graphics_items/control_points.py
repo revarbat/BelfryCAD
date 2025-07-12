@@ -25,7 +25,7 @@ class ControlPoint(QGraphicsItem):
         super().__init__()  # Use parent-child relationship
         self.setter = setter
         self.cad_item = cad_item
-        self.control_size = 7
+        self.control_size = 9
         
         # Use Qt's built-in flags (movable disabled since parent handles movement)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
@@ -45,13 +45,16 @@ class ControlPoint(QGraphicsItem):
         self._is_dragging = dragging
 
     def call_setter_with_updates(self, value):
-        """Call the setter and handle all necessary updates."""
+        """
+        Call the setter with new scene coordinates and handle all necessary
+        updates.
+        """
         if self.setter and self.cad_item:
             try:
                 # prepare CadItem for geometry change.
                 self.cad_item.prepareGeometryChange()
 
-                # Call the setter with the new position
+                # Call the setter with the new position in scene coordinates
                 self.setter(value)
                 
                 # Update control point positions if the CAD item has that method
@@ -115,14 +118,16 @@ class ControlPoint(QGraphicsItem):
         return super().itemChange(change, value)
 
     def mousePressEvent(self, event):
-        """Mouse events are now handled by the parent CadItem."""
-        # Let the parent CadItem handle all mouse events
-        event.ignore()
+        """Handle mouse press events for control point dragging."""
+        # Accept the event so the scene can handle control point dragging
+        event.accept()
+        super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
-        """Mouse events are now handled by the parent CadItem."""
-        # Let the parent CadItem handle all mouse events
-        event.ignore()
+        """Handle mouse release events for control point dragging."""
+        # Accept the event so the scene can handle control point dragging
+        event.accept()
+        super().mouseReleaseEvent(event)
 
 
 class SquareControlPoint(ControlPoint):
@@ -239,9 +244,13 @@ class ControlDatum(ControlPoint):
         self.update()  # Trigger repaint
 
     def mousePressEvent(self, event):
-        """Mouse events are now handled by the parent CadItem."""
-        # Let the parent CadItem handle all mouse events
-        event.ignore()
+        """Handle mouse press events for control datum editing."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Start editing the datum value
+            self.start_editing()
+            event.accept()
+        else:
+            event.ignore()
 
     def boundingRect(self):
         """Return the bounding rectangle of this datum label."""

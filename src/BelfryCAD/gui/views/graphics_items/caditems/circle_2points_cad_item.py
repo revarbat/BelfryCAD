@@ -37,6 +37,9 @@ class Circle2PointsCadItem(CadItem):
 
         # Position the item at the center point
         self.setPos(self.center_point)
+        
+        # Create control points
+        self.createControls()
 
     def boundingRect(self):
         """Return the bounding rectangle of the circle."""
@@ -81,7 +84,7 @@ class Circle2PointsCadItem(CadItem):
         shape_path = self.shape()
         return shape_path.contains(local_point)
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the circle and return them."""
         # Create control points with direct setters
         self._point1_cp = ControlPoint(
@@ -121,12 +124,27 @@ class Circle2PointsCadItem(CadItem):
             self._radius_datum.update_datum(radius_value, radius_position)
 
     def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
-        """Return list of control point positions (excluding ControlDatums)."""
+        """Return list of control point positions in scene coordinates (excluding ControlDatums)."""
         out = []
-        for cp in [self._point1_cp, self._point2_cp, self._center_cp]:
-            if cp and (exclude_cps is None or cp not in exclude_cps):
-                out.append(cp.pos())
+        # Return scene coordinates for all control points
+        if self._point1_cp and (exclude_cps is None or self._point1_cp not in exclude_cps):
+            out.append(self._point1)
+        if self._point2_cp and (exclude_cps is None or self._point2_cp not in exclude_cps):
+            out.append(self._point2)
+        if self._center_cp and (exclude_cps is None or self._center_cp not in exclude_cps):
+            out.append(self.center_point)
         return out
+
+    def _get_control_point_objects(self) -> List['ControlPoint']:
+        """Get the list of ControlPoint objects for this CAD item."""
+        control_points = []
+        if hasattr(self, '_point1_cp') and self._point1_cp:
+            control_points.append(self._point1_cp)
+        if hasattr(self, '_point2_cp') and self._point2_cp:
+            control_points.append(self._point2_cp)
+        if hasattr(self, '_center_cp') and self._center_cp:
+            control_points.append(self._center_cp)
+        return control_points
 
     def _set_point1(self, new_position):
         """Set point1 from control point movement."""
@@ -161,6 +179,21 @@ class Circle2PointsCadItem(CadItem):
     def _set_radius_value(self, new_radius):
         """Set the radius value."""
         self.radius = new_radius
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the circle content with a custom color."""
+        radius = self.radius
+        rect = QRectF(-radius, -radius, 2*radius, 2*radius)
+
+        painter.save()
+
+        # Use provided color or fall back to default
+        pen_color = color if color is not None else self._color
+        pen = QPen(pen_color, self._line_width)
+        painter.setPen(pen)
+        painter.drawEllipse(rect)
+
+        painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""

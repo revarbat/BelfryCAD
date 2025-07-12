@@ -22,19 +22,12 @@ class LineCadItem(CadItem):
 
     def __init__(self, start_point=None, end_point=None, color=QColor(255, 0, 0), line_width=0.05):
         super().__init__()
-        self._start_point = start_point if start_point else QPointF(0, 0)
-        self._end_point = end_point if end_point else QPointF(1, 0)
+        self._start_point = start_point if start_point is not None else QPointF(0, 0)
+        self._end_point = end_point if end_point is not None else QPointF(1, 0)
         self._color = color
         self._line_width = line_width
-        self._start_cp = None
-        self._end_cp = None
-        self._mid_cp = None
-
-        # Convert points to QPointF if they aren't already
-        if isinstance(self._start_point, (list, tuple)):
-            self._start_point = QPointF(self._start_point[0], self._start_point[1])
-        if isinstance(self._end_point, (list, tuple)):
-            self._end_point = QPointF(self._end_point[0], self._end_point[1])
+        self.setZValue(1)
+        self.createControls()
 
     def boundingRect(self):
         """Return the bounding rectangle of the line."""
@@ -76,7 +69,7 @@ class LineCadItem(CadItem):
             local_point, self._start_point, self._end_point)
         return distance <= tolerance
 
-    def createControls(self):
+    def _create_controls_impl(self):
         """Create control points for the line and return them."""
         # Create control points with direct setters
         self._start_cp = SquareControlPoint(
@@ -150,11 +143,17 @@ class LineCadItem(CadItem):
         self._end_point = QPointF(new_position.x() + start_to_mid.x(),
                                  new_position.y() + start_to_mid.y())
 
-    def paint_item(self, painter, option, widget=None):
-        """Draw the line content."""
+    def _get_line_width(self):
+        """Get the line width for this CAD item."""
+        return self._line_width
+
+    def paint_item_with_color(self, painter, option, widget=None, color=None):
+        """Draw the line content with a specific color."""
         painter.save()
 
-        pen = QPen(self._color, self._line_width)
+        # Use the provided color or fall back to the item's color
+        line_color = color if color is not None else self._color
+        pen = QPen(line_color, self._line_width)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)
         painter.setBrush(QBrush())  # No fill
@@ -163,6 +162,10 @@ class LineCadItem(CadItem):
         painter.drawLine(self._start_point, self._end_point)
 
         painter.restore()
+
+    def paint_item(self, painter, option, widget=None):
+        """Draw the line content."""
+        self.paint_item_with_color(painter, option, widget, self._color)
 
     def _point_to_line_distance(self, point, line_start, line_end):
         """Calculate the shortest distance from a point to a line segment."""

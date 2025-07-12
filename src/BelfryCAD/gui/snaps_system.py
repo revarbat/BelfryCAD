@@ -66,7 +66,8 @@ class SnapsSystem:
     def get_snap_point(
             self, mouse_pos: QPointF, 
             recent_points: Optional[List[QPointF]] = None,
-            exclude_cps: Optional[List[ControlPoint]] = None
+            exclude_cps: Optional[List[ControlPoint]] = None,
+            exclude_cad_item: Optional[CadItem] = None
     ) -> Optional[QPointF]:
         """
         Get the closest snap point based on current snap settings.
@@ -98,7 +99,7 @@ class SnapsSystem:
             elif snap_type == SnapType.MIDPOINT:
                 snap_points.extend(self._find_midpoint_snaps(mouse_pos))
             elif snap_type == SnapType.QUADRANT:
-                snap_points.extend(self._find_quadrant_snaps(mouse_pos))
+                snap_points.extend(self._find_quadrant_snaps(mouse_pos, exclude_cad_item=exclude_cad_item))
             elif snap_type == SnapType.TANGENT:
                 if recent_points:
                     snap_points.extend(self._find_tangent_snaps(mouse_pos, recent_points))
@@ -274,7 +275,7 @@ class SnapsSystem:
         
         return midpoints
 
-    def _find_quadrant_snaps(self, mouse_pos: QPointF) -> List[SnapPoint]:
+    def _find_quadrant_snaps(self, mouse_pos: QPointF, exclude_cad_item: Optional[CadItem] = None) -> List[SnapPoint]:
         """Find quadrant snap points near the mouse position."""
         snap_points = []
         
@@ -282,6 +283,10 @@ class SnapsSystem:
         cad_items = self._get_cad_items_near_point(mouse_pos)
         
         for item in cad_items:
+            # Skip the excluded CAD item to prevent self-snapping
+            if exclude_cad_item and item == exclude_cad_item:
+                continue
+                
             quadrants = self._get_item_quadrants(item)
             for quadrant in quadrants:
                 distance = math.sqrt((mouse_pos.x() - quadrant.x())**2 + 
@@ -300,18 +305,22 @@ class SnapsSystem:
         """Get quadrant positions for a CAD item."""
         quadrants = []
         
-                # Only circles have quadrants
+        # Only circles have quadrants
         if hasattr(item, '_center_point') and hasattr(item, 'radius'):
             center_point = getattr(item, '_center_point', None)
             radius = getattr(item, 'radius', None)
             if center_point and radius is not None:
-                # Calculate quadrant points (top, right, bottom, left)
-                quadrants = [
-                    QPointF(center_point.x(), center_point.y() + radius),  # Top
-                    QPointF(center_point.x() + radius, center_point.y()),  # Right
-                    QPointF(center_point.x(), center_point.y() - radius),  # Bottom
-                    QPointF(center_point.x() - radius, center_point.y())   # Left
-                ]
+                # Calculate points every 15 degrees around the circle
+                # 360 degrees / 15 degrees = 24 points
+                for i in range(24):
+                    angle_degrees = i * 15
+                    angle_radians = math.radians(angle_degrees)
+                    
+                    # Calculate point on circle at this angle
+                    x = center_point.x() + radius * math.cos(angle_radians)
+                    y = center_point.y() + radius * math.sin(angle_radians)
+                    
+                    quadrants.append(QPointF(x, y))
             else:
                 quadrants = []
         else:
