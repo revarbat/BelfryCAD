@@ -64,16 +64,18 @@ class ConfigPane(QWidget):
     field_changed = Signal(str, str, object)  # field_name, datum, value
     execute_requested = Signal(str)  # field_name
 
-    def __init__(self, canvas=None, parent: Optional[QWidget] = None):
+    def __init__(self, canvas=None, parent: Optional[QWidget] = None, precision=3):
         """
         Initialize the configuration pane.
 
         Args:
             canvas: Canvas object reference
             parent: Parent widget, if any
+            precision: Decimal precision for float fields
         """
         super().__init__(parent)
         self.canvas = canvas
+        self.precision = precision
         self.fields = []
         self.field_widgets = {}
         self._init_ui()
@@ -83,6 +85,14 @@ class ConfigPane(QWidget):
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
         self.main_layout = main_layout
+    
+    def update_precision(self, new_precision: int):
+        """Update the precision and refresh all float fields."""
+        self.precision = new_precision
+        # Update all existing float spinboxes
+        for widget in self.field_widgets.values():
+            if isinstance(widget, QDoubleSpinBox):
+                widget.setDecimals(new_precision)
 
     def validate_combobox(self, combo: QComboBox):
         """Validate combobox input."""
@@ -535,7 +545,7 @@ class ConfigPane(QWidget):
         spinbox.setRange(min_val, max_val)
         spinbox.setSingleStep(increment)
         spinbox.setValue(default)
-        spinbox.setDecimals(4)
+        spinbox.setDecimals(self.precision)
 
         spinbox.valueChanged.connect(
             lambda val: self.set_datum(self.canvas, name, name, None, val)
@@ -741,7 +751,8 @@ class ConfigPane(QWidget):
 
 def create_config_pane(
         canvas=None,
-        parent: Optional[QWidget] = None
+        parent: Optional[QWidget] = None,
+        precision=3
 ) -> ConfigPane:
     """
     Create and return a new configuration pane.
@@ -749,11 +760,12 @@ def create_config_pane(
     Args:
         canvas: Canvas object reference
         parent: Parent widget for the new pane
+        precision: Decimal precision for float fields
 
     Returns:
         A new ConfigPane instance
     """
-    return ConfigPane(canvas, parent)
+    return ConfigPane(canvas, parent, precision)
 
 
 if __name__ == "__main__":

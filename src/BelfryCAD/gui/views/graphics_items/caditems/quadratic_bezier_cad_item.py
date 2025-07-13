@@ -495,61 +495,19 @@ class QuadraticBezierCadItem(CadItem):
         # Draw the Bezier curve
         bezier_path = self._create_bezier_path()
         painter.drawPath(bezier_path)
-
+            
+        # Draw control lines for each segment
+        for i in range(0, len(self._points) - 2, 2):
+            if i + 2 < len(self._points):
+                # Draw control lines for this segment
+                self.draw_construction_line(painter, self._points[i], self._points[i + 1])
+                self.draw_construction_line(painter, self._points[i + 1], self._points[i + 2])
+            
         painter.restore()
-
-        # Draw control lines when selected
-        if self.isSelected():
-            painter.save()
-            pen = QPen(QColor(127, 127, 127), 3.0)
-            pen.setCosmetic(True)
-            pen.setDashPattern([2.0, 2.0])
-            painter.setPen(pen)
-            
-            # Draw control lines for each segment
-            for i in range(0, len(self._points) - 2, 2):
-                if i + 2 < len(self._points):
-                    # Draw control lines for this segment
-                    painter.drawLine(self._points[i], self._points[i + 1])      # path to control
-                    painter.drawLine(self._points[i + 1], self._points[i + 2])  # control to next path
-            
-            painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the Bezier curve content."""
-        if len(self._points) < 3:
-            return
-
-        painter.save()
-
-        pen = QPen(self._color, self._line_width)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(QBrush())  # No fill
-
-        # Draw the Bezier curve
-        bezier_path = self._create_bezier_path()
-        painter.drawPath(bezier_path)
-
-        painter.restore()
-
-        # Draw control lines when selected
-        if self.isSelected():
-            painter.save()
-            pen = QPen(QColor(127, 127, 127), 3.0)
-            pen.setCosmetic(True)
-            pen.setDashPattern([2.0, 2.0])
-            painter.setPen(pen)
-            
-            # Draw control lines for each segment
-            for i in range(0, len(self._points) - 2, 2):
-                if i + 2 < len(self._points):
-                    # Draw control lines for this segment
-                    painter.drawLine(self._points[i], self._points[i + 1])      # path to control
-                    painter.drawLine(self._points[i + 1], self._points[i + 2])  # control to next path
-            
-            painter.restore()
+        self.paint_item_with_color(painter, option, widget, self._color)
 
     def _create_bezier_path(self):
         """Create the Bezier curve path."""

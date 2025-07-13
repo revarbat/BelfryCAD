@@ -282,7 +282,11 @@ class PaletteManager(QObject):
         if palette_type == PaletteType.INFO_PANE:
             return InfoPane()
         elif palette_type == PaletteType.CONFIG_PANE:
-            return ConfigPane()
+            # Get precision from main window preferences
+            precision = 3  # Default fallback
+            if hasattr(self.main_window, 'preferences_viewmodel'):
+                precision = self.main_window.preferences_viewmodel.get("precision", 3)
+            return ConfigPane(precision=precision)
         elif palette_type == PaletteType.SNAPS_PANE:
             # Snaps are now handled by toolbar, return placeholder
             widget = QWidget()

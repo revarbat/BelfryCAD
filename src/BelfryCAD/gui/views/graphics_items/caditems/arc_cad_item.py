@@ -7,10 +7,12 @@ import math
 from typing import List, Optional
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
+from typing import cast
 
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, DiamondControlPoint, ControlDatum
 from ..cad_rect import CadRect
+from ...widgets.cad_scene import CadScene
 
 
 class ArcCadItem(CadItem):
@@ -89,6 +91,12 @@ class ArcCadItem(CadItem):
 
     def _create_controls_impl(self):
         """Create control points for the arc and return them."""
+        # Get precision from scene
+        precision = 3  # Default fallback
+        scene = self.scene()
+        if scene and isinstance(scene, CadScene):
+            precision = scene.get_precision()
+        
         # Create control points with direct setters
         self._center_cp = SquareControlPoint(
             cad_item=self,
@@ -105,7 +113,8 @@ class ArcCadItem(CadItem):
         self._radius_datum = ControlDatum(
             setter=self._set_radius_value,
             prefix="R",
-            cad_item=self
+            cad_item=self,
+            precision=precision
         )
 
         self.updateControls()
@@ -227,39 +236,21 @@ class ArcCadItem(CadItem):
         arc_path = self._create_arc_path()
         painter.drawPath(arc_path)
 
-        if self.isSelected():
-            pen = QPen(QColor(127, 127, 127), 3.0)
-            pen.setCosmetic(True)
-            pen.setDashPattern([2.0, 2.0])
-            painter.setPen(pen)
-            painter.drawLine(self._center_point, self._start_point)
-            painter.drawLine(self._center_point, self._end_point)
+        # Use dashed construction pen for construction lines
+        self.draw_construction_line(painter, self._center_point, self._start_point)
+        self.draw_construction_line(painter, self._center_point, self._end_point)
+        
+        # Use solid construction pen for construction circle
+        self.draw_construction_circle(painter, self._center_point, self.radius)
+        
+        self.draw_radius_arrow(painter, self._center_point, 45, self.radius, self._line_width, 2.0)
+        self.draw_center_cross(painter, self._center_point)
 
         painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the arc content."""
-        painter.save()
-
-        pen = QPen(self._color, self._line_width)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(QBrush())  # No fill
-
-        # Draw the arc
-        arc_path = self._create_arc_path()
-        painter.drawPath(arc_path)
-
-        if self.isSelected():
-            pen = QPen(QColor(127, 127, 127), 3.0)
-            pen.setCosmetic(True)
-            pen.setDashPattern([2.0, 2.0])
-            painter.setPen(pen)
-            painter.drawLine(self._center_point, self._start_point)
-            painter.drawLine(self._center_point, self._end_point)
-
-        painter.restore()
+        self.paint_item_with_color(painter, option, widget, self._color)
 
     def _distance(self, point1, point2):
         """Calculate distance between two points."""

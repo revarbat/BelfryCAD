@@ -9,12 +9,14 @@ from typing import List, Optional
 
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
+from typing import cast
 
 from ..cad_item import CadItem
 from ..control_points import (
     ControlPoint, SquareControlPoint, ControlDatum, DiamondControlPoint
 )
 from ..cad_rect import CadRect
+from ...widgets.cad_scene import CadScene
 
 
 class ArcCornerCadItem(CadItem):
@@ -126,8 +128,14 @@ class ArcCornerCadItem(CadItem):
 
     def _create_controls_impl(self):
         """Create control points for the arc and return them."""
+        # Get precision from scene
+        precision = 3  # Default fallback
+        scene = self.scene()
+        if scene and isinstance(scene, CadScene):
+            precision = scene.get_precision()
+        
         # Create control points with direct setters
-        self._corner_cp = SquareControlPoint(
+        self._corner_cp = DiamondControlPoint(
             cad_item=self,
             setter=self._set_corner
         )
@@ -146,7 +154,8 @@ class ArcCornerCadItem(CadItem):
         self._radius_datum = ControlDatum(
             setter=self._set_radius_value,
             prefix="R",
-            cad_item=self
+            cad_item=self,
+            precision=precision
         )
         self.updateControls()
 
@@ -295,100 +304,22 @@ class ArcCornerCadItem(CadItem):
             # Draw lines to show the invalid configuration
             painter.drawLine(corner_local, ray1_local)
             painter.drawLine(corner_local, ray2_local)
-
+        
         painter.restore()
 
-        # Draw selection indicators when selected
-        if self.isSelected():
-            painter.save()
-            pen = QPen(QColor(127, 127, 127), 3.0)
-            pen.setCosmetic(True)
-            pen.setDashPattern([2.0, 2.0])
-            painter.setPen(pen)
-            center_local = self._center_point - self._calculated_center
-            painter.drawLine(corner_local, ray1_local)
-            painter.drawLine(corner_local, ray2_local)
-            painter.drawLine(corner_local, center_local)
+        self.draw_construction_line(painter, corner_local, ray1_local)
+        self.draw_construction_line(painter, corner_local, ray2_local)
+        self.draw_center_cross(painter, QPointF(0, 0))
 
-            if self._is_valid:
-                # Calculate ray vectors from corner
-                ray1_vec = self._ray1_point - self._corner_point
-                ray2_vec = self._ray2_point - self._corner_point
-
-                # Normalize ray vectors
-                ray1_len = math.sqrt(ray1_vec.x() ** 2 + ray1_vec.y() ** 2)
-                ray2_len = math.sqrt(ray2_vec.x() ** 2 + ray2_vec.y() ** 2)
-
-                ray1_unit = QPointF(ray1_vec.x() / ray1_len, ray1_vec.y() / ray1_len)
-                ray2_unit = QPointF(ray2_vec.x() / ray2_len, ray2_vec.y() / ray2_len)
-
-                tang_point1 = self._find_tangent_point(self._corner_point, ray1_unit) - self._center_point
-                tang_point2 = self._find_tangent_point(self._corner_point, ray2_unit) - self._center_point
-
-                painter.drawLine(tang_point1, QPointF(0, 0))
-                painter.drawLine(tang_point2, QPointF(0, 0))
-                rect = QRectF(-self.radius,-self.radius, 2 * self._radius, 2 * self._radius)
-                painter.drawEllipse(rect)
+        if self._is_valid:
+            self.draw_construction_circle(painter, QPointF(0, 0), self._radius)
+            self.draw_radius_arrow(painter, QPointF(0, 0), 45, self._radius, self._line_width, 2.0)
 
             painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the arc and construction lines."""
-        painter.save()
-
-        pen = QPen(self._color, self._line_width)
-        painter.setPen(pen)
-
-        # Convert points to local coordinates
-        corner_local = self._corner_point - self._calculated_center
-        ray1_local = self._ray1_point - self._calculated_center
-        ray2_local = self._ray2_point - self._calculated_center
-
-        if self._is_valid and self._radius > 0:
-            # Draw the arc
-            arc_path = self._create_arc_path()
-            painter.drawPath(arc_path)
-        else:
-            # Draw construction points for invalid geometry
-            construction_pen = QPen(QColor(255, 0, 0), self._line_width)
-            construction_pen.setStyle(Qt.PenStyle.DashDotLine)
-            painter.setPen(construction_pen)
-
-            # Draw lines to show the invalid configuration
-            painter.drawLine(corner_local, ray1_local)
-            painter.drawLine(corner_local, ray2_local)
-
-        if self.isSelected():
-            pen = QPen(QColor(127, 127, 127), 3.0)
-            pen.setCosmetic(True)
-            pen.setDashPattern([2.0, 2.0])
-            painter.setPen(pen)
-            center_local = self._center_point - self._calculated_center
-            painter.drawLine(corner_local, ray1_local)
-            painter.drawLine(corner_local, ray2_local)
-            painter.drawLine(corner_local, center_local)
-
-            if self._is_valid:
-                # Calculate ray vectors from corner
-                ray1_vec = self._ray1_point - self._corner_point
-                ray2_vec = self._ray2_point - self._corner_point
-
-                # Normalize ray vectors
-                ray1_len = math.sqrt(ray1_vec.x() ** 2 + ray1_vec.y() ** 2)
-                ray2_len = math.sqrt(ray2_vec.x() ** 2 + ray2_vec.y() ** 2)
-
-                ray1_unit = QPointF(ray1_vec.x() / ray1_len, ray1_vec.y() / ray1_len)
-                ray2_unit = QPointF(ray2_vec.x() / ray2_len, ray2_vec.y() / ray2_len)
-
-                tang_point1 = self._find_tangent_point(self._corner_point, ray1_unit) - self._center_point
-                tang_point2 = self._find_tangent_point(self._corner_point, ray2_unit) - self._center_point
-
-                painter.drawLine(tang_point1, QPointF(0, 0))
-                painter.drawLine(tang_point2, QPointF(0, 0))
-                rect = QRectF(-self.radius,-self.radius, 2 * self._radius, 2 * self._radius)
-                painter.drawEllipse(rect)
-
-        painter.restore()
+        self.paint_item_with_color(painter, option, widget, self._color)
 
     def _calculate_arc(self, update_center_spec=True):
         """Calculate the arc center, radius, and tangent points from the four defining points."""

@@ -236,20 +236,8 @@ class RectangleCadItem(CadItem):
 
     def paint_item(self, painter, option, widget=None):
         """Draw the rectangle content."""
-        painter.save()
-
-        pen = QPen(self._color, self._line_width)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(QBrush())  # No fill
-
-        # Draw the rectangle
-        rectangle_path = self._create_rectangle_path()
-        painter.drawPath(rectangle_path)
-
-        painter.restore()
-
+        self.paint_item_with_color(painter, option, widget, self._color)
+        
     def _create_rectangle_path(self):
         """Create the rectangle path."""
         path = QPainterPath()

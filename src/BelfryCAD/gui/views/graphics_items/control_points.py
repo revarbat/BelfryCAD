@@ -221,11 +221,18 @@ class DiamondControlPoint(ControlPoint):
 class ControlDatum(ControlPoint):
     """A control datum graphics item for displaying and editing data values."""
 
-    def __init__(self, setter=None, format_string="{:.3f}", prefix="", suffix="", cad_item=None):
+    def __init__(self, setter=None, format_string=None, prefix="", suffix="", cad_item=None, precision=3):
         super().__init__(
             cad_item=cad_item,
             setter=setter)
-        self.format_string = format_string
+        self.setZValue(10002)
+        # Store precision for dynamic updates
+        self._precision = precision
+        # Use provided format_string or create one from precision
+        if format_string is None:
+            self.format_string = f"{{:.{precision}f}}"
+        else:
+            self.format_string = format_string
         self.prefix = prefix
         self.suffix = suffix
         self._is_editing = False
@@ -235,6 +242,14 @@ class ControlDatum(ControlPoint):
     def get_position(self):
         """Get the current position."""
         return self._current_position
+    
+    def update_precision(self, new_precision: int):
+        """Update the precision and refresh the display."""
+        self._precision = new_precision
+        # Update format string if it was created from precision
+        if self.format_string == f"{{:.{self._precision}f}}" or "{" in self.format_string:
+            self.format_string = f"{{:.{new_precision}f}}"
+        self.update()  # Trigger repaint
 
     def update_datum(self, value, position):
         """Update both the value and position of the datum."""
@@ -309,14 +324,11 @@ class ControlDatum(ControlPoint):
         painter.scale(1.0/scale,-1.0/scale)
 
         # Format text
-        if self.prefix and self.suffix:
-            text = f"{self.prefix}{self.format_string.format(self._current_value)}{self.suffix}"
-        elif self.prefix:
-            text = f"{self.prefix}{self.format_string.format(self._current_value)}"
-        elif self.suffix:
-            text = f"{self.format_string.format(self._current_value)}{self.suffix}"
-        else:
-            text = self.format_string.format(self._current_value)
+        valstr = self.format_string.format(self._current_value)
+        valstr = valstr.rstrip('0').rstrip('.')
+        pfx = self.prefix if self.prefix else ""
+        sfx = self.suffix if self.suffix else ""
+        text = f"{pfx}{valstr}{sfx}"
 
         # Calculate text metrics
         font_metrics = QFontMetrics(font)

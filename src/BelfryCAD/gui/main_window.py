@@ -43,6 +43,7 @@ from .views.graphics_items.caditems import (
     RectangleCadItem, ArcCadItem, PolylineCadItem,
 )
 from .panes.layer_pane import LayerPane
+from .panes.config_pane import ConfigPane
 from .views.widgets.columnar_toolbar import ColumnarToolbarWidget
 
 logger = logging.getLogger(__name__)
@@ -138,6 +139,22 @@ class MainWindow(QMainWindow):
             self.grid.setVisible(value)
         elif key == "show_rulers" and hasattr(self, 'rulers'):
             self.rulers.setVisible(value)
+        elif key == "precision" and hasattr(self, 'grid_info'):
+            # Update GridInfo precision and refresh grid display
+            self.grid_info.decimal_places = value
+            if hasattr(self, 'cad_scene'):
+                self.cad_scene.set_precision(value)
+                self.cad_scene.update_all_control_datums_precision(value)
+            if hasattr(self, 'grid'):
+                self.grid.update()  # Refresh grid display
+            if hasattr(self, 'rulers'):
+                self.rulers.update()  # Refresh rulers display
+            
+            # Update ConfigPanes precision
+            if hasattr(self, 'palette_manager'):
+                config_pane = self.palette_manager.get_palette_content("config_pane")
+                if config_pane and isinstance(config_pane, ConfigPane):
+                    config_pane.update_precision(value)
 
     def _refresh_visibility_from_preferences(self):
         """Refresh grid and rulers visibility from preferences after they are loaded."""
@@ -503,8 +520,10 @@ class MainWindow(QMainWindow):
 
     def _create_canvas(self):
         # Create the CAD scene component
-        self.grid_info = GridInfo(GridUnits.INCHES_DECIMAL)
-        self.cad_scene = CadScene(self)
+        # Get precision from preferences
+        precision = self.preferences_viewmodel.get("precision", 3)
+        self.grid_info = GridInfo(GridUnits.INCHES_DECIMAL, decimal_places=precision)
+        self.cad_scene = CadScene(self, precision=precision)
         self.cad_view = CadView(self.cad_scene)
         self.print_manager = CadPrintManager(
             self, self.cad_scene, self.document)

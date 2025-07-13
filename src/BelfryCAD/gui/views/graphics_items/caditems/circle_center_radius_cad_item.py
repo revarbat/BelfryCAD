@@ -8,10 +8,12 @@ from typing import List, Optional
 
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
+from typing import cast
 
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
+from ...widgets.cad_scene import CadScene
 
 
 class CircleCenterRadiusCadItem(CadItem):
@@ -75,6 +77,12 @@ class CircleCenterRadiusCadItem(CadItem):
 
     def _create_controls_impl(self):
         """Create control points for the circle and return them."""
+        # Get precision from scene
+        precision = 3  # Default fallback
+        scene = self.scene()
+        if scene and isinstance(scene, CadScene):
+            precision = scene.get_precision()
+        
         # Create control points with setter callbacks only
         self._center_cp = SquareControlPoint(
             cad_item=self,
@@ -87,7 +95,8 @@ class CircleCenterRadiusCadItem(CadItem):
         self._radius_datum = ControlDatum(
             setter=self._set_radius_value,
             prefix="R",
-            cad_item=self
+            cad_item=self,
+            precision=precision
         )
         self.updateControls()
         
@@ -200,16 +209,14 @@ class CircleCenterRadiusCadItem(CadItem):
         painter.setPen(pen)
         painter.drawEllipse(rect)
 
+        self.draw_radius_arrow(painter, QPointF(0, 0), 45, radius, self._line_width, 2.0)
+        self.draw_center_cross(painter, QPointF(0, 0))
+
         painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""
         self.paint_item_with_color(painter, option, widget, self._color)
-
-    def _create_decorations(self):
-        """Create decoration items for this circle."""
-        # Add centerlines decoration
-        self._add_centerlines(QPointF(0, 0))
 
     @property
     def radius(self):

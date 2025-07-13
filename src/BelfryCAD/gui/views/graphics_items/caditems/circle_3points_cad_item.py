@@ -9,10 +9,12 @@ from typing import List, Optional
 
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
+from typing import cast
 
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
+from ...widgets.cad_scene import CadScene
 
 
 class Circle3PointsCadItem(CadItem):
@@ -207,6 +209,15 @@ class Circle3PointsCadItem(CadItem):
 
     def _create_controls_impl(self):
         """Create control points for the circle and return them."""
+        # Get precision from scene
+        precision = 3  # Default fallback
+        scene = self.scene()
+        if scene and isinstance(scene, CadScene):
+            precision = scene.get_precision()
+        
+        # Always create all control points, even for invalid circles
+        # This allows users to manipulate the points to make the circle valid
+        
         # Create control points with direct setters
         self._point1_cp = ControlPoint(
             cad_item=self,
@@ -221,19 +232,20 @@ class Circle3PointsCadItem(CadItem):
             setter=self._set_point3
         )
         
-        cps = [self._point1_cp, self._point2_cp, self._point3_cp]
+        # Always create center control point and radius datum
+        self._center_cp = SquareControlPoint(
+            cad_item=self,
+            setter=self._set_center
+        )
+        self._radius_datum = ControlDatum(
+            setter=self._set_radius_value,
+            prefix="R",
+            cad_item=self,
+            precision=precision
+        )
         
-        if not self._is_line:
-            self._center_cp = SquareControlPoint(
-                cad_item=self,
-                setter=self._set_center
-            )
-            self._radius_datum = ControlDatum(
-                setter=self._set_radius_value,
-                prefix="R",
-                cad_item=self
-            )
-            cps.extend([self._center_cp, self._radius_datum])
+        # Store all control points
+        cps = [self._point1_cp, self._point2_cp, self._point3_cp, self._center_cp, self._radius_datum]
         
         self.updateControls()
         
@@ -251,10 +263,19 @@ class Circle3PointsCadItem(CadItem):
         if hasattr(self, '_point3_cp') and self._point3_cp:
             self._point3_cp.setPos(self._point3)
         
-        if not self._is_line:
-            if hasattr(self, '_center_cp') and self._center_cp:
+        # Always update center and radius controls, but hide them if it's a line
+        if hasattr(self, '_center_cp') and self._center_cp:
+            if self._is_line:
+                self._center_cp.setVisible(False)
+            else:
+                self._center_cp.setVisible(True)
                 self._center_cp.setPos(self.center_point)  # Center is always at origin in local coordinates
-            if hasattr(self, '_radius_datum') and self._radius_datum:
+        
+        if hasattr(self, '_radius_datum') and self._radius_datum:
+            if self._is_line:
+                self._radius_datum.setVisible(False)
+            else:
+                self._radius_datum.setVisible(True)
                 # Update both position and value for the datum
                 radius_value = self._get_radius_value()
                 radius_position = self._get_radius_datum_position()
@@ -270,16 +291,14 @@ class Circle3PointsCadItem(CadItem):
             out.append(self._point2)
         if self._point3_cp and (exclude_cps is None or self._point3_cp not in exclude_cps):
             out.append(self._point3)
-        if not self._is_line and self._center_cp is not None:
-            if exclude_cps is None or self._center_cp not in exclude_cps:
-                out.append(self._center)
+        # Always include center control point if it exists
+        if self._center_cp and (exclude_cps is None or self._center_cp not in exclude_cps):
+            out.append(self._center)
         return out
     
     def _get_control_point_objects(self) -> List['ControlPoint']:
         """Get the list of ControlPoint objects for this CAD item."""
-        cps = [self._point1_cp, self._point2_cp, self._point3_cp]
-        if not self._is_line:
-            cps.append(self._center_cp)
+        cps = [self._point1_cp, self._point2_cp, self._point3_cp, self._center_cp]
         return [x for x in cps if x]
 
     def _set_point1(self, new_position):
@@ -391,39 +410,14 @@ class Circle3PointsCadItem(CadItem):
             rect = QRectF(-radius, -radius, 2*radius, 2*radius)
             painter.drawEllipse(rect)
 
+        self.draw_radius_arrow(painter, QPointF(0, 0), 45, self._radius, self._line_width, 2.0)
+        self.draw_center_cross(painter, QPointF(0, 0))
+
         painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle or line content."""
-        painter.save()
-
-        pen = QPen(self._color, self._line_width)
-        painter.setPen(pen)
-
-        if self.is_line:
-            # Draw a line from point1 to point3
-            midpoint = self._get_midpoint()
-
-            # Convert to local coordinates
-            start_local = self._point1 - midpoint
-            end_local = self._point3 - midpoint
-
-            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-            painter.setPen(pen)
-            painter.drawLine(start_local, end_local)
-        else:
-            # Draw the circle
-            radius = self._radius
-            rect = QRectF(-radius, -radius, 2*radius, 2*radius)
-            painter.drawEllipse(rect)
-
-        painter.restore()
-
-    def _create_decorations(self):
-        """Create decoration items for this circle or line."""
-        if not self.is_line:
-            # Add centerlines for valid circles
-            self._add_centerlines(QPointF(0, 0))
+        self.paint_item_with_color(painter, option, widget, self._color)
 
     @property
     def center_point(self):

@@ -8,8 +8,11 @@ from ..graphics_items.control_points import ControlPoint, ControlDatum
 class CadScene(QGraphicsScene):
     """Custom graphics scene for CAD operations with centralized event handling."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, precision=3):
         super().__init__(parent)
+        
+        # Store precision for CAD items to use
+        self._precision = precision
         
         # Selection and interaction state
         self._selected_items = set()
@@ -148,6 +151,20 @@ class CadScene(QGraphicsScene):
     def set_snaps_system(self, snaps_system):
         """Set the snaps system reference for this scene."""
         self._snaps_system = snaps_system
+    
+    def get_precision(self):
+        """Get the precision setting for this scene."""
+        return self._precision
+    
+    def set_precision(self, precision):
+        """Set the precision setting for this scene."""
+        self._precision = precision
+
+    def update_all_control_datums_precision(self, new_precision: int):
+        """Update precision for all ControlDatums in all CAD items in the scene."""
+        for item in self.items():
+            if isinstance(item, CadItem):
+                item.update_control_datums_precision(new_precision)
 
     def _handle_control_drag(self, scene_pos: QPointF, event: QGraphicsSceneMouseEvent):
         """Handle dragging of a control point or control datum."""
@@ -185,6 +202,10 @@ class CadScene(QGraphicsScene):
         if self._dragging_item:
             delta = scene_pos - self._last_mouse_pos
             self._dragging_item.moveBy(delta.x(), delta.y())
+            
+            # Update control point positions after the CAD item moves
+            self._update_control_points_for_cad_item(self._dragging_item)
+            
             event.accept()
 
     def _handle_control_release(self, event: QGraphicsSceneMouseEvent):
@@ -249,6 +270,9 @@ class CadScene(QGraphicsScene):
         
         # Update control point positions to scene coordinates
         self._update_control_point_positions(cad_item)
+        
+        # Update ControlDatum precision to match current scene precision
+        cad_item.update_control_datums_precision(self._precision)
         
         # Show control points
         for cp in self._control_points.get(cad_item, []):
@@ -361,6 +385,13 @@ class CadScene(QGraphicsScene):
                 if cp and i < len(cp_data):
                     # Use the positions directly (they are already in scene coordinates)
                     cp.setPos(cp_data[i])
+        
+        # Update control datum positions
+        if cad_item in self._control_datums:
+            for cd in self._control_datums[cad_item]:
+                if cd and hasattr(cad_item, 'updateControls'):
+                    # Call updateControls to update datum positions and values
+                    cad_item.updateControls()
 
     def _update_selection_state(self):
         """Update the selection state (called by timer)."""

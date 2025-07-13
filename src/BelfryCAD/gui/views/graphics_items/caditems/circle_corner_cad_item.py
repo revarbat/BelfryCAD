@@ -8,11 +8,13 @@ import math
 from typing import List, Optional
 
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker
+from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, QBrush
+from typing import cast
 
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
+from ...widgets.cad_scene import CadScene
 
 
 class CircleCornerCadItem(CadItem):
@@ -119,6 +121,12 @@ class CircleCornerCadItem(CadItem):
 
     def _create_controls_impl(self):
         """Create control points for the circle and return them."""
+        # Get precision from scene
+        precision = 3  # Default fallback
+        scene = self.scene()
+        if scene and isinstance(scene, CadScene):
+            precision = scene.get_precision()
+        
         # Always create control points, even for invalid circles
         # This allows users to manipulate the points to make the circle valid
 
@@ -142,7 +150,8 @@ class CircleCornerCadItem(CadItem):
         self._radius_datum = ControlDatum(
             setter=self._set_radius_value,
             prefix="R",
-            cad_item=self
+            cad_item=self,
+            precision=precision
         )
         self.updateControls()
         
@@ -270,8 +279,8 @@ class CircleCornerCadItem(CadItem):
         """Get the position for the radius datum."""
         if not self._is_valid:
             return self._corner_point
-        sc = math.sin(math.pi/4)
-        return QPointF(self._radius * sc, self._radius * sc) + self._calculated_center
+        offset = math.sin(math.pi/4) * (self._radius + self._line_width)
+        return QPointF(offset, offset) + self._calculated_center
 
     def _get_radius_value(self):
         """Get the current radius value."""
@@ -527,24 +536,19 @@ class CircleCornerCadItem(CadItem):
         # Draw the circle
         painter.drawEllipse(QPointF(0, 0), self._radius, self._radius)
 
-        if self.isSelected():
-            cpen = QPen(QColor(0, 0, 0), 2.0)
-            cpen.setCosmetic(True)
-            cpen.setStyle(Qt.PenStyle.DashLine)
-            painter.setPen(cpen)
-            corner_local = self._corner_point - self._calculated_center
-            ray1_local = self._ray1_point - self._calculated_center
-            ray2_local = self._ray2_point - self._calculated_center
-            painter.drawLine(corner_local, QPointF(0, 0))
-            painter.drawLine(corner_local, ray1_local)
-            painter.drawLine(corner_local, ray2_local)
+        corner_local = self._corner_point - self._calculated_center
+        ray1_local = self._ray1_point - self._calculated_center
+        ray2_local = self._ray2_point - self._calculated_center
+        self.draw_construction_line(painter, corner_local, ray1_local)
+        self.draw_construction_line(painter, corner_local, ray2_local)
+        self.draw_center_cross(painter, QPointF(0, 0))
+        self.draw_radius_arrow(painter, QPointF(0, 0), 45, self._radius, self._line_width, 2.0)
 
         painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the circle content."""
         self.paint_item_with_color(painter, option, widget, self._color)
-
 
     def set_points(self, corner_point, ray1_point, ray2_point, center_point):
         """Set all four points at once."""
@@ -663,4 +667,9 @@ class CircleCornerCadItem(CadItem):
         self._ray1_point = QPointF(self._ray1_point.x() + dx, self._ray1_point.y() + dy)
         self._ray2_point = QPointF(self._ray2_point.x() + dx, self._ray2_point.y() + dy)
         self._center_point = QPointF(self._center_point.x() + dx, self._center_point.y() + dy)
+        
+        # Recalculate the circle after moving all points
+        self._calculate_circle(update_center_spec=True)
+        self.setPos(self._calculated_center)
+        
         self.update()

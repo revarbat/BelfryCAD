@@ -160,22 +160,7 @@ class PolylineCadItem(CadItem):
 
     def paint_item(self, painter, option, widget=None):
         """Draw the polyline content."""
-        if len(self._points) < 2:
-            return
-
-        painter.save()
-
-        pen = QPen(self._color, self._line_width)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(QBrush())  # No fill
-
-        # Draw lines between consecutive points
-        for i in range(len(self._points) - 1):
-            painter.drawLine(self._points[i], self._points[i + 1])
-
-        painter.restore()
+        self.paint_item_with_color(painter, option, widget, self._color)
 
     def _point_to_line_distance(self, point, line_start, line_end):
         """Calculate the shortest distance from a point to a line segment."""

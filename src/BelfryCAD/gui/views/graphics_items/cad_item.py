@@ -5,14 +5,8 @@ Base CAD item class for graphics items with animated selection and control point
 from typing import List, Optional
 from PySide6.QtWidgets import QGraphicsItem
 from PySide6.QtCore import QPointF, QTimer, QEvent
-from PySide6.QtGui import QPen, QColor, QBrush
+from PySide6.QtGui import QPen, QColor, QBrush, Qt
 from .control_points import ControlPoint
-from .cad_decoration_items import (
-    CenterlinesDecorationItem,
-    DashedCircleDecorationItem,
-    DashedLinesDecorationItem,
-    RadiusLinesDecorationItem
-)
 
 
 class CadItem(QGraphicsItem):
@@ -28,10 +22,6 @@ class CadItem(QGraphicsItem):
         self._selection_animation_offset = 0.0
         self._selection_timer = QTimer()
         self._selection_timer.timeout.connect(self._update_selection_animation)
-
-        # Decoration items (children)
-        self._decoration_items = []
-        self._decorations_created = False
 
         # Control point items (children)
         self._control_point_items = []
@@ -55,19 +45,15 @@ class CadItem(QGraphicsItem):
         if change == QGraphicsItem.GraphicsItemChange.ItemSelectedChange:
             if value:  # Becoming selected
                 self._start_selection_animation()
-                if not self._decorations_created:
-                    self._create_decorations()
                 # Check selection state (control points managed by scene)
                 self._check_selection_state()
             else:  # Becoming deselected
                 self._stop_selection_animation()
-                self._clear_decorations()
                 self._was_singly_selected = False
         elif change == QGraphicsItem.GraphicsItemChange.ItemSceneChange:
             # Item is being removed from scene
             if value is None:  # Being removed from scene
                 self._stop_selection_animation()
-                self._clear_decorations()
                 self._was_singly_selected = False
         elif change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             # Control points are managed by the scene, which will update them as needed
@@ -182,37 +168,6 @@ class CadItem(QGraphicsItem):
     def paint_item(self, painter, option, widget=None):
         """Override this method to paint the specific CAD item."""
         pass
-
-
-
-    def _create_decorations(self):
-        """Create decoration items."""
-        self._create_decorations_impl()
-        self._decorations_created = True
-
-    def _create_decorations_impl(self):
-        """Override to create specific decorations."""
-        pass
-
-    def _add_centerlines(self, center_point, radius=33.0):
-        """Add centerlines decoration."""
-        decoration = CenterlinesDecorationItem(center_point, radius, self)
-        self._decoration_items.append(decoration)
-
-    def _add_dashed_circle(self, center_point, radius, color=QColor(127, 127, 127), line_width=3.0):
-        """Add dashed circle decoration."""
-        decoration = DashedCircleDecorationItem(center_point, radius, color, line_width, self)
-        self._decoration_items.append(decoration)
-
-    def _add_dashed_lines(self, lines, color=QColor(127, 127, 127), line_width=3.0):
-        """Add dashed lines decoration."""
-        decoration = DashedLinesDecorationItem(lines, color, line_width, self)
-        self._decoration_items.append(decoration)
-
-    def _add_radius_lines(self, center_point, radius_points, color=QColor(127, 127, 127), line_width=3.0):
-        """Add radius lines decoration."""
-        decoration = RadiusLinesDecorationItem(center_point, radius_points, color, line_width, self)
-        self._decoration_items.append(decoration)
 
     def createControlPoints(self):
         """Show control points for this CAD item. Called when item is singly selected."""
@@ -346,24 +301,19 @@ class CadItem(QGraphicsItem):
 
     def showControls(self):
         """Show all control points and control datums for this CAD item."""
-        # Control points are now managed by the scene, not by the CAD item
-        # This method is kept for compatibility but does nothing
-        pass
+        # Update ControlDatum precision to match current scene precision
+        from ..widgets.cad_scene import CadScene
+        scene = self.scene() if hasattr(self, 'scene') else None
+        precision = 3
+        if scene and isinstance(scene, CadScene):
+            precision = scene.get_precision()
+        self.update_control_datums_precision(precision)
 
-    def _clear_decorations(self):
-        """Clear all decoration items."""
-        if not hasattr(self, '_decoration_items'):
-            return
-
-        for decoration in self._decoration_items:
-            try:
-                if decoration:
-                    decoration.setParentItem(None)
-            except (RuntimeError, AttributeError, TypeError):
-                pass
-
-        self._decoration_items.clear()
-        self._decorations_created = False
+    def update_control_datums_precision(self, new_precision: int):
+        """Update precision for all ControlDatums in this CAD item."""
+        for control_item in self._control_point_items:
+            if hasattr(control_item, 'update_precision'):
+                control_item.update_precision(new_precision)
 
     def moveBy(self, dx, dy):
         """Move all underlying points by the specified offset. If the subclass has a 'points' property, move all points. Otherwise, must be overridden by subclass."""
@@ -386,3 +336,86 @@ class CadItem(QGraphicsItem):
             if self.isSelected():
                 self._check_selection_state()
         return super().sceneEvent(event)
+    
+    def get_dashed_construction_pen(self) -> QPen:
+        """Get a dashed construction pen with #7f7f7f color, 2.0 line width, and cosmetic style."""
+        pen = QPen(QColor(0x7f, 0x7f, 0x7f))  # #7f7f7f color
+        pen.setWidthF(3.0)
+        pen.setCosmetic(True)
+        pen.setDashPattern([3.0, 3.0])
+        return pen
+
+    def get_solid_construction_pen(self) -> QPen:
+        """Get a solid construction pen with #7f7f7f color, 2.0 line width, and cosmetic style."""
+        pen = QPen(QColor(0x7f, 0x7f, 0x7f))  # #7f7f7f color
+        pen.setWidthF(3.0)
+        pen.setCosmetic(True)
+        pen.setStyle(Qt.PenStyle.SolidLine)
+        return pen
+
+    def get_construction_brush(self) -> QBrush:
+        """Get a construction brush with #7f7f7f color."""
+        return QBrush(QColor(0x7f, 0x7f, 0x7f))
+
+    def draw_arrow(self, painter, point, angle, length, width):
+        """Draw an arrow at the given point with the given angle and length."""
+        painter.save()
+        painter.translate(point)
+        painter.rotate(angle)
+        painter.drawLine(QPointF(0, 0), QPointF(length-2.5*width, 0))
+        painter.drawPolygon([
+            QPointF(length, 0),
+            QPointF(length - 3 * width, width),
+            QPointF(length - 3 * width, -width),
+            QPointF(length, 0)
+        ])
+        painter.restore()
+    
+    def draw_radius_arrow(self, painter, point, angle, radius, line_width, arrow_width):
+        if not self._is_singly_selected():
+            return
+        painter.save()
+        rad_len = radius - line_width/2
+        painter.setPen(self.get_solid_construction_pen())
+        painter.setBrush(self.get_construction_brush())
+        scale = painter.transform().m11()
+        arrow_w = 2.0 / scale
+        self.draw_arrow(painter, point, angle, rad_len, arrow_w)
+        painter.restore()
+
+    def draw_center_cross(self, painter, point):
+        """Draw a center cross at the given point."""
+        if not self._is_singly_selected():
+            return
+        painter.save()
+        scale = painter.transform().m11()
+        cross_rad = 60.0 / scale
+        painter.translate(point)
+        pen = self.get_dashed_construction_pen()
+        pen.setDashPattern([10.0, 2.0, 2.0, 2.0])
+        painter.setPen(pen)
+        painter.drawLine(QPointF(0, 0), QPointF(cross_rad, 0))
+        painter.drawLine(QPointF(0, 0), QPointF(0, cross_rad))
+        painter.drawLine(QPointF(0, 0), QPointF(-cross_rad, 0))
+        painter.drawLine(QPointF(0, 0), QPointF(0, -cross_rad))
+        painter.restore()
+    
+    def draw_construction_circle(self, painter, point, radius):
+        """Draw a construction circle at the given point."""
+        if not self._is_singly_selected():
+            return
+        painter.save()
+        painter.translate(point)
+        painter.setPen(self.get_dashed_construction_pen())
+        painter.drawEllipse(QPointF(0, 0), radius, radius)
+        painter.restore()
+
+    def draw_construction_line(self, painter, point1, point2):
+        """Draw a construction line between two points."""
+        if not self._is_singly_selected():
+            return
+        painter.save()
+        painter.setPen(self.get_dashed_construction_pen())
+        painter.drawLine(point1, point2)
+        painter.restore()
+
