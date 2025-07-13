@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-gridcopy.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -120,7 +120,7 @@
        ry="1.5243964" />
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-dasharray:none;stroke-opacity:1"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-dasharray:none;stroke-opacity:1"
        x="0.14553872"
        y="31.218058"
        id="text1"><tspan
@@ -130,7 +130,7 @@
          y="31.218058">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-dasharray:none;stroke-opacity:1"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-dasharray:none;stroke-opacity:1"
        x="7.5680141"
        y="22.849581"
        id="text2"><tspan
@@ -140,7 +140,7 @@
          y="22.849581">2</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-dasharray:none;stroke-opacity:1"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-dasharray:none;stroke-opacity:1"
        x="22.631273"
        y="12.952947"
        id="text3"><tspan

@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-text.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -40,7 +40,7 @@
      id="g1">
     <text
        xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.3333px;font-family:'Times New Roman';-inkscape-font-specification:'Times New Roman, ';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.3333px;font-family:Arial;-inkscape-font-specification:'Times New Roman, ';text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none"
        x="8.3333454"
        y="23.223948"
        id="text2"><tspan

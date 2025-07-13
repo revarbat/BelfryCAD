@@ -30,6 +30,7 @@ class ToolPalette(QFrame):
         self.icon_loader = icon_loader
         self.tool_buttons = []  # Store references to tool buttons
         self.secondary_key_mappings = self._create_secondary_key_mappings()
+        self.iconsize = 40
 
         self._setup_ui()
 
@@ -91,8 +92,8 @@ class ToolPalette(QFrame):
         # Create buttons for each tool in a single horizontal row
         for tool_def in self.tools:
             button = QToolButton()
-            button.setFixedSize(48, 48)
-            button.setIconSize(QSize(40, 40))  # Ensure icons are 48x48
+            button.setFixedSize(self.iconsize, self.iconsize)
+            button.setIconSize(QSize(self.iconsize, self.iconsize))  # Ensure icons are 48x48
 
             # Create tooltip with secondary shortcut if available
             tooltip = tool_def.name
@@ -126,15 +127,14 @@ class ToolPalette(QFrame):
             }
             QToolButton {
                 border: none;
-                background-color: white;
                 margin: 0px;
                 padding: 0px;
             }
             QToolButton:hover {
-                background-color: #e0e0e0;
+                background-color: #c0c0ff;
             }
             QToolButton:pressed {
-                background-color: #d0d0d0;
+                background-color: #c0c0ff;
             }
         """)
 

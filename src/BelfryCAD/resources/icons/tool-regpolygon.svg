@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-regpolygon.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -70,7 +70,7 @@
        r="1.8" />
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none"
        x="17.080772"
        y="23.115295"
        id="text1"><tspan
@@ -80,7 +80,7 @@
          y="23.115295">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none"
        x="25.672297"
        y="7.9778452"
        id="text2"><tspan

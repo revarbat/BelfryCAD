@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-radialcopy.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -97,7 +97,7 @@
        r="1.8" />
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none"
        x="11.254505"
        y="19.811012"
        id="text1"><tspan
@@ -107,7 +107,7 @@
          y="19.811012">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none"
        x="18.269299"
        y="19.656839"
        id="text2"><tspan
@@ -117,7 +117,7 @@
          y="19.656839">2</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none"
        x="18.115128"
        y="7.7085652"
        id="text3"><tspan

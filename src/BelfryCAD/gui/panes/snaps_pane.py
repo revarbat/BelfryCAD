@@ -63,7 +63,7 @@ class SnapsToolBar(QToolBar):
             parent: Parent widget, if any
         """
         super().__init__(parent)
-        self.iconsize = 36
+        self.iconsize = 40
         self.canvas = canvas
         self._init_ui()
         self._setup_shortcuts()

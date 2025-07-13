@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-screwslotarc.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -124,7 +124,7 @@
     </g>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke:none;stroke-width:1;stroke-dasharray:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke:none;stroke-width:1;stroke-dasharray:none"
        x="8.3758335"
        y="29.75296"
        id="text5"><tspan
@@ -134,7 +134,7 @@
          y="29.75296">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke:none;stroke-width:1;stroke-dasharray:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke:none;stroke-width:1;stroke-dasharray:none"
        x="22.377228"
        y="22.127201"
        id="text6"><tspan
@@ -144,7 +144,7 @@
          y="22.127201">2</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke:none;stroke-width:1;stroke-dasharray:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;stroke:none;stroke-width:1;stroke-dasharray:none"
        x="8.8758831"
        y="10.251019"
        id="text7"><tspan

@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-arc2ptrad.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -73,7 +73,7 @@
        ry="1.7387612" />
     <text
        xml:space="preserve"
-       style="font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       style="font-family:Arial;font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
        x="20.762852"
        y="8.2846851"
        id="text2"><tspan
@@ -83,7 +83,7 @@
          y="8.2846851">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       style="font-family:Arial;font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
        x="10.811132"
        y="28.473717"
        id="text2-7"><tspan
@@ -93,7 +93,7 @@
          sodipodi:role="line">2</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       style="font-family:Arial;font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
        x="19.535498"
        y="20.353737"
        id="text3"><tspan

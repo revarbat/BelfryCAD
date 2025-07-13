@@ -40,7 +40,7 @@ class CategoryToolButton(QToolButton):
             parent=None
     ):
         super().__init__(parent)
-        self.iconsize = 36
+        self.iconsize = 40
         self.category = category
         self.tools = tools
         self.icon_loader = icon_loader
@@ -86,13 +86,10 @@ class CategoryToolButton(QToolButton):
                     border: none;
                     margin: 0px;
                     padding: 0px;
-                    background-color: rgba(0, 0, 0, 40);
-                }
-                QToolButton:hover {
-                    background-color: rgba(0, 0, 0, 60);
+                    background-color: #ccccff;
                 }
                 QToolButton:pressed {
-                    background-color: rgba(0, 0, 80, 80);
+                    background-color: #d0d0ff;
                 }
             """)
         else:
@@ -102,12 +99,10 @@ class CategoryToolButton(QToolButton):
                     border: none;
                     margin: 0px;
                     padding: 0px;
-                }
-                QToolButton:hover {
-                    background-color: rgba(255, 255, 255, 30);
+                    background-color: #f0f0f0;
                 }
                 QToolButton:pressed {
-                    background-color: rgba(255, 255, 255, 50);
+                    background-color: #d0d0d0;
                 }
             """)
 

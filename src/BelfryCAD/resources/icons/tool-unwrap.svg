@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-unwrap.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -44,7 +44,7 @@
        sodipodi:nodetypes="cc" />
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
        x="5.2177114"
        y="25.766478"
        id="text2"><tspan
@@ -54,7 +54,7 @@
          y="25.766478">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
        x="1.9184902"
        y="7.2147951"
        id="text2-5"><tspan
@@ -64,7 +64,7 @@
          y="7.2147951">2</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
        x="25.265009"
        y="7.193027"
        id="text2-5-7"><tspan

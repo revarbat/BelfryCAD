@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-offsetcopy.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -61,7 +61,7 @@
        r="1.8" />
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
        x="0.55858737"
        y="16.746058"
        id="text3"><tspan
@@ -71,7 +71,7 @@
          y="16.746058">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-opacity:1"
        x="10.831353"
        y="16.716105"
        id="text4"><tspan

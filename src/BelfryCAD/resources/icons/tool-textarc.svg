@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-textarc.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -52,7 +52,7 @@
        sodipodi:open="true" />
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
        x="-0.48637366"
        y="15.153838"
        id="text4"
@@ -63,7 +63,7 @@
          y="15.153838">A</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
        x="10.18972"
        y="12.019119"
        id="text5"
@@ -74,7 +74,7 @@
          y="12.019119">b</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
        x="17.779989"
        y="3.5233276"
        id="text6"
@@ -85,7 +85,7 @@
          y="3.5233276">c</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
        x="19.450771"
        y="-8.5948181"
        id="text7"
@@ -113,7 +113,7 @@
        inkscape:label="path2-1" />
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
        x="12.945494"
        y="21.050026"
        id="text2"><tspan
@@ -123,7 +123,7 @@
          y="21.050026">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:5.33333px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
+       style="font-size:5.33333px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:0.996;stroke-dasharray:none"
        x="6.6903181"
        y="16.916172"
        id="text3"><tspan

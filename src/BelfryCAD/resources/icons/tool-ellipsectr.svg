@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-ellipsectr.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -68,7 +68,7 @@
        ry="1.7387612" />
     <text
        xml:space="preserve"
-       style="font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       style="font-family:Arial;font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
        x="17.18305"
        y="24.035809"
        id="text2"><tspan
@@ -78,7 +78,7 @@
          y="24.035809">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
+       style="font-family:Arial;font-size:8px;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:0.99;stroke:none;stroke-dasharray:none;stroke-opacity:1"
        x="22.617649"
        y="9.030714"
        id="text2-7"><tspan

@@ -4,8 +4,8 @@
 <svg
    version="1.1"
    id="svg1"
-   width="32"
-   height="32"
+   width="48"
+   height="48"
    viewBox="0 0 32 32"
    sodipodi:docname="tool-captiveslot.svg"
    inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
@@ -61,7 +61,7 @@
     </g>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
        x="1.4903864"
        y="27.297777"
        id="text3"><tspan
@@ -71,7 +71,7 @@
          y="27.297777">1</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
        x="26.721157"
        y="27.297777"
        id="text4"><tspan
@@ -81,7 +81,7 @@
          y="27.297777">2</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:8px;font-family:Helvetica;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
+       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Helvetica;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#1a1a1a;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round"
        x="8.5673084"
        y="10.605469"
        id="text5"><tspan
