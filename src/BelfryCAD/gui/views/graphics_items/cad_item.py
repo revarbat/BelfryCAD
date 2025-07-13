@@ -365,13 +365,13 @@ class CadItem(QGraphicsItem):
         painter.drawLine(QPointF(0, 0), QPointF(length-2.5*width, 0))
         painter.drawPolygon([
             QPointF(length, 0),
-            QPointF(length - 3 * width, width),
-            QPointF(length - 3 * width, -width),
+            QPointF(length - 3.5 * width, 0.75 * width),
+            QPointF(length - 3.5 * width, -0.75 * width),
             QPointF(length, 0)
         ])
         painter.restore()
     
-    def draw_radius_arrow(self, painter, point, angle, radius, line_width, arrow_width):
+    def draw_radius_arrow(self, painter, point, angle, radius, line_width):
         if not self._is_singly_selected():
             return
         painter.save()
@@ -379,7 +379,7 @@ class CadItem(QGraphicsItem):
         painter.setPen(self.get_solid_construction_pen())
         painter.setBrush(self.get_construction_brush())
         scale = painter.transform().m11()
-        arrow_w = 2.0 / scale
+        arrow_w = 4.0 / scale
         self.draw_arrow(painter, point, angle, rad_len, arrow_w)
         painter.restore()
 

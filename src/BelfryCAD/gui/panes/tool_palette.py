@@ -30,7 +30,7 @@ class ToolPalette(QFrame):
         self.icon_loader = icon_loader
         self.tool_buttons = []  # Store references to tool buttons
         self.secondary_key_mappings = self._create_secondary_key_mappings()
-        self.iconsize = 40
+        self.iconsize = 48
 
         self._setup_ui()
 

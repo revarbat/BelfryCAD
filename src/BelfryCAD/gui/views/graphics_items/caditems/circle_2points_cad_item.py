@@ -202,7 +202,7 @@ class Circle2PointsCadItem(CadItem):
         painter.setPen(pen)
         painter.drawEllipse(rect)
 
-        self.draw_radius_arrow(painter, QPointF(0, 0), 45, radius, self._line_width, 2.0)
+        self.draw_radius_arrow(painter, QPointF(0, 0), 45, radius, self._line_width)
         self.draw_center_cross(painter, QPointF(0, 0))
 
         painter.restore()

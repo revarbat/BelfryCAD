@@ -243,7 +243,7 @@ class ArcCadItem(CadItem):
         # Use solid construction pen for construction circle
         self.draw_construction_circle(painter, self._center_point, self.radius)
         
-        self.draw_radius_arrow(painter, self._center_point, 45, self.radius, self._line_width, 2.0)
+        self.draw_radius_arrow(painter, self._center_point, 45, self.radius, self._line_width)
         self.draw_center_cross(painter, self._center_point)
 
         painter.restore()

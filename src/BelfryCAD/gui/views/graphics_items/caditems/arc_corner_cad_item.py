@@ -305,17 +305,15 @@ class ArcCornerCadItem(CadItem):
             painter.drawLine(corner_local, ray1_local)
             painter.drawLine(corner_local, ray2_local)
         
-        painter.restore()
-
         self.draw_construction_line(painter, corner_local, ray1_local)
         self.draw_construction_line(painter, corner_local, ray2_local)
         self.draw_center_cross(painter, QPointF(0, 0))
 
         if self._is_valid:
             self.draw_construction_circle(painter, QPointF(0, 0), self._radius)
-            self.draw_radius_arrow(painter, QPointF(0, 0), 45, self._radius, self._line_width, 2.0)
+            self.draw_radius_arrow(painter, QPointF(0, 0), 45, self._radius, self._line_width)
 
-            painter.restore()
+        painter.restore()
 
     def paint_item(self, painter, option, widget=None):
         """Draw the arc and construction lines."""

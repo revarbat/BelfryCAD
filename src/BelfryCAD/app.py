@@ -3,8 +3,8 @@ Main application class for BelfryCAD.
 """
 
 from PySide6.QtWidgets import QApplication, QMessageBox, QFileDialog
-from PySide6.QtCore import Qt
 from typing import Optional
+from PySide6.QtCore import Qt
 
 from .config import AppConfig
 from .gui.main_window import MainWindow
@@ -32,12 +32,30 @@ class BelfryCadApplication:
         self.document = Document()
         self.main_window: Optional[MainWindow] = None
 
+        # Configure high DPI scaling before creating QApplication
+        self._setup_high_dpi_scaling()
+
         # Create the QApplication
         self.app = QApplication.instance()
         if self.app is None:
             self.app = QApplication([])
 
         self.setup_application()
+
+    def _setup_high_dpi_scaling(self):
+        """Configure high DPI scaling settings.
+        
+        In Qt 6, high DPI scaling is always enabled by default.
+        This method handles platform-specific optimizations.
+        """
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
+        # Platform-specific optimizations
+        import sys
+        if sys.platform == "darwin":  # macOS
+            # Enable layer-backed views for better performance on macOS
+            import os
+            os.environ["QT_MAC_WANTS_LAYER"] = "1"
 
     def setup_application(self):
         """Set up the application properties."""
@@ -68,7 +86,7 @@ class BelfryCadApplication:
 
             # Start the main event loop
             self.logger.info("Starting Qt event loop...")
-            result = self.app.exec()
+            result = self.app.exec()  # type: ignore
             self.logger.info(f"Qt event loop exited with code: {result}")
             return result
 
@@ -82,19 +100,21 @@ class BelfryCadApplication:
             # Check if document has unsaved changes
             if self.document and self.document.is_modified():
                 msg = QMessageBox()
-                msg.setIcon(QMessageBox.Question)
+                msg.setIcon(QMessageBox.Icon.Question)
                 msg.setWindowTitle("Unsaved Changes")
                 msg.setText("You have unsaved changes. Do you want to save before closing?")
                 msg.setStandardButtons(
-                    QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+                    QMessageBox.StandardButton.Yes |
+                    QMessageBox.StandardButton.No |
+                    QMessageBox.StandardButton.Cancel
                 )
-                msg.setDefaultButton(QMessageBox.Yes)
+                msg.setDefaultButton(QMessageBox.StandardButton.Yes)
 
                 result = msg.exec()
 
-                if result == QMessageBox.Cancel:
+                if result == QMessageBox.StandardButton.Cancel:
                     return False
-                elif result == QMessageBox.Yes:
+                elif result == QMessageBox.StandardButton.Yes:
                     if not self.save_document():
                         return False  # Save was cancelled or failed
 
@@ -148,7 +168,7 @@ class BelfryCadApplication:
         except Exception as e:
             self.logger.error(f"Error saving document: {e}")
             msg = QMessageBox()
-            msg.setIcon(QMessageBox.Critical)
+            msg.setIcon(QMessageBox.Icon.Critical)
             msg.setWindowTitle("Save Error")
             msg.setText(f"Failed to save document:\n{str(e)}")
             msg.setParent(self.main_window)

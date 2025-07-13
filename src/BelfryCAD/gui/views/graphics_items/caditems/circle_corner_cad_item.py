@@ -542,7 +542,7 @@ class CircleCornerCadItem(CadItem):
         self.draw_construction_line(painter, corner_local, ray1_local)
         self.draw_construction_line(painter, corner_local, ray2_local)
         self.draw_center_cross(painter, QPointF(0, 0))
-        self.draw_radius_arrow(painter, QPointF(0, 0), 45, self._radius, self._line_width, 2.0)
+        self.draw_radius_arrow(painter, QPointF(0, 0), 45, self._radius, self._line_width)
 
         painter.restore()
 
