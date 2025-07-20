@@ -166,6 +166,13 @@ class CadScene(QGraphicsScene):
             if isinstance(item, CadItem):
                 item.update_control_datums_precision(new_precision)
 
+    def refresh_gear_items_for_unit_change(self):
+        """Refresh all GearCadItems when grid units change."""
+        from ..graphics_items.caditems.gear_cad_item import GearCadItem
+        for item in self.items():
+            if isinstance(item, GearCadItem):
+                item.refresh_control_datums_for_units()
+
     def _handle_control_drag(self, scene_pos: QPointF, event: QGraphicsSceneMouseEvent):
         """Handle dragging of a control point or control datum."""
         if self._dragging_control_point:
@@ -279,10 +286,21 @@ class CadScene(QGraphicsScene):
             if cp:
                 cp.setVisible(True)
         
-        # Show control datums
+        # Show control datums (respect CAD item's visibility settings)
         for cd in self._control_datums.get(cad_item, []):
             if cd:
-                cd.setVisible(True)
+                # Check if the CAD item has custom visibility logic
+                if hasattr(cad_item, '_is_metric') and hasattr(cad_item, '_module_datum') and hasattr(cad_item, '_diametral_pitch_datum'):
+                    # For GearCadItem, respect the metric-based visibility
+                    if cd == cad_item._module_datum:
+                        cd.setVisible(cad_item._is_metric)
+                    elif cd == cad_item._diametral_pitch_datum:
+                        cd.setVisible(not cad_item._is_metric)
+                    else:
+                        cd.setVisible(True)
+                else:
+                    # Default behavior for other CAD items
+                    cd.setVisible(True)
 
     def _hide_all_control_points(self):
         """Hide all control points and control datums."""

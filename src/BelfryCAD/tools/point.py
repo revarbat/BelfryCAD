@@ -14,9 +14,9 @@ from .base import Tool, ToolState, ToolCategory, ToolDefinition
 class PointTool(Tool):
     """Tool for drawing individual points"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="POINT",
             name="Point",
             category=ToolCategory.MISC,
@@ -25,7 +25,8 @@ class PointTool(Tool):
             is_creator=True,
             secondary_key="P",
             node_info=["Point Location"]
-        )]
+        )
+    ]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -76,7 +77,7 @@ class PointTool(Tool):
         h_line_item = QGraphicsLineItem(x - size, y, x + size, y)
         pen = QPen()
         pen.setColor("blue")
-        pen.setStyle(Qt.DashLine)
+        pen.setStyle(Qt.PenStyle.DashLine)
         h_line_item.setPen(pen)
         self.scene.addItem(h_line_item)
 
@@ -109,6 +110,7 @@ class PointTool(Tool):
 
         # Create a point object
         obj = CADObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POINT,
             layer=self.document.objects.current_layer,

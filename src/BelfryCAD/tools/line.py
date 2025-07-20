@@ -17,9 +17,9 @@ from .base import Tool, ToolState, ToolCategory, ToolDefinition
 class LineObject(CADObject):
     """Line object - requires exactly 2 points"""
 
-    def __init__(self, object_id: int, start: Point, end: Point, **kwargs):
+    def __init__(self, mainwin, object_id: int, start: Point, end: Point, **kwargs):
         super().__init__(
-            object_id, ObjectType.LINE, coords=[start, end], **kwargs)
+            mainwin, object_id, ObjectType.LINE, coords=[start, end], **kwargs)
 
     @property
     def start(self) -> Point:
@@ -36,9 +36,9 @@ class LineObject(CADObject):
 class LineTool(Tool):
     """Tool for drawing straight lines"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="LINE",
             name="Line Tool",
             category=ToolCategory.LINES,
@@ -47,7 +47,8 @@ class LineTool(Tool):
             is_creator=True,
             secondary_key="L",
             node_info=["Start Point", "End Point"]
-        )]
+        )
+    ]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -117,6 +118,7 @@ class LineTool(Tool):
 
         # Create a line object
         obj = CADObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.LINE,
             layer=self.document.objects.current_layer,

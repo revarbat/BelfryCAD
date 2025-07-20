@@ -84,6 +84,9 @@ class Tool(QObject):
     # Signal emitted when an object is created
     object_created = Signal(CADObject)
 
+    # Class-level tool definitions - subclasses should override this
+    tool_definitions: List[ToolDefinition] = []
+
     def __init__(self, main_window, document, preferences):
         """Initialize the tool"""
         super().__init__()
@@ -92,8 +95,9 @@ class Tool(QObject):
         self.preferences = preferences
         self.state = ToolState.INIT
         self.points: List[Point] = []
+        self.temp_objects: List = []  # List to track temporary preview objects
 
-        # Set up default definitions - subclasses should override this
+        # Set up tool definitions from class attribute
         self.definitions = self._get_definition()
         # For compatibility, keep the first definition as primary
         self.definition = self.definitions[0] if self.definitions else None
@@ -112,7 +116,11 @@ class Tool(QObject):
         return self.main_window.get_dpi()
 
     def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definitions - override in subclasses"""
+        """Return the tool definitions - uses class-level definitions by default"""
+        if self.tool_definitions:
+            return self.tool_definitions
+        
+        # Fallback for backward compatibility
         return [ToolDefinition(
             token="TOOL",
             name="Base Tool",
@@ -163,14 +171,13 @@ class Tool(QObject):
 
     def clear_temp_objects(self):
         """Clear any temporary preview objects"""
-        # Clear construction items from the scene
+        # Remove all temporary objects from the scene
         scene = self.scene
-        if scene:
-            # Remove temporary construction items
-            # Since tags are no longer available, we'll rely on the scene's
-            # built-in item management and control point cleanup
-            # The scene's removeItem method will handle cleanup automatically
-            pass
+        if scene and self.temp_objects:
+            for temp_obj in self.temp_objects:
+                if hasattr(temp_obj, 'scene') and temp_obj.scene():
+                    scene.removeItem(temp_obj)
+            self.temp_objects.clear()
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""

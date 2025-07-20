@@ -139,6 +139,16 @@ class GridInfo(object):
         }[self.units]
 
     @property
+    def is_metric(self):
+        if self.units in [
+            GridUnits.MILLIMETERS,
+            GridUnits.CENTIMETERS,
+            GridUnits.METERS
+        ]:
+            return True
+        return False
+
+    @property
     def unit_scale(self):
         return {
             GridUnits.INCHES_DECIMAL: 1.0,

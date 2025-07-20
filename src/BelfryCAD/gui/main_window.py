@@ -45,6 +45,7 @@ from .views.graphics_items.caditems import (
 from .panes.layer_pane import LayerPane
 from .panes.config_pane import ConfigPane
 from .views.widgets.columnar_toolbar import ColumnarToolbarWidget
+from BelfryCAD.gui.views.graphics_items.caditems.gear_cad_item import GearCadItem
 
 logger = logging.getLogger(__name__)
 
@@ -1615,6 +1616,18 @@ class MainWindow(QMainWindow):
         """Draw test shapes on the scene."""
         black = QColor(0, 0, 0)
         linewidth = 0.02
+
+        # Add example gear
+        gear = GearCadItem(
+            center=QPointF(9, 0),
+            pitch_radius_point=QPointF(10, 0),
+            tooth_count=11,
+            pressure_angle=20,
+            color=black,
+            line_width=0.01
+        )
+        gear.setZValue(3)
+        self.cad_scene.addItem(gear)
 
         # Add draggable circles
         circle1 = CircleCenterRadiusCadItem(

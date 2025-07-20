@@ -32,9 +32,6 @@ class BelfryCadApplication:
         self.document = Document()
         self.main_window: Optional[MainWindow] = None
 
-        # Configure high DPI scaling before creating QApplication
-        self._setup_high_dpi_scaling()
-
         # Create the QApplication
         self.app = QApplication.instance()
         if self.app is None:
@@ -42,27 +39,12 @@ class BelfryCadApplication:
 
         self.setup_application()
 
-    def _setup_high_dpi_scaling(self):
-        """Configure high DPI scaling settings.
-        
-        In Qt 6, high DPI scaling is always enabled by default.
-        This method handles platform-specific optimizations.
-        """
-        QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
-        QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
-        # Platform-specific optimizations
-        import sys
-        if sys.platform == "darwin":  # macOS
-            # Enable layer-backed views for better performance on macOS
-            import os
-            os.environ["QT_MAC_WANTS_LAYER"] = "1"
-
     def setup_application(self):
         """Set up the application properties."""
         if self.app is not None:
             self.app.setApplicationName(self.config.APP_NAME)
             self.app.setApplicationVersion(self.config.VERSION)
-            self.app.setOrganizationName("BelfryCad")
+            self.app.setOrganizationName("BelfrySCAD")
 
     def run(self):
         """Run the main application."""

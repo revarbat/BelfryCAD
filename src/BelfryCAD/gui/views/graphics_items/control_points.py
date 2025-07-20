@@ -1,13 +1,13 @@
 """
 ControlPoint - A class representing a control point for CAD items.
 """
-
+import math
 from PySide6.QtCore import (
     QPointF, QRectF, Qt, QRegularExpression
 )
 from PySide6.QtGui import (
     QPen, QBrush, QColor, QFont, QFontMetrics, QPainterPath,
-    QRegularExpressionValidator
+    QRegularExpressionValidator, QTransform
 )
 from PySide6.QtWidgets import (
     QGraphicsItem, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
@@ -30,7 +30,7 @@ class ControlPoint(QGraphicsItem):
         # Use Qt's built-in flags (movable disabled since parent handles movement)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)  # Parent handles movement
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
         self.setAcceptHoverEvents(True)
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         
@@ -221,7 +221,18 @@ class DiamondControlPoint(ControlPoint):
 class ControlDatum(ControlPoint):
     """A control datum graphics item for displaying and editing data values."""
 
-    def __init__(self, setter=None, format_string=None, prefix="", suffix="", cad_item=None, precision=3):
+    def __init__(
+        self,
+        setter=None,
+        format_string=None,
+        prefix="",
+        suffix="",
+        cad_item=None,
+        label = "value",
+        angle = 45,
+        pixel_offset = 10,
+        precision=3
+    ):
         super().__init__(
             cad_item=cad_item,
             setter=setter)
@@ -235,9 +246,19 @@ class ControlDatum(ControlPoint):
             self.format_string = format_string
         self.prefix = prefix
         self.suffix = suffix
+        self.label = label
+        self.angle = angle
+        self.pixel_offset = pixel_offset
         self._is_editing = False
         self._current_value = 0.0
         self._current_position = QPointF(0, 0)
+        self._bounding_rect = QRectF(0, 0, 0, 0)
+        
+        # Cache for performance optimization
+        self._cached_text = self._format_text(self._current_value)
+        self._cached_bounding_rect = QRectF(0, 0, 0, 0)
+        self._cached_scale = 1.0
+        self._needs_geometry_update = True
 
     def get_position(self):
         """Get the current position."""
@@ -249,14 +270,37 @@ class ControlDatum(ControlPoint):
         # Update format string if it was created from precision
         if self.format_string == f"{{:.{self._precision}f}}" or "{" in self.format_string:
             self.format_string = f"{{:.{new_precision}f}}"
+        
+        # Update cached text and trigger geometry update
+        new_text = self._format_text(self._current_value)
+        if new_text != self._cached_text:
+            self._cached_text = new_text
+            self._needs_geometry_update = True
+            self.prepareGeometryChange()
+        
         self.update()  # Trigger repaint
 
     def update_datum(self, value, position):
         """Update both the value and position of the datum."""
+        # Check if we need to update geometry
+        new_text = self._format_text(value)
+        if new_text != self._cached_text:
+            self._cached_text = new_text
+            self._needs_geometry_update = True
+            self.prepareGeometryChange()
+        
         self._current_value = value
         self._current_position = position
         self.setPos(position)
         self.update()  # Trigger repaint
+
+    def _format_text(self, value):
+        """Format the text for display."""
+        valstr = self.format_string.format(value)
+        valstr = valstr.rstrip('0').rstrip('.')
+        pfx = self.prefix if self.prefix else ""
+        sfx = self.suffix if self.suffix else ""
+        return f"{pfx}{valstr}{sfx}"
 
     def mousePressEvent(self, event):
         """Handle mouse press events for control datum editing."""
@@ -269,37 +313,7 @@ class ControlDatum(ControlPoint):
 
     def boundingRect(self):
         """Return the bounding rectangle of this datum label."""
-        # Defensive check for attributes
-        if not hasattr(self, 'prefix') or not hasattr(self, 'suffix') or not hasattr(self, 'format_string'):
-            return super().boundingRect()
-
-        # Format text
-        if self.prefix and self.suffix:
-            text = f"{self.prefix}{self.format_string.format(self._current_value)}{self.suffix}"
-        elif self.prefix:
-            text = f"{self.prefix}{self.format_string.format(self._current_value)}"
-        elif self.suffix:
-            text = f"{self.format_string.format(self._current_value)}{self.suffix}"
-        else:
-            text = self.format_string.format(self._current_value)
-
-        # Estimate text size
-        text_width = len(text) * 8
-        text_height = 16
-        scene_width = text_width / 100
-        scene_height = text_height / 100
-        padding = 0.04
-
-        # Calculate label position relative to datum position (which is at origin in local coords)
-        pixel_offset = 15
-        scene_offset = pixel_offset / 100  # Approximate scale factor
-
-        return QRectF(
-            scene_offset - padding,
-            scene_offset - scene_height/2 - padding,
-            scene_width + 2 * padding,
-            scene_height + 2 * padding
-        )
+        return self._bounding_rect
 
     def shape(self):
         """Return the shape for hit testing."""
@@ -316,53 +330,74 @@ class ControlDatum(ControlPoint):
         if self._is_editing:
             return
 
+        # Use cached text
+        text = self._cached_text
+
+        painter.save()
+
         # Set up font
-        scale = painter.transform().m11()
-        font = QFont("Arial", 12)
-        font.setPointSizeF(12.0)
+        font = QFont("Arial", 14)
         painter.setFont(font)
-        painter.scale(1.0/scale,-1.0/scale)
-
-        # Format text
-        valstr = self.format_string.format(self._current_value)
-        valstr = valstr.rstrip('0').rstrip('.')
-        pfx = self.prefix if self.prefix else ""
-        sfx = self.suffix if self.suffix else ""
-        text = f"{pfx}{valstr}{sfx}"
-
+        
         # Calculate text metrics
         font_metrics = QFontMetrics(font)
         text_rect = font_metrics.boundingRect(text)
 
         # Position label with fixed pixel offset
-        pixel_offset = 10
-        scene_offset = pixel_offset
+        padding = 4
+        box_width = text_rect.width() + 4 * padding
+        box_height = text_rect.height() + 2 * padding
 
         # Calculate label position relative to datum position
-        datum_pos = self.get_position()
+        ocos = math.cos(math.radians(self.angle))
+        osin = math.sin(math.radians(self.angle))
         label_pos = QPointF(
-            datum_pos.x() + scene_offset,
-            datum_pos.y() - scene_offset
+            self.pixel_offset * ocos,
+            -self.pixel_offset * osin
         )
+
+        if ocos < 0:
+            label_pos += QPointF(-box_width/2, 0)
+        elif ocos > 0:
+            label_pos += QPointF(box_width/2, 0)
+
+        if osin > 0:
+            label_pos += QPointF(0, -box_height/2)
+        elif osin < 0:
+            label_pos += QPointF(0, box_height/2)
 
         # Draw background rectangle
         background_rect = QRectF(
-            label_pos.x() - 4,
-            label_pos.y() - text_rect.height() / 2 - 2,
-            text_rect.width() + 8,
-            text_rect.height() + 4
+            -box_width/2,
+            -box_height/2,
+            box_width,
+            box_height
         )
+
+        # Only update geometry when needed
+        scale = painter.transform().m11()
+        if self._needs_geometry_update or abs(scale - self._cached_scale) > 0.01:
+            t = QTransform()
+            t.scale(1.0/scale, -1.0/scale)
+            t.translate(label_pos.x(), label_pos.y())
+            self._bounding_rect = t.mapRect(background_rect)
+            self._cached_scale = scale
+            self._needs_geometry_update = False
 
         # Draw background
         pen = QPen(QColor(0, 0, 0), 1.0)
         pen.setCosmetic(True)
         painter.setPen(pen)
-        painter.setBrush(QBrush(QColor(255, 255, 255, 191)))
+        painter.setBrush(QBrush(QColor(255, 255, 255, 255)))
+        painter.scale(1.0/scale, -1.0/scale)
+        painter.translate(label_pos)
         painter.drawRect(background_rect)
 
         # Draw text
         painter.setPen(QPen(QColor(0, 0, 0), 1.0))
         painter.drawText(background_rect, Qt.AlignmentFlag.AlignCenter, text)
+
+        painter.restore()
 
     def start_editing(self):
         """Start editing the datum value."""
@@ -381,14 +416,14 @@ class ControlDatum(ControlPoint):
 
         # Create editing dialog
         dialog = QDialog()
-        dialog.setWindowTitle("Edit Value")
+        dialog.setWindowTitle(f"Edit {self.label}")
         dialog.setModal(True)
 
         layout = QVBoxLayout()
         dialog.setLayout(layout)
 
         # Add label
-        label = QLabel("Enter new value:")
+        label = QLabel(f"Enter new {self.label}:")
         layout.addWidget(label)
 
         # Add line edit with validation

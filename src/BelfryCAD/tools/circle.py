@@ -87,9 +87,9 @@ class CircleObject(CADObject):
 class CircleTool(Tool):
     """Tool for drawing circles"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="CIRCLE",
             name="Circle Tool",
             category=ToolCategory.ELLIPSES,
@@ -98,7 +98,8 @@ class CircleTool(Tool):
             is_creator=True,
             secondary_key="C",
             node_info=["Center Point", "Radius Point"]
-        )]
+        )
+    ]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -311,9 +312,9 @@ class Circle3PTObject(CADObject):
 class Circle2PTTool(Tool):
     """Tool for drawing circles by 2 points (diameter endpoints)"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="CIRCLE2PT",
             name="Circle by 2 Points",
             category=ToolCategory.ELLIPSES,
@@ -322,7 +323,8 @@ class Circle2PTTool(Tool):
             is_creator=True,
             secondary_key="2",
             node_info=["First Point", "Second Point"]
-        )]
+        )
+    ]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""
@@ -400,9 +402,9 @@ class Circle2PTTool(Tool):
 class Circle3PTTool(Tool):
     """Tool for drawing circles by 3 points on circumference"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="CIRCLE3PT",
             name="Circle by 3 Points",
             category=ToolCategory.ELLIPSES,
@@ -411,7 +413,8 @@ class Circle3PTTool(Tool):
             is_creator=True,
             secondary_key="3",
             node_info=["First Point", "Second Point", "Third Point"]
-        )]
+        )
+    ]
 
     def _setup_bindings(self):
         """Set up mouse and keyboard event bindings"""

@@ -13,9 +13,9 @@ Translated from bezutils.tcl
 """
 
 import math
-from typing import List, Tuple, Optional, Iterator
+from typing import List, Tuple, Optional, Iterator, Union
 from dataclasses import dataclass
-from .geometry import geometry_points_are_collinear
+from .geometry import geometry_points_are_collinear, Point2D, Vector2D, Line2D
 
 
 # Constants
@@ -548,3 +548,581 @@ def bezutil_append_bezier_arc(coords: List[float], cx: float, cy: float,
                               start: float, extent: float) -> None:
     """Append a Bezier approximation of an elliptical arc to coordinates list."""
     BezierPath._append_bezier_arc(coords, cx, cy, radiusx, radiusy, start, extent)
+
+
+def path_to_bezier(points: List[Tuple[float, float]], 
+                   corner_threshold: float = 30.0,
+                   smoothness: float = 0.3) -> 'BezierPath':
+    """
+    Convert a list of (x,y) tuples into a Bezier path that preserves sharp corners.
+    
+    This function analyzes the path to detect sharp corners and creates a Bezier
+    curve that closely approximates the original path while preserving the sharp
+    features.
+    
+    Args:
+        points: List of (x,y) tuples representing the path
+        corner_threshold: Angle in degrees below which a corner is considered sharp
+        smoothness: Factor controlling how smooth the curves are (0.0 = sharp, 1.0 = very smooth)
+    
+    Returns:
+        BezierPath object representing the approximated curve
+    """
+    if len(points) < 2:
+        return BezierPath()
+    
+    if len(points) == 2:
+        # Simple line segment
+        x0, y0 = points[0]
+        x3, y3 = points[1]
+        dx = x3 - x0
+        dy = y3 - y0
+        x1 = x0 + dx / 3.0
+        y1 = y0 + dy / 3.0
+        x2 = x0 + 2.0 * dx / 3.0
+        y2 = y0 + 2.0 * dy / 3.0
+        return BezierPath([x0, y0, x1, y1, x2, y2, x3, y3])
+    
+    # Convert points to Point2D for easier calculations
+    point2ds = [Point2D(x, y) for x, y in points]
+    
+    # Calculate angles at each point to detect sharp corners
+    angles = []
+    for i in range(len(point2ds)):
+        if i == 0:
+            # First point - angle is direction to next point
+            if len(point2ds) > 1:
+                vec = Vector2D.from_points(point2ds[0], point2ds[1])
+                angles.append(vec.angle)
+            else:
+                angles.append(0.0)
+        elif i == len(point2ds) - 1:
+            # Last point - angle is direction from previous point
+            vec = Vector2D.from_points(point2ds[i-1], point2ds[i])
+            angles.append(vec.angle)
+        else:
+            # Middle point - calculate angle between segments
+            vec1 = Vector2D.from_points(point2ds[i-1], point2ds[i])
+            vec2 = Vector2D.from_points(point2ds[i], point2ds[i+1])
+            angle_diff = abs(vec1.angle_to(vec2))
+            angles.append(angle_diff)
+    
+    # Detect sharp corners
+    sharp_corners = []
+    corner_threshold_rad = math.radians(corner_threshold)
+    
+    for i in range(len(point2ds)):
+        if i == 0 or i == len(point2ds) - 1:
+            # End points are always considered corners
+            sharp_corners.append(True)
+        else:
+            # Check if angle is sharp enough
+            angle_diff = angles[i]
+            sharp_corners.append(angle_diff > corner_threshold_rad)
+    
+    # Build Bezier path
+    coords = []
+    x0, y0 = point2ds[0].to_tuple()
+    coords.extend([x0, y0])
+    
+    for i in range(len(point2ds) - 1):
+        current = point2ds[i]
+        next_point = point2ds[i + 1]
+        
+        # Calculate segment vector
+        segment_vec = Vector2D.from_points(current, next_point)
+        segment_length = segment_vec.magnitude
+        
+        if segment_length < EPSILON:
+            continue  # Skip zero-length segments
+        
+        # Determine control point placement based on corner sharpness
+        if sharp_corners[i]:
+            # Sharp corner - place control points closer to the corner
+            control_distance = segment_length * smoothness * 0.5
+        else:
+            # Smooth corner - place control points further out
+            control_distance = segment_length * smoothness
+        
+        # Calculate control points
+        if i == 0:
+            # First segment - control point in direction of segment
+            control_vec = segment_vec.normalized() * control_distance
+            x1 = current.x + control_vec.dx
+            y1 = current.y + control_vec.dy
+        else:
+            # Middle segment - consider previous segment for smoothness
+            prev_vec = Vector2D.from_points(point2ds[i-1], current)
+            prev_angle = prev_vec.angle_to(segment_vec)
+            
+            if abs(prev_angle) < corner_threshold_rad:
+                # Smooth transition - use average direction
+                avg_vec = (prev_vec.normalized() + segment_vec.normalized()).normalized()
+                control_vec = avg_vec * control_distance
+            else:
+                # Sharp turn - use segment direction
+                control_vec = segment_vec.normalized() * control_distance
+            
+            x1 = current.x + control_vec.dx
+            y1 = current.y + control_vec.dy
+        
+        # Second control point for this segment
+        if i == len(point2ds) - 2:
+            # Last segment - control point towards end
+            control_vec = segment_vec.normalized() * control_distance
+            x2 = next_point.x - control_vec.dx
+            y2 = next_point.y - control_vec.dy
+        else:
+            # Middle segment - consider next segment
+            next_vec = Vector2D.from_points(next_point, point2ds[i+2])
+            next_angle = segment_vec.angle_to(next_vec)
+            
+            if abs(next_angle) < corner_threshold_rad:
+                # Smooth transition to next segment
+                avg_vec = (segment_vec.normalized() + next_vec.normalized()).normalized()
+                control_vec = avg_vec * control_distance
+            else:
+                # Sharp turn to next segment
+                control_vec = segment_vec.normalized() * control_distance
+            
+            x2 = next_point.x - control_vec.dx
+            y2 = next_point.y - control_vec.dy
+        
+        x3, y3 = next_point.to_tuple()
+        coords.extend([x1, y1, x2, y2, x3, y3])
+    
+    return BezierPath(coords)
+
+
+def path_to_bezier_with_tension(points: List[Tuple[float, float]], 
+                               tension: float = 0.5,
+                               corner_threshold: float = 30.0) -> 'BezierPath':
+    """
+    Convert a list of (x,y) tuples into a Bezier path using tension-based control points.
+    
+    This alternative approach uses a tension parameter to control how "tight" the
+    curve follows the original path. Higher tension values create tighter curves.
+    
+    Args:
+        points: List of (x,y) tuples representing the path
+        tension: Tension factor (0.0 = loose, 1.0 = tight)
+        corner_threshold: Angle in degrees below which a corner is considered sharp
+    
+    Returns:
+        BezierPath object representing the approximated curve
+    """
+    if len(points) < 2:
+        return BezierPath()
+    
+    if len(points) == 2:
+        # Simple line segment
+        x0, y0 = points[0]
+        x3, y3 = points[1]
+        dx = x3 - x0
+        dy = y3 - y0
+        x1 = x0 + dx / 3.0
+        y1 = y0 + dy / 3.0
+        x2 = x0 + 2.0 * dx / 3.0
+        y2 = y0 + 2.0 * dy / 3.0
+        return BezierPath([x0, y0, x1, y1, x2, y2, x3, y3])
+    
+    # Convert points to Point2D
+    point2ds = [Point2D(x, y) for x, y in points]
+    
+    # Calculate tangents at each point
+    tangents = []
+    for i in range(len(point2ds)):
+        if i == 0:
+            # First point - tangent is direction to next point
+            if len(point2ds) > 1:
+                vec = Vector2D.from_points(point2ds[0], point2ds[1])
+                tangents.append(vec.normalized())
+            else:
+                tangents.append(Vector2D(1, 0))
+        elif i == len(point2ds) - 1:
+            # Last point - tangent is direction from previous point
+            vec = Vector2D.from_points(point2ds[i-1], point2ds[i])
+            tangents.append(vec.normalized())
+        else:
+            # Middle point - average of incoming and outgoing vectors
+            vec_in = Vector2D.from_points(point2ds[i-1], point2ds[i])
+            vec_out = Vector2D.from_points(point2ds[i], point2ds[i+1])
+            
+            # Check if this is a sharp corner
+            angle_diff = abs(vec_in.angle_to(vec_out))
+            corner_threshold_rad = math.radians(corner_threshold)
+            
+            if angle_diff > corner_threshold_rad:
+                # Sharp corner - use the outgoing direction
+                tangents.append(vec_out.normalized())
+            else:
+                # Smooth corner - use average direction
+                avg_vec = (vec_in.normalized() + vec_out.normalized()).normalized()
+                tangents.append(avg_vec)
+    
+    # Build Bezier path with tension-based control points
+    coords = []
+    x0, y0 = point2ds[0].to_tuple()
+    coords.extend([x0, y0])
+    
+    for i in range(len(point2ds) - 1):
+        current = point2ds[i]
+        next_point = point2ds[i + 1]
+        
+        # Calculate segment length
+        segment_vec = Vector2D.from_points(current, next_point)
+        segment_length = segment_vec.magnitude
+        
+        if segment_length < EPSILON:
+            continue
+        
+        # Calculate control point distances based on tension
+        # Higher tension = control points closer to the path points
+        control_distance = segment_length * (1.0 - tension) / 3.0
+        
+        # First control point (from current point)
+        tangent1 = tangents[i]
+        control1_vec = tangent1 * control_distance
+        x1 = current.x + control1_vec.dx
+        y1 = current.y + control1_vec.dy
+        
+        # Second control point (towards next point)
+        tangent2 = tangents[i + 1]
+        control2_vec = tangent2 * control_distance
+        x2 = next_point.x - control2_vec.dx
+        y2 = next_point.y - control2_vec.dy
+        
+        x3, y3 = next_point.to_tuple()
+        coords.extend([x1, y1, x2, y2, x3, y3])
+    
+    return BezierPath(coords)
+
+
+def simplify_path_for_bezier(points: Union[List[Tuple[float, float]], 'BezierPath'], 
+                           tolerance: float = 0.1) -> 'BezierPath':
+    """
+    Simplify a path by removing redundant points before converting to Bezier.
+    
+    This function removes points that don't significantly contribute to the
+    shape of the path, which can improve the quality of the Bezier approximation.
+    
+    Args:
+        points: List of (x,y) tuples or BezierPath representing the path
+        tolerance: Distance tolerance for point removal
+    
+    Returns:
+        Simplified BezierPath object
+    """
+    # Handle BezierPath input
+    if isinstance(points, BezierPath):
+        if points.is_empty():
+            return BezierPath()
+        
+        # Convert BezierPath to points for simplification
+        point_list = []
+        for segment in points:
+            point_list.append(segment.start_point())
+            if segment == list(points)[-1]:
+                point_list.append(segment.end_point())
+        points = point_list
+    
+    # Handle list of tuples input
+    if len(points) < 3:
+        return BezierPath()
+    
+    simplified = [points[0]]  # Always keep first point
+    
+    for i in range(1, len(points) - 1):
+        prev = Point2D.from_tuple(points[i-1])
+        current = Point2D.from_tuple(points[i])
+        next_point = Point2D.from_tuple(points[i+1])
+        
+        # Calculate distance from current point to line segment
+        line = Line2D(prev, next_point)
+        distance = line.distance_to_point(current)
+        
+        # Keep point if it's far enough from the line
+        if distance > tolerance:
+            simplified.append(points[i])
+    
+    simplified.append(points[-1])  # Always keep last point
+    
+    # Convert simplified points to BezierPath
+    return path_to_bezier(simplified)
+
+
+def bezier_path_to_qpainter_path(bezier_path: 'BezierPath') -> 'QPainterPath':
+    """
+    Convert a BezierPath to a QPainterPath for use with Qt graphics.
+    
+    Args:
+        bezier_path: The BezierPath to convert
+    
+    Returns:
+        QPainterPath object that can be used for drawing
+    """
+    try:
+        from PySide6.QtGui import QPainterPath
+        from PySide6.QtCore import QPointF
+    except ImportError:
+        raise ImportError("PySide6 is required for QPainterPath conversion")
+    
+    path = QPainterPath()
+    
+    if bezier_path.is_empty():
+        return path
+    
+    coords = bezier_path.coords
+    if len(coords) < 8:
+        return path
+    
+    # Start at the first point
+    path.moveTo(QPointF(coords[0], coords[1]))
+    
+    # Add cubic Bezier segments
+    for i in range(2, len(coords), 6):
+        if i + 5 >= len(coords):
+            break
+        x1, y1, x2, y2, x3, y3 = coords[i:i+6]
+        path.cubicTo(
+            QPointF(x1, y1),  # control1
+            QPointF(x2, y2),  # control2
+            QPointF(x3, y3)   # end point
+        )
+    
+    return path
+
+
+def points_to_qpainter_path(points: List[Tuple[float, float]], 
+                           corner_threshold: float = 30.0,
+                           smoothness: float = 0.3) -> 'QPainterPath':
+    """
+    Convert a list of (x,y) tuples directly to a QPainterPath with Bezier approximation.
+    
+    This is a convenience function that combines path_to_bezier and 
+    bezier_path_to_qpainter_path for easy use with Qt graphics.
+    
+    Args:
+        points: List of (x,y) tuples representing the path
+        corner_threshold: Angle in degrees below which a corner is considered sharp
+        smoothness: Factor controlling how smooth the curves are (0.0 = sharp, 1.0 = very smooth)
+    
+    Returns:
+        QPainterPath object that can be used for drawing
+    """
+    try:
+        from PySide6.QtGui import QPainterPath
+    except ImportError:
+        raise ImportError("PySide6 is required for QPainterPath conversion")
+    
+    bezier_path = path_to_bezier(points, corner_threshold, smoothness)
+    return bezier_path_to_qpainter_path(bezier_path)
+
+
+def simplify_bezier_path(bezier_path: 'BezierPath', 
+                        tolerance: float = 0.1,
+                        corner_threshold: float = 30.0,
+                        max_segments: Optional[int] = None) -> 'BezierPath':
+    """
+    Simplify a Bezier path by reducing the number of control points while preserving features.
+    
+    This function creates a new Bezier path that closely approximates the original
+    but uses fewer control points. It preserves sharp corners and handles closed paths
+    by ensuring the start and end control points are properly connected.
+    
+    Args:
+        bezier_path: The BezierPath to simplify
+        tolerance: Distance tolerance for point removal (default: 0.1)
+        corner_threshold: Angle in degrees below which a corner is considered sharp (default: 30.0)
+        max_segments: Maximum number of segments to allow (default: None, no limit)
+    
+    Returns:
+        Simplified BezierPath object
+    """
+    if bezier_path.is_empty():
+        return BezierPath()
+    
+    # Convert Bezier path back to points for analysis
+    points = []
+    for segment in bezier_path:
+        # Add start point of each segment
+        points.append(segment.start_point())
+        # Add end point of last segment
+        if segment == list(bezier_path)[-1]:
+            points.append(segment.end_point())
+    
+    # Detect if the path is closed
+    is_closed = bezier_path.is_closed
+    
+    # Simplify the points
+    simplified_bezier = simplify_path_for_bezier(points, tolerance)
+    
+    # If we have a maximum segment limit, further reduce points
+    if max_segments is not None and len(simplified_bezier) > max_segments:
+        # Use a more aggressive tolerance to reduce points
+        simplified_bezier = simplify_path_for_bezier(points, tolerance * 2)
+        
+        # If still too many segments, use uniform sampling
+        if len(simplified_bezier) > max_segments:
+            # Convert back to points for uniform sampling
+            simplified_points = []
+            for segment in simplified_bezier:
+                simplified_points.append(segment.start_point())
+                if segment == list(simplified_bezier)[-1]:
+                    simplified_points.append(segment.end_point())
+            
+            step = len(simplified_points) // max_segments
+            sampled_points = [simplified_points[i] for i in range(0, len(simplified_points), step)]
+            # Ensure we keep the last point
+            if sampled_points[-1] != simplified_points[-1]:
+                sampled_points.append(simplified_points[-1])
+            
+            # Convert back to Bezier path
+            simplified_bezier = path_to_bezier(
+                sampled_points,
+                corner_threshold=corner_threshold,
+                smoothness=0.3
+            )
+    
+    # Ensure closed paths are properly closed
+    if is_closed and not simplified_bezier.is_closed:
+        # Add a segment to close the path if needed
+        start_point = simplified_bezier.start_point()
+        end_point = simplified_bezier.end_point()
+        if start_point and end_point:
+            # Create a simple line segment to close the path
+            coords = simplified_bezier.coords
+            if len(coords) >= 8:
+                # Add control points for closing segment
+                x0, y0 = coords[-2], coords[-1]  # End point
+                x3, y3 = coords[0], coords[1]    # Start point
+                
+                # Create control points for smooth closure
+                dx = x3 - x0
+                dy = y3 - y0
+                x1 = x0 + dx / 3.0
+                y1 = y0 + dy / 3.0
+                x2 = x0 + 2.0 * dx / 3.0
+                y2 = y0 + 2.0 * dy / 3.0
+                
+                coords.extend([x1, y1, x2, y2, x3, y3])
+                simplified_bezier = BezierPath(coords)
+    
+    return simplified_bezier
+
+
+def simplify_bezier_path_adaptive(bezier_path: 'BezierPath',
+                                 target_segments: int = 10,
+                                 corner_threshold: float = 30.0) -> 'BezierPath':
+    """
+    Simplify a Bezier path adaptively to achieve a target number of segments.
+    
+    This function uses an adaptive approach to simplify a Bezier path to approximately
+    the target number of segments while preserving important features like sharp corners.
+    
+    Args:
+        bezier_path: The BezierPath to simplify
+        target_segments: Target number of segments (default: 10)
+        corner_threshold: Angle in degrees below which a corner is considered sharp (default: 30.0)
+    
+    Returns:
+        Simplified BezierPath object with approximately target_segments segments
+    """
+    if bezier_path.is_empty():
+        return BezierPath()
+    
+    current_segments = len(bezier_path)
+    if current_segments <= target_segments:
+        return bezier_path
+    
+    # Convert to points
+    points = []
+    for segment in bezier_path:
+        points.append(segment.start_point())
+        if segment == list(bezier_path)[-1]:
+            points.append(segment.end_point())
+    
+    # Use binary search to find appropriate tolerance
+    min_tolerance = 0.001
+    max_tolerance = 1.0
+    best_result = None
+    
+    for _ in range(10):  # Limit iterations
+        tolerance = (min_tolerance + max_tolerance) / 2
+        
+        # Simplify with current tolerance
+        simplified_bezier = simplify_path_for_bezier(points, tolerance)
+        
+        result_segments = len(simplified_bezier)
+        
+        if abs(result_segments - target_segments) <= 2:
+            # Close enough to target
+            best_result = simplified_bezier
+            break
+        elif result_segments > target_segments:
+            # Too many segments, increase tolerance
+            min_tolerance = tolerance
+        else:
+            # Too few segments, decrease tolerance
+            max_tolerance = tolerance
+            best_result = simplified_bezier
+    
+    # Ensure closed paths are properly closed
+    if bezier_path.is_closed and best_result and not best_result.is_closed:
+        coords = best_result.coords
+        if len(coords) >= 8:
+            x0, y0 = coords[-2], coords[-1]
+            x3, y3 = coords[0], coords[1]
+            dx = x3 - x0
+            dy = y3 - y0
+            x1 = x0 + dx / 3.0
+            y1 = y0 + dy / 3.0
+            x2 = x0 + 2.0 * dx / 3.0
+            y2 = y0 + 2.0 * dy / 3.0
+            coords.extend([x1, y1, x2, y2, x3, y3])
+            best_result = BezierPath(coords)
+    
+    return best_result or bezier_path
+
+
+def bezier_path_quality_metrics(original: 'BezierPath', simplified: 'BezierPath') -> dict:
+    """
+    Calculate quality metrics for comparing original and simplified Bezier paths.
+    
+    Args:
+        original: The original BezierPath
+        simplified: The simplified BezierPath
+    
+    Returns:
+        Dictionary containing quality metrics
+    """
+    if original.is_empty() or simplified.is_empty():
+        return {'error': 'Empty path provided'}
+    
+    # Basic metrics
+    metrics = {
+        'original_segments': len(original),
+        'simplified_segments': len(simplified),
+        'segment_reduction': ((len(original) - len(simplified)) / len(original)) * 100 if len(original) > 0 else 0,
+        'original_coords': len(original.coords),
+        'simplified_coords': len(simplified.coords),
+        'coord_reduction': ((len(original.coords) - len(simplified.coords)) / len(original.coords)) * 100 if len(original.coords) > 0 else 0
+    }
+    
+    # Calculate approximate path lengths
+    original_length = original.length()
+    simplified_length = simplified.length()
+    
+    if original_length > 0:
+        metrics['length_ratio'] = simplified_length / original_length
+        metrics['length_error_percent'] = abs(1 - metrics['length_ratio']) * 100
+    else:
+        metrics['length_ratio'] = 1.0
+        metrics['length_error_percent'] = 0.0
+    
+    # Check if both paths are closed
+    metrics['original_closed'] = original.is_closed
+    metrics['simplified_closed'] = simplified.is_closed
+    metrics['closure_preserved'] = original.is_closed == simplified.is_closed
+    
+    return metrics

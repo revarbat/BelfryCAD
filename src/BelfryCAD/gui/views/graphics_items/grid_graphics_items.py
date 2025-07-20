@@ -16,6 +16,8 @@ class GridBackground(QGraphicsItem):
         self.setFlag(
             QGraphicsItem.GraphicsItemFlag.ItemUsesExtendedStyleOption, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
 
     def boundingRect(self):
         """Return the bounding rectangle of the grid."""
@@ -85,6 +87,8 @@ class RulersForeground(QGraphicsItem):
         self.setFlag(
             QGraphicsItem.GraphicsItemFlag.ItemUsesExtendedStyleOption, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
         self.setAcceptHoverEvents(True)
 
     def boundingRect(self):
@@ -123,6 +127,11 @@ class RulersForeground(QGraphicsItem):
                         if isinstance(item, GridBackground):
                             item.update()
                             break
+                    
+                    # Notify the scene to refresh gear items
+                    scene = self.scene()
+                    if scene and hasattr(scene, 'refresh_gear_items_for_unit_change'):
+                        scene.refresh_gear_items_for_unit_change()
 
     @staticmethod
     def draw_label(

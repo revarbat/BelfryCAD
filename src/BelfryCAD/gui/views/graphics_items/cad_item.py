@@ -3,8 +3,8 @@ Base CAD item class for graphics items with animated selection and control point
 """
 
 from typing import List, Optional
-from PySide6.QtWidgets import QGraphicsItem
-from PySide6.QtCore import QPointF, QTimer, QEvent
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsDropShadowEffect
+from PySide6.QtCore import QPointF, QEvent
 from PySide6.QtGui import QPen, QColor, QBrush, Qt
 from .control_points import ControlPoint
 
@@ -18,10 +18,8 @@ class CadItem(QGraphicsItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setHandlesChildEvents(False)
 
-        # Selection animation
-        self._selection_animation_offset = 0.0
-        self._selection_timer = QTimer()
-        self._selection_timer.timeout.connect(self._update_selection_animation)
+        # Selection blur effect
+        self._selection_blur_effect = None
 
         # Control point items (children)
         self._control_point_items = []
@@ -33,10 +31,11 @@ class CadItem(QGraphicsItem):
         # QTimer.singleShot(0, self._create_control_points_impl)
 
     def __del__(self):
-        """Destructor to ensure timer is stopped."""
+        """Destructor to clean up blur effect."""
         try:
-            if hasattr(self, '_selection_timer'):
-                self._selection_timer.stop()
+            if hasattr(self, '_selection_blur_effect') and self._selection_blur_effect:
+                self.setGraphicsEffect(None)
+                self._selection_blur_effect = None
         except:
             pass
 
@@ -44,16 +43,16 @@ class CadItem(QGraphicsItem):
         """Handle item state changes using Qt's built-in system."""
         if change == QGraphicsItem.GraphicsItemChange.ItemSelectedChange:
             if value:  # Becoming selected
-                self._start_selection_animation()
+                self._apply_selection_blur()
                 # Check selection state (control points managed by scene)
                 self._check_selection_state()
             else:  # Becoming deselected
-                self._stop_selection_animation()
+                self._remove_selection_blur()
                 self._was_singly_selected = False
         elif change == QGraphicsItem.GraphicsItemChange.ItemSceneChange:
             # Item is being removed from scene
             if value is None:  # Being removed from scene
-                self._stop_selection_animation()
+                self._remove_selection_blur()
                 self._was_singly_selected = False
         elif change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             # Control points are managed by the scene, which will update them as needed
@@ -83,78 +82,30 @@ class CadItem(QGraphicsItem):
             # Not selected or multiple selection - control points will be hidden by the scene
             self._was_singly_selected = False
 
-    def _start_selection_animation(self):
-        """Start the selection animation."""
-        self._selection_animation_offset = 0.0
-        self._selection_timer.start(50)  # Update every 50ms
+    def _apply_selection_blur(self):
+        """Apply blue blur effect when item is selected."""
+        if not self._selection_blur_effect:
+            self._selection_blur_effect = QGraphicsDropShadowEffect()
+            self._selection_blur_effect.setBlurRadius(8.0)
+            self._selection_blur_effect.setColor(QColor(255, 0, 0, 255))  # Blue with alpha
+            self._selection_blur_effect.setOffset(0, 0)
+            self.setGraphicsEffect(self._selection_blur_effect)
 
-    def _stop_selection_animation(self):
-        """Stop the selection animation."""
-        self._selection_timer.stop()
-        self._selection_animation_offset = 0.0
-
-    def _update_selection_animation(self):
-        """Update the selection animation offset."""
-        try:
-            if not self.scene():
-                self._stop_selection_animation()
-                return
-
-            self._selection_animation_offset += 0.1
-            if self._selection_animation_offset >= 6.0:  # Complete rainbow cycle (6 color segments)
-                self._selection_animation_offset = 0.0
-            self.update()
-        except RuntimeError:
-            self._stop_selection_animation()
-        except Exception:
-            self._stop_selection_animation()
+    def _remove_selection_blur(self):
+        """Remove blur effect when item is deselected."""
+        if self._selection_blur_effect:
+            self.setGraphicsEffect(None)
+            self._selection_blur_effect = None
 
     def paint(self, painter, option, widget=None):
         """Main paint method that handles selection and calls paint_item."""
-        # Draw the main item with selection animation if selected
-        if self.isSelected():
-            self.paint_item_with_selection(painter, option, widget)
-        else:
-            self.paint_item(painter, option, widget)
+        # Draw the main item normally (blur effect is handled by graphics effect)
+        self.paint_item(painter, option, widget)
 
     def paint_item_with_selection(self, painter, option, widget=None):
-        """Paint the item with selection animation. Override in subclasses for custom selection behavior."""
-        # Default behavior: call paint_item with selection color
-        self.paint_item_with_color(painter, option, widget, self._get_selection_color())
-
-    def _get_selection_color(self):
-        """Get the current selection color based on animation offset."""
-        # Calculate color based on animation offset, avoiding very light colors
-        # Animation goes from 0.0 to 6.0 for full cycle
-        # Use a restricted color range that avoids green and cyan
-        # Map 0.0-6.0 to colors: red -> magenta -> blue -> orange -> red
-        
-        offset = self._selection_animation_offset
-        cycle = offset % 6.0  # Ensure we stay in 0-6 range
-        
-        if cycle < 1.5:
-            # Red to magenta (0.0-1.5)
-            hue = 0  # Red
-            saturation = 255
-            value = 255
-        elif cycle < 3.0:
-            # Magenta to blue (1.5-3.0)
-            hue = int(((cycle - 1.5) / 1.5) * 60) + 300  # 300-360 (magenta to blue)
-            saturation = 255
-            value = 255
-        elif cycle < 4.5:
-            # Blue to orange (3.0-4.5)
-            hue = int(((cycle - 3.0) / 1.5) * 60) + 240  # 240-300 (blue to magenta)
-            saturation = 255
-            value = 255
-        else:
-            # Orange to red (4.5-6.0)
-            hue = int(((cycle - 4.5) / 1.5) * 30) + 0  # 0-30 (red to orange)
-            saturation = 255
-            value = 255
-        
-        # Create color from HSV (Hue, Saturation, Value)
-        return QColor.fromHsv(hue, saturation, value)
+        """Paint the item with selection effect. Override in subclasses for custom selection behavior."""
+        # Default behavior: call paint_item normally (blur effect is handled by graphics effect)
+        self.paint_item(painter, option, widget)
 
     def paint_item_with_color(self, painter, option, widget=None, color=None):
         """Paint the item with a specific color. Override in subclasses."""
@@ -381,6 +332,20 @@ class CadItem(QGraphicsItem):
         scale = painter.transform().m11()
         arrow_w = 4.0 / scale
         self.draw_arrow(painter, point, angle, rad_len, arrow_w)
+        painter.restore()
+
+    def draw_diameter_arrow(self, painter, point, angle, diameter, line_width):
+        if not self._is_singly_selected():
+            return
+        painter.save()
+        radius = diameter/2
+        rad_len = radius - line_width/2
+        painter.setPen(self.get_solid_construction_pen())
+        painter.setBrush(self.get_construction_brush())
+        scale = painter.transform().m11()
+        arrow_w = 4.0 / scale
+        self.draw_arrow(painter, point, angle, rad_len, arrow_w)
+        self.draw_arrow(painter, point, angle+180, rad_len, arrow_w)
         painter.restore()
 
     def draw_center_cross(self, painter, point):

@@ -40,7 +40,7 @@ keywords = ["cad", "cam", "cad/cam", "computer aided design", "computer aided ma
 dependencies = [
     "pillow>=10.3.0",
     "numpy>=1.25.2",
-    "pyclipr>=0.1.7",
+    "pyclipper>=1.3.0",
 ]
 
 [project.urls]
@@ -50,9 +50,6 @@ dependencies = [
 "Releases" = "https://github.com/revarbat/BelfryCAD/releases"
 "Usage" = "https://github.com/revarbat/BelfryCAD/README.rst"
 "Documentation" = "https://github.com/revarbat/BelfryCAD/wiki/"
-
-[tool.setuptools]
-include_package_data = True
 
 [tool.setuptools.packages.find]
 where = ["src"]
