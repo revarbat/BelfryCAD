@@ -60,28 +60,20 @@ class CircleCornerCadItem(CadItem):
 
     def boundingRect(self):
         """Return the bounding rectangle of the circle."""
-        if not self._is_valid or self._radius <= 0:
-            # Fallback to bounding box of all points
-            center = self._calculated_center
+        rect = CadRect()
+        if self._is_valid and self._radius > 0:
+            # For valid circles, use circle bounding box
+            radius = self._radius
+            rect.expandToPoint(QPointF(-radius, -radius))
+            rect.expandToPoint(QPointF(radius, radius))
 
-            # Create a CadRect containing all points in local coordinates
-            rect = CadRect()
-            rect.expandToPoint(self._corner_point - center)
-            rect.expandToPoint(self._ray1_point - center)
-            rect.expandToPoint(self._ray2_point - center)
-            rect.expandToPoint(self._center_point - center)
-
-            # Add padding for line width
-            rect.expandByScalar(self._line_width / 2)
-
-            return rect
-
-        # For valid circles, use circle bounding box
-        radius = self._radius
-        rect = CadRect(-radius, -radius, 2 * radius, 2 * radius)
+        center = self._calculated_center
+        rect.expandToPoint(self._corner_point - center)
+        rect.expandToPoint(self._ray1_point - center)
+        rect.expandToPoint(self._ray2_point - center)
 
         # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
+        rect.expandByScalar(max(self._line_width / 2, 0.1))
 
         return rect
 
@@ -151,6 +143,9 @@ class CircleCornerCadItem(CadItem):
             setter=self._set_radius_value,
             prefix="R",
             cad_item=self,
+            label="Circle Radius",
+            angle=45,
+            pixel_offset=10,
             precision=precision
         )
         self.updateControls()

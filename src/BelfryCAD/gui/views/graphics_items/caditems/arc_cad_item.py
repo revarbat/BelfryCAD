@@ -59,9 +59,11 @@ class ArcCadItem(CadItem):
         # Create a CadRect and expand it to include the arc
         rect = CadRect()
         rect.expandWithArc(self._center_point, radius, start_angle, end_angle)
+        rect.expandToPoint(self._center_point + QPointF(radius, radius))
+        rect.expandToPoint(self._center_point - QPointF(radius, radius))
 
         # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
+        rect.expandByScalar(max(self._line_width / 2, 0.1))
 
         return rect
 
@@ -114,6 +116,9 @@ class ArcCadItem(CadItem):
             setter=self._set_radius_value,
             prefix="R",
             cad_item=self,
+            label="Arc Radius",
+            angle=45,
+            pixel_offset=10,
             precision=precision
         )
 

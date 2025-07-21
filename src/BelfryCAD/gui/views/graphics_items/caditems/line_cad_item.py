@@ -12,7 +12,7 @@ from PySide6.QtGui import (
 )
 from ..cad_item import CadItem
 from ..control_points import (
-    ControlPoint, SquareControlPoint, DiamondControlPoint
+    ControlPoint, SquareControlPoint, DiamondControlPoint, ControlDatum
 )
 from ..cad_rect import CadRect
 
@@ -35,9 +35,13 @@ class LineCadItem(CadItem):
         rect = CadRect()
         rect.expandToPoint(self._start_point)
         rect.expandToPoint(self._end_point)
+        
+        pvec = self.get_perpendicular_vector()
+        rect.expandToPoint(self._start_point + pvec)
+        rect.expandToPoint(self._end_point + pvec)
 
         # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
+        rect.expandByScalar(max(self._line_width / 2, 0.1))
 
         return rect
 
@@ -84,22 +88,40 @@ class LineCadItem(CadItem):
             cad_item=self,
             setter=self._set_mid_point
         )
+        precision = 4
+        self._length_datum = ControlDatum(
+            setter=self._set_length,
+            format_string=f"{{:.{precision}f}}",
+            cad_item=self,
+            label="Line Length",
+            precision=precision
+        )
         self.updateControls()
 
         # Return the list of control points
-        return [self._start_cp, self._end_cp, self._mid_cp]
+        return [self._start_cp, self._end_cp, self._mid_cp, self._length_datum]
 
     def updateControls(self):
         """Update control point positions."""
         if hasattr(self, '_start_cp') and self._start_cp:
-            # Points are already in local coordinates
             self._start_cp.setPos(self._start_point)
         if hasattr(self, '_end_cp') and self._end_cp:
-            # Points are already in local coordinates
             self._end_cp.setPos(self._end_point)
         if hasattr(self, '_mid_cp') and self._mid_cp:
-            # Midpoint is already in local coordinates
             self._mid_cp.setPos(self.midpoint)
+        if hasattr(self, '_length_datum') and self._length_datum:
+            self._length_datum.update_datum(
+                self.length,
+                self.midpoint + self.get_perpendicular_vector() * 0.75
+            )
+
+    def get_perpendicular_vector(self) -> QPointF:
+        """Get the perpendicular vector to the line segment."""
+        vec = self._end_point - self._start_point
+        pvec = QPointF(vec.y(), -vec.x())
+        scale = self.scene().views()[0].transform().m11()
+        pvec *= 50.0 / scale / math.hypot(pvec.x(), pvec.y())
+        return pvec
 
     def getControlPoints(
             self,
@@ -160,6 +182,12 @@ class LineCadItem(CadItem):
 
         # Draw the line
         painter.drawLine(self._start_point, self._end_point)
+
+        if self._is_singly_selected():
+            pvec = self.get_perpendicular_vector()
+            self.draw_construction_line(painter, self._start_point + pvec * 0.75, self._end_point + pvec * 0.75)
+            self.draw_construction_line(painter, self._start_point, self._start_point + pvec)
+            self.draw_construction_line(painter, self._end_point, self._end_point + pvec)
 
         painter.restore()
 
@@ -273,6 +301,16 @@ class LineCadItem(CadItem):
 
     @length.setter
     def length(self, value):
+        """Set the length of the line segment by moving the endpoint."""
+        current_angle = self.angle
+        self._end_point = QPointF(
+            self._start_point.x() + value * math.cos(current_angle),
+            self._start_point.y() + value * math.sin(current_angle)
+        )
+        self.prepareGeometryChange()
+        self.update()
+
+    def _set_length(self, value):
         """Set the length of the line segment by moving the endpoint."""
         current_angle = self.angle
         self._end_point = QPointF(

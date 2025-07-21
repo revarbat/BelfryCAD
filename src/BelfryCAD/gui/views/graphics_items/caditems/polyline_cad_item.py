@@ -39,7 +39,7 @@ class PolylineCadItem(CadItem):
             rect.expandToPoint(point)
 
         # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
+        rect.expandByScalar(max(self._line_width / 2, 0.1))
 
         return rect
 

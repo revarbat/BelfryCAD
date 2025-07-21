@@ -131,7 +131,7 @@ class RulersForeground(QGraphicsItem):
                     # Notify the scene to refresh gear items
                     scene = self.scene()
                     if scene and hasattr(scene, 'refresh_gear_items_for_unit_change'):
-                        scene.refresh_gear_items_for_unit_change()
+                        scene.refresh_gear_items_for_unit_change()  # type: ignore
 
     @staticmethod
     def draw_label(

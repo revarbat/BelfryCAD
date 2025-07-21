@@ -136,12 +136,11 @@ class Circle3PointsCadItem(CadItem):
 
             # Create a CadRect containing all three points in local coordinates
             rect = CadRect()
-            rect.expandToPoint(self._point1 - midpoint)
-            rect.expandToPoint(self._point2 - midpoint)
-            rect.expandToPoint(self._point3 - midpoint)
+            rect.expandToPoint(self._center + QPointF(self._radius, self._radius))
+            rect.expandToPoint(self._center - QPointF(self._radius, self._radius))
 
             # Add padding for line width
-            rect.expandByScalar(self._line_width / 2)
+            rect.expandByScalar(max(self._line_width / 2, 0.1))
 
             return rect
         else:
@@ -152,7 +151,7 @@ class Circle3PointsCadItem(CadItem):
             rect = CadRect(-radius, -radius, 2 * radius, 2 * radius)
 
             # Add padding for line width
-            rect.expandByScalar(self._line_width / 2)
+            rect.expandByScalar(max(self._line_width / 2, 0.1))
 
             return rect
 
@@ -241,6 +240,9 @@ class Circle3PointsCadItem(CadItem):
             setter=self._set_radius_value,
             prefix="R",
             cad_item=self,
+            label="Circle Radius",
+            angle=45,
+            pixel_offset=10,
             precision=precision
         )
         

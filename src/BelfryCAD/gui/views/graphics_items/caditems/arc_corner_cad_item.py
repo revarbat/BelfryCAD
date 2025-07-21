@@ -87,9 +87,14 @@ class ArcCornerCadItem(CadItem):
         # Create a CadRect and expand it to include the arc
         rect = CadRect()
         rect.expandWithArc(QPointF(0, 0), self._radius, start_angle, end_angle)
+        rect.expandToPoint(self._corner_point - self._calculated_center)
+        rect.expandToPoint(self._ray1_point - self._calculated_center)
+        rect.expandToPoint(self._ray2_point - self._calculated_center)
+        rect.expandToPoint(self._center_point + QPointF(self._radius, self._radius))
+        rect.expandToPoint(self._center_point - QPointF(self._radius, self._radius))
 
         # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
+        rect.expandByScalar(max(self._line_width / 2, 0.1))
 
         return rect
 
@@ -155,6 +160,9 @@ class ArcCornerCadItem(CadItem):
             setter=self._set_radius_value,
             prefix="R",
             cad_item=self,
+            label="Arc Radius",
+            angle=45,
+            pixel_offset=10,
             precision=precision
         )
         self.updateControls()

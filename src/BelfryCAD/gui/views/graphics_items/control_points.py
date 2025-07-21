@@ -229,8 +229,8 @@ class ControlDatum(ControlPoint):
         suffix="",
         cad_item=None,
         label = "value",
-        angle = 45,
-        pixel_offset = 10,
+        angle = None,
+        pixel_offset = 0,
         precision=3
     ):
         super().__init__(
@@ -259,6 +259,14 @@ class ControlDatum(ControlPoint):
         self._cached_bounding_rect = QRectF(0, 0, 0, 0)
         self._cached_scale = 1.0
         self._needs_geometry_update = True
+
+        # Set tooltip to label if it's not "value"
+        if self.label != "value":
+            self.setToolTip(self.label)
+            print(f"Setting tooltip to {self.label}")
+        else:
+            self.setToolTip("")
+            print(f"Setting tooltip {self.prefix} to empty string")
 
     def get_position(self):
         """Get the current position."""
@@ -349,21 +357,26 @@ class ControlDatum(ControlPoint):
         box_height = text_rect.height() + 2 * padding
 
         # Calculate label position relative to datum position
-        ocos = math.cos(math.radians(self.angle))
-        osin = math.sin(math.radians(self.angle))
+        if self.angle is not None:
+            ocos = math.cos(math.radians(self.angle))
+            osin = math.sin(math.radians(self.angle))
+        else:
+            ocos = 0
+            osin = 0
         label_pos = QPointF(
             self.pixel_offset * ocos,
             -self.pixel_offset * osin
         )
 
-        if ocos < 0:
+        epsilon = 1e-6
+        if ocos < -epsilon:
             label_pos += QPointF(-box_width/2, 0)
-        elif ocos > 0:
+        elif ocos > epsilon:
             label_pos += QPointF(box_width/2, 0)
 
-        if osin > 0:
+        if osin > epsilon:
             label_pos += QPointF(0, -box_height/2)
-        elif osin < 0:
+        elif osin < -epsilon:
             label_pos += QPointF(0, box_height/2)
 
         # Draw background rectangle

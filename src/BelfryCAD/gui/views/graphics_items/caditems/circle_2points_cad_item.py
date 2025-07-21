@@ -51,7 +51,7 @@ class Circle2PointsCadItem(CadItem):
         rect = CadRect(-radius, -radius, 2 * radius, 2 * radius)
 
         # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
+        rect.expandByScalar(max(self._line_width / 2, 0.1))
 
         return rect
 
@@ -111,6 +111,9 @@ class Circle2PointsCadItem(CadItem):
             setter=self._set_radius_value,
             prefix="R",
             cad_item=self,
+            label="Circle Radius",
+            angle=45,
+            pixel_offset=10,
             precision=precision
         )
         self.updateControls()

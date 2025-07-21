@@ -17,7 +17,6 @@ from ..cad_rect import CadRect
 from ...widgets.cad_scene import CadScene
 
 
-
 # Helper functions
 def _involute(base_r: float, a: float) -> Tuple[float, float]:
     """Calculate a point on the involute curve, by angle in degrees."""
@@ -650,7 +649,8 @@ class GearCadItem(CadItem):
     def boundingRect(self):
         if self._gear_path is not None:
             rect = self._gear_path.boundingRect()
-            rect.adjust(-self._line_width, -self._line_width, self._line_width, self._line_width)
+            padding = max(self._line_width / 2, 0.1)
+            rect.adjust(-padding, -padding, padding, padding)
             return rect
         return CadRect(-1, -1, 2, 2)
 
@@ -685,19 +685,6 @@ class GearCadItem(CadItem):
     def paint_item(self, painter, option, widget=None):
         self.paint_item_with_color(painter, option, widget, self._color)
 
-    def _get_grid_info(self):
-        scene = self.scene()
-        if scene and isinstance(scene, CadScene):
-            mainwin = scene.parent()
-            return mainwin.grid_info
-        return None
-
-    def is_metric(self):
-        grid_info = self._get_grid_info()
-        if grid_info:
-            return grid_info.is_metric
-        return False
-
     def _create_controls_impl(self):
         # Get precision from scene if available
         precision = 3
@@ -717,7 +704,7 @@ class GearCadItem(CadItem):
             prefix="D",
             format_string=f"{{:.{precision}f}}",
             cad_item=self,
-            label="Pitch Diameter",
+            label="Pitch Circle Diameter",
             precision=precision,
             angle=45,
             pixel_offset=10
@@ -750,7 +737,7 @@ class GearCadItem(CadItem):
             prefix="m: ",
             format_string=f"{{:.{precision}f}}",
             cad_item=self,
-            label="Module",
+            label="GearModule",
             precision=precision,
             angle=-135,
             pixel_offset=10
@@ -760,7 +747,7 @@ class GearCadItem(CadItem):
             prefix="DP: ",
             format_string=f"{{:.{precision}f}}",
             cad_item=self,
-            label="Diametral Pitch",
+            label="Diametral Gear Pitch",
             precision=precision,
             angle=-135,
             pixel_offset=10
@@ -800,14 +787,16 @@ class GearCadItem(CadItem):
             self._tooth_count_datum.update_datum(self._tooth_count, pos)
         
         # Update the appropriate datum based on metric setting
+        is_metric = self.is_metric()
+        selected = self._is_singly_selected()
         if self._module_datum:
             pos = self._center
             self._module_datum.update_datum(self.module, pos)
-            self._module_datum.setVisible(self.is_metric())
+            self._module_datum.setVisible(is_metric and selected)
         elif self._diametral_pitch_datum:
             pos = self._center
             self._diametral_pitch_datum.update_datum(self.diametral_pitch, pos)
-            self._diametral_pitch_datum.setVisible(not self.is_metric())
+            self._diametral_pitch_datum.setVisible(not is_metric and selected)
 
     def _get_control_point_objects(self):
         cps = []

@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
 from PySide6.QtCore import Qt, QPointF, QTimer
-from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath
+
 from ..graphics_items.cad_item import CadItem
 from ..graphics_items.control_points import ControlPoint, ControlDatum
 
@@ -290,12 +290,12 @@ class CadScene(QGraphicsScene):
         for cd in self._control_datums.get(cad_item, []):
             if cd:
                 # Check if the CAD item has custom visibility logic
-                if hasattr(cad_item, '_is_metric') and hasattr(cad_item, '_module_datum') and hasattr(cad_item, '_diametral_pitch_datum'):
+                if hasattr(cad_item, 'is_metric') and hasattr(cad_item, '_module_datum') and hasattr(cad_item, '_diametral_pitch_datum'):
                     # For GearCadItem, respect the metric-based visibility
-                    if cd == cad_item._module_datum:
-                        cd.setVisible(cad_item._is_metric)
-                    elif cd == cad_item._diametral_pitch_datum:
-                        cd.setVisible(not cad_item._is_metric)
+                    if cd == cad_item._module_datum: # type: ignore
+                        cd.setVisible(cad_item.is_metric()) # type: ignore
+                    elif cd == cad_item._diametral_pitch_datum: # type: ignore
+                        cd.setVisible(not cad_item.is_metric()) # type: ignore
                     else:
                         cd.setVisible(True)
                 else:

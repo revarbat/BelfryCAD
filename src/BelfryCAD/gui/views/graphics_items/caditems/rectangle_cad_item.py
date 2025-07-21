@@ -37,7 +37,7 @@ class RectangleCadItem(CadItem):
         rect.expandToPoint(self._bottom_left)
 
         # Add padding for line width
-        rect.expandByScalar(self._line_width / 2)
+        rect.expandByScalar(max(self._line_width / 2, 0.1))
 
         return rect
 
@@ -88,11 +88,32 @@ class RectangleCadItem(CadItem):
             cad_item=self,
             setter=self._set_center
         )
+        precision = 4
+        self._width_datum = ControlDatum(
+            setter=self._set_width,
+            format_string=f"{{:.{precision}f}}",
+            cad_item=self,
+            label="Rectangle Width",
+            angle=-90,
+            pixel_offset=10
+        )
+        self._height_datum = ControlDatum(
+            setter=self._set_height,
+            format_string=f"{{:.{precision}f}}",
+            cad_item=self,
+            label="Rectangle Height",
+            angle=180,
+            pixel_offset=10
+        )
         self.updateControls()
         
         # Store control points in the list that the scene expects
-        control_points = [self._top_left_cp, self._top_right_cp, self._bottom_right_cp, 
-                         self._bottom_left_cp, self._center_cp]
+        control_points = [
+            self._top_left_cp, self._top_right_cp,
+            self._bottom_right_cp, self._bottom_left_cp,
+            self._center_cp,
+            self._width_datum, self._height_datum
+        ]
         self._control_point_items.extend(control_points)
         
         # Return the list of control points
@@ -118,6 +139,12 @@ class RectangleCadItem(CadItem):
             center_y = (self._top_left.y() + self._bottom_right.y()) / 2
             scene_center = QPointF(center_x, center_y)
             self._center_cp.setPos(scene_center)
+        if hasattr(self, '_width_datum') and self._width_datum:
+            midbottom = QPointF(self._bottom_left.x() + self.width / 2, self._bottom_left.y())   
+            self._width_datum.update_datum(self.width, midbottom)
+        if hasattr(self, '_height_datum') and self._height_datum:
+            midleft = QPointF(self._bottom_left.x(), self._bottom_left.y() + self.height / 2)
+            self._height_datum.update_datum(self.height, midleft)
 
     def getControlPoints(
             self,
@@ -247,6 +274,20 @@ class RectangleCadItem(CadItem):
         path.lineTo(self._bottom_left)
         path.closeSubpath()  # Close the rectangle
         return path
+
+    def _set_width(self, value):
+        """Set the width of the rectangle."""
+        self._top_right = QPointF(self._top_left.x() + value, self._top_right.y())
+        self._bottom_right = QPointF(self._bottom_left.x() + value, self._bottom_right.y())
+        self.prepareGeometryChange()
+        self.update()
+
+    def _set_height(self, value):
+        """Set the height of the rectangle."""
+        self._top_left = QPointF(self._bottom_left.x(), self._bottom_left.y() + value)
+        self._top_right = QPointF(self._bottom_right.x(), self._bottom_right.y() + value)
+        self.prepareGeometryChange()
+        self.update()
 
     @property
     def top_left(self):

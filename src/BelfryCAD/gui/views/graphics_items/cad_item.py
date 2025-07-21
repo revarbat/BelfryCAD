@@ -2,11 +2,14 @@
 Base CAD item class for graphics items with animated selection and control points.
 """
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsDropShadowEffect
 from PySide6.QtCore import QPointF, QEvent
 from PySide6.QtGui import QPen, QColor, QBrush, Qt
 from .control_points import ControlPoint
+
+if TYPE_CHECKING:
+    from ..widgets.cad_scene import CadScene
 
 
 class CadItem(QGraphicsItem):
@@ -34,7 +37,7 @@ class CadItem(QGraphicsItem):
         """Destructor to clean up blur effect."""
         try:
             if hasattr(self, '_selection_blur_effect') and self._selection_blur_effect:
-                self.setGraphicsEffect(None)
+                self.setGraphicsEffect(None) # type: ignore
                 self._selection_blur_effect = None
         except:
             pass
@@ -94,7 +97,7 @@ class CadItem(QGraphicsItem):
     def _remove_selection_blur(self):
         """Remove blur effect when item is deselected."""
         if self._selection_blur_effect:
-            self.setGraphicsEffect(None)
+            self.setGraphicsEffect(None) # type: ignore
             self._selection_blur_effect = None
 
     def paint(self, painter, option, widget=None):
@@ -291,7 +294,7 @@ class CadItem(QGraphicsItem):
     def get_dashed_construction_pen(self) -> QPen:
         """Get a dashed construction pen with #7f7f7f color, 2.0 line width, and cosmetic style."""
         pen = QPen(QColor(0x7f, 0x7f, 0x7f))  # #7f7f7f color
-        pen.setWidthF(3.0)
+        pen.setWidthF(2.0)
         pen.setCosmetic(True)
         pen.setDashPattern([3.0, 3.0])
         return pen
@@ -299,7 +302,7 @@ class CadItem(QGraphicsItem):
     def get_solid_construction_pen(self) -> QPen:
         """Get a solid construction pen with #7f7f7f color, 2.0 line width, and cosmetic style."""
         pen = QPen(QColor(0x7f, 0x7f, 0x7f))  # #7f7f7f color
-        pen.setWidthF(3.0)
+        pen.setWidthF(2.0)
         pen.setCosmetic(True)
         pen.setStyle(Qt.PenStyle.SolidLine)
         return pen
@@ -383,4 +386,25 @@ class CadItem(QGraphicsItem):
         painter.setPen(self.get_dashed_construction_pen())
         painter.drawLine(point1, point2)
         painter.restore()
+
+    @property
+    def main_window(self) -> Optional['MainWindow']: # type: ignore
+        scene = self.scene()
+        # Use string comparison to avoid circular import
+        if scene and scene.__class__.__name__ == 'CadScene':
+            return scene.parent()
+        return None
+
+    @property
+    def grid_info(self) -> Optional['GridInfo']: # type: ignore
+        mainwin = self.main_window
+        if mainwin and hasattr(mainwin, 'grid_info'):
+            return mainwin.grid_info # type: ignore
+        return None
+
+    def is_metric(self):
+        if self.grid_info:
+            return self.grid_info.is_metric
+        return False
+
 
