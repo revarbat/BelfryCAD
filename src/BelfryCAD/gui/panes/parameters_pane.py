@@ -26,9 +26,14 @@ class ParametersPane(QWidget):
         self.setLayout(layout)
 
         # Table for parameters
-        self.table = QTableWidget(0, 3, self)
-        self.table.setHorizontalHeaderLabels(["Name", "Expression", "Value"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table = QTableWidget(0, 2, self)
+        self.table.setHorizontalHeaderLabels(["Name", "Expression"])
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)  # Allow user resizing
+        header.setStretchLastSection(True)
+        # Set the default width of the first column to fit about 10 letters
+        self.table.setColumnWidth(0, 90)
+        self.table.setColumnWidth(2, 50)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table)
@@ -53,13 +58,14 @@ class ParametersPane(QWidget):
         for i, (name, expr_str) in enumerate(self.cad_expression.expressions.items()):
             self.table.insertRow(i)
             self.table.setItem(i, 0, QTableWidgetItem(str(name)))
-            self.table.setItem(i, 1, QTableWidgetItem(str(expr_str)))
+            expr_item = QTableWidgetItem(str(expr_str))
+            # Add tooltip with evaluated value
             try:
                 value = self.cad_expression.get_variable(name)
-                value_str = str(value)
+                expr_item.setToolTip(f"Value: {value}")
             except Exception as e:
-                value_str = f"Error: {e}"
-            self.table.setItem(i, 2, QTableWidgetItem(value_str))
+                expr_item.setToolTip(f"Error: {e}")
+            self.table.setItem(i, 1, expr_item)
 
     def _add_param(self):
         dialog = QDialog(self)
