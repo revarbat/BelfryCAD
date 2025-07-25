@@ -1,8 +1,9 @@
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
 from PySide6.QtCore import Qt, QPointF, QTimer
 
-from ..graphics_items.cad_item import CadItem
-from ..graphics_items.control_points import ControlPoint, ControlDatum
+from ..views.graphics_items.cad_item import CadItem
+from ..views.graphics_items.caditems.gear_cad_item import GearCadItem
+from ..views.graphics_items.control_points import ControlPoint, ControlDatum
 
 
 class CadScene(QGraphicsScene):
@@ -168,7 +169,6 @@ class CadScene(QGraphicsScene):
 
     def refresh_gear_items_for_unit_change(self):
         """Refresh all GearCadItems when grid units change."""
-        from ..graphics_items.caditems.gear_cad_item import GearCadItem
         for item in self.items():
             if isinstance(item, GearCadItem):
                 item.refresh_control_datums_for_units()

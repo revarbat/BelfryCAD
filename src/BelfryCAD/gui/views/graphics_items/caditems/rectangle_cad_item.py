@@ -2,7 +2,7 @@
 RectangleCadItem - A rectangle CAD item defined by four corner points.
 """
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
@@ -11,13 +11,16 @@ from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
 
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
+
 
 class RectangleCadItem(CadItem):
     """A rectangle CAD item defined by four corner points."""
 
-    def __init__(self, top_left=None, top_right=None, bottom_right=None, bottom_left=None,
+    def __init__(self, main_window: 'MainWindow', top_left=None, top_right=None, bottom_right=None, bottom_left=None,
                  color=QColor(0, 0, 0), line_width=0.05):
-        super().__init__()
+        super().__init__(main_window)
         self._top_left = top_left if top_left is not None else QPointF(0, 0)
         self._top_right = top_right if top_right is not None else QPointF(1, 0)
         self._bottom_right = bottom_right if bottom_right is not None else QPointF(1, 1)

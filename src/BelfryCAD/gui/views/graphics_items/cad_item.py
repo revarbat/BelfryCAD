@@ -9,14 +9,16 @@ from PySide6.QtGui import QPen, QColor, QBrush, Qt
 from .control_points import ControlPoint
 
 if TYPE_CHECKING:
-    from ..widgets.cad_scene import CadScene
+    from ...main_window import MainWindow
+    from ...grid_info import GridInfo
 
 
 class CadItem(QGraphicsItem):
     """Base class for all CAD graphics items."""
 
-    def __init__(self):
+    def __init__(self, main_window: 'MainWindow'):
         super().__init__()
+        self._main_window = main_window
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setHandlesChildEvents(False)
@@ -256,11 +258,7 @@ class CadItem(QGraphicsItem):
     def showControls(self):
         """Show all control points and control datums for this CAD item."""
         # Update ControlDatum precision to match current scene precision
-        from ..widgets.cad_scene import CadScene
-        scene = self.scene() if hasattr(self, 'scene') else None
-        precision = 3
-        if scene and isinstance(scene, CadScene):
-            precision = scene.get_precision()
+        precision = self.main_window.cad_scene.get_precision()
         self.update_control_datums_precision(precision)
 
     def update_control_datums_precision(self, new_precision: int):
@@ -388,23 +386,15 @@ class CadItem(QGraphicsItem):
         painter.restore()
 
     @property
-    def main_window(self) -> Optional['MainWindow']: # type: ignore
-        scene = self.scene()
-        # Use string comparison to avoid circular import
-        if scene and scene.__class__.__name__ == 'CadScene':
-            return scene.parent()
-        return None
+    def main_window(self) -> 'MainWindow':
+        return self._main_window
 
     @property
-    def grid_info(self) -> Optional['GridInfo']: # type: ignore
+    def grid_info(self) -> 'GridInfo':
         mainwin = self.main_window
-        if mainwin and hasattr(mainwin, 'grid_info'):
-            return mainwin.grid_info # type: ignore
-        return None
+        return mainwin.grid_info
 
     def is_metric(self):
-        if self.grid_info:
-            return self.grid_info.is_metric
-        return False
+        return self.grid_info.is_metric
 
 

@@ -4,7 +4,7 @@ LineCadItem - A line CAD item defined by two points.
 
 import math
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import (
@@ -16,12 +16,14 @@ from ..control_points import (
 )
 from ..cad_rect import CadRect
 
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 class LineCadItem(CadItem):
     """A line CAD item defined by two points."""
 
-    def __init__(self, start_point=None, end_point=None, color=QColor(255, 0, 0), line_width=0.05):
-        super().__init__()
+    def __init__(self, main_window: 'MainWindow', start_point=None, end_point=None, color=QColor(255, 0, 0), line_width=0.05):
+        super().__init__(main_window)
         self._start_point = start_point if start_point is not None else QPointF(0, 0)
         self._end_point = end_point if end_point is not None else QPointF(1, 0)
         self._color = color
@@ -35,7 +37,7 @@ class LineCadItem(CadItem):
         rect = CadRect()
         rect.expandToPoint(self._start_point)
         rect.expandToPoint(self._end_point)
-        
+
         pvec = self.get_perpendicular_vector()
         rect.expandToPoint(self._start_point + pvec)
         rect.expandToPoint(self._end_point + pvec)

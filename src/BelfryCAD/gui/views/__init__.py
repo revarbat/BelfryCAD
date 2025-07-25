@@ -6,7 +6,6 @@ All views should be framework-specific (PySide6) and contain no business logic.
 """
 
 from .graphics_items import *
-from .widgets import *
 from .preferences_dialog import PreferencesDialog
 
 __all__ = [
@@ -15,12 +14,6 @@ __all__ = [
     'LineCadItem',
     'CircleCenterRadiusCadItem',
     'RectangleCadItem',
-    # Widgets
-    'CadScene',
-    'CadView',
-    'CategoryToolButton',
-    'ColumnarToolbarWidget',
-    'ZoomEditWidget',
     # Dialogs
     'PreferencesDialog'
 ] 

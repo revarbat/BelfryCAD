@@ -2,7 +2,7 @@
 PolylineCadItem - A polyline CAD item defined by a list of points.
 """
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
@@ -11,12 +11,15 @@ from ..cad_item import CadItem
 from ..control_points import ControlPoint
 from ..cad_rect import CadRect
 
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
+
 
 class PolylineCadItem(CadItem):
     """A polyline CAD item defined by a list of points."""
 
-    def __init__(self, points=None, color=QColor(0, 0, 0), line_width=0.05):
-        super().__init__()
+    def __init__(self, main_window: 'MainWindow', points=None, color=QColor(0, 0, 0), line_width=0.05):
+        super().__init__(main_window)
         self._points = points if points is not None else [QPointF(0, 0), QPointF(1, 0)]
         self._color = color
         self._line_width = line_width

@@ -13,7 +13,7 @@ from PySide6.QtGui import QColor
 
 from src.BelfryCAD.gui.grid_info import GridInfo, GridUnits
 from src.BelfryCAD.gui.views.graphics_items.control_points import ControlDatum
-from src.BelfryCAD.gui.views.widgets.cad_scene import CadScene
+from src.BelfryCAD.gui.widgets.cad_scene import CadScene
 from src.BelfryCAD.gui.panes.config_pane import ConfigPane
 
 

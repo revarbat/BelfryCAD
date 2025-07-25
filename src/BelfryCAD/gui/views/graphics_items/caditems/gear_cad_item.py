@@ -3,18 +3,20 @@ PolylineCadItem - A polyline CAD item defined by a list of points.
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import (
-    Qt, QPen, QColor, QBrush,
+    QPen, QColor, QBrush,
     QPainterPath, QPainterPathStroker,
 )
 
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
-from ...widgets.cad_scene import CadScene
+
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 
 # Helper functions
@@ -574,6 +576,7 @@ class GearCadItem(CadItem):
 
     def __init__(
             self,
+            main_window: 'MainWindow',
             center=QPointF(0, 0),
             pitch_radius_point=QPointF(1, 0),
             tooth_count=12,
@@ -581,7 +584,7 @@ class GearCadItem(CadItem):
             color=QColor(0, 0, 0),
             line_width=0.05
     ):
-        super().__init__()
+        super().__init__(main_window)
         self._center = QPointF(center)
         self._pitch_radius_point = QPointF(pitch_radius_point)
         self._tooth_count = int(tooth_count)
@@ -689,8 +692,8 @@ class GearCadItem(CadItem):
         # Get precision from scene if available
         precision = 3
         scene = self.scene()
-        if scene and isinstance(scene, CadScene):
-            precision = scene.get_precision()
+        if scene:
+            precision = scene.get_precision() # type: ignore
         self._center_cp = SquareControlPoint(
             cad_item=self,
             setter=self._set_center
@@ -718,7 +721,8 @@ class GearCadItem(CadItem):
             label="Pressure Angle",
             precision=precision,
             angle=135,
-            pixel_offset=10
+            pixel_offset=10,
+            is_length=False
         )
         self._tooth_count_datum = ControlDatum(
             setter=self._set_tooth_count,
@@ -728,30 +732,35 @@ class GearCadItem(CadItem):
             label="Tooth Count",
             precision=0,
             angle=-45,
-            pixel_offset=10
+            pixel_offset=10,
+            is_length=False
         )
         
         # Create both datums but set visibility based on metric setting
-        self._module_datum = ControlDatum(
-            setter=self._set_module,
-            prefix="m: ",
-            format_string=f"{{:.{precision}f}}",
-            cad_item=self,
-            label="GearModule",
-            precision=precision,
-            angle=-135,
-            pixel_offset=10
-        )
-        self._diametral_pitch_datum = ControlDatum(
-            setter=self._set_diametral_pitch,
-            prefix="DP: ",
-            format_string=f"{{:.{precision}f}}",
-            cad_item=self,
-            label="Diametral Gear Pitch",
-            precision=precision,
-            angle=-135,
-            pixel_offset=10
-        )
+        if self.is_metric():
+            self._pitch_datum = ControlDatum(
+                setter=self._set_module,
+                prefix="m: ",
+                format_string=f"{{:.{precision}f}}",
+                cad_item=self,
+                label="Gear Module",
+                precision=precision,
+                angle=-135,
+                pixel_offset=10,
+                is_length=False
+            )
+        else:
+            self._pitch_datum = ControlDatum(
+                setter=self._set_diametral_pitch,
+                prefix="DP: ",
+                format_string=f"{{:.{precision}f}}",
+                cad_item=self,
+                label="Diametral Gear Pitch",
+                precision=precision,
+                angle=-135,
+                pixel_offset=10,
+                is_length=False
+            )
         
         self.updateControls()
         
@@ -762,8 +771,7 @@ class GearCadItem(CadItem):
             self._tooth_count_datum,
             self._pitch_diameter_datum,
             self._pressure_angle_datum,
-            self._module_datum,
-            self._diametral_pitch_datum
+            self._pitch_datum
         ]
         
         return control_points
@@ -787,16 +795,18 @@ class GearCadItem(CadItem):
             self._tooth_count_datum.update_datum(self._tooth_count, pos)
         
         # Update the appropriate datum based on metric setting
-        is_metric = self.is_metric()
-        selected = self._is_singly_selected()
-        if self._module_datum:
+        if self._pitch_datum:
             pos = self._center
-            self._module_datum.update_datum(self.module, pos)
-            self._module_datum.setVisible(is_metric and selected)
-        elif self._diametral_pitch_datum:
-            pos = self._center
-            self._diametral_pitch_datum.update_datum(self.diametral_pitch, pos)
-            self._diametral_pitch_datum.setVisible(not is_metric and selected)
+            if self.is_metric():
+                self._pitch_datum.prefix = "m: "
+                self._pitch_datum.label = "Gear Module"
+                self._pitch_datum.setter = self._set_module
+                self._pitch_datum.update_datum(self.module, pos)
+            else:
+                self._pitch_datum.prefix = "DP: "
+                self._pitch_datum.label = "Gear Diametral Pitch"
+                self._pitch_datum.setter = self._set_diametral_pitch
+                self._pitch_datum.update_datum(self.diametral_pitch, pos)
 
     def _get_control_point_objects(self):
         cps = []

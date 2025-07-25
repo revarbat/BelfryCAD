@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPainterPath
 
-from .views.widgets.cad_scene import CadScene
+from .widgets.cad_scene import CadScene
 from .grid_info import GridInfo
 from .panes.snaps_pane import snaps_pane_info
 from .views.graphics_items.cad_item import CadItem

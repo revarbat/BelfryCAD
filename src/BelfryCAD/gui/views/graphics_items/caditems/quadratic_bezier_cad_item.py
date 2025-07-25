@@ -6,7 +6,7 @@ Points follow the pattern: [path_point, control_point, path_point, control_point
 import math
 
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
@@ -14,6 +14,9 @@ from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroke
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, DiamondControlPoint
 from ..cad_rect import CadRect
+
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 
 class PathPointState(Enum):
@@ -37,8 +40,8 @@ class QuadraticBezierCadItem(CadItem):
     This creates a smooth curve that passes through every other point.
     """
 
-    def __init__(self, points=None, color=QColor(0, 0, 255), line_width=0.05):
-        super().__init__()
+    def __init__(self, main_window: 'MainWindow', points=None, color=QColor(0, 0, 255), line_width=0.05):
+        super().__init__(main_window)
         
         # Initialize with default points if none provided
         if points is None:

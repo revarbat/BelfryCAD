@@ -4,7 +4,7 @@ ArcCadItem - An arc CAD item defined by center point, start radius point, and en
 
 import math
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPainterPathStroker, Qt
 from typing import cast
@@ -12,15 +12,18 @@ from typing import cast
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, DiamondControlPoint, ControlDatum
 from ..cad_rect import CadRect
-from ...widgets.cad_scene import CadScene
+from ....widgets.cad_scene import CadScene
+
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 
 class ArcCadItem(CadItem):
     """An arc CAD item defined by center point, start radius point, and end angle point."""
 
-    def __init__(self, center_point=None, start_point=None, end_point=None,
+    def __init__(self, main_window: 'MainWindow', center_point=None, start_point=None, end_point=None,
                  color=QColor(0, 0, 0), line_width=0.05):
-        super().__init__()
+        super().__init__(main_window)
         # Default to a quarter-circle arc if no points provided
         self._center_point = center_point if center_point else QPointF(0, 0)
         self._start_point = start_point if start_point else QPointF(1, 0)

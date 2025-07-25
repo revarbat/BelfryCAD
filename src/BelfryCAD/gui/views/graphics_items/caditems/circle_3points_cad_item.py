@@ -5,7 +5,7 @@ If the three points are collinear, it draws a line instead.
 
 import math
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
@@ -14,13 +14,15 @@ from typing import cast
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
-from ...widgets.cad_scene import CadScene
+from ....widgets.cad_scene import CadScene
 
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 class Circle3PointsCadItem(CadItem):
     """A circle CAD item defined by three points on the perimeter."""
 
-    def __init__(self, point1=None, point2=None, point3=None, color=QColor(255, 0, 0), line_width=0.05):
+    def __init__(self, main_window: 'MainWindow', point1=None, point2=None, point3=None, color=QColor(255, 0, 0), line_width=0.05):
         self._point1 = point1 if point1 is not None else QPointF(-1, 0)
         self._point2 = point2 if point2 is not None else QPointF(0, 1)
         self._point3 = point3 if point3 is not None else QPointF(1, 0)
@@ -43,7 +45,7 @@ class Circle3PointsCadItem(CadItem):
         # Calculate circle properties
         self._calculate_circle()
 
-        super().__init__()
+        super().__init__(main_window)
 
         # Position the item at the center point (or midpoint for lines)
         if self.is_line:

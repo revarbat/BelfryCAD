@@ -5,7 +5,7 @@ The circle is tangent to both rays, with center specified by a point on the angl
 
 import math
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, QBrush
@@ -14,13 +14,15 @@ from typing import cast
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
-from ...widgets.cad_scene import CadScene
+from ....widgets.cad_scene import CadScene
 
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 class CircleCornerCadItem(CadItem):
     """A circle CAD item defined by corner point, two ray points, and center point."""
 
-    def __init__(self, corner_point=None, ray1_point=None, ray2_point=None, center_point=None,
+    def __init__(self, main_window: 'MainWindow', corner_point=None, ray1_point=None, ray2_point=None, center_point=None,
                  color=QColor(255, 0, 0), line_width=0.05):
         self._corner_point = corner_point if corner_point is not None else QPointF(0, 0)
         self._ray1_point = ray1_point if ray1_point is not None else QPointF(1, 0)
@@ -44,7 +46,7 @@ class CircleCornerCadItem(CadItem):
         if isinstance(self._center_point, (list, tuple)):
             self._center_point = QPointF(self._center_point[0], self._center_point[1])
 
-        super().__init__()
+        super().__init__(main_window)
 
         # Initialize circle calculation
         self._calculated_center = QPointF(0, 0)

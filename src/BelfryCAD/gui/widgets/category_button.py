@@ -7,13 +7,13 @@ to show the currently selected tool in that category.
 
 from typing import TYPE_CHECKING, List, Optional
 if TYPE_CHECKING:
-    from ....tools.base import ToolDefinition, ToolCategory
+    from ...tools.base import ToolDefinition, ToolCategory
 
 from PySide6.QtWidgets import QToolButton
 from PySide6.QtCore import Qt, Signal, QSize, QTimer
 from PySide6.QtGui import QMouseEvent
 
-from ...panes.tool_palette import ToolPalette
+from ..panes.tool_palette import ToolPalette
 
 
 class CategoryToolButton(QToolButton):

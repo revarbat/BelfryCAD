@@ -2,16 +2,17 @@
 ControlPoint - A class representing a control point for CAD items.
 """
 import math
+from typing import Callable
 from PySide6.QtCore import (
-    QPointF, QRectF, Qt, QRegularExpression
+    QPointF, QRectF, Qt
 )
 from PySide6.QtGui import (
-    QPen, QBrush, QColor, QFont, QFontMetrics, QPainterPath,
-    QRegularExpressionValidator, QTransform
+    QPen, QBrush, QColor, QFont, QFontMetrics, QPainterPath, QTransform
 )
 from PySide6.QtWidgets import (
     QGraphicsItem, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
 )
+from BelfryCAD.gui.widgets.cad_expression_edit import CadExpressionEdit
 
 
 class ControlPoint(QGraphicsItem):
@@ -228,10 +229,11 @@ class ControlDatum(ControlPoint):
         prefix="",
         suffix="",
         cad_item=None,
-        label = "value",
-        angle = None,
-        pixel_offset = 0,
-        precision=3
+        label="value",
+        angle=None,
+        pixel_offset=0,
+        precision=3,
+        is_length=True
     ):
         super().__init__(
             cad_item=cad_item,
@@ -241,14 +243,15 @@ class ControlDatum(ControlPoint):
         self._precision = precision
         # Use provided format_string or create one from precision
         if format_string is None:
-            self.format_string = f"{{:.{precision}f}}"
+            self._format_string = f"{{:.{precision}f}}"
         else:
-            self.format_string = format_string
-        self.prefix = prefix
-        self.suffix = suffix
-        self.label = label
-        self.angle = angle
-        self.pixel_offset = pixel_offset
+            self._format_string = format_string
+        self._prefix = prefix
+        self._suffix = suffix
+        self._label = label
+        self._angle = angle
+        self._pixel_offset = pixel_offset
+        self._is_length = is_length
         self._is_editing = False
         self._current_value = 0.0
         self._current_position = QPointF(0, 0)
@@ -259,14 +262,12 @@ class ControlDatum(ControlPoint):
         self._cached_bounding_rect = QRectF(0, 0, 0, 0)
         self._cached_scale = 1.0
         self._needs_geometry_update = True
-
+        
         # Set tooltip to label if it's not "value"
-        if self.label != "value":
-            self.setToolTip(self.label)
-            print(f"Setting tooltip to {self.label}")
+        if self._label != "value":
+            self.setToolTip(self._label)
         else:
             self.setToolTip("")
-            print(f"Setting tooltip {self.prefix} to empty string")
 
     def get_position(self):
         """Get the current position."""
@@ -276,8 +277,8 @@ class ControlDatum(ControlPoint):
         """Update the precision and refresh the display."""
         self._precision = new_precision
         # Update format string if it was created from precision
-        if self.format_string == f"{{:.{self._precision}f}}" or "{" in self.format_string:
-            self.format_string = f"{{:.{new_precision}f}}"
+        if self._format_string == f"{{:.{self._precision}f}}" or "{" in self._format_string:
+            self._format_string = f"{{:.{new_precision}f}}"
         
         # Update cached text and trigger geometry update
         new_text = self._format_text(self._current_value)
@@ -304,10 +305,15 @@ class ControlDatum(ControlPoint):
 
     def _format_text(self, value):
         """Format the text for display."""
-        valstr = self.format_string.format(value)
-        valstr = valstr.rstrip('0').rstrip('.')
-        pfx = self.prefix if self.prefix else ""
-        sfx = self.suffix if self.suffix else ""
+        if self._is_length:
+            main_window = self.cad_item.main_window # type: ignore
+            grid_info = main_window.grid_info
+            valstr = grid_info.format_label(value, no_subs=True).replace("\n", " ")
+        else:
+            valstr = self._format_string.format(value)
+            valstr = valstr.rstrip('0').rstrip('.')
+        pfx = self._prefix if self._prefix else ""
+        sfx = self._suffix if self._suffix else ""
         return f"{pfx}{valstr}{sfx}"
 
     def mousePressEvent(self, event):
@@ -357,15 +363,15 @@ class ControlDatum(ControlPoint):
         box_height = text_rect.height() + 2 * padding
 
         # Calculate label position relative to datum position
-        if self.angle is not None:
-            ocos = math.cos(math.radians(self.angle))
-            osin = math.sin(math.radians(self.angle))
+        if self._angle is not None:
+            ocos = math.cos(math.radians(self._angle))
+            osin = math.sin(math.radians(self._angle))
         else:
             ocos = 0
             osin = 0
         label_pos = QPointF(
-            self.pixel_offset * ocos,
-            -self.pixel_offset * osin
+            self._pixel_offset * ocos,
+            -self._pixel_offset * osin
         )
 
         epsilon = 1e-6
@@ -417,7 +423,7 @@ class ControlDatum(ControlPoint):
         # Defensive check for attributes
         if not hasattr(self, '_is_editing'):
             return
-            
+        
         if self._is_editing:
             return
 
@@ -426,29 +432,36 @@ class ControlDatum(ControlPoint):
 
         # Use the current stored value
         current_value = self._current_value
+        if self._is_length:
+            main_window = self.cad_item.main_window # type: ignore
+            grid_info = main_window.grid_info
+            current_value = grid_info.format_label(current_value, no_subs=True)
+            current_value = current_value.replace("\n", "+")
+        else:
+            main_window = self.cad_item.main_window # type: ignore
+            precision = main_window.cad_scene.get_precision()
+            current_value = f"{current_value:.{precision}g}"
 
         # Create editing dialog
         dialog = QDialog()
-        dialog.setWindowTitle(f"Edit {self.label}")
+        dialog.setWindowTitle(f"Edit {self._label}")
         dialog.setModal(True)
 
         layout = QVBoxLayout()
         dialog.setLayout(layout)
 
         # Add label
-        label = QLabel(f"Enter new {self.label}:")
+        label = QLabel(f"Enter new {self._label}:")
         layout.addWidget(label)
 
-        # Add line edit with validation
-        line_edit = QLineEdit()
-        line_edit.setText(f"{current_value:.5g}")
-        line_edit.selectAll()
-        
-        # Create validator for digits, '-', and '.' only
-        validator = QRegularExpressionValidator(QRegularExpression(r"^-?\d*\.?\d*$"))
-        line_edit.setValidator(validator)
-        
-        layout.addWidget(line_edit)
+        # Add CadExpressionEdit for expression editing
+        # Try to get variable names from the parent CadItem if possible
+        main_window = self.scene().parent()
+        expr_edit = CadExpressionEdit(main_window.cad_expression) # type: ignore
+        expr_edit.setMinimumWidth(200)
+        expr_edit.setText(current_value)
+        expr_edit.selectAll()
+        layout.addWidget(expr_edit)
 
         # Add buttons
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -456,41 +469,36 @@ class ControlDatum(ControlPoint):
         set_button.setText("Set")
         cancel_button = button_box.button(QDialogButtonBox.StandardButton.Cancel)
         cancel_button.setText("Cancel")
-        
-        # Initially disable Set button until valid input
         set_button.setEnabled(False)
-        
+
         # Connect validation
         def validate_input():
-            try:
-                text = line_edit.text()
-                if text and text != "-" and text != "." and text != "-.":
-                    float(text)
-                    set_button.setEnabled(True)
-                else:
-                    set_button.setEnabled(False)
-            except ValueError:
+            text = expr_edit.text()
+            if expr_edit.get_error() is None and text.strip():
+                set_button.setEnabled(True)
+            else:
                 set_button.setEnabled(False)
-        
-        line_edit.textChanged.connect(validate_input)
-        validate_input()  # Initial validation
-        
-        button_box.accepted.connect(lambda: self._finish_editing(dialog, line_edit))
+        expr_edit.textChanged.connect(validate_input)
+        validate_input()
+
+        button_box.accepted.connect(lambda: self._finish_editing(dialog, expr_edit))
         button_box.rejected.connect(lambda: self._cancel_editing(dialog))
         layout.addWidget(button_box)
 
-        # Set focus to line edit
-        line_edit.setFocus()
+        # Set focus to expression edit
+        expr_edit.setFocus()
 
         # Show dialog
         dialog.exec()
 
-    def _finish_editing(self, dialog, line_edit):
+    def _finish_editing(self, dialog, expr_edit):
         """Finish editing and apply the new value."""
         try:
-            new_value = float(line_edit.text())
-            self.call_setter_with_updates(new_value)
-        except ValueError:
+            # Evaluate the expression to a float
+            new_value = float(expr_edit._expression.evaluate(expr_edit.text()))
+            scale = self.cad_item.main_window.grid_info.unit_scale # type: ignore
+            self.call_setter_with_updates(new_value * scale)
+        except Exception:
             pass
 
         dialog.accept()
@@ -504,3 +512,83 @@ class ControlDatum(ControlPoint):
         if hasattr(self, '_is_editing'):
             self._is_editing = False
         self.update()
+
+    @property
+    def precision(self):
+        """Get the precision."""
+        return self._precision
+
+    @precision.setter
+    def precision(self, value: int):
+        """Set the precision."""
+        self.update_precision(value)
+
+    @property
+    def format_string(self):
+        """Get the format string."""
+        return self._format_string
+
+    @format_string.setter
+    def format_string(self, value: str):
+        """Set the format string."""
+        self._format_string = value
+
+    @property
+    def prefix(self):
+        """Get the prefix."""
+        return self._prefix
+
+    @prefix.setter
+    def prefix(self, value: str):
+        """Set the prefix."""
+        self._prefix = value
+
+    @property
+    def suffix(self):
+        """Get the suffix."""
+        return self._suffix
+
+    @suffix.setter
+    def suffix(self, value: str):
+        """Set the suffix."""
+        self._suffix = value
+
+    @property
+    def label(self):
+        """Get the label."""
+        return self._label
+
+    @label.setter
+    def label(self, value: str):
+        """Set the label."""
+        self._label = value
+
+    @property
+    def angle(self):
+        """Get the angle."""
+        return self._angle
+
+    @angle.setter
+    def angle(self, value: float):
+        """Set the angle."""
+        self._angle = value
+
+    @property
+    def pixel_offset(self):
+        """Get the pixel offset."""
+        return self._pixel_offset
+
+    @pixel_offset.setter
+    def pixel_offset(self, value: float):
+        """Set the pixel offset."""
+        self._pixel_offset = value
+
+    @property
+    def setter(self) -> Callable:
+        """Get the setter."""
+        return self._setter
+
+    @setter.setter
+    def setter(self, value: Callable):
+        """Set the setter."""
+        self._setter = value

@@ -12,7 +12,7 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
 
 from src.BelfryCAD.gui.views.graphics_items.control_points import ControlDatum
-from src.BelfryCAD.gui.views.widgets.cad_scene import CadScene
+from src.BelfryCAD.gui.widgets.cad_scene import CadScene
 from src.BelfryCAD.gui.views.graphics_items.caditems.circle_center_radius_cad_item import CircleCenterRadiusCadItem
 
 

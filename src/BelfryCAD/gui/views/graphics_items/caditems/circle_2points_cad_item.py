@@ -4,7 +4,7 @@ Circle2PointsCadItem - A circle CAD item defined by two points on opposite sides
 
 import math
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
@@ -13,13 +13,15 @@ from typing import cast
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
-from ...widgets.cad_scene import CadScene
+from ....widgets.cad_scene import CadScene
 
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 class Circle2PointsCadItem(CadItem):
     """A circle CAD item defined by two points on opposite sides (diameter endpoints)."""
 
-    def __init__(self, point1=None, point2=None, color=QColor(255, 0, 0), line_width=0.05):
+    def __init__(self, main_window: 'MainWindow', point1=None, point2=None, color=QColor(255, 0, 0), line_width=0.05):
         self._point1 = point1 if point1 is not None else QPointF(-1, 0)
         self._point2 = point2 if point2 is not None else QPointF(1, 0)
         self._color = color
@@ -35,7 +37,7 @@ class Circle2PointsCadItem(CadItem):
         if isinstance(self._point2, (list, tuple)):
             self._point2 = QPointF(self._point2[0], self._point2[1])
 
-        super().__init__()
+        super().__init__(main_window)
 
         # Position the item at the center point
         self.setPos(self.center_point)

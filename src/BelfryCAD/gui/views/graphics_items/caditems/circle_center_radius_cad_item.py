@@ -4,7 +4,7 @@ CircleCenterRadiusCadItem - A circle CAD item defined by center point and perime
 
 import math
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
@@ -13,14 +13,16 @@ from typing import cast
 from ..cad_item import CadItem
 from ..control_points import ControlPoint, SquareControlPoint, ControlDatum
 from ..cad_rect import CadRect
-from ...widgets.cad_scene import CadScene
+from ....widgets.cad_scene import CadScene
 
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 class CircleCenterRadiusCadItem(CadItem):
     """A circle CAD item defined by center point and perimeter point."""
 
-    def __init__(self, center_point=None, perimeter_point=None, color=QColor(255, 0, 0), line_width=0.05):
-        super().__init__()
+    def __init__(self, main_window: 'MainWindow', center_point=None, perimeter_point=None, color=QColor(255, 0, 0), line_width=0.05):
+        super().__init__(main_window)
         self._center_point = center_point if center_point is not None else QPointF(0, 0)
         self._perimeter_point = perimeter_point if perimeter_point is not None else QPointF(1, 0)
         self._color = color

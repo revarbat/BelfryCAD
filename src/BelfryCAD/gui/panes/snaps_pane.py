@@ -18,6 +18,7 @@ from PySide6.QtCore import Qt, Signal, QTimer, QSize
 from PySide6.QtGui import QKeySequence, QShortcut, QFont, QIcon, QAction
 
 from ..icon_manager import get_icon
+from ..widgets.columnar_toolbar import ColumnarToolbarWidget
 
 
 class SnapsPaneInfo:
@@ -107,7 +108,6 @@ class SnapsToolBar(QToolBar):
         """)
 
         # Create two-column widget for snaps
-        from ..views.widgets.columnar_toolbar import ColumnarToolbarWidget
         self.snaps_widget = ColumnarToolbarWidget()
         self.addWidget(self.snaps_widget)
         

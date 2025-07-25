@@ -10,9 +10,11 @@ from PySide6.QtGui import (
     QShortcut, QKeySequence, QPen, QColor
 )
 from PySide6.QtWidgets import (
-    QMainWindow, QFileDialog, QMessageBox, QDialog, QLabel, QGraphicsView
+    QMainWindow, QFileDialog, QMessageBox, QDialog, QLabel, QGraphicsView,
+    QDockWidget
 )
 from PySide6.QtCore import QPointF
+
 
 from ..core.undo_redo import UndoRedoManager
 from ..core.cad_objects import CADObject
@@ -24,9 +26,9 @@ from .views.graphics_items.grid_graphics_items import (
     GridBackground, RulersForeground, SnapCursorItem
 )
 from .palette_system import create_default_palettes
-from .views.widgets.category_button import CategoryToolButton
-from .views.widgets.cad_scene import CadScene
-from .views.widgets.cad_view import CadView
+from .widgets.category_button import CategoryToolButton
+from .widgets.cad_scene import CadScene
+from .widgets.cad_view import CadView
 from .icon_manager import get_icon
 from .views.graphics_items.cad_item import CadItem
 from .print_manager import CadPrintManager
@@ -35,7 +37,7 @@ from .dialogs.tool_table_dialog import ToolTableDialog
 from .views.preferences_dialog import PreferencesDialog
 from .dialogs.gear_wizard_dialog import GearWizardDialog
 from .dialogs.gcode_backtracer_dialog import GCodeBacktracerDialog
-from .views.widgets.zoom_edit_widget import ZoomEditWidget
+from .widgets.zoom_edit_widget import ZoomEditWidget
 from .snaps_system import SnapsSystem
 from .views.graphics_items.caditems import (
     LineCadItem, CubicBezierCadItem, QuadraticBezierCadItem, CircleCenterRadiusCadItem,
@@ -44,8 +46,10 @@ from .views.graphics_items.caditems import (
 )
 from .panes.layer_pane import LayerPane
 from .panes.config_pane import ConfigPane
-from .views.widgets.columnar_toolbar import ColumnarToolbarWidget
+from .widgets.columnar_toolbar import ColumnarToolbarWidget
 from BelfryCAD.gui.views.graphics_items.caditems.gear_cad_item import GearCadItem
+from BelfryCAD.utils.cad_expression import CadExpression
+from .panes.parameters_pane import ParametersPane
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +57,7 @@ logger = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     def __init__(self, config, preferences_viewmodel, document):
         super().__init__()
+        self.cad_expression = CadExpression()
         self.config = config
         self.preferences_viewmodel = preferences_viewmodel
         self.document = document
@@ -578,6 +583,25 @@ class MainWindow(QMainWindow):
         
         # Sync menu states after all components are created
         self._sync_palette_menu_states()
+
+        # Create the LayerPane and ParametersPane as tabs
+        from PySide6.QtWidgets import QDockWidget
+        layer_pane = LayerPane(self)
+        parameters_pane = ParametersPane(self.cad_expression)
+        parameters_dock = QDockWidget("Parameters", self)
+        parameters_dock.setWidget(parameters_pane)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, parameters_dock)
+        self.layer_pane = layer_pane
+        self.parameters_pane = parameters_pane
+        self.parameters_dock = parameters_dock
+        parameters_pane.parameter_changed.connect(self._on_parameters_changed)
+
+    def _on_parameters_changed(self):
+        # Refresh any widgets that depend on parameters (e.g., CadExpressionEdit completers)
+        # For now, just refresh the parameters pane and layer pane
+        self.parameters_pane.refresh()
+        if hasattr(self, 'layer_pane') and self.layer_pane:
+            self.layer_pane.refresh() # type: ignore
 
     def _connect_palette_content(self):
         """Connect palette content widgets to the main window functionality."""
@@ -1619,6 +1643,7 @@ class MainWindow(QMainWindow):
 
         # Add example gear
         gear = GearCadItem(
+            self,
             center=QPointF(9, 0),
             pitch_radius_point=QPointF(10, 0),
             tooth_count=11,
@@ -1631,6 +1656,7 @@ class MainWindow(QMainWindow):
 
         # Add draggable circles
         circle1 = CircleCenterRadiusCadItem(
+            self,
             QPointF(1, 0.5), QPointF(2, 0.5),
             black, linewidth)
         circle1.setZValue(2)  # Above other shapes
@@ -1645,6 +1671,7 @@ class MainWindow(QMainWindow):
             QPointF(-3, 0)
         ]
         triangle = PolylineCadItem(
+            self,
             triangle_points, black, linewidth)
         triangle.setZValue(1)
         self.cad_scene.addItem(triangle)
@@ -1659,6 +1686,7 @@ class MainWindow(QMainWindow):
             QPointF(1, -1)
         ]
         zigzag = PolylineCadItem(
+            self,
             zigzag_points, black, linewidth)
         zigzag.setZValue(2)
         self.cad_scene.addItem(zigzag)
@@ -1666,6 +1694,7 @@ class MainWindow(QMainWindow):
         # Add line segments
         # Horizontal line
         line1 = LineCadItem(
+            self,
             QPointF(-2, 4), QPointF(2, 4),
             black, linewidth)
         line1.setZValue(1)
@@ -1673,6 +1702,7 @@ class MainWindow(QMainWindow):
 
         # Diagonal line
         line2 = LineCadItem(
+            self,
             QPointF(-4, 1), QPointF(-2, 3),
             black, linewidth)
         line2.setZValue(2)
@@ -1680,6 +1710,7 @@ class MainWindow(QMainWindow):
 
         # Vertical line
         line3 = LineCadItem(
+            self,
             QPointF(4, -2), QPointF(4, 2),
             black, linewidth)
         line3.setZValue(2)
@@ -1688,6 +1719,7 @@ class MainWindow(QMainWindow):
         # Add Bezier curves
         # Tight curve
         bezier3 = CubicBezierCadItem(
+            self,
             [
                 QPointF(-1, 1.5), QPointF(0, 3.5),
                 QPointF(1.5, 2.75), QPointF(2, 2), QPointF(3, 0.5),
@@ -1703,6 +1735,7 @@ class MainWindow(QMainWindow):
         # Add quadratic Bezier curves
         # Simple quadratic curve
         quad_bezier1 = QuadraticBezierCadItem(
+            self,
             [
                 QPointF(-6, 0),    # 1st path point
                 QPointF(-5, 2),    # control point
@@ -1716,6 +1749,7 @@ class MainWindow(QMainWindow):
 
         # Complex quadratic curve with multiple segments
         quad_bezier2 = QuadraticBezierCadItem(
+            self,
             [
                 QPointF(6, -1),     # 1st path point
                 QPointF(7, 1),      # control point
@@ -1732,6 +1766,7 @@ class MainWindow(QMainWindow):
         # Add rectangles
         # Test rectangle
         rectangle1 = RectangleCadItem(
+            self,
             QPointF(3, 3), QPointF(5, 3),
             QPointF(5, 1), QPointF(3, 1),
             black, 0.01)
@@ -1741,12 +1776,14 @@ class MainWindow(QMainWindow):
         # Add arcs
         # Test arc (quarter circle)
         arc1 = ArcCadItem(
+            self,
             QPointF(-1, -3), QPointF(0, -3), QPointF(-1, -2),
             black, linewidth)
         arc1.setZValue(2)
         self.cad_scene.addItem(arc1)
 
         circ2 = Circle2PointsCadItem(
+            self,
             QPointF(1, -2), QPointF(3, -2),
             black, linewidth)
         circ2.setZValue(2)
@@ -1754,6 +1791,7 @@ class MainWindow(QMainWindow):
 
         # Add Circle3PointsCadItem - valid circle
         circle3pt = Circle3PointsCadItem(
+            self,
             QPointF(-3, -3), QPointF(-1, -4), QPointF(-2, -1),
             black, linewidth)
         circle3pt.setZValue(2)
@@ -1761,6 +1799,7 @@ class MainWindow(QMainWindow):
 
         # Add Circle3PointsCadItem - collinear points (becomes a line)
         line3pt = Circle3PointsCadItem(
+            self,
             QPointF(4, 3), QPointF(5, 4), QPointF(6, 5),
             black, linewidth)
         line3pt.setZValue(2)
@@ -1768,6 +1807,7 @@ class MainWindow(QMainWindow):
 
         # Add CircleCornerCadItem - circle tangent to two rays
         corner_circle = CircleCornerCadItem(
+            self,
             QPointF(-5, 2),       # Corner point
             QPointF(-3, 3),       # Ray 1 point
             QPointF(-4, 4),       # Ray 2 point
@@ -1778,6 +1818,7 @@ class MainWindow(QMainWindow):
 
         # Add ArcCornerCadItem - arc between tangent points on two rays
         corner_arc = ArcCornerCadItem(
+            self,
             QPointF(5, -3),       # Corner point
             QPointF(7, -2),       # Ray 1 point
             QPointF(6, -1),       # Ray 2 point

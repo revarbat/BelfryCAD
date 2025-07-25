@@ -5,7 +5,7 @@ The arc is drawn between the tangent points where a circle would touch the rays.
 
 import math
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QPainterPathStroker, Qt
@@ -16,13 +16,14 @@ from ..control_points import (
     ControlPoint, SquareControlPoint, ControlDatum, DiamondControlPoint
 )
 from ..cad_rect import CadRect
-from ...widgets.cad_scene import CadScene
-
+from ....widgets.cad_scene import CadScene
+if TYPE_CHECKING:
+    from ....main_window import MainWindow
 
 class ArcCornerCadItem(CadItem):
     """An arc CAD item defined by corner point, two ray points, and center point."""
 
-    def __init__(self, corner_point=None, ray1_point=None, ray2_point=None, center_point=None,
+    def __init__(self, main_window: 'MainWindow', corner_point=None, ray1_point=None, ray2_point=None, center_point=None,
                  color=QColor(255, 0, 0), line_width=0.05):
         self._corner_point = corner_point if corner_point is not None else QPointF(0, 0)
         self._ray1_point = ray1_point if ray1_point is not None else QPointF(1, 0)
@@ -49,7 +50,7 @@ class ArcCornerCadItem(CadItem):
         # Calculate arc properties
         self._calculate_arc()
 
-        super().__init__()
+        super().__init__(main_window)
 
         # Position the item at the calculated center
         self.setPos(self._calculated_center)

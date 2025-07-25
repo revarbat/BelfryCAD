@@ -95,8 +95,8 @@ class RulersForeground(QGraphicsItem):
         """Return the bounding rectangle of the grid."""
         return QRectF(-5000, -5000, 10000, 10000)
 
-    def mouseDoubleClickEvent(self, event):
-        """Handle double-click events to change grid units."""
+    def mousePressEvent(self, event):
+        """Handle single-click events to change grid units."""
         # Check if the click is in the unit label area
         widget = self.scene().views()[0]
         viewport_rect = widget.viewport().rect()
@@ -127,7 +127,6 @@ class RulersForeground(QGraphicsItem):
                         if isinstance(item, GridBackground):
                             item.update()
                             break
-                    
                     # Notify the scene to refresh gear items
                     scene = self.scene()
                     if scene and hasattr(scene, 'refresh_gear_items_for_unit_change'):
