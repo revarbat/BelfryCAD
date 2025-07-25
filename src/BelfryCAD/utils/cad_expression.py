@@ -77,6 +77,7 @@ class CadExpression:
         self.expressions = expressions or {}  # param name -> expression string
         self._tokens = []
         self._current_token_index = 0
+        self._token_cache = {}  # expression string -> token list
 
     def set_variable(self, name: str, expr):
         """Set a parameter's expression (as a string)."""
@@ -125,6 +126,8 @@ class CadExpression:
         return result
 
     def _tokenize(self, expression: str) -> List[Tuple[str, str]]:
+        if expression in self._token_cache:
+            return self._token_cache[expression]
         patterns = [
             (r'\s+', None),
             (r'(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?', 'NUMBER'),
@@ -157,6 +160,7 @@ class CadExpression:
                     break
             if not match:
                 raise ValueError(f"Invalid character at position {pos}: '{expression[pos]}'")
+        self._token_cache[expression] = tokens
         return tokens
 
     def _current_token(self) -> Tuple[str, str]:
