@@ -698,14 +698,14 @@ class LayerPane(QWidget):
         """Set up toolbar icons."""
         # Add new layer button
         new_layer_action = QAction(self)
-        new_layer_action.setIcon(get_icon("layer-new"))
+        new_layer_action.setIcon(get_icon("item-add"))
         new_layer_action.setToolTip("New Layer")
         new_layer_action.triggered.connect(self._create_new_layer)
         self.toolbar.addAction(new_layer_action)
 
         # Add delete layer button
         delete_layer_action = QAction(self)
-        delete_layer_action.setIcon(get_icon("layer-delete"))
+        delete_layer_action.setIcon(get_icon("item-delete"))
         delete_layer_action.setToolTip("Delete Layer")
         delete_layer_action.triggered.connect(self._delete_current_layer)
         self.toolbar.addAction(delete_layer_action)

@@ -190,8 +190,9 @@ def preload_common_icons():
         "layer-unlocked",
         "layer-cam",
         "layer-nocam",
-        "layer-new",
-        "layer-delete",
+
+        "item-add",
+        "item-delete",
 
         # Snap icons
         "snap-center",

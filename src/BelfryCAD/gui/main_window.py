@@ -40,9 +40,9 @@ from .dialogs.gcode_backtracer_dialog import GCodeBacktracerDialog
 from .widgets.zoom_edit_widget import ZoomEditWidget
 from .snaps_system import SnapsSystem
 from .views.graphics_items.caditems import (
-    LineCadItem, CubicBezierCadItem, QuadraticBezierCadItem, CircleCenterRadiusCadItem,
-    Circle2PointsCadItem, Circle3PointsCadItem, CircleCornerCadItem, ArcCornerCadItem,
-    RectangleCadItem, ArcCadItem, PolylineCadItem,
+    LineCadItem, PolylineCadItem, ArcCadItem,
+    CubicBezierCadItem, CircleCenterRadiusCadItem,
+    RectangleCadItem,
 )
 from .panes.layer_pane import LayerPane
 from .panes.config_pane import ConfigPane
@@ -1732,37 +1732,6 @@ class MainWindow(QMainWindow):
         bezier3.setZValue(2)
         self.cad_scene.addItem(bezier3)
 
-        # Add quadratic Bezier curves
-        # Simple quadratic curve
-        quad_bezier1 = QuadraticBezierCadItem(
-            self,
-            [
-                QPointF(-6, 0),    # 1st path point
-                QPointF(-5, 2),    # control point
-                QPointF(-4, 0),    # 2nd path point
-                QPointF(-3, -2),   # control point
-                QPointF(-2, 0),    # 3rd path point
-            ],
-            black, linewidth)
-        quad_bezier1.setZValue(2)
-        self.cad_scene.addItem(quad_bezier1)
-
-        # Complex quadratic curve with multiple segments
-        quad_bezier2 = QuadraticBezierCadItem(
-            self,
-            [
-                QPointF(6, -1),     # 1st path point
-                QPointF(7, 1),      # control point
-                QPointF(8, -1),     # 2nd path point
-                QPointF(9, -3),     # control point
-                QPointF(10, -1),    # 3rd path point
-                QPointF(11, 1),     # control point
-                QPointF(12, -1),    # 4th path point
-            ],
-            black, linewidth)
-        quad_bezier2.setZValue(2)
-        self.cad_scene.addItem(quad_bezier2)
-
         # Add rectangles
         # Test rectangle
         rectangle1 = RectangleCadItem(
@@ -1782,47 +1751,3 @@ class MainWindow(QMainWindow):
         arc1.setZValue(2)
         self.cad_scene.addItem(arc1)
 
-        circ2 = Circle2PointsCadItem(
-            self,
-            QPointF(1, -2), QPointF(3, -2),
-            black, linewidth)
-        circ2.setZValue(2)
-        self.cad_scene.addItem(circ2)
-
-        # Add Circle3PointsCadItem - valid circle
-        circle3pt = Circle3PointsCadItem(
-            self,
-            QPointF(-3, -3), QPointF(-1, -4), QPointF(-2, -1),
-            black, linewidth)
-        circle3pt.setZValue(2)
-        self.cad_scene.addItem(circle3pt)
-
-        # Add Circle3PointsCadItem - collinear points (becomes a line)
-        line3pt = Circle3PointsCadItem(
-            self,
-            QPointF(4, 3), QPointF(5, 4), QPointF(6, 5),
-            black, linewidth)
-        line3pt.setZValue(2)
-        self.cad_scene.addItem(line3pt)
-
-        # Add CircleCornerCadItem - circle tangent to two rays
-        corner_circle = CircleCornerCadItem(
-            self,
-            QPointF(-5, 2),       # Corner point
-            QPointF(-3, 3),       # Ray 1 point
-            QPointF(-4, 4),       # Ray 2 point
-            QPointF(-4.2, 2.8),   # Center spec point (on bisector)
-            black, linewidth)
-        corner_circle.setZValue(2)
-        self.cad_scene.addItem(corner_circle)
-
-        # Add ArcCornerCadItem - arc between tangent points on two rays
-        corner_arc = ArcCornerCadItem(
-            self,
-            QPointF(5, -3),       # Corner point
-            QPointF(7, -2),       # Ray 1 point
-            QPointF(6, -1),       # Ray 2 point
-            QPointF(6.0, -2.2),   # Center spec point (on bisector)
-            black, linewidth)
-        corner_arc.setZValue(2)
-        self.cad_scene.addItem(corner_arc)
