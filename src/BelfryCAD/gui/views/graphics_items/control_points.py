@@ -311,7 +311,8 @@ class ControlDatum(ControlPoint):
             valstr = grid_info.format_label(value, no_subs=True).replace("\n", " ")
         else:
             valstr = self._format_string.format(value)
-            valstr = valstr.rstrip('0').rstrip('.')
+            if '.' in valstr:
+                valstr = valstr.rstrip('0').rstrip('.')
         pfx = self._prefix if self._prefix else ""
         sfx = self._suffix if self._suffix else ""
         return f"{pfx}{valstr}{sfx}"

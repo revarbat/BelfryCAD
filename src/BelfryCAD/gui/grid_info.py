@@ -280,7 +280,10 @@ class GridInfo(object):
         elif value.is_integer():
             return f"{int(value)}"
         else:
-            return f"{value:.{self.decimal_places}f}".rstrip("0").rstrip(".")
+            valstr = f"{value:.{self.decimal_places}f}"
+            if "." in valstr:
+                valstr = valstr.rstrip("0").rstrip(".")
+            return valstr
 
     @staticmethod
     def get_dpi(view: QGraphicsView) -> float:
