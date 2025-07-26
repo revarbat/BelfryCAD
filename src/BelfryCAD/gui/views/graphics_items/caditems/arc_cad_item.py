@@ -21,15 +21,20 @@ if TYPE_CHECKING:
 class ArcCadItem(CadItem):
     """An arc CAD item defined by center point, start radius point, and end angle point."""
 
-    def __init__(self, main_window: 'MainWindow', center_point=None, start_point=None, end_point=None,
-                 color=QColor(0, 0, 0), line_width=0.05):
-        super().__init__(main_window)
+    def __init__(
+                self,
+                main_window: 'MainWindow',
+                center_point: QPointF = QPointF(0, 0),
+                start_point: QPointF = QPointF(1, 0),
+                end_point: QPointF = QPointF(0, 1),
+                color: QColor = QColor(0, 0, 0),
+                line_width: Optional[float] = 0.05
+    ):
+        super().__init__(main_window, color, line_width)
         # Default to a quarter-circle arc if no points provided
         self._center_point = center_point if center_point else QPointF(0, 0)
         self._start_point = start_point if start_point else QPointF(1, 0)
         self._end_point = end_point if end_point else QPointF(0, 1)
-        self._color = color
-        self._line_width = line_width
         self._center_cp = None
         self._start_cp = None
         self._end_cp = None
@@ -96,13 +101,6 @@ class ArcCadItem(CadItem):
 
     def _create_controls_impl(self):
         """Create control points for the arc and return them."""
-        # Get precision from scene
-        precision = 3  # Default fallback
-        scene = self.scene()
-        if scene and isinstance(scene, CadScene):
-            precision = scene.get_precision()
-        
-        # Create control points with direct setters
         self._center_cp = SquareControlPoint(
             cad_item=self,
             setter=self._set_center
@@ -120,15 +118,37 @@ class ArcCadItem(CadItem):
             prefix="R",
             cad_item=self,
             label="Arc Radius",
+        )
+        self._start_angle_datum = ControlDatum(
+            setter=self._set_start_angle,
+            prefix="Start: ",
+            suffix="°",
+            cad_item=self,
+            label="Arc Start Angle",
             angle=45,
             pixel_offset=10,
-            precision=precision
+            precision_override=1
+        )
+        self._span_angle_datum = ControlDatum(
+            setter=self._set_span_angle,
+            prefix="Span: ",
+            suffix="°",
+            cad_item=self,
+            label="Arc Span Angle",
+            angle=135,
+            pixel_offset=10,
+            precision_override=1
         )
 
         self.updateControls()
         
         # Store control points in the list that the scene expects
-        control_points = [self._center_cp, self._start_cp, self._end_cp, self._radius_datum]
+        control_points = [
+            self._center_cp, self._start_cp, self._end_cp,
+            self._radius_datum,
+            self._start_angle_datum,
+            self._span_angle_datum
+        ]
         self._control_point_items.extend(control_points)
         
         # Return the list of control points
@@ -136,17 +156,29 @@ class ArcCadItem(CadItem):
 
     def updateControls(self):
         """Update control point positions and values."""
-        if hasattr(self, '_center_cp') and self._center_cp:
+        if self._center_cp:
             self._center_cp.setPos(self._center_point)
-        if hasattr(self, '_start_cp') and self._start_cp:
+        if self._start_cp:
             self._start_cp.setPos(self._start_point)
-        if hasattr(self, '_end_cp') and self._end_cp:
+        if self._end_cp:
             self._end_cp.setPos(self._end_point)
-        if hasattr(self, '_radius_datum') and self._radius_datum:
+        if self._radius_datum:
             # Update both position and value for the datum
-            radius_value = self._get_radius_value()
-            radius_position = self._get_radius_datum_position()
-            self._radius_datum.update_datum(radius_value, radius_position)
+            value = self._get_radius_value()
+            position = self._get_radius_datum_position()
+            self._radius_datum.update_datum(value, position)
+        if self._start_angle_datum:
+            value = math.degrees(self._angle_from_center(self._start_point))
+            value = (value + 360) % 360
+            position = self._start_point
+            self._start_angle_datum.angle = value
+            self._start_angle_datum.update_datum(value, position)
+        if self._span_angle_datum:
+            value = math.degrees(self.span_angle)
+            value = (value + 360) % 360
+            position = self._end_point
+            self._span_angle_datum.angle = math.degrees(self._angle_from_center(self._end_point))
+            self._span_angle_datum.update_datum(value, position)
 
     def getControlPoints(self, exclude_cps: Optional[List['ControlPoint']] = None) -> List[QPointF]:
         """Return list of control point positions in scene coordinates (excluding ControlDatums)."""
@@ -181,29 +213,125 @@ class ArcCadItem(CadItem):
         #self.setPos(self._center_point)
         
     def _set_start(self, new_position):
-        """Set the start point from control point movement."""
+        """Set the start point from control point movement, maintaining span angle."""
+        # Calculate the current span angle before moving the start point
+        current_start_angle = self._angle_from_center(self._start_point)
+        current_end_angle = self._angle_from_center(self._end_point)
+        current_span_angle = current_end_angle - current_start_angle
+        
+        # Normalize the span angle to be positive
+        if current_span_angle < 0:
+            current_span_angle += 2 * math.pi
+        
+        # Update the start point
         self._start_point = new_position
-        end_angle = self._angle_from_center(self._end_point)
+        
+        # Calculate the new start angle
+        new_start_angle = self._angle_from_center(self._start_point)
+        
+        # Calculate the new end angle to maintain the same span
+        new_end_angle = new_start_angle + current_span_angle
+        
+        # Calculate the new radius (use the distance from center to new start point)
         new_radius = self._distance(self._center_point, new_position)
+        
+        # Update the end point to maintain the span angle
         self._end_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(end_angle),
-            self._center_point.y() + new_radius * math.sin(end_angle)
+            self._center_point.x() + new_radius * math.cos(new_end_angle),
+            self._center_point.y() + new_radius * math.sin(new_end_angle)
         )
         
     def _set_end(self, new_position):
-        """Set the end point from control point movement."""
+        """Set the end point from control point movement, maintaining span angle."""
+        # Calculate the current span angle before moving the end point
+        current_start_angle = self._angle_from_center(self._start_point)
+        current_end_angle = self._angle_from_center(self._end_point)
+        current_span_angle = current_end_angle - current_start_angle
+        
+        # Normalize the span angle to be positive
+        if current_span_angle < 0:
+            current_span_angle += 2 * math.pi
+        
+        # Update the end point
         self._end_point = new_position
-        start_angle = self._angle_from_center(self._start_point)
+        
+        # Calculate the new end angle
+        new_end_angle = self._angle_from_center(self._end_point)
+        
+        # Calculate the new start angle to maintain the same span
+        new_start_angle = new_end_angle - current_span_angle
+        
+        # Calculate the new radius (use the distance from center to new end point)
         new_radius = self._distance(self._center_point, new_position)
+        
+        # Update the start point to maintain the span angle
         self._start_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(start_angle),
-            self._center_point.y() + new_radius * math.sin(start_angle)
+            self._center_point.x() + new_radius * math.cos(new_start_angle),
+            self._center_point.y() + new_radius * math.sin(new_start_angle)
+        )
+        
+    def _set_start_angle(self, new_angle):
+        """Set the start angle from control datum, maintaining span angle."""
+        # Calculate the current span angle before changing the start angle
+        current_start_angle = self._angle_from_center(self._start_point)
+        current_end_angle = self._angle_from_center(self._end_point)
+        current_span_angle = current_end_angle - current_start_angle
+        
+        # Normalize the span angle to be positive
+        if current_span_angle < 0:
+            current_span_angle += 2 * math.pi
+        
+        # Update the start point to the new angle
+        new_start_angle = math.radians(new_angle)
+        self._start_point = self._center_point + QPointF(
+            self.radius * math.cos(new_start_angle),
+            self.radius * math.sin(new_start_angle)
+        )
+        
+        # Calculate the new end angle to maintain the same span
+        new_end_angle = new_start_angle + current_span_angle
+        
+        # Update the end point to maintain the span angle
+        self._end_point = self._center_point + QPointF(
+            self.radius * math.cos(new_end_angle),
+            self.radius * math.sin(new_end_angle)
+        )
+        
+    def _set_end_angle(self, new_angle):
+        """Set the end angle from control datum, maintaining span angle."""
+        # Calculate the current span angle before changing the end angle
+        current_start_angle = self._angle_from_center(self._start_point)
+        current_end_angle = self._angle_from_center(self._end_point)
+        current_span_angle = current_end_angle - current_start_angle
+        
+        # Normalize the span angle to be positive
+        if current_span_angle < 0:
+            current_span_angle += 2 * math.pi
+        
+        # Update the end point to the new angle
+        new_end_angle = math.radians(new_angle)
+        self._end_point = self._center_point + QPointF(
+            self.radius * math.cos(new_end_angle),
+            self.radius * math.sin(new_end_angle)
+        )
+        
+        # Calculate the new start angle to maintain the same span
+        new_start_angle = new_end_angle - current_span_angle
+        
+        # Update the start point to maintain the span angle
+        self._start_point = self._center_point + QPointF(
+            self.radius * math.cos(new_start_angle),
+            self.radius * math.sin(new_start_angle)
         )
         
     def _get_radius_datum_position(self) -> QPointF:
         """Get the position for the radius datum."""
-        sc = math.sin(math.pi/4)
-        return QPointF(self.radius * sc, self.radius * sc) + self._center_point
+        angle = self._angle_from_center(self._start_point)
+        pt = self._center_point + QPointF(
+            self.radius/2 * math.cos(angle),
+            self.radius/2 * math.sin(angle)
+        )
+        return pt
 
     def _get_radius_value(self):
         """Get the current radius value."""
@@ -228,13 +356,24 @@ class ArcCadItem(CadItem):
             self._center_point.y() + new_radius * math.sin(end_angle)
         )
 
+    def _set_span_angle(self, new_angle):
+        """Set the span angle from control point movement."""
+        start_angle = math.degrees(self._angle_from_center(self._start_point))
+        end_angle = start_angle + new_angle
+        self._end_point = self._center_point + QPointF(
+            self.radius * math.cos(math.radians(end_angle)),
+            self.radius * math.sin(math.radians(end_angle))
+        )
+
     def paint_item_with_color(self, painter, option, widget=None, color=None):
         """Draw the arc content with a custom color."""
         painter.save()
 
         # Use provided color or fall back to default
         pen_color = color if color is not None else self._color
-        pen = QPen(pen_color, self._line_width)
+        pen = QPen(pen_color, self.line_width)
+        if self._line_width is None:
+            pen.setCosmetic(True)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)
@@ -245,13 +384,13 @@ class ArcCadItem(CadItem):
         painter.drawPath(arc_path)
 
         # Use dashed construction pen for construction lines
-        self.draw_construction_line(painter, self._center_point, self._start_point)
         self.draw_construction_line(painter, self._center_point, self._end_point)
         
         # Use solid construction pen for construction circle
         self.draw_construction_circle(painter, self._center_point, self.radius)
         
-        self.draw_radius_arrow(painter, self._center_point, 45, self.radius, self._line_width)
+        angle = math.degrees(self._angle_from_center(self._start_point))
+        self.draw_radius_arrow(painter, self._center_point, angle, self.radius, self._line_width)
         self.draw_center_cross(painter, self._center_point)
 
         painter.restore()

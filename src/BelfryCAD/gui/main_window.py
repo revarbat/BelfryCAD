@@ -2,6 +2,7 @@
 """Main window for the BelfryCad application."""
 
 import logging
+from tracemalloc import start
 
 from PySide6.QtCore import (
     Qt, QSize, QTimer
@@ -40,9 +41,9 @@ from .dialogs.gcode_backtracer_dialog import GCodeBacktracerDialog
 from .widgets.zoom_edit_widget import ZoomEditWidget
 from .snaps_system import SnapsSystem
 from .views.graphics_items.caditems import (
-    LineCadItem, PolylineCadItem, ArcCadItem,
-    CubicBezierCadItem, CircleCenterRadiusCadItem,
-    RectangleCadItem,
+    LineCadItem, ArcCadItem,
+    CubicBezierCadItem, CircleCadItem,
+    EllipseCadItem,
 )
 from .panes.layer_pane import LayerPane
 from .panes.config_pane import ConfigPane
@@ -1639,85 +1640,43 @@ class MainWindow(QMainWindow):
     def _draw_shapes(self):
         """Draw test shapes on the scene."""
         black = QColor(0, 0, 0)
-        linewidth = 0.02
+        linewidth = None
 
-        # Add example gear
+        line1 = LineCadItem(
+            self,
+            QPointF(-1, -1), QPointF(1, 1),
+            black, linewidth)
+        self.cad_scene.addItem(line1)
+
+        circle1 = CircleCadItem(
+            self,
+            center_point=QPointF(-2, 2),
+            perimeter_point=QPointF(-1, 2),
+            color=black,
+            line_width=linewidth
+        )
+        self.cad_scene.addItem(circle1)
+
+        ellipse1 = EllipseCadItem(
+            self,
+            focus1_point=QPointF(3, 0),
+            focus2_point=QPointF(4, 0),
+            perimeter_point=QPointF(4, 1),
+            color=black,
+            line_width=linewidth)
+        self.cad_scene.addItem(ellipse1)
+
         gear = GearCadItem(
             self,
-            center=QPointF(9, 0),
-            pitch_radius_point=QPointF(10, 0),
+            center=QPointF(-2, -2),
+            pitch_radius_point=QPointF(-1, -2),
             tooth_count=11,
             pressure_angle=20,
             color=black,
-            line_width=0.01
+            line_width=linewidth
         )
-        gear.setZValue(3)
         self.cad_scene.addItem(gear)
 
-        # Add draggable circles
-        circle1 = CircleCenterRadiusCadItem(
-            self,
-            QPointF(1, 0.5), QPointF(2, 0.5),
-            black, linewidth)
-        circle1.setZValue(2)  # Above other shapes
-        self.cad_scene.addItem(circle1)
-
-        # Add polylines
-        # Triangle polyline
-        triangle_points = [
-            QPointF(-3, 0),
-            QPointF(-1, 0),
-            QPointF(-2, 2),
-            QPointF(-3, 0)
-        ]
-        triangle = PolylineCadItem(
-            self,
-            triangle_points, black, linewidth)
-        triangle.setZValue(1)
-        self.cad_scene.addItem(triangle)
-
-        # Zigzag polyline
-        zigzag_points = [
-            QPointF(-4, -2),
-            QPointF(-3, -1),
-            QPointF(-2, -2),
-            QPointF(-1, -1),
-            QPointF(0, -2),
-            QPointF(1, -1)
-        ]
-        zigzag = PolylineCadItem(
-            self,
-            zigzag_points, black, linewidth)
-        zigzag.setZValue(2)
-        self.cad_scene.addItem(zigzag)
-
-        # Add line segments
-        # Horizontal line
-        line1 = LineCadItem(
-            self,
-            QPointF(-2, 4), QPointF(2, 4),
-            black, linewidth)
-        line1.setZValue(1)
-        self.cad_scene.addItem(line1)
-
-        # Diagonal line
-        line2 = LineCadItem(
-            self,
-            QPointF(-4, 1), QPointF(-2, 3),
-            black, linewidth)
-        line2.setZValue(2)
-        self.cad_scene.addItem(line2)
-
-        # Vertical line
-        line3 = LineCadItem(
-            self,
-            QPointF(4, -2), QPointF(4, 2),
-            black, linewidth)
-        line3.setZValue(2)
-        self.cad_scene.addItem(line3)
-
-        # Add Bezier curves
-        # Tight curve
         bezier3 = CubicBezierCadItem(
             self,
             [
@@ -1729,25 +1688,14 @@ class MainWindow(QMainWindow):
                 QPointF(13, 3.5), QPointF(14, 2),
             ],
             black, linewidth)
-        bezier3.setZValue(2)
         self.cad_scene.addItem(bezier3)
 
-        # Add rectangles
-        # Test rectangle
-        rectangle1 = RectangleCadItem(
-            self,
-            QPointF(3, 3), QPointF(5, 3),
-            QPointF(5, 1), QPointF(3, 1),
-            black, 0.01)
-        rectangle1.setZValue(2)
-        self.cad_scene.addItem(rectangle1)
-
-        # Add arcs
-        # Test arc (quarter circle)
         arc1 = ArcCadItem(
-            self,
-            QPointF(-1, -3), QPointF(0, -3), QPointF(-1, -2),
-            black, linewidth)
-        arc1.setZValue(2)
+            main_window=self,
+            center_point=QPointF(2, -2),
+            start_point=QPointF(3, -2),
+            end_point=QPointF(2, -1),
+            color=black,
+            line_width=linewidth)
         self.cad_scene.addItem(arc1)
 

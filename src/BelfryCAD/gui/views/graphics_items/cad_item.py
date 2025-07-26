@@ -16,8 +16,13 @@ if TYPE_CHECKING:
 class CadItem(QGraphicsItem):
     """Base class for all CAD graphics items."""
 
-    def __init__(self, main_window: 'MainWindow'):
+    def __init__(self,
+            main_window: 'MainWindow',
+            color: QColor = QColor(0, 0, 0),
+            line_width: Optional[float] = 1.0):
         super().__init__()
+        self._color = color
+        self._line_width = line_width
         self._main_window = main_window
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
@@ -397,4 +402,26 @@ class CadItem(QGraphicsItem):
     def is_metric(self):
         return self.grid_info.is_metric
 
+    @property
+    def color(self) -> QColor:
+        return self._color
+
+    @color.setter
+    def color(self, value):
+        if value is None:
+            value = QColor(0, 0, 0)
+        self._color = value
+        self.update()
+
+    @property
+    def line_width(self) -> float:
+        if self._line_width is None:
+            return 2.0
+        return self._line_width
+
+    @line_width.setter
+    def line_width(self, value):
+        self.prepareGeometryChange()  # Line width affects bounding rect
+        self._line_width = value
+        self.update()
 

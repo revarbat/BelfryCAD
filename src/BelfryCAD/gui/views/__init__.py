@@ -12,8 +12,9 @@ __all__ = [
     # Graphics items
     'CadItem',
     'LineCadItem',
-    'CircleCenterRadiusCadItem',
-    'RectangleCadItem',
+    'CircleCadItem',
+    'CubicBezierCadItem',
+    'ArcCadItem',
     # Dialogs
     'PreferencesDialog'
 ] 

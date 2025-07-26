@@ -251,6 +251,144 @@ class Circle:
         return math.hypot(closest_pt[0] - px, closest_pt[1] - py)
 
 
+class Ellipse:
+    def __init__(
+        self,
+        solver,
+        center: Point2D,
+        radius1: float,
+        radius2: float,
+        rotation_angle: float,
+        fixed_radius1: bool = False,
+        fixed_radius2: bool = False,
+        fixed_rotation: bool = False
+    ):
+        self.center = center
+        self.radius1_index = solver.add_variable(radius1, fixed=fixed_radius1)
+        self.radius2_index = solver.add_variable(radius2, fixed=fixed_radius2)
+        self.rotation_index = solver.add_variable(rotation_angle, fixed=fixed_rotation)
+        solver.ellipses = getattr(solver, 'ellipses', [])
+        solver.ellipses.append(self)
+
+    def get(self, vars) -> Tuple[float, float, float, float, float]:
+        cx, cy = self.center.get(vars)
+        major_r = vars[self.radius1_index]
+        minor_r = vars[self.radius2_index]
+        rotation = vars[self.rotation_index]
+        return cx, cy, major_r, minor_r, rotation
+
+    def get_rotation_radians(self, vars) -> float:
+        return math.radians(vars[self.rotation_index])
+
+    def get_rotation_degrees(self, vars) -> float:
+        return normalize_degrees(vars[self.rotation_index])
+
+    def closest_point_on_perimeter(
+        self,
+        vars,
+        p
+    ) -> Optional[Tuple[float, float]]:
+        """
+        Finds the closest point on the ellipse perimeter to the given point.
+        Uses numerical optimization to find the minimum distance.
+        """
+        cx, cy, major_r, minor_r, rotation = self.get(vars)
+        px, py = p.get(vars)
+        
+        # Transform point to ellipse's coordinate system
+        cos_rot = math.cos(math.radians(rotation))
+        sin_rot = math.sin(math.radians(rotation))
+        
+        # Translate to origin
+        dx = px - cx
+        dy = py - cy
+        
+        # Rotate to ellipse's coordinate system
+        x_rot = dx * cos_rot + dy * sin_rot
+        y_rot = -dx * sin_rot + dy * cos_rot
+        
+        # Find closest point on ellipse using parametric approach
+        def ellipse_point(t):
+            return (
+                major_r * math.cos(t),
+                minor_r * math.sin(t)
+            )
+        
+        def distance_to_point(t):
+            ex, ey = ellipse_point(t)
+            return math.hypot(x_rot - ex, y_rot - ey)
+        
+        # Find minimum distance using golden section search
+        a, b = 0, 2 * math.pi
+        gr = (math.sqrt(5) - 1) / 2  # golden ratio
+        c = b - gr * (b - a)
+        d = a + gr * (b - a)
+        
+        for _ in range(50):  # 50 iterations should be sufficient
+            if distance_to_point(c) < distance_to_point(d):
+                b = d
+                d = c
+                c = b - gr * (b - a)
+            else:
+                a = c
+                c = d
+                d = a + gr * (b - a)
+        
+        # Get the closest point in ellipse coordinates
+        t = (a + b) / 2
+        ex, ey = ellipse_point(t)
+        
+        # Transform back to world coordinates
+        x_world = ex * cos_rot - ey * sin_rot + cx
+        y_world = ex * sin_rot + ey * cos_rot + cy
+        
+        return (x_world, y_world)
+
+    def distance_to_perimeter(self, vars, p) -> float:
+        closest_pt = self.closest_point_on_perimeter(vars, p)
+        px, py = p.get(vars)
+        if closest_pt is None:
+            return 0.0
+        return math.hypot(closest_pt[0] - px, closest_pt[1] - py)
+
+    def get_focus_points(self, vars) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """
+        Returns the two focus points of the ellipse.
+        """
+        cx, cy, major_r, minor_r, rotation = self.get(vars)
+        
+        # Calculate focal distance
+        c = math.sqrt(major_r**2 - minor_r**2)
+        
+        # Focus points in ellipse's coordinate system
+        f1_ellipse = (c, 0)
+        f2_ellipse = (-c, 0)
+        
+        # Transform to world coordinates
+        cos_rot = math.cos(math.radians(rotation))
+        sin_rot = math.sin(math.radians(rotation))
+        
+        f1_world = (
+            f1_ellipse[0] * cos_rot - f1_ellipse[1] * sin_rot + cx,
+            f1_ellipse[0] * sin_rot + f1_ellipse[1] * cos_rot + cy
+        )
+        f2_world = (
+            f2_ellipse[0] * cos_rot - f2_ellipse[1] * sin_rot + cx,
+            f2_ellipse[0] * sin_rot + f2_ellipse[1] * cos_rot + cy
+        )
+        
+        return f1_world, f2_world
+
+    def eccentricity(self, vars) -> float:
+        """
+        Returns the eccentricity of the ellipse.
+        """
+        cx, cy, major_r, minor_r, rotation = self.get(vars)
+        if major_r == 0:
+            return 0.0
+        return math.sqrt(1 - (minor_r**2 / major_r**2))
+
+
 class Arc:
     def __init__(
         self,
@@ -275,6 +413,20 @@ class Arc:
         theta1 = vars[self.start_angle_index]
         theta2 = vars[self.end_angle_index]
         return cx, cy, r, theta1, theta2
+
+    def span_angle(self, vars) -> float:
+        cx, cy, r, theta1, theta2 = self.get(vars)
+        theta1 = normalize_degrees(theta1)
+        theta2 = normalize_degrees(theta2)
+        if theta1 > theta2:
+            return theta2 - theta1 + 360
+        return theta2 - theta1
+
+    def start_angle(self, vars) -> float:
+        return normalize_degrees(vars[self.start_angle_index])
+
+    def end_angle(self, vars) -> float:
+        return normalize_degrees(vars[self.end_angle_index])
 
 
 class CubicBezierSegment:
@@ -392,6 +544,9 @@ def angle_from_arc_span(
     The angle is normalized to the range of 0 to 360 degrees.
     The start and end angles are normalized to the range of 0 to 360 degrees.
     The angle is returned in degrees.
+    If the angle is within the arc span, the angle is returned as 0.
+    If the angle is outside the arc span, the angle is returned as the
+    difference between the angle and the closest of the start or end angle.
     """
     angle = normalize_degrees(angle)
     start_angle = normalize_degrees(start_angle)
@@ -499,45 +654,33 @@ def point_on_bezier(p: Point2D, bezier: CubicBezierSegment):
     return constraint
 
 
-def point_coincides_with_line_endpoint(p: Point2D, l: LineSegment):
+def point_coincides_with_arc_start(p: Point2D, arc: Arc):
     """
-    Returns a constraint that ensures the point coincides with the line endpoint.
-    """
-    def constraint(vars):
-        dist1 = p.distance_to(vars, l.p1)
-        dist2 = p.distance_to(vars, l.p2)
-        return [min(dist1, dist2)]
-    return constraint
-
-
-def point_coincides_with_arc_endpoint(p: Point2D, arc: Arc):
-    """
-    Returns a constraint that ensures the point coincides with the arc endpoint.
+    Returns a constraint that ensures the point coincides with the arc start point.
     """
     def constraint(vars):
         cx, cy, r, theta1, theta2 = arc.get(vars)
         px, py = p.get(vars)
         spx = cx + r * np.cos(theta1)
         spy = cy + r * np.sin(theta1)
-        epx = cx + r * np.cos(theta2)
-        epy = cy + r * np.sin(theta2)
         return [
-            min(
-                math.hypot(px - spx, py - spy),
-                math.hypot(px - epx, py - epy)
-            )
+            math.hypot(px - spx, py - spy),
         ]
     return constraint
 
 
-def point_coincides_with_bezier_endpoint(p: Point2D, bezier: CubicBezierSegment):
+def point_coincides_with_arc_end(p: Point2D, arc: Arc):
     """
-    Returns a constraint that ensures the point coincides with the bezier segment endpoint.
+    Returns a constraint that ensures the point coincides with the arc start point.
     """
     def constraint(vars):
-        dist1 = p.distance_to(vars, bezier.points[0])
-        dist2 = p.distance_to(vars, bezier.points[-1])
-        return [min(dist1, dist2)]
+        cx, cy, r, theta1, theta2 = arc.get(vars)
+        px, py = p.get(vars)
+        epx = cx + r * np.cos(theta2)
+        epy = cy + r * np.sin(theta2)
+        return [
+            math.hypot(px - epx, py - epy),
+        ]
     return constraint
 
 
@@ -564,6 +707,24 @@ def line_is_vertical(l: LineSegment):
         p1x, p1y = l.p1.get(vars)
         p2x, p2y = l.p2.get(vars)
         return [p1x - p2x]
+    return constraint
+
+
+def line_angle_is(l: LineSegment, angle: float):
+    """
+    Returns a constraint that ensures the line is at the given angle in degrees.
+    """
+    def constraint(vars):
+        return [l.angle(vars) - angle]
+    return constraint
+
+
+def line_length_is(l: LineSegment, length: float):
+    """
+    Returns a constraint that ensures the line has the given length.
+    """
+    def constraint(vars):
+        return [l.length(vars) - length]
     return constraint
 
 
@@ -667,6 +828,45 @@ def line_is_tangent_to_bezier(
 # Arc Constraint Functions
 # ============================
 
+def arc_radius_is(arc: Arc, radius: float):
+    """
+    Returns a constraint that ensures the arc has the given radius.
+    """
+    def constraint(vars):
+        cx, cy, r, theta1, theta2 = arc.get(vars)
+        return [r - radius]
+    return constraint
+
+
+def arc_starts_at_angle(arc: Arc, angle: float):
+    """
+    Returns a constraint that ensures the arc starts at the given angle in degrees.
+    """
+    target_angle = normalize_degrees(angle)
+    def constraint(vars):
+        return [arc.start_angle(vars) - target_angle]
+    return constraint
+
+def arc_ends_at_angle(arc: Arc, angle: float):
+    """
+    Returns a constraint that ensures the arc ends at the given angle in degrees.
+    """
+    target_angle = normalize_degrees(angle)
+    def constraint(vars):
+        return [arc.end_angle(vars) - target_angle]
+    return constraint
+
+
+def arc_spans_angle(arc: Arc, angle: float):
+    """
+    Returns a constraint that ensures the arc spans the given angle in degrees.
+    """
+    target_angle = normalize_degrees(angle)
+    def constraint(vars):
+        return [arc.span_angle(vars) - target_angle]
+    return constraint
+
+
 def arc_is_tangent_to_arc(arc1: Arc, arc2: Arc):
     """
     Returns a constraint that ensures the arcs are tangent to each other.
@@ -724,18 +924,14 @@ def arc_is_tangent_to_bezier(arc: Arc, bezier: CubicBezierSegment):
 # Circle Constraint Functions
 # ============================
 
-def circle_is_tangent_to_line(circle: Circle, line: LineSegment):
+def circle_radius_is(circle: Circle, radius: float):
     """
-    Returns a constraint that ensures the circle is tangent to the line.
+    Returns a constraint that ensures the circle has the given radius.
     """
-    return line_is_tangent_to_circle(line, circle)
-
-
-def circle_is_tangent_to_arc(circle: Circle, arc: Arc):
-    """
-    Returns a constraint that ensures the circle is tangent to the arc.
-    """
-    return arc_is_tangent_to_circle(arc, circle)
+    def constraint(vars):
+        cx, cy, r = circle.get(vars)
+        return [r - radius]
+    return constraint
 
 
 def circle_is_tangent_to_circle(circle1: Circle, circle2: Circle):
@@ -764,129 +960,464 @@ def circle_is_tangent_to_bezier(circle: Circle, bezier: CubicBezierSegment):
 
 
 # ============================
+# Ellipse Constraint Functions
+# ============================
+
+def ellipse_radius1_is(ellipse: Ellipse, radius: float):
+    """
+    Returns a constraint that ensures the ellipse has the given major radius.
+    """
+    def constraint(vars):
+        cx, cy, major_r, minor_r, rotation = ellipse.get(vars)
+        return [major_r - radius]
+    return constraint
+
+
+def ellipse_radius2_is(ellipse: Ellipse, radius: float):
+    """
+    Returns a constraint that ensures the ellipse has the given minor radius.
+    """
+    def constraint(vars):
+        cx, cy, major_r, minor_r, rotation = ellipse.get(vars)
+        return [minor_r - radius]
+    return constraint
+
+
+def ellipse_rotation_is(ellipse: Ellipse, angle: float):
+    """
+    Returns a constraint that ensures the ellipse has the given rotation angle in degrees.
+    """
+    target_angle = normalize_degrees(angle)
+    def constraint(vars):
+        return [ellipse.get_rotation_degrees(vars) - target_angle]
+    return constraint
+
+
+def ellipse_eccentricity_is(ellipse: Ellipse, eccentricity: float):
+    """
+    Returns a constraint that ensures the ellipse has the given eccentricity.
+    """
+    def constraint(vars):
+        return [ellipse.eccentricity(vars) - eccentricity]
+    return constraint
+
+
+def point_on_ellipse(p: Point2D, ellipse: Ellipse):
+    """
+    Returns a constraint that ensures the point is on the ellipse perimeter.
+    """
+    def constraint(vars):
+        return [ellipse.distance_to_perimeter(vars, p)]
+    return constraint
+
+
+def ellipse_is_centered_at_point(ellipse: Ellipse, point: Point2D):
+    """
+    Returns a constraint that ensures the ellipse is centered at the given point.
+    """
+    def constraint(vars):
+        return points_coincide(ellipse.center, point)(vars)
+    return constraint
+
+
+def line_is_tangent_to_ellipse(line: LineSegment, ellipse: Ellipse):
+    """
+    Returns a constraint that ensures the line is tangent to the ellipse.
+    """
+    def constraint(vars):
+        # Find closest point on ellipse to line
+        lp1x, lp1y = line.p1.get(vars)
+        lp2x, lp2y = line.p2.get(vars)
+        
+        # Use line midpoint as approximation for closest point
+        mid_x = (lp1x + lp2x) / 2
+        mid_y = (lp1y + lp2y) / 2
+        
+        # Create a temporary point for calculation (without solver)
+        class TempPoint:
+            def __init__(self, x, y):
+                self.x = x
+                self.y = y
+            def get(self, vars):
+                return self.x, self.y
+        
+        mid_point = TempPoint(mid_x, mid_y)
+        
+        closest_pt = ellipse.closest_point_on_perimeter(vars, mid_point)
+        if closest_pt is None:
+            return [1.0]  # Return non-zero residual if no closest point found
+        
+        # Calculate distance from line to closest point
+        dist = line.distance_to(vars, mid_point)  # type: ignore
+        
+        # Calculate tangent angle at closest point
+        cx, cy, major_r, minor_r, rotation = ellipse.get(vars)
+        cos_rot = math.cos(math.radians(rotation))
+        sin_rot = math.sin(math.radians(rotation))
+        
+        # Transform closest point to ellipse coordinates
+        dx = closest_pt[0] - cx
+        dy = closest_pt[1] - cy
+        x_rot = dx * cos_rot + dy * sin_rot
+        y_rot = -dx * sin_rot + dy * cos_rot
+        
+        # Calculate tangent angle in ellipse coordinates
+        if abs(x_rot) < 1e-10 and abs(y_rot) < 1e-10:
+            return [1.0]  # Point at center, no unique tangent
+        
+        # Parametric tangent calculation
+        t = math.atan2(y_rot / minor_r, x_rot / major_r)
+        tangent_x = -major_r * math.sin(t)
+        tangent_y = minor_r * math.cos(t)
+        
+        # Transform tangent back to world coordinates
+        world_tangent_x = tangent_x * cos_rot - tangent_y * sin_rot
+        world_tangent_y = tangent_x * sin_rot + tangent_y * cos_rot
+        
+        # Calculate angle between line and tangent
+        line_angle = math.atan2(lp2y - lp1y, lp2x - lp1x)
+        tangent_angle = math.atan2(world_tangent_y, world_tangent_x)
+        angle_diff = abs(line_angle - tangent_angle)
+        
+        return [
+            dist,  # Distance should be zero for tangent
+            abs(math.cos(angle_diff)) - 1.0  # Angles should be parallel or perpendicular
+        ]
+    return constraint
+
+
+def ellipse_is_tangent_to_circle(ellipse: Ellipse, circle: Circle):
+    """
+    Returns a constraint that ensures the ellipse is tangent to the circle.
+    """
+    def constraint(vars):
+        cx1, cy1, major_r, minor_r, rotation = ellipse.get(vars)
+        cx2, cy2, r2 = circle.get(vars)
+        
+        # Calculate distance between centers
+        center_dist = math.hypot(cx1 - cx2, cy1 - cy2)
+        
+        # For tangent ellipses, the distance should equal the sum of radii
+        # However, for ellipses, this is more complex. We'll use an approximation
+        # by finding the closest point on ellipse to circle center
+        temp_point = Point2D(None, (cx2, cy2))
+        closest_pt = ellipse.closest_point_on_perimeter(vars, temp_point)
+        
+        if closest_pt is None:
+            return [1.0]
+        
+        # Distance from circle center to closest point on ellipse
+        dist_to_ellipse = math.hypot(closest_pt[0] - cx2, closest_pt[1] - cy2)
+        
+        return [dist_to_ellipse - r2]
+    return constraint
+
+
+def ellipse_is_tangent_to_arc(ellipse: Ellipse, arc: Arc):
+    """
+    Returns a constraint that ensures the ellipse is tangent to the arc.
+    """
+    def constraint(vars):
+        cx1, cy1, major_r, minor_r, rotation = ellipse.get(vars)
+        cx2, cy2, r2, theta1, theta2 = arc.get(vars)
+        
+        # Find closest point on ellipse to arc center
+        temp_point = Point2D(None, (cx2, cy2))
+        closest_pt = ellipse.closest_point_on_perimeter(vars, temp_point)
+        
+        if closest_pt is None:
+            return [1.0]
+        
+        # Distance from arc center to closest point on ellipse
+        dist_to_ellipse = math.hypot(closest_pt[0] - cx2, closest_pt[1] - cy2)
+        
+        # Check if the closest point is within the arc span
+        angle_to_point = math.degrees(math.atan2(closest_pt[1] - cy2, closest_pt[0] - cx2))
+        span_check = angle_from_arc_span(angle_to_point, theta1, theta2)
+        
+        return [
+            dist_to_ellipse - r2,  # Distance should equal arc radius
+            span_check  # Point should be within arc span
+        ]
+    return constraint
+
+
+def ellipse_is_tangent_to_bezier(ellipse: Ellipse, bezier: CubicBezierSegment):
+    """
+    Returns a constraint that ensures the ellipse is tangent to the bezier segment.
+    """
+    def constraint(vars):
+        cx, cy, major_r, minor_r, rotation = ellipse.get(vars)
+        
+        # Find closest point on ellipse to bezier
+        # Use bezier center approximation
+        bezier_points = bezier.get(vars)
+        if not bezier_points:
+            return [1.0]
+        
+        # Calculate approximate center of bezier
+        center_x = sum(p[0] for p in bezier_points) / len(bezier_points)
+        center_y = sum(p[1] for p in bezier_points) / len(bezier_points)
+        
+        temp_point = Point2D(None, (center_x, center_y))
+        closest_pt = ellipse.closest_point_on_perimeter(vars, temp_point)
+        
+        if closest_pt is None:
+            return [1.0]
+        
+        # Find closest point on bezier to ellipse center
+        t = bezier.closest_path_part(vars, ellipse.center)
+        bezier_pt = bezier.path_point(vars, t)
+        
+        # Distance between closest points
+        dist = math.hypot(closest_pt[0] - bezier_pt[0], closest_pt[1] - bezier_pt[1])
+        
+        return [dist]
+    return constraint
+
+
+def ellipses_are_concentric(ellipse1: Ellipse, ellipse2: Ellipse):
+    """
+    Returns a constraint that ensures the ellipses are concentric (same center).
+    """
+    def constraint(vars):
+        return points_coincide(ellipse1.center, ellipse2.center)(vars)
+    return constraint
+
+
+# ============================
 # Constraints Matrix
 # ============================
 
 constraints_matrix = {
     "point": {
-        "": {},
+        "": {
+        },
+        "scalar": {
+        },
         "point": {
-            "on": points_coincide,
-            "vertical": points_aligned_vertically,
-            "horizontal": points_aligned_horizontally,
+            "Point is at": points_coincide,
+            "Point is vertical to": points_aligned_vertically,
+            "Point is horizontal to": points_aligned_horizontally,
         },
         "line": {
-            "on": point_on_line,
-            "endpoint": point_coincides_with_line_endpoint,
+            "Point is on line segment": point_on_line,
+            "Line starts at point":
+                lambda point, line: points_coincide(line.p1, point),
+            "Line ends at point":
+                lambda point, line: points_coincide(line.p2, point),
         },
         "arc": {
-            "on": point_on_arc,
-            "endpoint": point_coincides_with_arc_endpoint,
+            "Point is on arc": point_on_arc,
+            "Arc starts at point": point_coincides_with_arc_start,
+            "Arc ends at point": point_coincides_with_arc_end,
+            "Arc is centered at point":
+                lambda point, arc:
+                    points_coincide(arc.center, point),
         },
         "circle": {
-            "on": point_on_circle,
+            "Point is on circle perimeter": point_on_circle,
+            "Circle is centered at point":
+                lambda point, circle:
+                    points_coincide(circle.center, point),
         },
         "bezier": {
-            "on": point_on_bezier,
-            "endpoint": point_coincides_with_bezier_endpoint,
+            "Point is on bezier curve": point_on_bezier,
+            "Bezier curve starts at point":
+                lambda point, bezier:
+                    points_coincide(bezier.points[0], point),
+            "Bezier curve ends at point":
+                lambda point, bezier:
+                    points_coincide(bezier.points[-1], point),
+        },
+        "ellipse": {
+            "Point is on ellipse perimeter": point_on_ellipse,
+            "Ellipse is centered at point": ellipse_is_centered_at_point,
         }
     },
     "line": {
         "": {
-            "horizontal": line_is_horizontal,
-            "vertical": line_is_vertical,
+            "Line is horizontal": line_is_horizontal,
+            "Line is vertical": line_is_vertical,
+        },
+        "scalar": {
+            "Line angle is": line_angle_is,
+            "Line length is": line_length_is,
         },
         "point": {
-            "on":
+            "Point is on line segment":
                 lambda line, point:
                     point_on_line(point, line),
-            "endpoint":
+            "Line starts at point":
                 lambda line, point:
-                    point_coincides_with_line_endpoint(point, line),
+                    points_coincide(point.p1, line),
+            "Line ends at point":
+                lambda line, point:
+                    points_coincide(point.p2, line),
         },
         "line": {
-            "equal": lines_are_equal_length,
-            "perpendicular": lines_are_perpendicular,
-            "lparallel": lines_are_parallel,
+            "Lines are equal length": lines_are_equal_length,
+            "Lines are perpendicular": lines_are_perpendicular,
+            "Lines are parallel": lines_are_parallel,
         },
         "arc": {
-            "tangent": line_is_tangent_to_arc,
+            "Line is tangential to arc": line_is_tangent_to_arc,
         },
         "circle": {
-            "tangent": line_is_tangent_to_circle,
+            "Line is tangential to circle": line_is_tangent_to_circle,
         },
         "bezier": {
-            "tangent": line_is_tangent_to_bezier,
+            "Line is tangential to bezier curve": line_is_tangent_to_bezier,
+        },
+        "ellipse": {
+            "Line is tangential to ellipse": line_is_tangent_to_ellipse,
         }
     },
     "arc": {
-        "": {},
+        "": {
+        },
+        "scalar": {
+            "Arc start angle is": arc_starts_at_angle,
+            "Arc end angle is": arc_ends_at_angle,
+            "Arc span angle is": arc_spans_angle,
+            "Arc radius is": arc_radius_is,
+        },
         "point": {
-            "on": point_on_arc,
-            "endpoint": point_coincides_with_arc_endpoint,
+            "Point is on arc":
+                lambda arc, point:
+                    point_on_arc(point, arc),
+            "Arc is centered at point":
+                lambda arc, point:
+                    points_coincide(arc.center, point),
+            "Arc starts at point":
+                lambda arc, point:
+                    point_coincides_with_arc_start(point, arc),
+            "Arc ends at point":
+                lambda arc, point:
+                    point_coincides_with_arc_end(point, arc),
         },
         "line": {
-            "tangent":
+            "Line is tangential to arc":
                 lambda arc, line:
                     line_is_tangent_to_arc(line,arc),
         },
         "arc": {
-            "tangent": arc_is_tangent_to_arc,
+            "Arcs are tangential": arc_is_tangent_to_arc,
+            "Arcs are concentric":
+                lambda arc, circle:
+                    points_coincide(arc.center, circle.center),
         },
         "circle": {
-            "tangent": arc_is_tangent_to_circle,
+            "Circle is tangential to arc": arc_is_tangent_to_circle,
+            "Circle is concentric to arc":
+                lambda arc, circle:
+                    points_coincide(arc.center, circle.center),
         },
         "bezier": {
-            "tangent": arc_is_tangent_to_bezier,
+            "Arc is tangential to bezier curve": arc_is_tangent_to_bezier,
+        },
+        "ellipse": {
+            "Arc is tangential to ellipse": ellipse_is_tangent_to_arc,
         }
     },
     "circle": {
-        "": {},
+        "": {
+        },
+        "scalar": {
+            "Circle radius is": circle_radius_is,
+        },
         "point": {
-            "on":
+            "Point is on circle perimeter":
                 lambda circle, point:
                     point_on_circle(point, circle),
+            "Circle is centered at point":
+                lambda circle, point:
+                    points_coincide(circle.center, point),
         },
         "line": {
-            "tangent": circle_is_tangent_to_line,
+            "Line is tangential to circle":
+                lambda circle, line:
+                    line_is_tangent_to_circle(line, circle),
         },
         "arc": {
-            "tangent": circle_is_tangent_to_arc,
+            "Circle is tangential to arc":
+                lambda circle, arc:
+                    arc_is_tangent_to_circle(arc, circle),
+            "Circle is concentric to arc":
+                lambda circle, arc:
+                    points_coincide(circle.center, arc.center),
         },
         "circle": {
-            "tangent": circle_is_tangent_to_circle,
-            "concentric":
+            "Circle is tangential to circle": circle_is_tangent_to_circle,
+            "Circles are concentric":
                 lambda circle1, circle2:
                     points_coincide(circle1.center,circle2.center),
         },
         "bezier": {
-            "tangent": circle_is_tangent_to_bezier,
+            "Circle is tangential to bezier": circle_is_tangent_to_bezier,
+        },
+        "ellipse": {
+            "Circle is tangential to ellipse": ellipse_is_tangent_to_circle,
         }
     },
     "bezier": {
         "": {},
         "point": {
-            "on":
+            "Point is on bezier curve":
                 lambda bezier, point:
                     point_on_bezier(point, bezier),
-            "endpoint":
+            "Bezier curve starts at point":
                 lambda bezier, point:
-                    point_coincides_with_bezier_endpoint(point, bezier),
+                    points_coincide(bezier.points[0], point),
+            "Bezier curve ends at point":
+                lambda bezier, point:
+                    points_coincide(bezier.points[-1], point),
         },
         "line": {
-            "tangent":
+            "Line is tangential to bezier curve":
                 lambda bezier, line:
                     line_is_tangent_to_bezier(line,bezier),
         },
         "arc": {
-            "tangent":
+            "Arc is tangential to bezier curve":
                 lambda bezier, arc:
                     arc_is_tangent_to_bezier(arc,bezier),
         },
         "circle": {
-            "tangent":
+            "Circle is tangential to bezier curve":
                 lambda bezier, circle:
                     circle_is_tangent_to_bezier(circle,bezier),
+        },
+        "ellipse": {
+            "Ellipse is tangential to bezier curve": ellipse_is_tangent_to_bezier,
+        }
+    },
+    "ellipse": {
+        "": {},
+        "scalar": {
+            "Ellipse radius1 is": ellipse_radius1_is,
+            "Ellipse radius2 is": ellipse_radius2_is,
+            "Ellipse rotation is": ellipse_rotation_is,
+            "Ellipse eccentricity is": ellipse_eccentricity_is,
+        },
+        "point": {
+            "Point is on ellipse perimeter": point_on_ellipse,
+            "Ellipse is centered at point": ellipse_is_centered_at_point,
+        },
+        "line": {
+            "Line is tangential to ellipse": line_is_tangent_to_ellipse,
+        },
+        "arc": {
+            "Ellipse is tangential to arc": ellipse_is_tangent_to_arc,
+        },
+        "circle": {
+            "Ellipse is tangential to circle": ellipse_is_tangent_to_circle,
+        },
+        "ellipse": {
+            "Ellipses are concentric": ellipses_are_concentric,
+        },
+        "bezier": {
+            "Ellipse is tangential to bezier curve": ellipse_is_tangent_to_bezier,
         }
     }
 }
@@ -896,7 +1427,9 @@ def get_objtype(obj):
     """
     Returns the type of the given object.
     """
-    if isinstance(obj, Point2D):
+    if isinstance(obj, float) or isinstance(obj, int):
+        return "scalar"
+    elif isinstance(obj, Point2D):
         return "point"
     elif isinstance(obj, LineSegment):
         return "line"
@@ -906,6 +1439,8 @@ def get_objtype(obj):
         return "circle"
     elif isinstance(obj, CubicBezierSegment):
         return "bezier"
+    elif isinstance(obj, Ellipse):
+        return "ellipse"
     return ""
 
 

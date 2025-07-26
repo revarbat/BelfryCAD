@@ -24,11 +24,12 @@ __all__ = [
     'RulersForeground', 
     'SnapCursorItem',
     'CadRect',
+    
     # CAD items from caditems package
-    'LineCadItem',
-    'PolylineCadItem',
-    'CircleCenterRadiusCadItem',
+    'ArcCadItem',
+    'CircleCadItem',
     'CubicBezierCadItem',
-    'RectangleCadItem',
-    'ArcCadItem'
+    'EllipseCadItem',
+    'GearCadItem',
+    'LineCadItem',
 ] 

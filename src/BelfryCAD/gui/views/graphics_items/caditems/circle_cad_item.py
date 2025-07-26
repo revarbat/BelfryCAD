@@ -1,5 +1,5 @@
 """
-CircleCenterRadiusCadItem - A circle CAD item defined by center point and perimeter point.
+CircleCadItem - A circle CAD item defined by center point and perimeter point.
 """
 
 import math
@@ -18,15 +18,20 @@ from ....widgets.cad_scene import CadScene
 if TYPE_CHECKING:
     from ....main_window import MainWindow
 
-class CircleCenterRadiusCadItem(CadItem):
+class CircleCadItem(CadItem):
     """A circle CAD item defined by center point and perimeter point."""
 
-    def __init__(self, main_window: 'MainWindow', center_point=None, perimeter_point=None, color=QColor(255, 0, 0), line_width=0.05):
-        super().__init__(main_window)
+    def __init__(
+                self,
+                main_window: 'MainWindow',
+                center_point: QPointF = QPointF(0, 0),
+                perimeter_point: QPointF = QPointF(1, 0),
+                color: QColor = QColor(0, 0, 0),
+                line_width: Optional[float] = 0.05
+    ):
+        super().__init__(main_window, color, line_width)
         self._center_point = center_point if center_point is not None else QPointF(0, 0)
         self._perimeter_point = perimeter_point if perimeter_point is not None else QPointF(1, 0)
-        self._color = color
-        self._line_width = line_width
         self.setZValue(1)
         
         # Position the circle at the center point
@@ -57,7 +62,7 @@ class CircleCenterRadiusCadItem(CadItem):
 
         # Use QPainterPathStroker to create a stroked path with line width
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
+        stroker.setWidth(max(self._line_width, 0.1))  # Minimum width for selection
         stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
 
@@ -100,8 +105,7 @@ class CircleCenterRadiusCadItem(CadItem):
             cad_item=self,
             label="Circle Radius",
             angle=45,
-            pixel_offset=10,
-            precision=precision
+            pixel_offset=10
         )
         self.updateControls()
         
@@ -210,7 +214,9 @@ class CircleCenterRadiusCadItem(CadItem):
 
         # Use the provided color or fall back to the item's color
         circle_color = color if color is not None else self._color
-        pen = QPen(circle_color, self._line_width)
+        pen = QPen(circle_color, self.line_width)
+        if self._line_width is None:
+            pen.setCosmetic(True)
         painter.setPen(pen)
         painter.drawEllipse(rect)
 

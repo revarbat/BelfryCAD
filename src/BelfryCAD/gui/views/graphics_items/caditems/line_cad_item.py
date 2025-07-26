@@ -22,12 +22,17 @@ if TYPE_CHECKING:
 class LineCadItem(CadItem):
     """A line CAD item defined by two points."""
 
-    def __init__(self, main_window: 'MainWindow', start_point=None, end_point=None, color=QColor(255, 0, 0), line_width=0.05):
-        super().__init__(main_window)
+    def __init__(
+            self,
+            main_window: 'MainWindow',
+            start_point: QPointF = QPointF(0, 0),
+            end_point: QPointF = QPointF(1, 0),
+            color: QColor = QColor(0, 0, 0),
+            line_width: Optional[float] = 0.05
+    ):
+        super().__init__(main_window, color, line_width)
         self._start_point = start_point if start_point is not None else QPointF(0, 0)
         self._end_point = end_point if end_point is not None else QPointF(1, 0)
-        self._color = color
-        self._line_width = line_width
         self.setZValue(1)
         self.createControls()
 
@@ -43,7 +48,7 @@ class LineCadItem(CadItem):
         rect.expandToPoint(self._end_point + pvec)
 
         # Add padding for line width
-        rect.expandByScalar(max(self._line_width / 2, 0.1))
+        rect.expandByScalar(max(self.line_width / 2, 0.1))
 
         return rect
 
@@ -55,7 +60,7 @@ class LineCadItem(CadItem):
 
         # Create a stroked path with the line width for better selection
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.1))  # Minimum width for selection
+        stroker.setWidth(max(self.line_width, 0.1))  # Minimum width for selection
         stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
 
@@ -70,7 +75,7 @@ class LineCadItem(CadItem):
             local_point = self.mapFromScene(point)
 
         # Check distance to the line segment
-        tolerance = max(self._line_width, 0.1)  # Minimum tolerance for selection
+        tolerance = max(self.line_width, 0.1)  # Minimum tolerance for selection
         distance = self._point_to_line_distance(
             local_point, self._start_point, self._end_point)
         return distance <= tolerance
@@ -90,18 +95,30 @@ class LineCadItem(CadItem):
             cad_item=self,
             setter=self._set_mid_point
         )
-        precision = 4
+        precision = self.main_window.cad_scene.get_precision()
         self._length_datum = ControlDatum(
             setter=self._set_length,
             format_string=f"{{:.{precision}f}}",
             cad_item=self,
             label="Line Length",
-            precision=precision
+            precision_override=precision
+        )
+        self._angle_datum = ControlDatum(
+            setter=self._set_angle,
+            format_string="{:.1f}",
+            prefix="∠",
+            suffix="°",
+            cad_item=self,
+            label="Line Angle",
+            precision_override=1
         )
         self.updateControls()
 
         # Return the list of control points
-        return [self._start_cp, self._end_cp, self._mid_cp, self._length_datum]
+        return [
+            self._start_cp, self._end_cp, self._mid_cp,
+            self._length_datum, self._angle_datum
+        ]
 
     def updateControls(self):
         """Update control point positions."""
@@ -115,6 +132,11 @@ class LineCadItem(CadItem):
             self._length_datum.update_datum(
                 self.length,
                 self.midpoint + self.get_perpendicular_vector() * 0.75
+            )
+        if hasattr(self, '_angle_datum') and self._angle_datum:
+            self._angle_datum.update_datum(
+                (self.angle+360) % 360,
+                self.start_point - self.get_perpendicular_vector() * 0.75
             )
 
     def get_perpendicular_vector(self) -> QPointF:
@@ -167,17 +189,15 @@ class LineCadItem(CadItem):
         self._end_point = QPointF(new_position.x() + start_to_mid.x(),
                                  new_position.y() + start_to_mid.y())
 
-    def _get_line_width(self):
-        """Get the line width for this CAD item."""
-        return self._line_width
-
     def paint_item_with_color(self, painter, option, widget=None, color=None):
         """Draw the line content with a specific color."""
         painter.save()
 
         # Use the provided color or fall back to the item's color
-        line_color = color if color is not None else self._color
-        pen = QPen(line_color, self._line_width)
+        line_color = color if color is not None else self.color
+        pen = QPen(line_color, self.line_width)
+        if self._line_width is None:
+            pen.setCosmetic(True)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)
         painter.setBrush(QBrush())  # No fill
@@ -276,25 +296,6 @@ class LineCadItem(CadItem):
         self.update()
 
     @property
-    def color(self):
-        return self._color
-
-    @color.setter
-    def color(self, value):
-        self._color = value
-        self.update()
-
-    @property
-    def line_width(self):
-        return self._line_width
-
-    @line_width.setter
-    def line_width(self, value):
-        self.prepareGeometryChange()  # Line width affects bounding rect
-        self._line_width = value
-        self.update()
-
-    @property
     def length(self):
         """Calculate the length of the line segment."""
         dx = self._end_point.x() - self._start_point.x()
@@ -304,7 +305,7 @@ class LineCadItem(CadItem):
     @length.setter
     def length(self, value):
         """Set the length of the line segment by moving the endpoint."""
-        current_angle = self.angle
+        current_angle = math.radians(self.angle)
         self._end_point = QPointF(
             self._start_point.x() + value * math.cos(current_angle),
             self._start_point.y() + value * math.sin(current_angle)
@@ -314,7 +315,7 @@ class LineCadItem(CadItem):
 
     def _set_length(self, value):
         """Set the length of the line segment by moving the endpoint."""
-        current_angle = self.angle
+        current_angle = math.radians(self.angle)
         self._end_point = QPointF(
             self._start_point.x() + value * math.cos(current_angle),
             self._start_point.y() + value * math.sin(current_angle)
@@ -327,11 +328,12 @@ class LineCadItem(CadItem):
         """Calculate the angle of the line segment in radians."""
         dx = self._end_point.x() - self._start_point.x()
         dy = self._end_point.y() - self._start_point.y()
-        return math.atan2(dy, dx)
+        return math.degrees(math.atan2(dy, dx))
 
     @angle.setter
     def angle(self, value):
         """Set the angle of the line segment by moving the endpoint."""
+        value = math.radians(value)
         current_length = self.length
         self._end_point = QPointF(
             self._start_point.x() + current_length * math.cos(value),
@@ -339,6 +341,10 @@ class LineCadItem(CadItem):
         )
         self.prepareGeometryChange()
         self.update()
+
+    def _set_angle(self, value):
+        """Set the angle of the line segment by moving the endpoint."""
+        self.angle = value
 
     @property
     def midpoint(self):

@@ -40,8 +40,19 @@ class CubicBezierCadItem(CadItem):
     This creates a smooth curve that passes through every 3rd point.
     """
 
-    def __init__(self, main_window: 'MainWindow', points=None, color=QColor(0, 0, 255), line_width=0.05):
-        super().__init__(main_window)
+    def __init__(
+                self,
+                main_window: 'MainWindow',
+                points: List[QPointF] = [
+                    QPointF(0, 0),    # 1st path point
+                    QPointF(1, 1),    # control1 for 1st segment
+                    QPointF(2, -1),   # control2 for 1st segment
+                    QPointF(3, 0),    # 2nd path point
+                ],
+                color: QColor = QColor(0, 0, 0),
+                line_width: Optional[float] = 0.05
+    ):
+        super().__init__(main_window, color, line_width)
         
         # Initialize with default points if none provided
         if points is None:
@@ -53,8 +64,6 @@ class CubicBezierCadItem(CadItem):
             ]
         
         self._points = []
-        self._color = color
-        self._line_width = line_width
         self._control_points = []
         
         # Track state for each path point (every 3rd point)
@@ -503,7 +512,9 @@ class CubicBezierCadItem(CadItem):
 
         # Use provided color or fall back to default
         pen_color = color if color is not None else self._color
-        pen = QPen(pen_color, self._line_width)
+        pen = QPen(pen_color, self.line_width)
+        if self._line_width is None:
+            pen.setCosmetic(True)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)

@@ -577,20 +577,18 @@ class GearCadItem(CadItem):
     def __init__(
             self,
             main_window: 'MainWindow',
-            center=QPointF(0, 0),
-            pitch_radius_point=QPointF(1, 0),
-            tooth_count=12,
-            pressure_angle=20,
-            color=QColor(0, 0, 0),
-            line_width=0.05
+            center: QPointF = QPointF(0, 0),
+            pitch_radius_point: QPointF = QPointF(1, 0),
+            tooth_count: int = 12,
+            pressure_angle: float = 20,
+            color: QColor = QColor(0, 0, 0),
+            line_width: Optional[float] = 0.05
     ):
-        super().__init__(main_window)
+        super().__init__(main_window, color, line_width)
         self._center = QPointF(center)
         self._pitch_radius_point = QPointF(pitch_radius_point)
         self._tooth_count = int(tooth_count)
         self._pressure_angle = pressure_angle
-        self._color = color
-        self._line_width = line_width
         self._center_cp = None
         self._radius_cp = None
         self._tooth_count_datum = None
@@ -652,7 +650,7 @@ class GearCadItem(CadItem):
     def boundingRect(self):
         if self._gear_path is not None:
             rect = self._gear_path.boundingRect()
-            padding = max(self._line_width / 2, 0.1)
+            padding = max(self.line_width / 2, 0.1)
             rect.adjust(-padding, -padding, padding, padding)
             return rect
         return CadRect(-1, -1, 2, 2)
@@ -660,17 +658,20 @@ class GearCadItem(CadItem):
     def shape(self):
         if self._gear_path is not None:
             stroker = QPainterPathStroker()
-            stroker.setWidth(max(self._line_width, 0.1))
+            stroker.setWidth(max(self.line_width, 0.1))
             return stroker.createStroke(self._gear_path)
         return QPainterPath()
 
-    def paint_item_with_color(self, painter, option, widget=None, color=None):
+    def paint_item_with_color(self, painter, option, widget=None, color: Optional[QColor] = None):
         if self._gear_path is None:
             self._update_gear_path()
         if self._gear_path is None:
             return
         painter.save()
-        pen = QPen(color, self._line_width) # type: ignore
+        line_color = color if color is not None else self.color
+        pen = QPen(line_color, self.line_width)
+        if self._line_width is None:
+            pen.setCosmetic(True)
         painter.setPen(pen)
         painter.setBrush(QBrush())
         painter.drawPath(self._gear_path)
@@ -689,11 +690,6 @@ class GearCadItem(CadItem):
         self.paint_item_with_color(painter, option, widget, self._color)
 
     def _create_controls_impl(self):
-        # Get precision from scene if available
-        precision = 3
-        scene = self.scene()
-        if scene:
-            precision = scene.get_precision() # type: ignore
         self._center_cp = SquareControlPoint(
             cad_item=self,
             setter=self._set_center
@@ -705,21 +701,18 @@ class GearCadItem(CadItem):
         self._pitch_diameter_datum = ControlDatum(
             setter=self._set_pitch_diameter,
             prefix="D",
-            format_string=f"{{:.{precision}f}}",
             cad_item=self,
             label="Pitch Circle Diameter",
-            precision=precision,
             angle=45,
             pixel_offset=10
         )
         self._pressure_angle_datum = ControlDatum(
             setter=self._set_pressure_angle,
             prefix="PA: ",
-            format_string=f"{{:.{precision}f}}",
             suffix="°",
             cad_item=self,
             label="Pressure Angle",
-            precision=precision,
+            precision_override=1,
             angle=135,
             pixel_offset=10,
             is_length=False
@@ -727,13 +720,13 @@ class GearCadItem(CadItem):
         self._tooth_count_datum = ControlDatum(
             setter=self._set_tooth_count,
             prefix="T: ",
-            format_string="{:.0f}",
             cad_item=self,
             label="Tooth Count",
-            precision=0,
+            precision_override=0,
             angle=-45,
             pixel_offset=10,
-            is_length=False
+            is_length=False,
+            min_value=5
         )
         
         # Create both datums but set visibility based on metric setting
@@ -741,10 +734,8 @@ class GearCadItem(CadItem):
             self._pitch_datum = ControlDatum(
                 setter=self._set_module,
                 prefix="m: ",
-                format_string=f"{{:.{precision}f}}",
                 cad_item=self,
                 label="Gear Module",
-                precision=precision,
                 angle=-135,
                 pixel_offset=10,
                 is_length=False
@@ -753,10 +744,8 @@ class GearCadItem(CadItem):
             self._pitch_datum = ControlDatum(
                 setter=self._set_diametral_pitch,
                 prefix="DP: ",
-                format_string=f"{{:.{precision}f}}",
                 cad_item=self,
                 label="Diametral Gear Pitch",
-                precision=precision,
                 angle=-135,
                 pixel_offset=10,
                 is_length=False
