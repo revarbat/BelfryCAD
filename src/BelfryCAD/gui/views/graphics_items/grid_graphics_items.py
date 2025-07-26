@@ -51,7 +51,7 @@ class GridBackground(QGraphicsItem):
                 if abs(x / space - round(x / space)) > 1e-6:
                     level += 1
             line_color = self.grid_info.grid_line_color(level)
-            line_width = 2.0 * math.pow(0.75, level)
+            line_width = 1.0
             if line_width < 1.0:
                 line_width = 1.0
             pen = QPen(QColor(line_color))
@@ -68,7 +68,7 @@ class GridBackground(QGraphicsItem):
                 if abs(y / space - round(y / space)) > 1e-6:
                     level += 1
             line_color = self.grid_info.grid_line_color(level)
-            line_width = 2.0 * math.pow(0.75, level)
+            line_width = 1.0
             if line_width < 1.0:
                 line_width = 1.0
             pen = QPen(QColor(line_color))
