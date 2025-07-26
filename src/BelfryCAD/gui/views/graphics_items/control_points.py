@@ -232,15 +232,23 @@ class ControlDatum(ControlPoint):
         label="value",
         angle=None,
         pixel_offset=0,
-        precision=3,
-        is_length=True
+        precision_override=None,
+        is_length=True,
+        min_value=None,
+        max_value=None
     ):
         super().__init__(
             cad_item=cad_item,
             setter=setter)
         self.setZValue(10002)
         # Store precision for dynamic updates
+        main_window = self.cad_item.main_window # type: ignore
+        if precision_override is None:
+            precision = main_window.cad_scene.get_precision()
+        else:
+            precision = precision_override
         self._precision = precision
+        self._precision_override = precision_override
         # Use provided format_string or create one from precision
         if format_string is None:
             self._format_string = f"{{:.{precision}f}}"
@@ -252,6 +260,8 @@ class ControlDatum(ControlPoint):
         self._angle = angle
         self._pixel_offset = pixel_offset
         self._is_length = is_length
+        self._min_value = min_value
+        self._max_value = max_value
         self._is_editing = False
         self._current_value = 0.0
         self._current_position = QPointF(0, 0)
@@ -273,12 +283,25 @@ class ControlDatum(ControlPoint):
         """Get the current position."""
         return self._current_position
     
+    def is_value_in_range(self, value=None):
+        """Check if the given value (or current value if None) is within the min/max range."""
+        if value is None:
+            value = self._current_value
+        
+        if self._min_value is not None and value < self._min_value:
+            return False
+        if self._max_value is not None and value > self._max_value:
+            return False
+        return True
+    
     def update_precision(self, new_precision: int):
         """Update the precision and refresh the display."""
-        self._precision = new_precision
+        if self._precision_override is None:
+            self._precision = new_precision
+        else:
+            self._precision = self._precision_override
         # Update format string if it was created from precision
-        if self._format_string == f"{{:.{self._precision}f}}" or "{" in self._format_string:
-            self._format_string = f"{{:.{new_precision}f}}"
+        self._format_string = f"{{:.{self._precision}f}}"
         
         # Update cached text and trigger geometry update
         new_text = self._format_text(self._current_value)
@@ -464,6 +487,12 @@ class ControlDatum(ControlPoint):
         expr_edit.selectAll()
         layout.addWidget(expr_edit)
 
+        # Add "Out of Range" indicator label
+        out_of_range_label = QLabel("Out of Range")
+        out_of_range_label.setStyleSheet("color: red; font-weight: bold;")
+        out_of_range_label.setVisible(False)  # Initially hidden
+        layout.addWidget(out_of_range_label)
+
         # Add buttons
         button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         set_button = button_box.button(QDialogButtonBox.StandardButton.Ok)
@@ -476,14 +505,32 @@ class ControlDatum(ControlPoint):
         def validate_input():
             text = expr_edit.text()
             if expr_edit.get_error() is None and text.strip():
-                set_button.setEnabled(True)
+                try:
+                    # Evaluate the expression to check if it's within range
+                    new_value = float(expr_edit._expression.evaluate(text))
+                    scale = self.cad_item.main_window.grid_info.unit_scale # type: ignore
+                    scaled_value = new_value * scale
+                    
+                    # Check if the value is within range
+                    if self.is_value_in_range(scaled_value):
+                        set_button.setEnabled(True)
+                        out_of_range_label.setVisible(False)
+                    else:
+                        set_button.setEnabled(False)
+                        out_of_range_label.setVisible(True)
+                except Exception:
+                    set_button.setEnabled(False)
+                    out_of_range_label.setVisible(False)  # Hide for invalid expressions
             else:
                 set_button.setEnabled(False)
+                out_of_range_label.setVisible(False)  # Hide for empty/invalid input
         expr_edit.textChanged.connect(validate_input)
         validate_input()
 
         button_box.accepted.connect(lambda: self._finish_editing(dialog, expr_edit))
         button_box.rejected.connect(lambda: self._cancel_editing(dialog))
+        # Also connect dialog's rejected signal to handle Escape key
+        dialog.rejected.connect(lambda: self._cancel_editing(dialog))
         layout.addWidget(button_box)
 
         # Set focus to expression edit
@@ -506,6 +553,10 @@ class ControlDatum(ControlPoint):
         if hasattr(self, '_is_editing'):
             self._is_editing = False
         self.update()
+        # Force a complete redraw to ensure the control datum is visible
+        self.prepareGeometryChange()
+        if self.scene():
+            self.scene().update()
 
     def _cancel_editing(self, dialog):
         """Cancel editing."""
@@ -513,6 +564,10 @@ class ControlDatum(ControlPoint):
         if hasattr(self, '_is_editing'):
             self._is_editing = False
         self.update()
+        # Force a complete redraw to ensure the control datum is visible
+        self.prepareGeometryChange()
+        if self.scene():
+            self.scene().update()
 
     @property
     def precision(self):
@@ -583,6 +638,26 @@ class ControlDatum(ControlPoint):
     def pixel_offset(self, value: float):
         """Set the pixel offset."""
         self._pixel_offset = value
+
+    @property
+    def min_value(self):
+        """Get the minimum value."""
+        return self._min_value
+
+    @min_value.setter
+    def min_value(self, value):
+        """Set the minimum value."""
+        self._min_value = value
+
+    @property
+    def max_value(self):
+        """Get the maximum value."""
+        return self._max_value
+
+    @max_value.setter
+    def max_value(self, value):
+        """Set the maximum value."""
+        self._max_value = value
 
     @property
     def setter(self) -> Callable:
