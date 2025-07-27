@@ -650,7 +650,7 @@ class GearCadItem(CadItem):
     def boundingRect(self):
         if self._gear_path is not None:
             rect = self._gear_path.boundingRect()
-            padding = max(self.line_width / 2, 0.1)
+            padding = max(self.line_width / 2, 2.0 * self.pixel_size)
             rect.adjust(-padding, -padding, padding, padding)
             return rect
         return CadRect(-1, -1, 2, 2)
@@ -658,7 +658,7 @@ class GearCadItem(CadItem):
     def shape(self):
         if self._gear_path is not None:
             stroker = QPainterPathStroker()
-            stroker.setWidth(max(self.line_width, 0.1))
+            stroker.setWidth(max(self.line_width, 2.0 * self.pixel_size))
             return stroker.createStroke(self._gear_path)
         return QPainterPath()
 
@@ -668,11 +668,7 @@ class GearCadItem(CadItem):
         if self._gear_path is None:
             return
         painter.save()
-        line_color = color if color is not None else self.color
-        pen = QPen(line_color, self.line_width)
-        if self._line_width is None:
-            pen.setCosmetic(True)
-        painter.setPen(pen)
+        self.set_pen(painter, color)
         painter.setBrush(QBrush())
         painter.drawPath(self._gear_path)
 
@@ -941,17 +937,4 @@ class GearCadItem(CadItem):
         self._pitch_radius_point += QPointF(dx, dy)
         self._update_gear_path()
         self.updateControls()
-
-    def get_original_gear_points(self):
-        """Get the original gear points before Bezier optimization for debugging."""
-        v = self._pitch_radius_point - self._center
-        pitch_radius = math.hypot(v.x(), v.y())
-        mod = pitch_radius*2/self._tooth_count
-        
-        return _generate_gear_path(
-            num_teeth=self._tooth_count,
-            mod=mod,
-            pressure_angle=self._pressure_angle,
-            points_per_involute=5
-        )
 

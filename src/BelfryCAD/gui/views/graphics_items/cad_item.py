@@ -297,16 +297,14 @@ class CadItem(QGraphicsItem):
     def get_dashed_construction_pen(self) -> QPen:
         """Get a dashed construction pen with #7f7f7f color, 2.0 line width, and cosmetic style."""
         pen = QPen(QColor(0x7f, 0x7f, 0x7f))  # #7f7f7f color
-        pen.setWidthF(2.0)
-        pen.setCosmetic(True)
-        pen.setDashPattern([3.0, 3.0])
+        pen.setWidthF(1.0 * self.pixel_size)
+        pen.setDashPattern([5.0, 5.0])
         return pen
 
     def get_solid_construction_pen(self) -> QPen:
         """Get a solid construction pen with #7f7f7f color, 2.0 line width, and cosmetic style."""
         pen = QPen(QColor(0x7f, 0x7f, 0x7f))  # #7f7f7f color
-        pen.setWidthF(2.0)
-        pen.setCosmetic(True)
+        pen.setWidthF(1.0 * self.pixel_size)
         pen.setStyle(Qt.PenStyle.SolidLine)
         return pen
 
@@ -328,15 +326,14 @@ class CadItem(QGraphicsItem):
         ])
         painter.restore()
     
-    def draw_radius_arrow(self, painter, point, angle, radius, line_width):
+    def draw_radius_arrow(self, painter, point, angle, radius):
         if not self._is_singly_selected():
             return
         painter.save()
-        rad_len = radius - line_width/2
+        rad_len = radius - self.line_width/2
         painter.setPen(self.get_solid_construction_pen())
         painter.setBrush(self.get_construction_brush())
-        scale = painter.transform().m11()
-        arrow_w = 4.0 / scale
+        arrow_w = 4.0 * self.pixel_size
         self.draw_arrow(painter, point, angle, rad_len, arrow_w)
         painter.restore()
 
@@ -345,11 +342,10 @@ class CadItem(QGraphicsItem):
             return
         painter.save()
         radius = diameter/2
-        rad_len = radius - line_width/2
+        rad_len = radius - self.line_width/2
         painter.setPen(self.get_solid_construction_pen())
         painter.setBrush(self.get_construction_brush())
-        scale = painter.transform().m11()
-        arrow_w = 4.0 / scale
+        arrow_w = 4.0 * self.pixel_size
         self.draw_arrow(painter, point, angle, rad_len, arrow_w)
         self.draw_arrow(painter, point, angle+180, rad_len, arrow_w)
         painter.restore()
@@ -359,8 +355,7 @@ class CadItem(QGraphicsItem):
         if not self._is_singly_selected():
             return
         painter.save()
-        scale = painter.transform().m11()
-        cross_rad = 60.0 / scale
+        cross_rad = 60.0 * self.pixel_size
         painter.translate(point)
         pen = self.get_dashed_construction_pen()
         pen.setDashPattern([10.0, 2.0, 2.0, 2.0])
@@ -416,7 +411,7 @@ class CadItem(QGraphicsItem):
     @property
     def line_width(self) -> float:
         if self._line_width is None:
-            return 2.0
+            return 0.05
         return self._line_width
 
     @line_width.setter
@@ -425,3 +420,15 @@ class CadItem(QGraphicsItem):
         self._line_width = value
         self.update()
 
+    @property
+    def pixel_size(self) -> float:
+        return 1.0 / self.scene().views()[0].transform().m11()
+
+    def set_pen(self, painter, color: Optional[QColor] = None):
+        pen_color = color if color is not None else self.color
+        if self._line_width is None:
+            pen = QPen(pen_color, 1.0)
+            pen.setCosmetic(True)
+        else:
+            pen = QPen(pen_color, self.line_width)
+        painter.setPen(pen)

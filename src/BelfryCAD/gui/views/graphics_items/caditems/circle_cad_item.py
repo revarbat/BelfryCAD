@@ -47,7 +47,7 @@ class CircleCadItem(CadItem):
         rect = CadRect(-radius, -radius, 2 * radius, 2 * radius)
 
         # Add padding for line width
-        rect.expandByScalar(max(self._line_width / 2, 0.1))
+        rect.expandByScalar(max(self.line_width / 2, 2.0 * self.pixel_size))
 
         return rect
 
@@ -62,7 +62,7 @@ class CircleCadItem(CadItem):
 
         # Use QPainterPathStroker to create a stroked path with line width
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.1))  # Minimum width for selection
+        stroker.setWidth(max(self.line_width, 2.0 * self.pixel_size))  # Minimum width for selection
         stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
 
@@ -201,10 +201,6 @@ class CircleCadItem(CadItem):
         """Set the radius value."""
         self.radius = new_radius
 
-    def _get_line_width(self):
-        """Get the line width for this CAD item."""
-        return self._line_width
-
     def paint_item_with_color(self, painter, option, widget=None, color=None):
         """Draw the circle content with a specific color."""
         radius = self.radius
@@ -213,14 +209,10 @@ class CircleCadItem(CadItem):
         painter.save()
 
         # Use the provided color or fall back to the item's color
-        circle_color = color if color is not None else self._color
-        pen = QPen(circle_color, self.line_width)
-        if self._line_width is None:
-            pen.setCosmetic(True)
-        painter.setPen(pen)
+        self.set_pen(painter, color)
         painter.drawEllipse(rect)
 
-        self.draw_radius_arrow(painter, QPointF(0, 0), 45, radius, self._line_width)
+        self.draw_radius_arrow(painter, QPointF(0, 0), 45, radius)
         self.draw_center_cross(painter, QPointF(0, 0))
 
         painter.restore()
@@ -248,25 +240,6 @@ class CircleCadItem(CadItem):
 
         self._perimeter_point = QPointF(new_perimeter_x, new_perimeter_y)
         self.prepareGeometryChange()
-        self.update()
-
-    @property
-    def color(self):
-        return self._color
-
-    @color.setter
-    def color(self, value):
-        self._color = value
-        self.update()
-
-    @property
-    def line_width(self):
-        return self._line_width
-
-    @line_width.setter
-    def line_width(self, value):
-        self.prepareGeometryChange()  # Line width affects bounding rect
-        self._line_width = value
         self.update()
 
     def moveBy(self, dx, dy):

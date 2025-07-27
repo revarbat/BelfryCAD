@@ -48,7 +48,7 @@ class LineCadItem(CadItem):
         rect.expandToPoint(self._end_point + pvec)
 
         # Add padding for line width
-        rect.expandByScalar(max(self.line_width / 2, 0.1))
+        rect.expandByScalar(max(self.line_width / 2, 2.0 * self.pixel_size))
 
         return rect
 
@@ -60,7 +60,7 @@ class LineCadItem(CadItem):
 
         # Create a stroked path with the line width for better selection
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self.line_width, 0.1))  # Minimum width for selection
+        stroker.setWidth(max(self.line_width, 2.0 * self.pixel_size))  # Minimum width for selection
         stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
 
@@ -75,7 +75,7 @@ class LineCadItem(CadItem):
             local_point = self.mapFromScene(point)
 
         # Check distance to the line segment
-        tolerance = max(self.line_width, 0.1)  # Minimum tolerance for selection
+        tolerance = max(self.line_width, 2.0 * self.pixel_size)  # Minimum tolerance for selection
         distance = self._point_to_line_distance(
             local_point, self._start_point, self._end_point)
         return distance <= tolerance
@@ -194,12 +194,7 @@ class LineCadItem(CadItem):
         painter.save()
 
         # Use the provided color or fall back to the item's color
-        line_color = color if color is not None else self.color
-        pen = QPen(line_color, self.line_width)
-        if self._line_width is None:
-            pen.setCosmetic(True)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(pen)
+        self.set_pen(painter, color)
         painter.setBrush(QBrush())  # No fill
 
         # Draw the line

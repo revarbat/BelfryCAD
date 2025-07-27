@@ -383,7 +383,7 @@ class CubicBezierCadItem(CadItem):
             rect.expandToPoint(point)
 
         # Add padding for line width and potential curve overshoot
-        padding = max(self._line_width / 2, 0.1)
+        padding = max(self.line_width / 2, 2.0 * self.pixel_size)
         rect.expandByScalar(padding)
 
         return rect
@@ -394,7 +394,7 @@ class CubicBezierCadItem(CadItem):
 
         # Use QPainterPathStroker to create a stroked path with line width
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
+        stroker.setWidth(max(self.line_width, 2.0 * self.pixel_size))  # Minimum width for selection
         stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
 
@@ -511,13 +511,7 @@ class CubicBezierCadItem(CadItem):
         painter.save()
 
         # Use provided color or fall back to default
-        pen_color = color if color is not None else self._color
-        pen = QPen(pen_color, self.line_width)
-        if self._line_width is None:
-            pen.setCosmetic(True)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
+        self.set_pen(painter, color)
         painter.setBrush(QBrush())  # No fill
 
         # Draw the Bezier curve
@@ -635,25 +629,6 @@ class CubicBezierCadItem(CadItem):
         
         # Reinitialize path point states
         self._initialize_path_point_states()
-
-    @property
-    def color(self):
-        return self._color
-
-    @color.setter
-    def color(self, value):
-        self._color = value
-        self.update()
-
-    @property
-    def line_width(self):
-        return self._line_width
-
-    @line_width.setter
-    def line_width(self, value):
-        self.prepareGeometryChange()  # Line width affects bounding rect
-        self._line_width = value
-        self.update()
 
     @property
     def segment_count(self):

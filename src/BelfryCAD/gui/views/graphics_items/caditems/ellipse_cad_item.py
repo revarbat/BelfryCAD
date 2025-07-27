@@ -146,7 +146,7 @@ class EllipseCadItem(CadItem):
         )
         
         # Add padding for line width
-        rect.expandByScalar(max(self.line_width / 2, 0.1))
+        rect.expandByScalar(max(self.line_width / 2, 2.0 * self.pixel_size))
         
         return rect
 
@@ -173,19 +173,15 @@ class EllipseCadItem(CadItem):
         
         # Create stroker for line width
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self.line_width, 0.1))  # Minimum width for selection
+        stroker.setWidth(max(self.line_width, 2.0 * self.pixel_size))  # Minimum width for selection
         return stroker.createStroke(path)
 
     def paint_item_with_color(self, painter, option, widget=None, color: Optional[QColor] = None):
         """Paint the ellipse with a specific color."""
         painter.save()
-        line_color = color if color is not None else self.color
 
         # Set up pen and brush
-        pen = QPen(line_color, self.line_width)
-        if self._line_width is None:
-            pen.setCosmetic(True)
-        painter.setPen(pen)
+        self.set_pen(painter, color)
         painter.setBrush(QBrush(Qt.BrushStyle.NoBrush))
         
         # Get ellipse parameters
@@ -227,8 +223,8 @@ class EllipseCadItem(CadItem):
                     self.minor_radius * math.cos(math.radians(ang - 90)),
                     self.minor_radius * math.sin(math.radians(ang - 90)))
             )
-            self.draw_radius_arrow(painter, QPointF(0, 0), ang, self.major_radius, self.line_width)
-            self.draw_radius_arrow(painter, QPointF(0, 0), ang + 90, self.minor_radius, self.line_width)
+            self.draw_radius_arrow(painter, QPointF(0, 0), ang, self.major_radius)
+            self.draw_radius_arrow(painter, QPointF(0, 0), ang + 90, self.minor_radius)
 
 
     def paint_item(self, painter, option, widget=None):
@@ -264,7 +260,7 @@ class EllipseCadItem(CadItem):
         # Create control datums
         self._major_radius_datum = ControlDatum(
             setter=self._set_major_radius,
-            prefix="Rmaj: ",
+            prefix="R",
             cad_item=self,
             label="Major Radius",
             angle=0,
@@ -273,7 +269,7 @@ class EllipseCadItem(CadItem):
         )
         self._minor_radius_datum = ControlDatum(
             setter=self._set_minor_radius,
-            prefix="Rmin: ",
+            prefix="R",
             cad_item=self,
             label="Minor Radius",
             angle=90,
@@ -282,7 +278,7 @@ class EllipseCadItem(CadItem):
         )
         self._rotation_datum = ControlDatum(
             setter=self._set_rotation_angle,
-            prefix="∠",
+            prefix="",
             suffix="°",
             cad_item=self,
             label="Rotation Angle",

@@ -71,7 +71,7 @@ class ArcCadItem(CadItem):
         rect.expandToPoint(self._center_point - QPointF(radius, radius))
 
         # Add padding for line width
-        rect.expandByScalar(max(self._line_width / 2, 0.1))
+        rect.expandByScalar(max(self.line_width / 2, 2.0 * self.pixel_size))
 
         return rect
 
@@ -81,7 +81,7 @@ class ArcCadItem(CadItem):
 
         # Use QPainterPathStroker to create a stroked path with line width
         stroker = QPainterPathStroker()
-        stroker.setWidth(max(self._line_width, 0.01))  # Minimum width for selection
+        stroker.setWidth(max(self.line_width, 2.0 * self.pixel_size))  # Minimum width for selection
         stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
         stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
 
@@ -242,32 +242,20 @@ class ArcCadItem(CadItem):
         )
         
     def _set_end(self, new_position):
-        """Set the end point from control point movement, maintaining span angle."""
-        # Calculate the current span angle before moving the end point
+        """Set the end point from control point movement, adjusting both radius and span angle."""
+        # Calculate the current start angle (this should remain fixed)
         current_start_angle = self._angle_from_center(self._start_point)
-        current_end_angle = self._angle_from_center(self._end_point)
-        current_span_angle = current_end_angle - current_start_angle
         
-        # Normalize the span angle to be positive
-        if current_span_angle < 0:
-            current_span_angle += 2 * math.pi
-        
-        # Update the end point
+        # Update the end point to the new position
         self._end_point = new_position
-        
-        # Calculate the new end angle
-        new_end_angle = self._angle_from_center(self._end_point)
-        
-        # Calculate the new start angle to maintain the same span
-        new_start_angle = new_end_angle - current_span_angle
         
         # Calculate the new radius (use the distance from center to new end point)
         new_radius = self._distance(self._center_point, new_position)
         
-        # Update the start point to maintain the span angle
+        # Keep the start point at the same angle but with the new radius
         self._start_point = QPointF(
-            self._center_point.x() + new_radius * math.cos(new_start_angle),
-            self._center_point.y() + new_radius * math.sin(new_start_angle)
+            self._center_point.x() + new_radius * math.cos(current_start_angle),
+            self._center_point.y() + new_radius * math.sin(current_start_angle)
         )
         
     def _set_start_angle(self, new_angle):
@@ -295,33 +283,6 @@ class ArcCadItem(CadItem):
         self._end_point = self._center_point + QPointF(
             self.radius * math.cos(new_end_angle),
             self.radius * math.sin(new_end_angle)
-        )
-        
-    def _set_end_angle(self, new_angle):
-        """Set the end angle from control datum, maintaining span angle."""
-        # Calculate the current span angle before changing the end angle
-        current_start_angle = self._angle_from_center(self._start_point)
-        current_end_angle = self._angle_from_center(self._end_point)
-        current_span_angle = current_end_angle - current_start_angle
-        
-        # Normalize the span angle to be positive
-        if current_span_angle < 0:
-            current_span_angle += 2 * math.pi
-        
-        # Update the end point to the new angle
-        new_end_angle = math.radians(new_angle)
-        self._end_point = self._center_point + QPointF(
-            self.radius * math.cos(new_end_angle),
-            self.radius * math.sin(new_end_angle)
-        )
-        
-        # Calculate the new start angle to maintain the same span
-        new_start_angle = new_end_angle - current_span_angle
-        
-        # Update the start point to maintain the span angle
-        self._start_point = self._center_point + QPointF(
-            self.radius * math.cos(new_start_angle),
-            self.radius * math.sin(new_start_angle)
         )
         
     def _get_radius_datum_position(self) -> QPointF:
@@ -370,13 +331,7 @@ class ArcCadItem(CadItem):
         painter.save()
 
         # Use provided color or fall back to default
-        pen_color = color if color is not None else self._color
-        pen = QPen(pen_color, self.line_width)
-        if self._line_width is None:
-            pen.setCosmetic(True)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
+        self.set_pen(painter, color)
         painter.setBrush(QBrush())  # No fill
 
         # Draw the arc
@@ -390,7 +345,7 @@ class ArcCadItem(CadItem):
         self.draw_construction_circle(painter, self._center_point, self.radius)
         
         angle = math.degrees(self._angle_from_center(self._start_point))
-        self.draw_radius_arrow(painter, self._center_point, angle, self.radius, self._line_width)
+        self.draw_radius_arrow(painter, self._center_point, angle, self.radius)
         self.draw_center_cross(painter, self._center_point)
 
         painter.restore()
@@ -515,29 +470,6 @@ class ArcCadItem(CadItem):
             return end + 2 * math.pi - start
         else:
             return end - start
-
-    @property
-    def color(self):
-        """Get the color."""
-        return self._color
-
-    @color.setter
-    def color(self, value):
-        """Set the color."""
-        self._color = value
-        self.update()
-
-    @property
-    def line_width(self):
-        """Get the line width."""
-        return self._line_width
-
-    @line_width.setter
-    def line_width(self, value):
-        """Set the line width."""
-        self.prepareGeometryChange()
-        self._line_width = value
-        self.update()
 
     def moveBy(self, dx, dy):
         """Move all defining points by the specified offset."""
