@@ -113,8 +113,8 @@ def boundingRect(self):
     max_x = abs(major_r * cos_rot) + abs(minor_r * sin_rot)
     max_y = abs(major_r * sin_rot) + abs(minor_r * cos_rot)
     
-    rect = CadRect(center.x() - max_x, center.y() - max_y, 
-                   2 * max_x, 2 * max_y)
+    rect = QRectF(center.x() - max_x, center.y() - max_y, 
+                  2 * max_x, 2 * max_y)
     return rect
 ```
 
