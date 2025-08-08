@@ -7,6 +7,7 @@
 - Add docstrings to all functions and classes
 
 ## Project-Specific Guidelines
+- The virtual environment is in the `venv/` directory.  Anways activate it before running a script.
 - All GUI dialogs should be in the `gui/dialogs/` directory
 - QGraphicsItem inheriting classes should be in the `gui/graphics_items/` directory
 - CadItem inheriting classes should be in the `gui/graphics_items/caditems/` directory

@@ -10,6 +10,7 @@ This is BelfryCAD, a CAD application built with Python and PySide6.
 - Use type hints for function parameters and return values
 
 ## File Organization
+- Virtual Python Environment: `venv/` directory
 - Core logic: `core/` directory
 - GUI components: `gui/` directory
 - Specialized GUI Widgets: `gui/widgets` directory
@@ -33,3 +34,6 @@ This is BelfryCAD, a CAD application built with Python and PySide6.
 - Use `@property` decorators for getters/setters
 - Implement `__init__.py` files for packages
 - Follow Qt's parent-child widget relationships
+
+## Virtual Environment
+- It is very important that the venv virtual environment is always activated before running a script.
