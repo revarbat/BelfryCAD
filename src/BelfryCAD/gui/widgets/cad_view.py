@@ -8,8 +8,8 @@ from PySide6.QtCore import Qt, QTimer, QPointF, QRectF
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QCursor
 
-from ..views.graphics_items.grid_graphics_items import GridBackground, RulersForeground
-from ..views.graphics_items.cad_item import CadItem
+from ..graphics_items.grid_graphics_items import GridBackground, RulersForeground
+
 
 
 class CadView(QGraphicsView):
@@ -146,7 +146,9 @@ class CadView(QGraphicsView):
         # Select items in the rectangle
         items = self.scene().items(selection_rect, Qt.ItemSelectionMode.IntersectsItemShape)
         for item in items:
-            if isinstance(item, CadItem):
+            # Check if this item has a viewmodel reference in data slot 0
+            viewmodel = item.data(0)
+            if viewmodel and hasattr(viewmodel, 'object_type'):
                 item.setSelected(True)
 
         # Reset rubber band state

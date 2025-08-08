@@ -8,17 +8,18 @@ tools_text.tcl implementation.
 import math
 from typing import Optional, List
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
 from ..tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+from ..cad_geometry import Point2D, Region
 from PySide6.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QPen, QBrush, QFont
 
 
-class TextObject(CADObject):
+class TextObject(CadObject):
     """Text object - position and text content"""
 
-    def __init__(self, object_id: int, position: Point, text: str, **kwargs):
+    def __init__(self, object_id: int, position: Point2D, text: str, **kwargs):
         super().__init__(
             object_id, ObjectType.TEXT, coords=[position], **kwargs)
         self.attributes.update({
@@ -29,7 +30,7 @@ class TextObject(CADObject):
         })
 
     @property
-    def position(self) -> Point:
+    def position(self) -> Point2D:
         return self.coords[0]
 
     @property
@@ -92,7 +93,7 @@ class TextTool(Tool):
             self.clear_temp_objects()
             self._draw_text_preview(point)
 
-    def _draw_text_preview(self, position: Point):
+    def _draw_text_preview(self, position: Point2D):
         """Draw a preview of the text"""
         # Calculate text properties
         angle_rad = math.radians(self.text_angle)
@@ -132,7 +133,7 @@ class TextTool(Tool):
         self.scene.addItem(line_item)
         self.temp_objects.append(line_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a text object"""
         if len(self.points) != 1 or not self.text:
             return None
@@ -140,10 +141,10 @@ class TextTool(Tool):
         position = self.points[0]
 
         # Create a text object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.TEXT,
-            layer=self.document.objects.current_layer,
             coords=[position],
             attributes={
                 'color': 'black',                 # Default color

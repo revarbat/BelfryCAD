@@ -18,7 +18,6 @@ from PySide6.QtCore import Qt, Signal, QPoint, QSize, QObject
 # Import the translated palette components
 from .panes.info_pane import InfoPane
 from .panes.config_pane import ConfigPane
-from .panes.layer_pane import LayerPane
 
 
 class PaletteDockArea(Enum):
@@ -35,7 +34,6 @@ class PaletteType(Enum):
     INFO_PANE = "info_pane"
     CONFIG_PANE = "config_pane"
     SNAPS_PANE = "snaps_pane"
-    LAYER_PANE = "layer_pane"
 
 
 class DockablePalette(QDockWidget):
@@ -210,17 +208,10 @@ class PaletteManager(QObject):
             },
             PaletteType.SNAPS_PANE.value: {
                 'title': 'Snaps',
-                'default_area': PaletteDockArea.RIGHT,  # Changed to right of info pane
-                'visible': True,  # Hidden by default
-                'width': 200,
-                'height': 100,
-            },
-            PaletteType.LAYER_PANE.value: {
-                'title': 'Layers',
                 'default_area': PaletteDockArea.RIGHT,
                 'visible': True,
-                'width': 220,
-                'height': 300,
+                'width': 200,
+                'height': 100,
             },
         }
 
@@ -295,8 +286,6 @@ class PaletteManager(QObject):
             layout.addWidget(QLabel("Snaps are now available in the toolbar"))
             widget.setLayout(layout)
             return widget
-        elif palette_type == PaletteType.LAYER_PANE:
-            return LayerPane(parent=self.main_window)
         else:
             # Fallback to empty widget
             widget = QWidget()
@@ -467,7 +456,6 @@ def create_default_palettes(main_window) -> PaletteManager:
     # Create default palettes
     manager.create_palette(PaletteType.INFO_PANE)
     manager.create_palette(PaletteType.CONFIG_PANE)
-    manager.create_palette(PaletteType.LAYER_PANE)
 
     # Snaps are now handled by toolbar, no longer need palette
 

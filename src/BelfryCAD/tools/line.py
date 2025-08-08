@@ -10,23 +10,23 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QPen, QColor
 from PySide6.QtWidgets import QGraphicsLineItem
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType, Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
-class LineObject(CADObject):
+class LineObject(CadObject):
     """Line object - requires exactly 2 points"""
 
-    def __init__(self, mainwin, object_id: int, start: Point, end: Point, **kwargs):
+    def __init__(self, mainwin, object_id: int, start: Point2D, end: Point2D, **kwargs):
         super().__init__(
             mainwin, object_id, ObjectType.LINE, coords=[start, end], **kwargs)
 
     @property
-    def start(self) -> Point:
+    def start(self) -> Point2D:
         return self.coords[0]
 
     @property
-    def end(self) -> Point:
+    def end(self) -> Point2D:
         return self.coords[1]
 
     def length(self) -> float:
@@ -46,7 +46,7 @@ class LineTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="L",
-            node_info=["Start Point", "End Point"]
+            node_info=["Start Point2D", "End Point2D"]
         )
     ]
 
@@ -111,17 +111,16 @@ class LineTool(Tool):
             )
             self.temp_objects.append(preview_line)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a line object from the collected points"""
         if len(self.points) != 2:
             return None
 
         # Create a line object
-        obj = CADObject(
+        obj = CadObject(
             mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.LINE,
-            layer=self.document.objects.current_layer,
             coords=self.points.copy(),
             attributes={
                 'color': 'black',  # Default color

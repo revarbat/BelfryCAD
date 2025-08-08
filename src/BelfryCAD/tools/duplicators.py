@@ -9,15 +9,16 @@ from typing import List
 from PySide6.QtCore import Qt
 
 from .base import Tool, ToolCategory, ToolDefinition
-from ..core.cad_objects import CADObject, Point
+from ..models.cad_object import CadObject
+from ..cad_geometry import Point2D
 
 
-def distance_between_points(p1: Point, p2: Point) -> float:
+def distance_between_points(p1: Point2D, p2: Point2D) -> float:
     """Calculate distance between two points"""
     return math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2)
 
 
-def angle_between_points(p1: Point, p2: Point) -> float:
+def angle_between_points(p1: Point2D, p2: Point2D) -> float:
     """Calculate angle between two points in radians"""
     return math.atan2(p2.y - p1.y, p2.x - p1.x)
 
@@ -70,8 +71,8 @@ class GridCopyTool(Tool):
                 self.scene.removeItem(item)
         self.preview_items = []
 
-    def _duplicate_object(self, obj: CADObject, offset_x: float,
-                          offset_y: float) -> CADObject:
+    def _duplicate_object(self, obj: CadObject, offset_x: float,
+                          offset_y: float) -> CadObject:
         """Create a duplicate of an object with offset"""
         new_obj = copy.deepcopy(obj)
         new_obj.translate(offset_x, offset_y)
@@ -104,7 +105,7 @@ class GridCopyTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse press events"""
         if event.button() == Qt.LeftButton:
-            point = Point(event.scenePos().x(), event.scenePos().y())
+            point = Point2D(event.scenePos().x(), event.scenePos().y())
             self.base_point = point
             self._execute_grid_copy()
             self.deactivate()
@@ -162,8 +163,8 @@ class LinearCopyTool(Tool):
                 self.scene.removeItem(item)
         self.preview_items = []
 
-    def _duplicate_object(self, obj: CADObject, offset_x: float,
-                          offset_y: float) -> CADObject:
+    def _duplicate_object(self, obj: CadObject, offset_x: float,
+                          offset_y: float) -> CadObject:
         """Create a duplicate of an object with offset"""
         new_obj = copy.deepcopy(obj)
         new_obj.translate(offset_x, offset_y)
@@ -198,7 +199,7 @@ class LinearCopyTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse press events"""
         if event.button() == Qt.LeftButton:
-            point = Point(event.scenePos().x(), event.scenePos().y())
+            point = Point2D(event.scenePos().x(), event.scenePos().y())
 
             if self.state == "start":
                 self.start_point = point
@@ -270,8 +271,8 @@ class RadialCopyTool(Tool):
                 self.scene.removeItem(item)
         self.preview_items = []
 
-    def _rotate_object_around_center(self, obj: CADObject, center: Point,
-                                     angle: float) -> CADObject:
+    def _rotate_object_around_center(self, obj: CadObject, center: Point2D,
+                                     angle: float) -> CadObject:
         """Create a copy of object rotated around center"""
         new_obj = copy.deepcopy(obj)
         new_obj.rotate(center.x, center.y, angle)
@@ -305,7 +306,7 @@ class RadialCopyTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse press events"""
         if event.button() == Qt.LeftButton:
-            point = Point(event.scenePos().x(), event.scenePos().y())
+            point = Point2D(event.scenePos().x(), event.scenePos().y())
 
             if self.state == "center":
                 self.center_point = point
@@ -378,8 +379,8 @@ class OffsetCopyTool(Tool):
                 self.scene.removeItem(item)
         self.preview_items = []
 
-    def _duplicate_object(self, obj: CADObject, offset_x: float,
-                          offset_y: float) -> CADObject:
+    def _duplicate_object(self, obj: CadObject, offset_x: float,
+                          offset_y: float) -> CadObject:
         """Create a duplicate of an object with offset"""
         new_obj = copy.deepcopy(obj)
         new_obj.translate(offset_x, offset_y)
@@ -429,7 +430,7 @@ class OffsetCopyTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse press events"""
         if event.button() == Qt.LeftButton:
-            point = Point(event.scenePos().x(), event.scenePos().y())
+            point = Point2D(event.scenePos().x(), event.scenePos().y())
             if not self.start_point:
                 self.start_point = point
                 self.document.show_message("Click second point")

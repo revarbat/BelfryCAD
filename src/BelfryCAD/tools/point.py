@@ -7,7 +7,7 @@ tools_points.tcl implementation.
 
 from typing import Optional, List
 
-from ..core.cad_objects import CADObject, ObjectType
+from ..models.cad_object import CadObject, ObjectType
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
@@ -101,7 +101,7 @@ class PointTool(Tool):
         self.scene.addItem(text_item)
         self.temp_objects.append(text_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a point object from the collected point"""
         if len(self.points) != 1:
             return None
@@ -109,11 +109,10 @@ class PointTool(Tool):
         point = self.points[0]
 
         # Create a point object
-        obj = CADObject(
+        obj = CadObject(
             mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POINT,
-            layer=self.document.objects.current_layer,
             coords=[point],
             attributes={
                 'color': 'black',      # Default color

@@ -23,7 +23,8 @@ from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsEllipseItem,
 from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush, QTransform
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 from ..utils.matrixmath import Matrix
 
@@ -67,14 +68,14 @@ class NodeAddTool(Tool):
                 # No object found - make a sound or show error
                 pass
 
-    def _find_object_near_point(self, x: float, y: float) -> Optional[CADObject]:
+    def _find_object_near_point(self, x: float, y: float) -> Optional[CadObject]:
         """Find an object near the given point"""
         close_enough = 5.0
         # TODO: Implement object search in scene
         # This would need access to the document's object list
         return None
 
-    def _add_node_to_object(self, obj: CADObject, x: float, y: float):
+    def _add_node_to_object(self, obj: CadObject, x: float, y: float):
         """Add a node to the given object at the specified coordinates"""
         # TODO: Implement node addition based on object type
         pass
@@ -131,12 +132,12 @@ class NodeDeleteTool(Tool):
         # TODO: Implement node deletion
         pass
 
-    def _find_object_near_point(self, x: float, y: float) -> Optional[CADObject]:
+    def _find_object_near_point(self, x: float, y: float) -> Optional[CadObject]:
         """Find an object near the given point"""
         # TODO: Implement object search
         return None
 
-    def _select_object(self, obj: CADObject):
+    def _select_object(self, obj: CadObject):
         """Select the given object"""
         # TODO: Implement object selection
         pass
@@ -206,7 +207,7 @@ class ConnectTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="C",
-            node_info=["Start Point", "End Point"]
+            node_info=["Start Point2D", "End Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -263,13 +264,13 @@ class ConnectTool(Tool):
         self.scene.addItem(line_item)
         self.temp_objects.append(line_item)
 
-    def _find_object_near_point(self, x: float, y: float) -> Optional[CADObject]:
+    def _find_object_near_point(self, x: float, y: float) -> Optional[CadObject]:
         """Find an object near the given point"""
         # TODO: Implement object search
         return None
 
-    def _connect_objects(self, obj1: CADObject, point1: Point,
-                         obj2: CADObject, point2: Point):
+    def _connect_objects(self, obj1: CadObject, point1: Point2D,
+                         obj2: CadObject, point2: Point2D):
         """Connect two objects with a line"""
         # TODO: Implement object connection
         pass
@@ -288,7 +289,7 @@ class TranslateTool(Tool):
             cursor="crosshair",
             is_creator=False,
             secondary_key="T",
-            node_info=["Reference Point", "Move To"]
+            node_info=["Reference Point2D", "Move To"]
         )]
 
     def _setup_bindings(self):
@@ -402,17 +403,17 @@ class TranslateTool(Tool):
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
 
-    def _get_selected_objects(self) -> List[CADObject]:
+    def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
         # TODO: Implement selection retrieval
         return []
 
-    def _get_objects_bbox(self, objects: List[CADObject]) -> Optional[QRectF]:
+    def _get_objects_bbox(self, objects: List[CadObject]) -> Optional[QRectF]:
         """Get bounding box of objects"""
         # TODO: Implement bounding box calculation
         return None
 
-    def _translate_object(self, obj: CADObject, dx: float, dy: float):
+    def _translate_object(self, obj: CadObject, dx: float, dy: float):
         """Translate an object by the given offset"""
         # TODO: Implement object translation
         pass
@@ -436,7 +437,7 @@ class RotateTool(Tool):
             cursor="crosshair",
             is_creator=False,
             secondary_key="R",
-            node_info=["Center of Rotation", "Reference Point", "Rotate To"]
+            node_info=["Center of Rotation", "Reference Point2D", "Rotate To"]
         )]
 
     def _setup_bindings(self):
@@ -524,7 +525,7 @@ class RotateTool(Tool):
         for obj in selected_objects:
             self._rotate_object(obj, rotation_angle, center.x, center.y)
 
-    def _draw_rotate_preview_box(self, bbox: QRectF, center: Point, angle: float):
+    def _draw_rotate_preview_box(self, bbox: QRectF, center: Point2D, angle: float):
         """Draw a preview box showing the rotated position"""
         # Convert angle to radians
         angle_rad = math.radians(-angle)  # Negative for screen coordinates
@@ -562,17 +563,17 @@ class RotateTool(Tool):
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
 
-    def _get_selected_objects(self) -> List[CADObject]:
+    def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
         # TODO: Implement selection retrieval
         return []
 
-    def _get_objects_bbox(self, objects: List[CADObject]) -> Optional[QRectF]:
+    def _get_objects_bbox(self, objects: List[CadObject]) -> Optional[QRectF]:
         """Get bounding box of objects"""
         # TODO: Implement bounding box calculation
         return None
 
-    def _rotate_object(self, obj: CADObject, angle: float, cx: float, cy: float):
+    def _rotate_object(self, obj: CadObject, angle: float, cx: float, cy: float):
         """Rotate an object around the given center point"""
         # TODO: Implement object rotation
         pass
@@ -591,7 +592,7 @@ class ScaleTool(Tool):
             cursor="crosshair",
             is_creator=False,
             secondary_key="S",
-            node_info=["Center of Scaling", "Reference Point", "Scale To"]
+            node_info=["Center of Scaling", "Reference Point2D", "Scale To"]
         )]
 
     def _setup_bindings(self):
@@ -698,7 +699,7 @@ class ScaleTool(Tool):
         for obj in selected_objects:
             self._scale_object(obj, scale_x, scale_y, center.x, center.y)
 
-    def _draw_scale_preview_box(self, bbox: QRectF, center: Point,
+    def _draw_scale_preview_box(self, bbox: QRectF, center: Point2D,
                                 scale_x: float, scale_y: float):
         """Draw a preview box showing the scaled position"""
         # Get corners of bounding box
@@ -726,17 +727,17 @@ class ScaleTool(Tool):
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
 
-    def _get_selected_objects(self) -> List[CADObject]:
+    def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
         # TODO: Implement selection retrieval
         return []
 
-    def _get_objects_bbox(self, objects: List[CADObject]) -> Optional[QRectF]:
+    def _get_objects_bbox(self, objects: List[CadObject]) -> Optional[QRectF]:
         """Get bounding box of objects"""
         # TODO: Implement bounding box calculation
         return None
 
-    def _scale_object(self, obj: CADObject, scale_x: float, scale_y: float,
+    def _scale_object(self, obj: CadObject, scale_x: float, scale_y: float,
                       cx: float, cy: float):
         """Scale an object around the given center point"""
         # TODO: Implement object scaling
@@ -880,17 +881,17 @@ class FlipTool(Tool):
                     self.scene.addItem(line_item)
                     self.temp_objects.append(line_item)
 
-    def _get_selected_objects(self) -> List[CADObject]:
+    def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
         # TODO: Implement selection retrieval
         return []
 
-    def _get_objects_bbox(self, objects: List[CADObject]) -> Optional[QRectF]:
+    def _get_objects_bbox(self, objects: List[CadObject]) -> Optional[QRectF]:
         """Get bounding box of objects"""
         # TODO: Implement bounding box calculation
         return None
 
-    def _flip_object(self, obj: CADObject, x1: float, y1: float,
+    def _flip_object(self, obj: CadObject, x1: float, y1: float,
                      x2: float, y2: float):
         """Flip an object across the given line"""
         # TODO: Implement object reflection
@@ -910,7 +911,7 @@ class ShearTool(Tool):
             cursor="crosshair",
             is_creator=False,
             secondary_key="H",
-            node_info=["Center of Shear", "Reference Point", "Shear To"]
+            node_info=["Center of Shear", "Reference Point2D", "Shear To"]
         )]
 
     def _setup_bindings(self):
@@ -1017,7 +1018,7 @@ class ShearTool(Tool):
         for obj in selected_objects:
             self._shear_object(obj, shear_x, shear_y, center.x, center.y)
 
-    def _draw_shear_preview_box(self, bbox: QRectF, center: Point,
+    def _draw_shear_preview_box(self, bbox: QRectF, center: Point2D,
                                 shear_x: float, shear_y: float):
         """Draw a preview box showing the sheared position"""
         # Create shear matrix
@@ -1047,17 +1048,17 @@ class ShearTool(Tool):
                 self.scene.addItem(line_item)
                 self.temp_objects.append(line_item)
 
-    def _get_selected_objects(self) -> List[CADObject]:
+    def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
         # TODO: Implement selection retrieval
         return []
 
-    def _get_objects_bbox(self, objects: List[CADObject]) -> Optional[QRectF]:
+    def _get_objects_bbox(self, objects: List[CadObject]) -> Optional[QRectF]:
         """Get bounding box of objects"""
         # TODO: Implement bounding box calculation
         return None
 
-    def _shear_object(self, obj: CADObject, shear_x: float, shear_y: float,
+    def _shear_object(self, obj: CadObject, shear_x: float, shear_y: float,
                       cx: float, cy: float):
         """Shear an object around the given center point"""
         # TODO: Implement object shearing
@@ -1082,7 +1083,7 @@ class BendTool(Tool):
             cursor="crosshair",
             is_creator=False,
             secondary_key="B",
-            node_info=["First Endpoint", "Second Endpoint", "Control Point"]
+            node_info=["First Endpoint", "Second Endpoint", "Control Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -1136,9 +1137,9 @@ class BendTool(Tool):
         elif len(self.points) == 2:
             # Show arc defined by three points
             self._draw_bend_preview_arc(self.points[0], self.points[1],
-                                        Point(current_x, current_y))
+                                        Point2D(current_x, current_y))
 
-    def _draw_bend_preview_arc(self, p1: Point, p2: Point, p3: Point):
+    def _draw_bend_preview_arc(self, p1: Point2D, p2: Point2D, p3: Point2D):
         """Draw a preview arc through three points"""
         # Calculate arc center and radius
         arc_info = self._find_arc_from_points(
@@ -1176,12 +1177,12 @@ class BendTool(Tool):
             self._bend_object(
                 obj, self.points[0], self.points[1], self.points[2])
 
-    def _get_selected_objects(self) -> List[CADObject]:
+    def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
         # TODO: Implement selection retrieval
         return []
 
-    def _bend_object(self, obj: CADObject, p1: Point, p2: Point, p3: Point):
+    def _bend_object(self, obj: CadObject, p1: Point2D, p2: Point2D, p3: Point2D):
         """Bend an object along the defined curve"""
         # TODO: Implement object bending
         pass
@@ -1200,7 +1201,7 @@ class WrapTool(Tool):
             cursor="crosshair",
             is_creator=False,
             secondary_key="W",
-            node_info=["Center Point", "Reference Point", "Tangent Point"]
+            node_info=["Center Point2D", "Reference Point2D", "Tangent Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -1235,7 +1236,7 @@ class WrapTool(Tool):
                                    ref_point.x - center.x) - math.pi/2
                 perp_x = ref_point.x + math.cos(angle)
                 perp_y = ref_point.y + math.sin(angle)
-                self.points.append(Point(perp_x, perp_y))
+                self.points.append(Point2D(perp_x, perp_y))
             else:
                 self.points.append(point)
             self._wrap_selected_objects()
@@ -1283,13 +1284,13 @@ class WrapTool(Tool):
             self._wrap_object(
                 obj, self.points[0], self.points[1], self.points[2])
 
-    def _get_selected_objects(self) -> List[CADObject]:
+    def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
         # TODO: Implement selection retrieval
         return []
 
-    def _wrap_object(self, obj: CADObject, center: Point, ref_point: Point,
-                     tangent_point: Point):
+    def _wrap_object(self, obj: CadObject, center: Point2D, ref_point: Point2D,
+                     tangent_point: Point2D):
         """Wrap an object around the defined center"""
         # TODO: Implement object wrapping
         pass
@@ -1308,7 +1309,7 @@ class UnwrapTool(Tool):
             cursor="crosshair",
             secondary_key="U",
             is_creator=False,
-            node_info=["Center Point", "Reference Point", "Tangent Point"]
+            node_info=["Center Point2D", "Reference Point2D", "Tangent Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -1342,7 +1343,7 @@ class UnwrapTool(Tool):
                                    ref_point.x - center.x) - math.pi/2
                 perp_x = ref_point.x + math.cos(angle)
                 perp_y = ref_point.y + math.sin(angle)
-                self.points.append(Point(perp_x, perp_y))
+                self.points.append(Point2D(perp_x, perp_y))
             else:
                 self.points.append(point)
             self._unwrap_selected_objects()
@@ -1403,13 +1404,13 @@ class UnwrapTool(Tool):
             self._unwrap_object(
                 obj, self.points[0], self.points[1], self.points[2])
 
-    def _get_selected_objects(self) -> List[CADObject]:
+    def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
         # TODO: Implement selection retrieval
         return []
 
-    def _unwrap_object(self, obj: CADObject, center: Point, ref_point: Point,
-                       tangent_point: Point):
+    def _unwrap_object(self, obj: CadObject, center: Point2D, ref_point: Point2D,
+                       tangent_point: Point2D):
         """Unwrap an object from the defined center"""
         # TODO: Implement object unwrapping
         pass

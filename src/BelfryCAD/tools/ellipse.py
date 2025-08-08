@@ -8,7 +8,8 @@ This module implements various ellipse drawing tools.
 import math
 from typing import Optional, List
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
@@ -25,7 +26,7 @@ class EllipseCenterTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="E",
-            node_info=["Center Point", "Corner Point"]
+            node_info=["Center Point2D", "Corner Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -126,7 +127,7 @@ class EllipseCenterTool(Tool):
                 self.scene.addItem(dim_y_item)
                 self.temp_objects.append(dim_y_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an ellipse object from the collected points"""
         if len(self.points) != 2:
             return None
@@ -139,10 +140,10 @@ class EllipseCenterTool(Tool):
         rad_y = abs(corner.y - center.y)
 
         # Create an ellipse object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
-            layer=self.document.objects.current_layer,
             coords=[center, corner],
             attributes={
                 'color': 'black',      # Default color
@@ -290,7 +291,7 @@ class EllipseDiagonalTool(Tool):
                 self.scene.addItem(dim_y_item)
                 self.temp_objects.append(dim_y_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an ellipse object from the collected points"""
         if len(self.points) != 2:
             return None
@@ -308,14 +309,14 @@ class EllipseDiagonalTool(Tool):
         rad_x = (x2 - x1) / 2
         rad_y = (y2 - y1) / 2
 
-        center = Point(center_x, center_y)
+        center = Point2D(center_x, center_y)
 
         # Create an ellipse object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
-            layer=self.document.objects.current_layer,
-            coords=[center, Point(center_x + rad_x, center_y + rad_y)],
+            coords=[center, Point2D(center_x + rad_x, center_y + rad_y)],
             attributes={
                 'color': 'black',      # Default color
                 'linewidth': 1,        # Default line width
@@ -449,8 +450,8 @@ class Ellipse3CornerTool(Tool):
                 self.scene.addItem(full_rect_item)
                 self.temp_objects.append(full_rect_item)
 
-    def _calculate_ellipse_from_corners(self, p1: Point, p2: Point,
-                                        p3: Point):
+    def _calculate_ellipse_from_corners(self, p1: Point2D, p2: Point2D,
+                                        p3: Point2D):
         """Calculate ellipse parameters from three corner points"""
         # The three points define corners of a rectangle
         # We need to determine which corner the third point represents
@@ -473,7 +474,7 @@ class Ellipse3CornerTool(Tool):
 
         return center_x, center_y, rad_x, rad_y
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an ellipse object from the collected points"""
         if len(self.points) != 3:
             return None
@@ -483,14 +484,14 @@ class Ellipse3CornerTool(Tool):
             self._calculate_ellipse_from_corners(p1, p2, p3)
         )
 
-        center = Point(center_x, center_y)
+        center = Point2D(center_x, center_y)
 
         # Create an ellipse object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
-            layer=self.document.objects.current_layer,
-            coords=[center, Point(center_x + rad_x, center_y + rad_y)],
+            coords=[center, Point2D(center_x + rad_x, center_y + rad_y)],
             attributes={
                 'color': 'black',
                 'linewidth': 1,
@@ -517,7 +518,7 @@ class EllipseCenterTangentTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="T",
-            node_info=["Center Point", "Tangent Point 1", "Tangent Point 2"]
+            node_info=["Center Point2D", "Tangent Point2D 1", "Tangent Point2D 2"]
         )]
 
     def _setup_bindings(self):
@@ -636,8 +637,8 @@ class EllipseCenterTangentTool(Tool):
                 self.scene.addItem(text2_item)
                 self.temp_objects.append(text2_item)
 
-    def _calculate_ellipse_from_center_tangents(self, center: Point,
-                                                t1: Point, t2: Point):
+    def _calculate_ellipse_from_center_tangents(self, center: Point2D,
+                                                t1: Point2D, t2: Point2D):
         """Calculate ellipse parameters from center and two tangent points
         """
         # Calculate distances from center to tangent points
@@ -659,7 +660,7 @@ class EllipseCenterTangentTool(Tool):
 
         return center.x, center.y, rad_x, rad_y, angle
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an ellipse object from the collected points"""
         if len(self.points) != 3:
             return None
@@ -670,11 +671,11 @@ class EllipseCenterTangentTool(Tool):
         )
 
         # Create an ellipse object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
-            layer=self.document.objects.current_layer,
-            coords=[center, Point(center_x + rad_x, center_y + rad_y)],
+            coords=[center, Point2D(center_x + rad_x, center_y + rad_y)],
             attributes={
                 'color': 'black',
                 'linewidth': 1,
@@ -700,7 +701,7 @@ class EllipseOppositeTangentTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="O",
-            node_info=["First Tangent", "Opposite Tangent", "Size Point"]
+            node_info=["First Tangent", "Opposite Tangent", "Size Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -813,8 +814,8 @@ class EllipseOppositeTangentTool(Tool):
                 self.scene.addItem(ellipse_item)
                 self.temp_objects.append(ellipse_item)
 
-    def _calculate_ellipse_from_opposite_tangents(self, t1: Point, t2: Point,
-                                                  size_point: Point):
+    def _calculate_ellipse_from_opposite_tangents(self, t1: Point2D, t2: Point2D,
+                                                  size_point: Point2D):
         """Calculate ellipse parameters from opposite tangent points and a
         size point"""
         # Calculate center as midpoint between tangents
@@ -839,7 +840,7 @@ class EllipseOppositeTangentTool(Tool):
 
         return center_x, center_y, rad_x, rad_y
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an ellipse object from the collected points"""
         if len(self.points) != 3:
             return None
@@ -849,14 +850,14 @@ class EllipseOppositeTangentTool(Tool):
             self._calculate_ellipse_from_opposite_tangents(t1, t2, size_point)
         )
 
-        center = Point(center_x, center_y)
+        center = Point2D(center_x, center_y)
 
         # Create an ellipse object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
-            layer=self.document.objects.current_layer,
-            coords=[center, Point(center_x + rad_x, center_y + rad_y)],
+            coords=[center, Point2D(center_x + rad_x, center_y + rad_y)],
             attributes={
                 'color': 'black',
                 'linewidth': 1,

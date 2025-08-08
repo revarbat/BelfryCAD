@@ -8,15 +8,15 @@ tools_polygons.tcl implementation, including rectangles and regular polygons.
 import math
 from typing import Optional, List
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
-from ..utils.bezutils import bezutil_append_bezier_arc
 
 
-class PolygonObject(CADObject):
+class PolygonObject(CadObject):
     """Polygon object - list of vertices"""
 
-    def __init__(self, object_id: int, vertices: List[Point], **kwargs):
+    def __init__(self, object_id: int, vertices: List[Point2D], **kwargs):
         super().__init__(
             object_id, ObjectType.POLYGON, coords=vertices, **kwargs)
 
@@ -30,7 +30,7 @@ class PolygonObject(CADObject):
     def close(self):
         """Close the polygon by adding first point at end if not closed"""
         if not self.is_closed() and len(self.coords) >= 3:
-            self.coords.append(Point(self.coords[0].x, self.coords[0].y))
+            self.coords.append(Point2D(self.coords[0].x, self.coords[0].y))
 
 
 class RectangleTool(Tool):
@@ -127,7 +127,7 @@ class RectangleTool(Tool):
                 self.scene.addItem(dim_y_item)
                 self.temp_objects.append(dim_y_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a rectangle object from the collected points"""
         if len(self.points) != 2:
             return None
@@ -141,17 +141,17 @@ class RectangleTool(Tool):
 
         # Create points for all four corners
         corners = [
-            Point(x1, y1),  # Bottom-left
-            Point(x2, y1),  # Bottom-right
-            Point(x2, y2),  # Top-right
-            Point(x1, y2)   # Top-left
+            Point2D(x1, y1),  # Bottom-left
+            Point2D(x2, y1),  # Bottom-right
+            Point2D(x2, y2),  # Top-right
+            Point2D(x1, y2)   # Top-left
         ]
 
         # Create a rectangle object (as a polygon)
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POLYGON,
-            layer=self.document.objects.current_layer,
             coords=corners,
             attributes={
                 'color': 'black',      # Default color
@@ -215,7 +215,7 @@ class RoundedRectangleTool(Tool):
             self._set_radius_from_point(point)
             self.complete()
 
-    def _set_radius_from_point(self, point: Point):
+    def _set_radius_from_point(self, point: Point2D):
         """Set corner radius based on distance from rectangle edge"""
         if len(self.points) < 2:
             return
@@ -316,7 +316,7 @@ class RoundedRectangleTool(Tool):
             self.scene.addItem(radius_text)
             self.temp_objects.append(radius_text)
 
-    def _calc_radius_from_point(self, point: Point, x1: float, y1: float,
+    def _calc_radius_from_point(self, point: Point2D, x1: float, y1: float,
                                 x2: float, y2: float) -> float:
         """Calculate corner radius based on distance from rectangle edge"""
         # Calculate distance from point to nearest edge
@@ -380,11 +380,11 @@ class RoundedRectangleTool(Tool):
             self.temp_objects.append(path_item)
 
     def _gen_rounded_rect_vertices(self, x1: float, y1: float, x2: float,
-                                   y2: float, radius: float) -> List[Point]:
+                                   y2: float, radius: float) -> List[Point2D]:
         """Generate vertices for a rounded rectangle using bezier curves"""
         if radius <= 0:
             # Regular rectangle
-            return [Point(x1, y1), Point(x2, y1), Point(x2, y2), Point(x1, y2)]
+            return [Point2D(x1, y1), Point2D(x2, y1), Point2D(x2, y2), Point2D(x1, y2)]
 
         # Limit radius to half the minimum dimension
         max_radius = min(x2 - x1, y2 - y1) / 2
@@ -425,15 +425,15 @@ class RoundedRectangleTool(Tool):
         bezutil_append_bezier_arc(coords, x1 + radius, y1 + radius,
                                   radius, radius, 180, 90)
 
-        # Convert coordinate list to Point objects
+        # Convert coordinate list to Point2D objects
         vertices = []
         for i in range(0, len(coords), 2):
             if i + 1 < len(coords):
-                vertices.append(Point(coords[i], coords[i + 1]))
+                vertices.append(Point2D(coords[i], coords[i + 1]))
 
         return vertices
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a rounded rectangle object from the collected points"""
         if len(self.points) < 2:
             return None
@@ -457,10 +457,10 @@ class RoundedRectangleTool(Tool):
             return None
 
         # Create a rounded rectangle object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POLYGON,
-            layer=self.document.objects.current_layer,
             coords=vertices,
             attributes={
                 'color': 'black',                    # Default color
@@ -523,7 +523,7 @@ class RegularPolygonTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="G",
-            node_info=["Center Point", "Radius Point"]
+            node_info=["Center Point2D", "Radius Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -628,8 +628,8 @@ class RegularPolygonTool(Tool):
                 self.scene.addItem(sides_text_item)
                 self.temp_objects.append(sides_text_item)
 
-    def _calculate_polygon_vertices(self, center: Point, radius: float,
-                                    num_sides: int) -> List[Point]:
+    def _calculate_polygon_vertices(self, center: Point2D, radius: float,
+                                    num_sides: int) -> List[Point2D]:
         """Calculate the vertices of a regular polygon"""
         if radius <= 0 or num_sides < 3:
             return []
@@ -640,11 +640,11 @@ class RegularPolygonTool(Tool):
             angle = 2 * math.pi * i / num_sides - math.pi / 2
             x = center.x + radius * math.cos(angle)
             y = center.y + radius * math.sin(angle)
-            vertices.append(Point(x, y))
+            vertices.append(Point2D(x, y))
 
         return vertices
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a regular polygon object from the collected points"""
         if len(self.points) != 2:
             return None
@@ -665,10 +665,10 @@ class RegularPolygonTool(Tool):
             return None
 
         # Create a regular polygon object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POLYGON,
-            layer=self.document.objects.current_layer,
             coords=vertices,
             attributes={
                 'color': 'black',      # Default color

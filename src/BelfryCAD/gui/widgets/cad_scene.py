@@ -1,9 +1,9 @@
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
 from PySide6.QtCore import Qt, QPointF, QTimer
 
-from ..views.graphics_items.cad_item import CadItem
-from ..views.graphics_items.caditems.gear_cad_item import GearCadItem
-from ..views.graphics_items.control_points import ControlPoint, ControlDatum
+
+
+from ..graphics_items.control_points import ControlPoint, ControlDatum
 
 
 class CadScene(QGraphicsScene):
@@ -105,10 +105,12 @@ class CadScene(QGraphicsScene):
         return None
 
     def _find_cad_item_at_position(self, scene_pos: QPointF):
-        """Find a CAD item at the given scene position."""
+        """Find a view item at the given scene position."""
         items = self.items(scene_pos)
         for item in items:
-            if isinstance(item, CadItem):
+            # Check if this item has a viewmodel reference in data slot 0
+            viewmodel = item.data(0)
+            if viewmodel and hasattr(viewmodel, 'object_type'):
                 return item
         return None
 
@@ -129,49 +131,48 @@ class CadScene(QGraphicsScene):
         else:
             super().mousePressEvent(event)
 
-    def _handle_cad_item_press(self, cad_item: CadItem, event: QGraphicsSceneMouseEvent):
-        """Handle mouse press on a CAD item."""
-        if event.button() == Qt.MouseButton.LeftButton:
-            # Handle selection
-            if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-                self._toggle_selection(cad_item)
-            elif event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                self._add_to_selection(cad_item)
-            else:
-                self._set_single_selection(cad_item)
-            
-            # Start dragging if not just selecting
-            if not (event.modifiers() & (Qt.KeyboardModifier.ShiftModifier | Qt.KeyboardModifier.ControlModifier)):
-                self._dragging_item = cad_item
-                self._drag_start_pos = event.scenePos()
-            
-            event.accept()
+    def _handle_cad_item_press(self, view_item, event: QGraphicsSceneMouseEvent):
+        """Handle mouse press on a view item."""
+        viewmodel = view_item.data(0)
+        if not viewmodel:
+            return
+        
+        # Handle selection based on modifier keys
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            # Ctrl+click: toggle selection
+            self._toggle_selection(view_item)
         else:
-            super().mousePressEvent(event)
+            # Regular click: set single selection
+            self._set_single_selection(view_item)
+        
+        # Start dragging if this is a left button press
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._dragging_item = view_item
+            self._drag_start_pos = event.scenePos()
+        
+        event.accept()
 
     def set_snaps_system(self, snaps_system):
-        """Set the snaps system reference for this scene."""
+        """Set the snaps system reference."""
         self._snaps_system = snaps_system
-    
+
     def get_precision(self):
-        """Get the precision setting for this scene."""
+        """Get the current precision setting."""
         return self._precision
-    
+
     def set_precision(self, precision):
-        """Set the precision setting for this scene."""
+        """Set the precision setting."""
         self._precision = precision
 
     def update_all_control_datums_precision(self, new_precision: int):
-        """Update precision for all ControlDatums in all CAD items in the scene."""
-        for item in self.items():
-            if isinstance(item, CadItem):
-                item.update_control_datums_precision(new_precision)
+        """Update precision for all control datums."""
+        self._precision = new_precision
+        # This is now handled by viewmodels
 
     def refresh_gear_items_for_unit_change(self):
-        """Refresh all GearCadItems when grid units change."""
-        for item in self.items():
-            if isinstance(item, GearCadItem):
-                item.refresh_control_datums_for_units()
+        """Refresh gear items when units change."""
+        # This is now handled by viewmodels
+        pass
 
     def _handle_control_drag(self, scene_pos: QPointF, event: QGraphicsSceneMouseEvent):
         """Handle dragging of a control point or control datum."""
@@ -205,15 +206,24 @@ class CadScene(QGraphicsScene):
             event.accept()
 
     def _handle_cad_item_drag(self, scene_pos: QPointF, event: QGraphicsSceneMouseEvent):
-        """Handle dragging of a CAD item."""
-        if self._dragging_item:
-            delta = scene_pos - self._last_mouse_pos
-            self._dragging_item.moveBy(delta.x(), delta.y())
-            
-            # Update control point positions after the CAD item moves
-            self._update_control_points_for_cad_item(self._dragging_item)
-            
-            event.accept()
+        """Handle dragging of a view item."""
+        if not self._dragging_item:
+            return
+        
+        viewmodel = self._dragging_item.data(0)
+        if not viewmodel:
+            return
+        
+        # Calculate the translation
+        delta = scene_pos - self._last_mouse_pos
+        
+        # Apply translation to the viewmodel
+        viewmodel.translate(delta.x(), delta.y())
+        
+        # Update the view items
+        viewmodel.update_view(self)
+        
+        event.accept()
 
     def _handle_control_release(self, event: QGraphicsSceneMouseEvent):
         """Handle mouse release on a control point or control datum."""
@@ -223,43 +233,63 @@ class CadScene(QGraphicsScene):
             event.accept()
 
     def _handle_cad_item_release(self, event: QGraphicsSceneMouseEvent):
-        """Handle mouse release on a CAD item."""
+        """Handle release of a view item drag."""
         if self._dragging_item:
+            viewmodel = self._dragging_item.data(0)
+            if viewmodel:
+                # Emit the object_moved signal
+                viewmodel.object_moved.emit(viewmodel.cad_object.center_point.to_qpointf())
             self._dragging_item = None
-            event.accept()
 
-    def _add_to_selection(self, cad_item: CadItem):
-        """Add a CAD item to the current selection."""
-        self._selected_items.add(cad_item)
-        cad_item.setSelected(True)
-        self._update_control_points()
+    def _add_to_selection(self, view_item):
+        """Add a view item to the current selection using its viewmodel reference."""
+        viewmodel = view_item.data(0)
+        if viewmodel:
+            self._selected_items.add(view_item)
+            view_item.setSelected(True)
+            # Update the viewmodel's selection state
+            viewmodel.is_selected = True
+            self._update_control_points()
 
-    def _toggle_selection(self, cad_item: CadItem):
-        """Toggle the selection state of a CAD item."""
-        if cad_item in self._selected_items:
-            self._selected_items.discard(cad_item)
-            cad_item.setSelected(False)
-        else:
-            self._selected_items.add(cad_item)
-            cad_item.setSelected(True)
-        self._update_control_points()
+    def _toggle_selection(self, view_item):
+        """Toggle the selection state of a view item using its viewmodel reference."""
+        viewmodel = view_item.data(0)
+        if viewmodel:
+            if view_item in self._selected_items:
+                self._selected_items.discard(view_item)
+                view_item.setSelected(False)
+                viewmodel.is_selected = False
+            else:
+                self._selected_items.add(view_item)
+                view_item.setSelected(True)
+                viewmodel.is_selected = True
+            self._update_control_points()
 
-    def _set_single_selection(self, cad_item: CadItem):
-        """Set a single CAD item as the only selected item."""
+    def _set_single_selection(self, view_item):
+        """Set a single view item as the only selected item using its viewmodel reference."""
         # Clear current selection
         for item in self._selected_items:
             item.setSelected(False)
+            viewmodel = item.data(0)
+            if viewmodel:
+                viewmodel.is_selected = False
         self._selected_items.clear()
         
         # Set new selection
-        self._selected_items.add(cad_item)
-        cad_item.setSelected(True)
-        self._update_control_points()
+        viewmodel = view_item.data(0)
+        if viewmodel:
+            self._selected_items.add(view_item)
+            view_item.setSelected(True)
+            viewmodel.is_selected = True
+            self._update_control_points()
 
     def _clear_selection(self):
         """Clear all selections."""
         for item in self._selected_items:
             item.setSelected(False)
+            viewmodel = item.data(0)
+            if viewmodel:
+                viewmodel.is_selected = False
         self._selected_items.clear()
         self._update_control_points()
 
@@ -267,40 +297,28 @@ class CadScene(QGraphicsScene):
         """Update control points for all selected items."""
         self._hide_all_control_points()
         
-        for cad_item in self._selected_items:
-            self._show_control_points_for_item(cad_item)
+        for view_item in self._selected_items:
+            viewmodel = view_item.data(0)
+            if viewmodel:
+                self._show_control_points_for_viewmodel(viewmodel)
 
-    def _show_control_points_for_item(self, cad_item: CadItem):
-        """Show control points for a specific CAD item."""
-        if cad_item not in self._control_points:
-            self._create_control_points_for_item(cad_item)
+    def _show_control_points_for_viewmodel(self, viewmodel):
+        """Show control points for a specific viewmodel."""
+        # Get control points and datums from viewmodel
+        control_points = viewmodel.controls
         
         # Update control point positions to scene coordinates
-        self._update_control_point_positions(cad_item)
-        
-        # Update ControlDatum precision to match current scene precision
-        cad_item.update_control_datums_precision(self._precision)
+        self._update_control_point_positions_for_viewmodel(viewmodel)
         
         # Show control points
-        for cp in self._control_points.get(cad_item, []):
+        for cp in control_points:
             if cp:
                 cp.setVisible(True)
         
-        # Show control datums (respect CAD item's visibility settings)
-        for cd in self._control_datums.get(cad_item, []):
-            if cd:
-                # Check if the CAD item has custom visibility logic
-                if hasattr(cad_item, 'is_metric') and hasattr(cad_item, '_module_datum') and hasattr(cad_item, '_diametral_pitch_datum'):
-                    # For GearCadItem, respect the metric-based visibility
-                    if cd == cad_item._module_datum: # type: ignore
-                        cd.setVisible(cad_item.is_metric()) # type: ignore
-                    elif cd == cad_item._diametral_pitch_datum: # type: ignore
-                        cd.setVisible(not cad_item.is_metric()) # type: ignore
-                    else:
-                        cd.setVisible(True)
-                else:
-                    # Default behavior for other CAD items
-                    cd.setVisible(True)
+        # Show control datums
+        for cd in control_points:  # Control datums are also in controls list
+            if hasattr(cd, 'setVisible') and cd:
+                cd.setVisible(True)
 
     def _hide_all_control_points(self):
         """Hide all control points and control datums."""
@@ -314,102 +332,11 @@ class CadScene(QGraphicsScene):
                 if cd:
                     cd.setVisible(False)
 
-    def _create_control_points_for_item(self, cad_item: CadItem):
-        """Create control points for a CAD item."""
-        control_points = []
-        control_datums = []
-        
-        # Check if control points already exist
-        if not hasattr(cad_item, '_control_point_items') or not cad_item._control_point_items:
-            # Create control points by calling the CAD item's createControls method
-            cad_item.createControls()
-        
-        # Use the control points created by the CAD item itself
-        if hasattr(cad_item, '_control_point_items') and cad_item._control_point_items:
-            for cp in cad_item._control_point_items:
-                if cp:
-                    # Add the control point to the scene if it's not already there
-                    if cp.scene() != self:
-                        self.addItem(cp)
-                    cp.setVisible(False)
-                    
-                    # Categorize control points vs control datums
-                    if hasattr(cp, 'prefix'):  # ControlDatum has prefix attribute
-                        control_datums.append(cp)
-                    else:
-                        control_points.append(cp)
-        
-        self._control_points[cad_item] = control_points
-        self._control_datums[cad_item] = control_datums
-
-    def _move_control_point(self, cad_item: CadItem, cp_index: int, new_pos: QPointF):
-        """Move a control point for a CAD item."""
-        # Convert scene coordinates to item coordinates
-        item_pos = cad_item.mapFromScene(new_pos)
-        
-        # Call the CAD item's control point movement method if available
-        if hasattr(cad_item, '_set_point'):
-            getattr(cad_item, '_set_point')(cp_index, item_pos)
-        elif hasattr(cad_item, 'move_control_point'):
-            getattr(cad_item, 'move_control_point')(cp_index, item_pos.x(), item_pos.y())
-
-    def _update_control_points_for_item(self, cad_item: CadItem):
-        """Update control points for a CAD item (e.g., after item modification)."""
-        # Remove old control points
-        if cad_item in self._control_points:
-            for cp in self._control_points[cad_item]:
-                if cp:
-                    self.removeItem(cp)
-            del self._control_points[cad_item]
-        
-        if cad_item in self._control_datums:
-            for cd in self._control_datums[cad_item]:
-                if cd:
-                    self.removeItem(cd)
-            del self._control_datums[cad_item]
-        
-        # Create new control points if item is selected
-        if cad_item in self._selected_items:
-            self._create_control_points_for_item(cad_item)
-            self._show_control_points_for_item(cad_item)
-
-    def _update_control_point_positions(self, cad_item: CadItem):
-        """Update control point positions to scene coordinates."""
-        if cad_item in self._control_points:
-            # Get the updated control point positions from the CAD item
-            cp_data = cad_item.getControlPoints() if hasattr(cad_item, 'getControlPoints') else []
-            
-            # Update control point positions
-            for i, cp in enumerate(self._control_points[cad_item]):
-                if cp and i < len(cp_data):
-                    # Use the positions directly (they are already in scene coordinates)
-                    cp.setPos(cp_data[i])
-        
-        # Update control datum positions
-        if cad_item in self._control_datums:
-            for cd in self._control_datums[cad_item]:
-                if cd and hasattr(cad_item, 'updateControls'):
-                    # Call updateControls to update datum positions and values
-                    cad_item.updateControls()
-
-    def _update_control_points_for_cad_item(self, cad_item: CadItem):
-        """Update control point positions for a CAD item after modification."""
-        if cad_item in self._control_points:
-            # Get the updated control point positions from the CAD item
-            cp_data = cad_item.getControlPoints() if hasattr(cad_item, 'getControlPoints') else []
-            
-            # Update control point positions
-            for i, cp in enumerate(self._control_points[cad_item]):
-                if cp and i < len(cp_data):
-                    # Use the positions directly (they are already in scene coordinates)
-                    cp.setPos(cp_data[i])
-        
-        # Update control datum positions
-        if cad_item in self._control_datums:
-            for cd in self._control_datums[cad_item]:
-                if cd and hasattr(cad_item, 'updateControls'):
-                    # Call updateControls to update datum positions and values
-                    cad_item.updateControls()
+    def _update_control_point_positions_for_viewmodel(self, viewmodel):
+        """Update control point positions for a viewmodel."""
+        # This will be handled by the viewmodel's update_controls method
+        # The viewmodel manages its own control point positions
+        pass
 
     def _update_selection_state(self):
         """Update the selection state (called by timer)."""

@@ -8,7 +8,8 @@ implementation.
 import math
 from typing import Optional, List
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 from PySide6.QtCore import Qt, QRectF
 from PySide6.QtGui import QPen
@@ -16,7 +17,7 @@ from PySide6.QtWidgets import QGraphicsEllipseItem
 
 
 
-class CircleObject(CADObject):
+class CircleObject(CadObject):
     """Circle object - center and radius"""
 
     def __init__(
@@ -51,11 +52,11 @@ class CircleObject(CADObject):
         scene.tagAsControlPoint(cp2)
 
     @property
-    def center(self) -> Point:
+    def center(self) -> Point2D:
         return self.coords[0]
 
     @center.setter
-    def center(self, value: Point):
+    def center(self, value: Point2D):
         self.coords[0] = value
         self.draw_object()
         self.draw_controls()
@@ -97,7 +98,7 @@ class CircleTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="C",
-            node_info=["Center Point", "Radius Point"]
+            node_info=["Center Point2D", "Radius Point2D"]
         )
     ]
 
@@ -157,7 +158,7 @@ class CircleTool(Tool):
             )
             self.scene.tagAsConstruction(ellipse_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a circle object from the collected points"""
         if len(self.points) != 2:
             return None
@@ -175,7 +176,6 @@ class CircleTool(Tool):
             mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.CIRCLE,
-            layer=self.document.objects.current_layer,
             coords=[center_point, radius_point],  # Only need center point
             attributes={
                 'color': 'black',  # Default color
@@ -185,26 +185,26 @@ class CircleTool(Tool):
         return obj
 
 
-class Circle2PTObject(CADObject):
+class Circle2PTObject(CadObject):
     """Circle object defined by 2 points (diameter endpoints)"""
 
-    def __init__(self, mainwin: 'MainWindow', object_id: int, point1: Point, point2: Point, **kwargs):
+    def __init__(self, mainwin: 'MainWindow', object_id: int, point1: Point2D, point2: Point2D, **kwargs):
         super().__init__(
             mainwin, object_id, ObjectType.CIRCLE, coords=[point1, point2], **kwargs)
 
     @property
-    def point1(self) -> Point:
+    def point1(self) -> Point2D:
         return self.coords[0]
 
     @property
-    def point2(self) -> Point:
+    def point2(self) -> Point2D:
         return self.coords[1]
 
     @property
-    def center(self) -> Point:
+    def center(self) -> Point2D:
         """Calculate center point between the two points"""
         p1, p2 = self.point1, self.point2
-        return Point((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0)
+        return Point2D((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0)
 
     @property
     def radius(self) -> float:
@@ -213,16 +213,16 @@ class Circle2PTObject(CADObject):
         return math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2) / 2.0
 
 
-class Circle3PTObject(CADObject):
+class Circle3PTObject(CadObject):
     """Circle object defined by 3 points on the circumference"""
 
     def __init__(
             self,
             mainwin: 'MainWindow',
             object_id: int,
-            point1: Point,
-            point2: Point,
-            point3: Point,
+            point1: Point2D,
+            point2: Point2D,
+            point3: Point2D,
             **kwargs
     ):
         super().__init__(
@@ -232,15 +232,15 @@ class Circle3PTObject(CADObject):
         self._calculate_circle()
 
     @property
-    def point1(self) -> Point:
+    def point1(self) -> Point2D:
         return self.coords[0]
 
     @property
-    def point2(self) -> Point:
+    def point2(self) -> Point2D:
         return self.coords[1]
 
     @property
-    def point3(self) -> Point:
+    def point3(self) -> Point2D:
         return self.coords[2]
 
     def _calculate_circle(self):
@@ -254,7 +254,7 @@ class Circle3PTObject(CADObject):
         if abs(col) < 1e-6:
             # Points are collinear - this becomes a line
             self.attributes['is_line'] = True
-            self.attributes['center'] = Point(0, 0)
+            self.attributes['center'] = Point2D(0, 0)
             self.attributes['radius'] = 0
             return
 
@@ -287,16 +287,16 @@ class Circle3PTObject(CADObject):
             cx = (c2 - c1) / (m1 - m2)
             cy = m1 * cx + c1
 
-        center = Point(cx, cy)
+        center = Point2D(cx, cy)
         radius = math.sqrt((p1.y - cy)**2 + (p1.x - cx)**2)
 
         self.attributes['center'] = center
         self.attributes['radius'] = radius
 
     @property
-    def center(self) -> Point:
+    def center(self) -> Point2D:
         """Get the calculated center point"""
-        return self.attributes.get('center', Point(0, 0))
+        return self.attributes.get('center', Point2D(0, 0))
 
     @property
     def radius(self) -> float:
@@ -322,7 +322,7 @@ class Circle2PTTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="2",
-            node_info=["First Point", "Second Point"]
+            node_info=["First Point2D", "Second Point2D"]
         )
     ]
 
@@ -333,7 +333,7 @@ class Circle2PTTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse down events"""
         scene_pos = event.scenePos()
-        point = Point(scene_pos.x(), scene_pos.y())
+        point = Point2D(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.INIT:
             self.points = [point]
@@ -351,7 +351,7 @@ class Circle2PTTool(Tool):
         """Handle mouse move events for preview"""
         if self.state == ToolState.DRAWING and len(self.points) == 1:
             scene_pos = event.scenePos()
-            current_point = Point(scene_pos.x(), scene_pos.y())
+            current_point = Point2D(scene_pos.x(), scene_pos.y())
             self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
@@ -380,7 +380,7 @@ class Circle2PTTool(Tool):
             self.scene.addItem(ellipse_item)
             self.scene.tagAsConstruction(ellipse_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a circle object from the collected points"""
         if len(self.points) != 2:
             return None
@@ -390,7 +390,6 @@ class Circle2PTTool(Tool):
             object_id=self.document.objects.get_next_id(),
             point1=self.points[0],
             point2=self.points[1],
-            layer=self.document.objects.current_layer,
             attributes={
                 'color': 'black',
                 'linewidth': 1
@@ -412,7 +411,7 @@ class Circle3PTTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="3",
-            node_info=["First Point", "Second Point", "Third Point"]
+            node_info=["First Point2D", "Second Point2D", "Third Point2D"]
         )
     ]
 
@@ -423,7 +422,7 @@ class Circle3PTTool(Tool):
     def handle_mouse_down(self, event):
         """Handle mouse down events"""
         scene_pos = event.scenePos()
-        point = Point(scene_pos.x(), scene_pos.y())
+        point = Point2D(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.INIT:
             self.points = [point]
@@ -442,7 +441,7 @@ class Circle3PTTool(Tool):
         """Handle mouse move events for preview"""
         if self.state == ToolState.DRAWING:
             scene_pos = event.scenePos()
-            current_point = Point(scene_pos.x(), scene_pos.y())
+            current_point = Point2D(scene_pos.x(), scene_pos.y())
 
             if len(self.points) == 1:
                 self.draw_preview([self.points[0], current_point])
@@ -531,7 +530,7 @@ class Circle3PTTool(Tool):
 
             self.scene.addItem(line_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a circle object from the collected points"""
         if len(self.points) != 3:
             return None
@@ -542,7 +541,6 @@ class Circle3PTTool(Tool):
             point1=self.points[0],
             point2=self.points[1],
             point3=self.points[2],
-            layer=self.document.objects.current_layer,
             attributes={
                 'color': 'black',
                 'linewidth': 1

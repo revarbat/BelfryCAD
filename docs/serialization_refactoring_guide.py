@@ -2,7 +2,7 @@
 Serialization Refactoring for BelfryCAD
 
 This document outlines the refactoring of serialization logic to move 
-serialization responsibility into the respective classes (CADObject and Layer)
+serialization responsibility into the respective classes (CadObject and Layer)
 rather than handling it externally in Document and LayerManager.
 
 CURRENT ISSUE:
@@ -13,15 +13,15 @@ CURRENT ISSUE:
 
 SOLUTION:
 Move serialization into the classes themselves:
-- CADObject.serialize() / CADObject.deserialize()
+- CadObject.serialize() / CadObject.deserialize()
 - Layer.serialize() / Layer.deserialize()
 
 This creates a cleaner, more maintainable architecture.
 """
 
-# Example implementation for CADObject class:
+# Example implementation for CadObject class:
 
-class CADObject:
+class CadObject:
     """Base CAD object with self-contained serialization."""
     
     def serialize(self) -> dict:
@@ -59,7 +59,7 @@ class CADObject:
             layer_manager: LayerManager for layer lookup
             
         Returns:
-            Reconstructed CADObject instance
+            Reconstructed CadObject instance
         """
         from .cad_objects import ObjectType, Point
         
@@ -218,7 +218,7 @@ class Document:
         objects_data = data.get("objects", [])
         for obj_data in objects_data:
             try:
-                obj = CADObject.deserialize(obj_data, self.objects, self.layers)
+                obj = CadObject.deserialize(obj_data, self.objects, self.layers)
             except Exception as e:
                 print(f"Failed to deserialize object: {e}")
 
@@ -255,7 +255,7 @@ ADVANTAGES:
 
 IMPLEMENTATION STEPS:
 
-1. Add serialize() method to CADObject base class
+1. Add serialize() method to CadObject base class
 2. Add serialize() method to Layer class
 3. Add deserialize() class methods to both
 4. Update Document to delegate to object methods

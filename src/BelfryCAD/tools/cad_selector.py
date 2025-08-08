@@ -11,7 +11,7 @@ from PySide6.QtGui import QPen, QColor, QBrush
 from PySide6.QtWidgets import QGraphicsRectItem
 
 from .base import Tool, ToolDefinition, ToolCategory
-from ..core.cad_objects import CADObject
+from ..models.cad_object import CadObject, ObjectType
 
 
 class CadSelectorTool(Tool):
@@ -24,7 +24,7 @@ class CadSelectorTool(Tool):
         super().__init__(scene, document, preferences)
 
         # Selection state
-        self.selected_objects: List[CADObject] = []
+        self.selected_objects: List[CadObject] = []
         self.selection_changed_callbacks: List = []
 
         # Rectangle selection state
@@ -86,7 +86,7 @@ class CadSelectorTool(Tool):
             scene_pos = event.scenePos()
             self._complete_rectangle_selection(scene_pos)
 
-    def _find_object_at_point(self, x: float, y: float) -> Optional[CADObject]:
+    def _find_object_at_point(self, x: float, y: float) -> Optional[CadObject]:
         """Find CAD object at the given scene coordinates."""
         if not hasattr(self.document, 'objects'):
             return None
@@ -97,7 +97,7 @@ class CadSelectorTool(Tool):
                 return obj
         return None
 
-    def _point_in_object(self, x: float, y: float, obj: CADObject) -> bool:
+    def _point_in_object(self, x: float, y: float, obj: CadObject) -> bool:
         """Check if point is within object bounds."""
         if not obj.coords:
             return False
@@ -112,14 +112,14 @@ class CadSelectorTool(Tool):
 
         return False
 
-    def _select_single_object(self, obj: CADObject):
+    def _select_single_object(self, obj: CadObject):
         """Select a single object, clearing previous selection."""
         self._clear_selection()
         self.selected_objects.append(obj)
         obj.selected = True
         self._notify_selection_changed()
 
-    def _toggle_object_selection(self, obj: CADObject):
+    def _toggle_object_selection(self, obj: CadObject):
         """Toggle selection state of an object."""
         if obj in self.selected_objects:
             self.selected_objects.remove(obj)
@@ -198,7 +198,7 @@ class CadSelectorTool(Tool):
         self._is_rect_selecting = False
         self._notify_selection_changed()
 
-    def _object_in_rectangle(self, obj: CADObject, min_x: float, min_y: float,
+    def _object_in_rectangle(self, obj: CadObject, min_x: float, min_y: float,
                            max_x: float, max_y: float) -> bool:
         """Check if object is within selection rectangle."""
         if not obj.coords:
@@ -219,11 +219,11 @@ class CadSelectorTool(Tool):
         """Add a callback for selection change events."""
         self.selection_changed_callbacks.append(callback)
 
-    def get_selected_objects(self) -> List[CADObject]:
+    def get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects."""
         return self.selected_objects.copy()
 
-    def select_objects(self, objects: List[CADObject]):
+    def select_objects(self, objects: List[CadObject]):
         """Programmatically select objects."""
         self._clear_selection()
         for obj in objects:

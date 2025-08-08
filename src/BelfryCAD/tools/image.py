@@ -13,17 +13,18 @@ from PySide6.QtWidgets import (QGraphicsPixmapItem, QFileDialog,
 from PySide6.QtCore import Qt, QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QPixmap, QImage, QBrush
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 if TYPE_CHECKING:
     from ..gui.main_window import MainWindow
 
 
-class ImageObject(CADObject):
+class ImageObject(CadObject):
     """Image object - position, size, and image data"""
 
-    def __init__(self, mainwin: 'MainWindow', object_id: int, position: Point, width: float, height: float,
+    def __init__(self, mainwin: 'MainWindow', object_id: int, position: Point2D, width: float, height: float,
                  image_path: str, **kwargs):
         super().__init__(
             mainwin, object_id, ObjectType.IMAGE, coords=[position], **kwargs)
@@ -40,7 +41,7 @@ class ImageObject(CADObject):
         })
 
     @property
-    def position(self) -> Point:
+    def position(self) -> Point2D:
         return self.coords[0]
 
     @property
@@ -98,7 +99,7 @@ class ImageTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="I",
-            node_info=["Position", "Size Point"]
+            node_info=["Position", "Size Point2D"]
         )]
 
     def _setup_bindings(self):

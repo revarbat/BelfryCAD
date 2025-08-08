@@ -9,7 +9,8 @@ from typing import List, Dict, Tuple, Optional
 from PySide6.QtCore import QObject, Signal, QPointF
 from PySide6.QtWidgets import QGraphicsSceneMouseEvent
 
-from ...models.cad_object import CADObject, Point
+from ...models.cad_object import CadObject
+from ...cad_geometry import Point2D
 
 
 class ControlPointsViewModel(QObject):
@@ -24,11 +25,11 @@ class ControlPointsViewModel(QObject):
     
     def __init__(self):
         super().__init__()
-        self._selected_objects: Dict[str, CADObject] = {}
+        self._selected_objects: Dict[str, CadObject] = {}
         self._control_points: Dict[str, List[Tuple[float, float, str]]] = {}
         self._selected_control_point: Optional[Tuple[str, int]] = None  # (object_id, cp_index)
     
-    def add_selected_object(self, object_id: str, cad_object: CADObject):
+    def add_selected_object(self, object_id: str, cad_object: CadObject):
         """Add object to selection and create control points"""
         self._selected_objects[object_id] = cad_object
         self._create_control_points_for_object(object_id, cad_object)
@@ -95,13 +96,13 @@ class ControlPointsViewModel(QObject):
             cad_object = self._selected_objects[object_id]
             self._update_control_points_for_object(object_id, cad_object)
     
-    def _create_control_points_for_object(self, object_id: str, cad_object: CADObject):
+    def _create_control_points_for_object(self, object_id: str, cad_object: CadObject):
         """Create control points for an object"""
         control_points = cad_object.get_control_points()
         self._control_points[object_id] = control_points
         self.control_points_created.emit(object_id, control_points)
     
-    def _update_control_points_for_object(self, object_id: str, cad_object: CADObject):
+    def _update_control_points_for_object(self, object_id: str, cad_object: CadObject):
         """Update control points for an object"""
         old_control_points = self._control_points.get(object_id, [])
         new_control_points = cad_object.get_control_points()

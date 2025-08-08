@@ -183,14 +183,6 @@ def get_icon(icon_name: str) -> QIcon:
 def preload_common_icons():
     """Preload commonly used icons for better performance."""
     common_icons = [
-        # Layer icons
-        "layer-visible",
-        "layer-invisible",
-        "layer-locked",
-        "layer-unlocked",
-        "layer-cam",
-        "layer-nocam",
-
         "item-add",
         "item-delete",
 

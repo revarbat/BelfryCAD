@@ -156,7 +156,6 @@ class MainMenuBar(QObject):
     # Palette visibility signals
     show_info_panel_toggled = Signal(bool)
     show_properties_toggled = Signal(bool)
-    show_layers_toggled = Signal(bool)
     show_snap_settings_toggled = Signal(bool)
     show_tools_toggled = Signal(bool)
 
@@ -190,7 +189,6 @@ class MainMenuBar(QObject):
         # Store references to palette actions
         self.show_info_panel_action = None
         self.show_properties_action = None
-        self.show_layers_action = None
         self.show_snap_settings_action = None
 
         # Create all menus
@@ -572,15 +570,6 @@ class MainMenuBar(QObject):
         )
         view_menu.addAction(self.show_properties_action)
 
-        self.show_layers_action = QAction("Show &Layers", self.parent_window)
-        self.show_layers_action.setCheckable(True)
-        self.show_layers_action.setChecked(
-            self.preferences_viewmodel.get("show_layers", True)
-        )
-        self.show_layers_action.triggered.connect(
-            lambda checked: self.show_layers_toggled.emit(checked)
-        )
-        view_menu.addAction(self.show_layers_action)
 
     def _create_cam_menu(self):
         """Create the CAM menu."""
@@ -675,10 +664,6 @@ class MainMenuBar(QObject):
             self.show_properties_action.setChecked(
                 self.preferences_viewmodel.get("show_properties", True)
             )
-        if self.show_layers_action:
-            self.show_layers_action.setChecked(
-                self.preferences_viewmodel.get("show_layers", True)
-            )
         # Note: snaps toolbar state is handled separately in main window
 
     def sync_palette_menu_states(self, palette_manager):
@@ -690,10 +675,6 @@ class MainMenuBar(QObject):
         if self.show_properties_action:
             visible = palette_manager.is_palette_visible("config_pane")
             self.show_properties_action.setChecked(visible)
-
-        if self.show_layers_action:
-            visible = palette_manager.is_palette_visible("layer_pane")
-            self.show_layers_action.setChecked(visible)
 
         # Note: snaps toolbar state is handled separately in main window
 

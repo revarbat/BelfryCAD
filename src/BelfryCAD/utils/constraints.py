@@ -1,10 +1,11 @@
 import math
 import numpy as np
 from scipy.optimize import least_squares
-from typing import List, Tuple, Callable, Dict, Optional
+from typing import List, Tuple, Callable, Dict, Optional, Sequence
 
 
 import numpy as np
+
 
 # =========================
 # Constraint base class
@@ -13,8 +14,32 @@ class Constraint:
     """Base class for constraints with analytic Jacobians."""
     def residual(self, x):
         raise NotImplementedError
+
     def jacobian(self, x):
         raise NotImplementedError
+
+
+# =========================
+# Constrainable base class
+# =========================
+class Constrainable(object):
+    """ Base class for all constrainable objects """
+    def __init__(self, solver: 'ConstraintSolver', label: str):
+        self.solver = solver
+        self.label = label
+
+    def get_possible_constraints(self, other) -> Dict[str, Constraint]:
+        # This will be overridden by subclasses
+        return {}
+
+    def get_bounds(self) -> Tuple[float, float, float, float]:
+        raise NotImplementedError
+
+    def get_constrainables(self) -> Sequence['Constrainable']:
+        return []
+
+    def get_label(self) -> str:
+        return self.label
 
 
 # =========================
@@ -26,11 +51,15 @@ class ConstraintSolver:
         self.fixed_mask = []
         self.constraints = []
         self.soft_constraints = []
+        self.variable_labels = []
         self.constraint_labels = []
         # Geometry entities
+        self.angles = []
+        self.lengths = []
         self.points = []
         self.lines = []
         self.circles = []
+        self.ellipses = []
         self.arcs = []
         self.bezier_curves = []
         self.conflicting_constraints = []
@@ -38,10 +67,16 @@ class ConstraintSolver:
     # -------------------------
     # Variable management
     # -------------------------
-    def add_variable(self, value, fixed=False):
+    def add_variable(self, value, label, fixed=False):
         self.variables.append(value)
         self.fixed_mask.append(fixed)
+        self.variable_labels.append(label)
         return len(self.variables) - 1
+    
+    def update_variable(self, index, value):
+        """Update a variable value by index."""
+        if 0 <= index < len(self.variables):
+            self.variables[index] = value
 
     # -------------------------
     # Constraints
@@ -221,14 +256,67 @@ def vector_angle(p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
 # Geometry Classes
 # ======================
 
-class Point2D(object):
-    def __init__(self, solver, pt, fixed=False):
-        self.xi = solver.add_variable(pt[0], fixed=fixed)
-        self.yi = solver.add_variable(pt[1], fixed=fixed)
+class ConstrainableLength(Constrainable):
+    def __init__(
+        self,
+        solver: ConstraintSolver,
+        value: float,
+        fixed: bool = False,
+        label: str = ""
+    ):
+        super().__init__(solver, label)
+        self.fixed = fixed
+        self.index = solver.add_variable(value, label, fixed=fixed)
+        solver.lengths = getattr(solver, 'lengths', [])
+        solver.lengths.append(self)
+    
+    def get(self, vars) -> float:
+        return vars[self.index]
+
+    def get_constrainables(self) -> Sequence[Constrainable]:
+        return [self]
+
+
+class ConstrainableAngle(Constrainable):
+    def __init__(
+        self,
+        solver: ConstraintSolver,
+        value: float,  # in degrees
+        fixed: bool = False,
+        label: str = ""
+    ):
+        super().__init__(solver, label)
+        self.fixed = fixed
+        self.index = solver.add_variable(value, label, fixed=fixed)
+        solver.angles = getattr(solver, 'angles', [])
+        solver.angles.append(self)
+    
+    def get(self, vars) -> float:
+        return vars[self.index]
+
+    def get_constrainables(self) -> Sequence[Constrainable]:
+        return [self]
+
+
+class ConstrainablePoint2D(Constrainable):
+    def __init__(
+        self,
+        solver: ConstraintSolver,
+        pt: Tuple[float, float],
+        fixed: bool = False,
+        label: str = "point"
+    ):
+        super().__init__(solver, label)
+        self.xi = solver.add_variable(pt[0], f"{label} x", fixed=fixed)
+        self.yi = solver.add_variable(pt[1], f"{label} y", fixed=fixed)
+        solver.points = getattr(solver, 'points', [])
         solver.points.append(self)
 
     def get(self, vars) -> Tuple[float, float]:
         return vars[self.xi], vars[self.yi]
+
+    def get_constrainables(self) -> Sequence[Constrainable]:
+        return [self]
 
     def distance_to(self, vars, px: float, py: float) -> float:
         x, y = self.get(vars)
@@ -237,23 +325,34 @@ class Point2D(object):
     def degrees_from_origin(self, vars) -> float:
         x, y = self.get(vars)
         return math.degrees(math.atan2(y, x))
+    
+    def update_values(self, x: float, y: float):
+        """Update the point coordinates in the solver."""
+        self.solver.update_variable(self.xi, x)
+        self.solver.update_variable(self.yi, y)
 
 
-class LineSegment(object):
+class ConstrainableLine2D(Constrainable):
     def __init__(
         self,
-        solver,
-        p1: Point2D,
-        p2: Point2D
+        solver: ConstraintSolver,
+        p1: ConstrainablePoint2D,
+        p2: ConstrainablePoint2D,
+        label: str = "line segment"
     ):
+        super().__init__(solver, label)
         self.p1 = p1
         self.p2 = p2
+        solver.lines = getattr(solver, 'lines', [])
         solver.lines.append(self)
 
     def get(self, vars) -> Tuple[float, float, float, float]:
         x0, y0 = self.p1.get(vars)
         x1, y1 = self.p2.get(vars)
         return x0, y0, x1, y1
+
+    def get_constrainables(self) -> Sequence[Constrainable]:
+        return [self.p1, self.p2, self]
 
     def length(self, vars) -> float:
         x0, y0, x1, y1 = self.get(vars)
@@ -290,23 +389,28 @@ class LineSegment(object):
         return math.degrees(math.atan2(y1 - y0, x1 - x0))
 
 
-class Circle(object):
+class ConstrainableCircle(Constrainable):
     def __init__(
         self,
-        solver,
-        center: Point2D,
-        radius: float,
-        fixed_radius: bool = False
+        solver: ConstraintSolver,
+        center: ConstrainablePoint2D,
+        radius: ConstrainableLength,
+        label: str = "circle"
     ):
+        super().__init__(solver, label)
         self.center = center
-        self.radius_index = solver.add_variable(radius, fixed=fixed_radius)
+        self.radius = radius
+        solver.circles = getattr(solver, 'circles', [])
         solver.circles.append(self)
 
     def get(self, vars) -> Tuple[float, float, float]:
         cx, cy = self.center.get(vars)
-        r = vars[self.radius_index]
+        r = self.radius.get(vars)
         return cx, cy, r
     
+    def get_constrainables(self) -> Sequence[Constrainable]:
+        return [self.center, self.radius, self]
+
     def closest_point_on_perimeter(
         self,
         vars,
@@ -333,37 +437,37 @@ class Circle(object):
         return math.hypot(closest_pt[0] - px, closest_pt[1] - py)
 
 
-class Ellipse(object):
+class ConstrainableEllipse(Constrainable):
     def __init__(
         self,
         solver,
-        center: Point2D,
-        radius1: float,
-        radius2: float,
-        rotation_angle: float,
-        fixed_radius1: bool = False,
-        fixed_radius2: bool = False,
-        fixed_rotation: bool = False
+        center: ConstrainablePoint2D,
+        radius1: ConstrainableLength,
+        radius2: ConstrainableLength,
+        rotation_angle: ConstrainableLength,
     ):
         self.center = center
-        self.radius1_index = solver.add_variable(radius1, fixed=fixed_radius1)
-        self.radius2_index = solver.add_variable(radius2, fixed=fixed_radius2)
-        self.rotation_index = solver.add_variable(rotation_angle, fixed=fixed_rotation)
+        self.radius1 = radius1
+        self.radius2 = radius2
+        self.rotation_angle = rotation_angle
         solver.ellipses = getattr(solver, 'ellipses', [])
         solver.ellipses.append(self)
 
     def get(self, vars) -> Tuple[float, float, float, float, float]:
         cx, cy = self.center.get(vars)
-        major_r = vars[self.radius1_index]
-        minor_r = vars[self.radius2_index]
-        rotation = vars[self.rotation_index]
+        major_r = self.radius1.get(vars)
+        minor_r = self.radius2.get(vars)
+        rotation = self.rotation_angle.get(vars)
         return cx, cy, major_r, minor_r, rotation
 
+    def get_constrainables(self) -> Sequence[Constrainable]:
+        return [self.center, self.radius1, self.radius2, self.rotation_angle, self]
+
     def get_rotation_radians(self, vars) -> float:
-        return math.radians(vars[self.rotation_index])
+        return math.radians(self.rotation_angle.get(vars))
 
     def get_rotation_degrees(self, vars) -> float:
-        return normalize_degrees(vars[self.rotation_index])
+        return normalize_degrees(self.rotation_angle.get(vars))
 
     def closest_point_on_perimeter(
         self,
@@ -470,30 +574,34 @@ class Ellipse(object):
         return math.sqrt(1 - (minor_r**2 / major_r**2))
 
 
-class Arc(object):
+class ConstrainableArc(Constrainable):
     def __init__(
         self,
         solver,
-        center: Point2D,
-        radius: float,
-        start_angle: float,
-        end_angle: float,
+        center: ConstrainablePoint2D,
+        radius: ConstrainableLength,
+        start_angle: ConstrainableLength,
+        end_angle: ConstrainableLength,
         fixed_radius=False,
         fixed_start_angle=False,
         fixed_end_angle=False
     ):
         self.center = center
-        self.radius_index = solver.add_variable(radius, fixed=fixed_radius)
-        self.start_angle_index = solver.add_variable(start_angle, fixed=fixed_start_angle)
-        self.end_angle_index = solver.add_variable(end_angle, fixed=fixed_end_angle)
+        self.radius = radius
+        self.start_angle = start_angle
+        self.end_angle = end_angle
+        solver.arcs = getattr(solver, 'arcs', [])
         solver.arcs.append(self)
 
     def get(self, vars) -> Tuple[float, float, float, float, float]:
         cx, cy = self.center.get(vars)
-        r = vars[self.radius_index]
-        theta1 = vars[self.start_angle_index]
-        theta2 = vars[self.end_angle_index]
+        r = self.radius.get(vars)
+        theta1 = self.start_angle.get(vars)
+        theta2 = self.end_angle.get(vars)
         return cx, cy, r, theta1, theta2
+
+    def get_constrainables(self) -> Sequence[Constrainable]:
+        return [self.center, self.radius, self.start_angle, self.end_angle, self]
 
     def span_angle(self, vars) -> float:
         cx, cy, r, theta1, theta2 = self.get(vars)
@@ -503,12 +611,6 @@ class Arc(object):
             return theta2 - theta1 + 360
         return theta2 - theta1
 
-    def start_angle(self, vars) -> float:
-        return normalize_degrees(vars[self.start_angle_index])
-
-    def end_angle(self, vars) -> float:
-        return normalize_degrees(vars[self.end_angle_index])
-
     def angle_from_arc_span(self, vars, angle: float) -> float:
         """
         Returns the angle between the given angle and the arc span.
@@ -517,8 +619,8 @@ class Arc(object):
         difference between the angle and the closest of the start or end angle.
         """
         angle = normalize_degrees(angle)
-        start_angle = self.start_angle(vars)
-        end_angle = self.end_angle(vars)
+        start_angle = self.start_angle.get(vars)
+        end_angle = self.end_angle.get(vars)
         delta_angle = 0.0
         if start_angle > end_angle:
             if angle < start_angle and angle > end_angle:
@@ -532,17 +634,20 @@ class Arc(object):
         return delta_angle
 
 
-class BezierPath(object):
+class ConstrainableBezierPath(Constrainable):
     def __init__(
         self,
         solver,
-        points: List[Point2D],
+        points: List[ConstrainablePoint2D],
     ):
         self.points = points
         solver.beziers.append(self)
 
     def get(self, vars) -> List[Tuple[float, float]]:
         return [pt.get(vars) for pt in self.points]
+
+    def get_constrainables(self) -> Sequence[Constrainable]:
+        return self.points + [self]
 
     def get_segment(self, vars, i:int) -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float]]:
         return (
@@ -624,11 +729,53 @@ class BezierPath(object):
 
 
 # ============================
+# Length Constraint Functions
+# ============================
+
+class LengthEqualsConstraint(Constraint):
+    def __init__(self, length1: ConstrainableLength, length2: ConstrainableLength):
+        self.length1 = length1
+        self.length2 = length2
+
+    def residual(self, x):
+        return np.array([self.length1.get(x) - self.length2.get(x)])
+
+    def jacobian(self, x):
+        n = len(x)
+        J = np.zeros((1, n))
+        J[0, self.length1.index] = 1
+        J[0, self.length2.index] = -1
+        return J
+
+
+# ============================
+# Angle Constraint Functions
+# ============================
+
+class AngleEqualsConstraint(Constraint):
+    def __init__(self, angle1: ConstrainableAngle, angle2: ConstrainableAngle):
+        self.angle1 = angle1
+        self.angle2 = angle2
+
+    def residual(self, x):
+        ang1 = self.angle1.get(x)
+        ang2 = self.angle2.get(x)
+        return np.array([ang1 - ang2])
+
+    def jacobian(self, x):
+        n = len(x)
+        J = np.zeros((1, n))
+        J[0, self.angle1.index] = 1
+        J[0, self.angle2.index] = -1
+        return J
+
+
+# ============================
 # Point Constraint Functions
 # ============================
 
 class CoincidentConstraint(Constraint):
-    def __init__(self, p1: Point2D, p2: Point2D):
+    def __init__(self, p1: ConstrainablePoint2D, p2: ConstrainablePoint2D):
         self.p1, self.p2 = p1, p2
 
     def residual(self, x):
@@ -682,7 +829,7 @@ class VerticalConstraint(Constraint):
 
 
 class PointIsOnLineSegmentConstraint(Constraint):
-    def __init__(self, point: Point2D, line: LineSegment):
+    def __init__(self, point: ConstrainablePoint2D, line: ConstrainableLine2D):
         self.point = point
         self.line = line
 
@@ -774,13 +921,13 @@ class PointIsOnLineSegmentConstraint(Constraint):
 
 
 class PointIsOnArcConstraint(Constraint):
-    def __init__(self, point: Point2D, arc: Arc):
+    def __init__(self, point: ConstrainablePoint2D, arc: ConstrainableArc):
         self.point = point
         self.arc = arc
 
     def residual(self, x):
-        px, py = x[self.point.xi], x[self.point.yi]
-        cx, cy, r, theta1, theta2 = x[self.arc.center.xi], x[self.arc.center.yi], x[self.arc.radius_index], x[self.arc.start_angle_index], x[self.arc.end_angle_index]
+        px, py = self.point.get(x)
+        cx, cy, r, theta1, theta2 = self.arc.get(x)
         
         # First constraint: point is at the arc radius
         radius_constraint = math.hypot(px - cx, py - cy) - r
@@ -795,8 +942,8 @@ class PointIsOnArcConstraint(Constraint):
         n = len(x)
         J = np.zeros((2, n))
         
-        px, py = x[self.point.xi], x[self.point.yi]
-        cx, cy, r, theta1, theta2 = x[self.arc.center.xi], x[self.arc.center.yi], x[self.arc.radius_index], x[self.arc.start_angle_index], x[self.arc.end_angle_index]
+        px, py = self.point.get(x)
+        cx, cy, r, theta1, theta2 = self.arc.get(x)
         
         # Calculate distances and angles
         dx = px - cx
@@ -810,14 +957,14 @@ class PointIsOnArcConstraint(Constraint):
             J[0, self.point.yi] = dy / dist  # d/dpy
             J[0, self.arc.center.xi] = -dx / dist  # d/dcx
             J[0, self.arc.center.yi] = -dy / dist  # d/dcy
-            J[0, self.arc.radius_index] = -1  # d/dr
+            J[0, self.arc.radius.index] = -1  # d/dr
         else:
             # Handle case where point is at center
             J[0, self.point.xi] = 1
             J[0, self.point.yi] = 1
             J[0, self.arc.center.xi] = -1
             J[0, self.arc.center.yi] = -1
-            J[0, self.arc.radius_index] = -1
+            J[0, self.arc.radius.index] = -1
         
         # Second row: angle constraint (point angle within arc span)
         # This uses the arc's angle_from_arc_span method
@@ -840,33 +987,33 @@ class PointIsOnArcConstraint(Constraint):
             
             # Determine if point is outside the arc span
             if start_angle > end_angle:
-                # Arc crosses 0 degrees
+                # ConstrainableArc crosses 0 degrees
                 if point_angle_norm < start_angle and point_angle_norm > end_angle:
                     # Point is outside span, need to move towards closest boundary
                     if abs(point_angle_norm - start_angle) < abs(point_angle_norm - end_angle):
                         # Closer to start angle
-                        J[1, self.arc.start_angle_index] = 1
+                        J[1, self.arc.start_angle.index] = 1
                     else:
                         # Closer to end angle
-                        J[1, self.arc.end_angle_index] = -1
+                        J[1, self.arc.end_angle.index] = -1
             else:
                 # Normal arc span
                 if point_angle_norm < start_angle:
-                    J[1, self.arc.start_angle_index] = 1
+                    J[1, self.arc.start_angle.index] = 1
                 elif point_angle_norm > end_angle:
-                    J[1, self.arc.end_angle_index] = -1
+                    J[1, self.arc.end_angle.index] = -1
         
         return J
 
 
 class PointCoincidentWithArcStartConstraint(Constraint):
-    def __init__(self, point: Point2D, arc: Arc):
+    def __init__(self, point: ConstrainablePoint2D, arc: ConstrainableArc):
         self.point = point
         self.arc = arc
 
     def residual(self, x):
-        px, py = x[self.point.xi], x[self.point.yi]
-        cx, cy, r, theta1, theta2 = x[self.arc.center.xi], x[self.arc.center.yi], x[self.arc.radius_index], x[self.arc.start_angle_index], x[self.arc.end_angle_index]
+        px, py = self.point.get(x)
+        cx, cy, r, theta1, theta2 = self.arc.get(x)
         
         # Calculate arc start point coordinates
         start_x = cx + r * math.cos(math.radians(theta1))
@@ -882,9 +1029,9 @@ class PointCoincidentWithArcStartConstraint(Constraint):
         n = len(x)
         J = np.zeros((2, n))
         
-        cx, cy, r, theta1, theta2 = x[self.arc.center.xi], x[self.arc.center.yi], x[self.arc.radius_index], x[self.arc.start_angle_index], x[self.arc.end_angle_index]
+        cx, cy, r, theta1, theta2 = self.arc.get(x)
         
-        # Arc start point: (cx + r*cos(θ1), cy + r*sin(θ1))
+        # ConstrainableArc start point: (cx + r*cos(θ1), cy + r*sin(θ1))
         # Derivatives with respect to arc parameters:
         
         # Derivatives with respect to point coordinates
@@ -896,24 +1043,24 @@ class PointCoincidentWithArcStartConstraint(Constraint):
         J[1, self.arc.center.yi] = 1  # d/dcy of start_y
         
         # Derivatives with respect to radius
-        J[0, self.arc.radius_index] = math.cos(math.radians(theta1))  # d/dr of start_x
-        J[1, self.arc.radius_index] = math.sin(math.radians(theta1))  # d/dr of start_y
+        J[0, self.arc.radius.index] = math.cos(math.radians(theta1))  # d/dr of start_x
+        J[1, self.arc.radius.index] = math.sin(math.radians(theta1))  # d/dr of start_y
         
         # Derivatives with respect to start angle
-        J[0, self.arc.start_angle_index] = -r * math.sin(math.radians(theta1)) * math.radians(1)  # d/dθ1 of start_x
-        J[1, self.arc.start_angle_index] = r * math.cos(math.radians(theta1)) * math.radians(1)   # d/dθ1 of start_y
+        J[0, self.arc.start_angle.index] = -r * math.sin(math.radians(theta1)) * math.radians(1)  # d/dθ1 of start_x
+        J[1, self.arc.start_angle.index] = r * math.cos(math.radians(theta1)) * math.radians(1)   # d/dθ1 of start_y
         
         return J
 
 
 class PointCoincidentWithArcEndConstraint(Constraint):
-    def __init__(self, point: Point2D, arc: Arc):
+    def __init__(self, point: ConstrainablePoint2D, arc: ConstrainableArc):
         self.point = point
         self.arc = arc
 
     def residual(self, x):
-        px, py = x[self.point.xi], x[self.point.yi]
-        cx, cy, r, theta1, theta2 = x[self.arc.center.xi], x[self.arc.center.yi], x[self.arc.radius_index], x[self.arc.start_angle_index], x[self.arc.end_angle_index]
+        px, py = self.point.get(x)
+        cx, cy, r, theta1, theta2 = self.arc.get(x)
         
         # Calculate arc end point coordinates
         end_x = cx + r * math.cos(math.radians(theta2))
@@ -929,9 +1076,9 @@ class PointCoincidentWithArcEndConstraint(Constraint):
         n = len(x)
         J = np.zeros((2, n))
         
-        cx, cy, r, theta1, theta2 = x[self.arc.center.xi], x[self.arc.center.yi], x[self.arc.radius_index], x[self.arc.start_angle_index], x[self.arc.end_angle_index]
+        cx, cy, r, theta1, theta2 = self.arc.get(x)
         
-        # Arc end point: (cx + r*cos(θ2), cy + r*sin(θ2))
+        # ConstrainableArc end point: (cx + r*cos(θ2), cy + r*sin(θ2))
         # Derivatives with respect to arc parameters:
         
         # Derivatives with respect to point coordinates
@@ -943,24 +1090,24 @@ class PointCoincidentWithArcEndConstraint(Constraint):
         J[1, self.arc.center.yi] = 1  # d/dcy of end_y
         
         # Derivatives with respect to radius
-        J[0, self.arc.radius_index] = math.cos(math.radians(theta2))  # d/dr of end_x
-        J[1, self.arc.radius_index] = math.sin(math.radians(theta2))  # d/dr of end_y
+        J[0, self.arc.radius.index] = math.cos(math.radians(theta2))  # d/dr of end_x
+        J[1, self.arc.radius.index] = math.sin(math.radians(theta2))  # d/dr of end_y
         
         # Derivatives with respect to end angle
-        J[0, self.arc.end_angle_index] = -r * math.sin(math.radians(theta2)) * math.radians(1)  # d/dθ2 of end_x
-        J[1, self.arc.end_angle_index] = r * math.cos(math.radians(theta2)) * math.radians(1)   # d/dθ2 of end_y
+        J[0, self.arc.end_angle.index] = -r * math.sin(math.radians(theta2)) * math.radians(1)  # d/dθ2 of end_x
+        J[1, self.arc.end_angle.index] = r * math.cos(math.radians(theta2)) * math.radians(1)   # d/dθ2 of end_y
         
         return J
 
 
 class PointIsOnCircleConstraint(Constraint):
-    def __init__(self, point: Point2D, circle: Circle):
+    def __init__(self, point: ConstrainablePoint2D, circle: ConstrainableCircle):
         self.point = point
         self.circle = circle
 
     def residual(self, x):
-        px, py = x[self.point.xi], x[self.point.yi]
-        cx, cy, r = x[self.circle.center.xi], x[self.circle.center.yi], x[self.circle.radius_index]
+        px, py = self.point.get(x)
+        cx, cy, r = self.circle.get(x)
         
         # Constraint: distance from point to center equals radius
         distance = math.hypot(px - cx, py - cy)
@@ -970,8 +1117,8 @@ class PointIsOnCircleConstraint(Constraint):
         n = len(x)
         J = np.zeros((1, n))
         
-        px, py = x[self.point.xi], x[self.point.yi]
-        cx, cy, r = x[self.circle.center.xi], x[self.circle.center.yi], x[self.circle.radius_index]
+        px, py = self.point.get(x)
+        cx, cy, r = self.circle.get(x)
         
         # Calculate distance
         dx = px - cx
@@ -984,20 +1131,20 @@ class PointIsOnCircleConstraint(Constraint):
             J[0, self.point.yi] = dy / distance  # d/dpy
             J[0, self.circle.center.xi] = -dx / distance  # d/dcx
             J[0, self.circle.center.yi] = -dy / distance  # d/dcy
-            J[0, self.circle.radius_index] = -1  # d/dr
+            J[0, self.circle.radius.index] = -1  # d/dr
         else:
             # Handle case where point is at center (distance = 0)
             J[0, self.point.xi] = 1
             J[0, self.point.yi] = 1
             J[0, self.circle.center.xi] = -1
             J[0, self.circle.center.yi] = -1
-            J[0, self.circle.radius_index] = -1
+            J[0, self.circle.radius.index] = -1
         
         return J
 
 
 class PointIsOnEllipseConstraint(Constraint):
-    def __init__(self, point: Point2D, ellipse: Ellipse):
+    def __init__(self, point: ConstrainablePoint2D, ellipse: ConstrainableEllipse):
         self.point = point
         self.ellipse = ellipse
 
@@ -1036,7 +1183,7 @@ class PointIsOnEllipseConstraint(Constraint):
                 # These are complex and would require numerical differentiation
                 # For now, we'll use numerical differentiation for these parameters
                 eps = 1e-6
-                for i in [self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                for i in [self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                     x_plus = x.copy()
                     x_plus[i] += eps
                     closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, px, py)
@@ -1047,9 +1194,9 @@ class PointIsOnEllipseConstraint(Constraint):
                         J[0, i] = 0
             else:
                 # Point is at ellipse center, derivatives are zero
-                J[0, self.ellipse.radius1_index] = 0
-                J[0, self.ellipse.radius2_index] = 0
-                J[0, self.ellipse.rotation_index] = 0
+                J[0, self.ellipse.radius1.index] = 0
+                J[0, self.ellipse.radius2.index] = 0
+                J[0, self.ellipse.rotation_angle.index] = 0
         else:
             # Handle case where point is exactly on perimeter
             J[0, self.point.xi] = 1
@@ -1061,7 +1208,7 @@ class PointIsOnEllipseConstraint(Constraint):
 
 
 class PointIsOnBezierPathConstraint(Constraint):
-    def __init__(self, point: Point2D, bezier: BezierPath):
+    def __init__(self, point: ConstrainablePoint2D, bezier: ConstrainableBezierPath):
         self.point = point
         self.bezier = bezier
 
@@ -1212,7 +1359,7 @@ class PointIsOnBezierPathConstraint(Constraint):
 # ============================
 
 class LineAngleConstraint(Constraint):
-    def __init__(self, line: LineSegment, angle: float):
+    def __init__(self, line: ConstrainableLine2D, angle: float):
         self.line = line
         self.angle = angle
 
@@ -1260,7 +1407,7 @@ class LineAngleConstraint(Constraint):
 
 
 class LineLengthConstraint(Constraint):
-    def __init__(self, line: LineSegment, length: float):
+    def __init__(self, line: ConstrainableLine2D, length: float):
         self.line = line
         self.length = length
 
@@ -1310,7 +1457,7 @@ class LineLengthConstraint(Constraint):
 
 
 class LinesEqualLengthConstraint(Constraint):
-    def __init__(self, l1: LineSegment, l2: LineSegment):
+    def __init__(self, l1: ConstrainableLine2D, l2: ConstrainableLine2D):
         self.l1 = l1
         self.l2 = l2
 
@@ -1343,7 +1490,7 @@ class LinesEqualLengthConstraint(Constraint):
 
 
 class LinesPerpendicularConstraint(Constraint):
-    def __init__(self, l1: LineSegment, l2: LineSegment):
+    def __init__(self, l1: ConstrainableLine2D, l2: ConstrainableLine2D):
         self.l1 = l1
         self.l2 = l2
 
@@ -1381,7 +1528,7 @@ class LinesParallelConstraint(Constraint):
     Ensures that two line segments are parallel.
     Uses the cross product: dx1*dy2 - dy1*dx2 = 0
     """
-    def __init__(self, l1: LineSegment, l2: LineSegment):
+    def __init__(self, l1: ConstrainableLine2D, l2: ConstrainableLine2D):
         self.l1 = l1
         self.l2 = l2
 
@@ -1420,13 +1567,13 @@ class LinesParallelConstraint(Constraint):
 
 
 class LineTangentToArcConstraint(Constraint):
-    def __init__(self, line: LineSegment, arc: Arc, at_start: bool = True):
+    def __init__(self, line: ConstrainableLine2D, arc: ConstrainableArc, at_start: bool = True):
         self.arc = arc
         self.line = line
         self.at_start = at_start
 
     def residual(self, x):
-        theta = x[self.arc.start_angle_index if self.at_start else self.arc.end_angle_index]
+        theta = x[self.arc.start_angle.index if self.at_start else self.arc.end_angle.index]
         tx = -np.sin(theta)
         ty =  np.cos(theta)
         p1x, p1y = x[self.line.p1.xi], x[self.line.p1.yi]
@@ -1439,7 +1586,7 @@ class LineTangentToArcConstraint(Constraint):
         n = len(x)
         J = np.zeros((1, n))
 
-        angle_index = self.arc.start_angle_index if self.at_start else self.arc.end_angle_index
+        angle_index = self.arc.start_angle.index if self.at_start else self.arc.end_angle.index
         theta = x[angle_index]
         tx = -np.sin(theta)
         ty =  np.cos(theta)
@@ -1459,7 +1606,7 @@ class LineTangentToArcConstraint(Constraint):
 
 
 class LineTangentToCircleConstraint(Constraint):
-    def __init__(self, line: LineSegment, circle: Circle):
+    def __init__(self, line: ConstrainableLine2D, circle: ConstrainableCircle):
         self.line = line
         self.circle = circle
 
@@ -1467,7 +1614,7 @@ class LineTangentToCircleConstraint(Constraint):
         # Find the closest point on the line to the circle center
         cx, cy = x[self.circle.center.xi], x[self.circle.center.yi]
         clx, cly = self.line.closest_point(x, cx, cy)
-        r = x[self.circle.radius_index]
+        r = self.circle.radius.get(x)
         
         # Calculate distance from circle center to closest point on line
         dist = math.hypot(clx - cx, cly - cy)
@@ -1482,7 +1629,7 @@ class LineTangentToCircleConstraint(Constraint):
         # Get line and circle parameters
         x0, y0 = x[self.line.p1.xi], x[self.line.p1.yi]
         x1, y1 = x[self.line.p2.xi], x[self.line.p2.yi]
-        cx, cy, r = x[self.circle.center.xi], x[self.circle.center.yi], x[self.circle.radius_index]
+        cx, cy, r = self.circle.get(x)
         
         # Calculate line direction and length
         dx = x1 - x0
@@ -1549,12 +1696,12 @@ class LineTangentToCircleConstraint(Constraint):
                 # Derivatives with respect to circle parameters
                 J[0, self.circle.center.xi] = -(clx - cx) / dist
                 J[0, self.circle.center.yi] = -(cly - cy) / dist
-                J[0, self.circle.radius_index] = -1
+                J[0, self.circle.radius.index] = -1
             else:
                 # Handle case where closest point is at circle center
                 J[0, self.circle.center.xi] = 1
                 J[0, self.circle.center.yi] = 1
-                J[0, self.circle.radius_index] = -1
+                J[0, self.circle.radius.index] = -1
         else:
             # Handle case where line has zero length
             # In this case, derivatives are undefined
@@ -1564,7 +1711,7 @@ class LineTangentToCircleConstraint(Constraint):
 
 
 class LineTangentToEllipseConstraint(Constraint):
-    def __init__(self, line: LineSegment, ellipse: Ellipse):
+    def __init__(self, line: ConstrainableLine2D, ellipse: ConstrainableEllipse):
         self.line = line
         self.ellipse = ellipse
 
@@ -1656,7 +1803,7 @@ class LineTangentToEllipseConstraint(Constraint):
                     J[0, i] = 0
             
             # Derivatives with respect to ellipse radii and rotation (numerical)
-            for i in [self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+            for i in [self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                 x_plus = x.copy()
                 x_plus[i] += eps
                 closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, mid_x, mid_y)
@@ -1686,7 +1833,7 @@ class LineTangentToEllipseConstraint(Constraint):
                 
                 # Derivatives with respect to ellipse parameters (numerical)
                 for i in [self.ellipse.center.xi, self.ellipse.center.yi, 
-                         self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                         self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                     x_plus = x.copy()
                     x_plus[i] += eps
                     closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, mid_x, mid_y)
@@ -1703,7 +1850,7 @@ class LineTangentToEllipseConstraint(Constraint):
 
 
 class LineTangentToBezierConstraint(Constraint):
-    def __init__(self, line: LineSegment, bezier: BezierPath):
+    def __init__(self, line: ConstrainableLine2D, bezier: ConstrainableBezierPath):
         self.line = line
         self.bezier = bezier
 
@@ -1970,18 +2117,18 @@ class LineTangentToBezierConstraint(Constraint):
         return J
 
 
-# ============================
-# Arc Constraint Functions
-# ============================
+# =======================================
+# ConstrainableArc Constraint Functions
+# =======================================
 
 class ArcRadiusConstraint(Constraint):
-    def __init__(self, arc: Arc, radius: float):
+    def __init__(self, arc: ConstrainableArc, radius: float):
         self.arc = arc
         self.radius = radius
 
     def residual(self, x):
         # Get the current arc radius
-        r = x[self.arc.radius_index]
+        r = self.arc.radius.get(x)
         
         # Constraint: arc radius should equal target radius
         return np.array([r - self.radius])
@@ -1991,19 +2138,19 @@ class ArcRadiusConstraint(Constraint):
         J = np.zeros((1, n))
         
         # Derivative with respect to radius
-        J[0, self.arc.radius_index] = 1.0
+        J[0, self.arc.radius.index] = 1.0
         
         return J
 
 
 class ArcStartAngleConstraint(Constraint):
-    def __init__(self, arc: Arc, angle: float):
+    def __init__(self, arc: ConstrainableArc, angle: float):
         self.arc = arc
         self.angle = normalize_degrees(angle)
 
     def residual(self, x):
         # Get the current arc start angle
-        start_angle = normalize_degrees(x[self.arc.start_angle_index])
+        start_angle = normalize_degrees(x[self.arc.start_angle.index])
         
         # Constraint: arc start angle should equal target angle
         return np.array([start_angle - self.angle])
@@ -2013,19 +2160,19 @@ class ArcStartAngleConstraint(Constraint):
         J = np.zeros((1, n))
         
         # Derivative with respect to start angle
-        J[0, self.arc.start_angle_index] = 1.0
+        J[0, self.arc.start_angle.index] = 1.0
         
         return J
 
 
 class ArcEndAngleConstraint(Constraint):
-    def __init__(self, arc: Arc, angle: float):
+    def __init__(self, arc: ConstrainableArc, angle: float):
         self.arc = arc
         self.angle = normalize_degrees(angle)
 
     def residual(self, x):
         # Get the current arc end angle
-        end_angle = normalize_degrees(x[self.arc.end_angle_index])
+        end_angle = normalize_degrees(x[self.arc.end_angle.index])
         
         # Constraint: arc end angle should equal target angle
         return np.array([end_angle - self.angle])
@@ -2036,20 +2183,20 @@ class ArcEndAngleConstraint(Constraint):
         
         # Derivative with respect to arc end angle
         # Since we're using normalize_degrees, the derivative is 1
-        J[0, self.arc.end_angle_index] = 1  # d/dθ2 of (θ2 - target_angle)
+        J[0, self.arc.end_angle.index] = 1  # d/dθ2 of (θ2 - target_angle)
         
         return J
 
 
 class ArcSpanAngleConstraint(Constraint):
-    def __init__(self, arc: Arc, angle: float):
+    def __init__(self, arc: ConstrainableArc, angle: float):
         self.arc = arc
         self.angle = normalize_degrees(angle)
 
     def residual(self, x):
         # Get the current arc span angle
-        start_angle = normalize_degrees(x[self.arc.start_angle_index])
-        end_angle = normalize_degrees(x[self.arc.end_angle_index])
+        start_angle = normalize_degrees(x[self.arc.start_angle.index])
+        end_angle = normalize_degrees(x[self.arc.end_angle.index])
         
         # Calculate current span angle
         if start_angle > end_angle:
@@ -2065,8 +2212,8 @@ class ArcSpanAngleConstraint(Constraint):
         J = np.zeros((1, n))
         
         # Get current angles
-        start_angle = normalize_degrees(x[self.arc.start_angle_index])
-        end_angle = normalize_degrees(x[self.arc.end_angle_index])
+        start_angle = normalize_degrees(x[self.arc.start_angle.index])
+        end_angle = normalize_degrees(x[self.arc.end_angle.index])
         
         # Calculate span angle
         if start_angle > end_angle:
@@ -2077,14 +2224,14 @@ class ArcSpanAngleConstraint(Constraint):
         # Derivatives with respect to start and end angles
         # ∂span/∂start_angle = -1 (increasing start angle decreases span)
         # ∂span/∂end_angle = 1 (increasing end angle increases span)
-        J[0, self.arc.start_angle_index] = -1  # d/dθ1 of span
-        J[0, self.arc.end_angle_index] = 1     # d/dθ2 of span
+        J[0, self.arc.start_angle.index] = -1  # d/dθ1 of span
+        J[0, self.arc.end_angle.index] = 1     # d/dθ2 of span
         
         return J
 
 
 class ArcTangentToArcConstraint(Constraint):
-    def __init__(self, arc1: Arc, arc2: Arc):
+    def __init__(self, arc1: ConstrainableArc, arc2: ConstrainableArc):
         self.arc1 = arc1
         self.arc2 = arc2
 
@@ -2138,14 +2285,14 @@ class ArcTangentToArcConstraint(Constraint):
             J[0, self.arc2.center.yi] = (center2[1] - center1[1]) / center_dist
             
             # Derivatives with respect to radii
-            J[0, self.arc1.radius_index] = 1.0
-            J[0, self.arc2.radius_index] = 1.0
+            J[0, self.arc1.radius.index] = 1.0
+            J[0, self.arc2.radius.index] = 1.0
         
         return J
 
 
 class ArcTangentToCircleConstraint(Constraint):
-    def __init__(self, arc: Arc, circle: Circle):
+    def __init__(self, arc: ConstrainableArc, circle: ConstrainableCircle):
         self.arc = arc
         self.circle = circle
 
@@ -2189,14 +2336,14 @@ class ArcTangentToCircleConstraint(Constraint):
             J[0, self.circle.center.yi] = (center2[1] - center1[1]) / center_dist
             
             # Derivatives with respect to radii
-            J[0, self.arc.radius_index] = 1.0
-            J[0, self.circle.radius_index] = 1.0
+            J[0, self.arc.radius.index] = 1.0
+            J[0, self.circle.radius.index] = 1.0
         
         return J
 
 
 class ArcTangentToEllipseConstraint(Constraint):
-    def __init__(self, arc: Arc, ellipse: Ellipse):
+    def __init__(self, arc: ConstrainableArc, ellipse: ConstrainableEllipse):
         self.arc = arc
         self.ellipse = ellipse
 
@@ -2221,11 +2368,11 @@ class ArcTangentToEllipseConstraint(Constraint):
         span_check = self.arc.angle_from_arc_span(x, angle_to_point)
         
         # Tangency constraint: calculate tangent angles
-        # Ellipse tangent angle at closest point
+        # ConstrainableEllipse tangent angle at closest point
         ellipse_angle_to_point = np.arctan2(closest_pt[1] - cy2, closest_pt[0] - cx2)
         ellipse_tangent_angle = ellipse_angle_to_point + np.pi/2
         
-        # Arc tangent angle (perpendicular to radius)
+        # ConstrainableArc tangent angle (perpendicular to radius)
         arc_tangent_angle = np.radians(angle_to_point) + np.pi/2
         
         # Tangency constraint: angles should be parallel or perpendicular
@@ -2257,12 +2404,12 @@ class ArcTangentToEllipseConstraint(Constraint):
             J[0, self.arc.center.yi] = (cy1 - closest_pt[1]) / dist_to_ellipse
             
             # Derivatives with respect to arc radius
-            J[0, self.arc.radius_index] = -1.0
+            J[0, self.arc.radius.index] = -1.0
             
             # Derivatives with respect to ellipse parameters (numerical)
             eps = 1e-6
             for i in [self.ellipse.center.xi, self.ellipse.center.yi, 
-                     self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                     self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                 x_plus = x.copy()
                 x_plus[i] += eps
                 closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, cx1, cy1)
@@ -2277,7 +2424,7 @@ class ArcTangentToEllipseConstraint(Constraint):
             span_check = self.arc.angle_from_arc_span(x, angle_to_point)
             
             # Derivatives with respect to arc parameters (numerical)
-            for i in [self.arc.start_angle_index, self.arc.end_angle_index]:
+            for i in [self.arc.start_angle.index, self.arc.end_angle.index]:
                 x_plus = x.copy()
                 x_plus[i] += eps
                 span_check_plus = self.arc.angle_from_arc_span(x_plus, angle_to_point)
@@ -2285,7 +2432,7 @@ class ArcTangentToEllipseConstraint(Constraint):
             
             # Derivatives with respect to ellipse parameters (numerical)
             for i in [self.ellipse.center.xi, self.ellipse.center.yi, 
-                     self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                     self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                 x_plus = x.copy()
                 x_plus[i] += eps
                 closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, cx1, cy1)
@@ -2307,7 +2454,7 @@ class ArcTangentToEllipseConstraint(Constraint):
             if abs(angle_diff) > 1e-10:
                 # Derivatives with respect to ellipse parameters (numerical)
                 for i in [self.ellipse.center.xi, self.ellipse.center.yi, 
-                         self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                         self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                     x_plus = x.copy()
                     x_plus[i] += eps
                     closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, cx1, cy1)
@@ -2324,7 +2471,7 @@ class ArcTangentToEllipseConstraint(Constraint):
 
 
 class ArcTangentToBezierConstraint(Constraint):
-    def __init__(self, arc: Arc, bezier: BezierPath):
+    def __init__(self, arc: ConstrainableArc, bezier: ConstrainableBezierPath):
         self.arc = arc
         self.bezier = bezier
 
@@ -2405,7 +2552,7 @@ class ArcTangentToBezierConstraint(Constraint):
             J[0, self.arc.center.yi] = (cy1 - bezier_point[1]) / dist
             
             # Derivatives with respect to arc radius
-            J[0, self.arc.radius_index] = -1.0
+            J[0, self.arc.radius.index] = -1.0
             
             # Derivatives with respect to bezier control points (numerical)
             eps = 1e-6
@@ -2430,7 +2577,7 @@ class ArcTangentToBezierConstraint(Constraint):
                 
                 if abs(tangency_constraint) > 1e-10:
                     # Derivatives with respect to arc parameters (numerical)
-                    for i in [self.arc.center.xi, self.arc.center.yi, self.arc.radius_index]:
+                    for i in [self.arc.center.xi, self.arc.center.yi, self.arc.radius.index]:
                         x_plus = x.copy()
                         x_plus[i] += eps
                         closest_t_plus = self.bezier.closest_path_part(x_plus, cx1, cy1)
@@ -2486,41 +2633,19 @@ class ArcTangentToBezierConstraint(Constraint):
         return J
 
 
-# ============================
-# Circle Constraint Functions
-# ============================
-
-class CircleRadiusConstraint(Constraint):
-    def __init__(self, circle: Circle, radius: float):
-        self.circle = circle
-        self.radius = radius
-
-    def residual(self, x):
-        # Get the current circle radius
-        r = x[self.circle.radius_index]
-        
-        # Constraint: circle radius should equal target radius
-        return np.array([r - self.radius])
-
-    def jacobian(self, x):
-        n = len(x)
-        J = np.zeros((1, n))
-        
-        # Derivative with respect to circle radius
-        J[0, self.circle.radius_index] = 1  # d/dr of (r - target_radius)
-        
-        return J
-
+# ==========================================
+# ConstrainableCircle Constraint Functions
+# ==========================================
 
 class CircleTangentToCircleConstraint(Constraint):
-    def __init__(self, circle1: Circle, circle2: Circle):
+    def __init__(self, circle1: ConstrainableCircle, circle2: ConstrainableCircle):
         self.circle1 = circle1
         self.circle2 = circle2
 
     def residual(self, x):
         # Get circle parameters
-        c1x, c1y, r1 = x[self.circle1.center.xi], x[self.circle1.center.yi], x[self.circle1.radius_index]
-        c2x, c2y, r2 = x[self.circle2.center.xi], x[self.circle2.center.yi], x[self.circle2.radius_index]
+        c1x, c1y, r1 = self.circle1.get(x)
+        c2x, c2y, r2 = self.circle2.get(x)
         
         # Calculate distance between centers
         dist = math.hypot(c1x - c2x, c1y - c2y)
@@ -2533,8 +2658,8 @@ class CircleTangentToCircleConstraint(Constraint):
         J = np.zeros((1, n))
         
         # Get circle parameters
-        c1x, c1y, r1 = x[self.circle1.center.xi], x[self.circle1.center.yi], x[self.circle1.radius_index]
-        c2x, c2y, r2 = x[self.circle2.center.xi], x[self.circle2.center.yi], x[self.circle2.radius_index]
+        c1x, c1y, r1 = self.circle1.get(x)
+        c2x, c2y, r2 = self.circle2.get(x)
         
         # Calculate distance
         dx = c1x - c2x
@@ -2546,34 +2671,34 @@ class CircleTangentToCircleConstraint(Constraint):
             # Derivatives with respect to circle1 parameters
             J[0, self.circle1.center.xi] = dx / dist  # d/dc1x
             J[0, self.circle1.center.yi] = dy / dist  # d/dc1y
-            J[0, self.circle1.radius_index] = -1                # d/dr1
+            J[0, self.circle1.radius.index] = -1                # d/dr1
             
             # Derivatives with respect to circle2 parameters
             J[0, self.circle2.center.xi] = -dx / dist  # d/dc2x
             J[0, self.circle2.center.yi] = -dy / dist  # d/dc2y
-            J[0, self.circle2.radius_index] = -1                 # d/dr2
+            J[0, self.circle2.radius.index] = -1                 # d/dr2
         else:
             # Handle case where centers coincide
             J[0, self.circle1.center.xi] = 1
             J[0, self.circle1.center.yi] = 1
-            J[0, self.circle1.radius_index] = -1
+            J[0, self.circle1.radius.index] = -1
             J[0, self.circle2.center.xi] = -1
             J[0, self.circle2.center.yi] = -1
-            J[0, self.circle2.radius_index] = -1
+            J[0, self.circle2.radius.index] = -1
         
         return J
 
 
 class CircleTangentToEllipseConstraint(Constraint):
-    def __init__(self, circle: Circle, ellipse: Ellipse):
+    def __init__(self, circle: ConstrainableCircle, ellipse: ConstrainableEllipse):
         self.circle = circle
         self.ellipse = ellipse
 
     def residual(self, x):
         # Get ellipse and circle parameters
-        cx1, cy1, major_r, minor_r, rotation = x[self.ellipse.center.xi], x[self.ellipse.center.yi], x[self.ellipse.radius1_index], x[self.ellipse.radius2_index], x[self.ellipse.rotation_index]
-        cx2, cy2, r2 = x[self.circle.center.xi], x[self.circle.center.yi], x[self.circle.radius_index]
-        
+        cx1, cy1, major_r, minor_r, rotation = self.ellipse.get(x)
+        cx2, cy2, r2 = self.circle.get(x)
+
         # Find the closest point on ellipse to circle center
         closest_pt = self.ellipse.closest_point_on_perimeter(x, cx2, cy2)
         
@@ -2587,11 +2712,11 @@ class CircleTangentToEllipseConstraint(Constraint):
         distance_constraint = dist_to_ellipse - r2
         
         # Tangency constraint: calculate tangent angles
-        # Ellipse tangent angle at closest point
+        # ConstrainableEllipse tangent angle at closest point
         angle_to_point = np.arctan2(closest_pt[1] - cy1, closest_pt[0] - cx1)
         ellipse_tangent_angle = angle_to_point + np.pi/2
         
-        # Circle tangent angle (perpendicular to radius)
+        # ConstrainableCircle tangent angle (perpendicular to radius)
         circle_tangent_angle = angle_to_point + np.pi/2
         
         # Tangency constraint: angles should be parallel or perpendicular
@@ -2605,8 +2730,8 @@ class CircleTangentToEllipseConstraint(Constraint):
         J = np.zeros((2, n))
         
         # Get ellipse and circle parameters
-        cx1, cy1, major_r, minor_r, rotation = x[self.ellipse.center.xi], x[self.ellipse.center.yi], x[self.ellipse.radius1_index], x[self.ellipse.radius2_index], x[self.ellipse.rotation_index]
-        cx2, cy2, r2 = x[self.circle.center.xi], x[self.circle.center.yi], x[self.circle.radius_index]
+        cx1, cy1, major_r, minor_r, rotation = self.ellipse.get(x)
+        cx2, cy2, r2 = self.circle.get(x)
         
         # Find the closest point on ellipse to circle center
         closest_pt = self.ellipse.closest_point_on_perimeter(x, cx2, cy2)
@@ -2624,12 +2749,12 @@ class CircleTangentToEllipseConstraint(Constraint):
             J[0, self.circle.center.yi] = (cy2 - closest_pt[1]) / dist_to_ellipse
             
             # Derivatives with respect to circle radius
-            J[0, self.circle.radius_index] = -1.0
+            J[0, self.circle.radius.index] = -1.0
             
             # Derivatives with respect to ellipse parameters (numerical)
             eps = 1e-6
             for i in [self.ellipse.center.xi, self.ellipse.center.yi, 
-                     self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                     self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                 x_plus = x.copy()
                 x_plus[i] += eps
                 closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, cx2, cy2)
@@ -2650,7 +2775,7 @@ class CircleTangentToEllipseConstraint(Constraint):
             if abs(angle_diff) > 1e-10:
                 # Derivatives with respect to ellipse parameters (numerical)
                 for i in [self.ellipse.center.xi, self.ellipse.center.yi, 
-                         self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                         self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                     x_plus = x.copy()
                     x_plus[i] += eps
                     closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, cx2, cy2)
@@ -2667,7 +2792,7 @@ class CircleTangentToEllipseConstraint(Constraint):
 
 
 class CircleTangentToBezierConstraint(Constraint):
-    def __init__(self, circle: Circle, bezier: BezierPath):
+    def __init__(self, circle: ConstrainableCircle, bezier: ConstrainableBezierPath):
         self.circle = circle
         self.bezier = bezier
 
@@ -2744,7 +2869,7 @@ class CircleTangentToBezierConstraint(Constraint):
             J[0, self.circle.center.yi] = to_center[1]
             
             # Derivatives with respect to circle radius
-            J[0, self.circle.radius_index] = -1.0
+            J[0, self.circle.radius.index] = -1.0
             
             # Derivatives with respect to bezier control points
             # We need to compute how the closest point changes with respect to control points
@@ -2786,7 +2911,7 @@ class CircleTangentToBezierConstraint(Constraint):
             
             # Derivatives with respect to circle radius
             # The tangent constraint doesn't depend on radius
-            J[1, self.circle.radius_index] = 0.0
+            J[1, self.circle.radius.index] = 0.0
             
             # Derivatives with respect to bezier control points
             # This is complex, so we'll use numerical differentiation
@@ -2835,125 +2960,13 @@ class CircleTangentToBezierConstraint(Constraint):
         return J
 
 
-# ============================
-# Ellipse Constraint Functions
-# ============================
-
-class EllipseMajorRadiusConstraint(Constraint):
-    def __init__(self, ellipse: Ellipse, radius: float):
-        self.ellipse = ellipse
-        self.radius = radius
-
-    def residual(self, x):
-        # Get the current ellipse major radius
-        major_r = x[self.ellipse.radius1_index]
-        
-        # Constraint: ellipse major radius should equal target radius
-        return np.array([major_r - self.radius])
-
-    def jacobian(self, x):
-        n = len(x)
-        J = np.zeros((1, n))
-        
-        # Derivative with respect to ellipse major radius
-        J[0, self.ellipse.radius1_index] = 1  # d/dmajor_r of (major_r - target_radius)
-        
-        return J
-
-
-class EllipseMinorRadiusConstraint(Constraint):
-    def __init__(self, ellipse: Ellipse, radius: float):
-        self.ellipse = ellipse
-        self.radius = radius
-
-    def residual(self, x):
-        # Get the current ellipse minor radius
-        minor_r = x[self.ellipse.radius2_index]
-        
-        # Constraint: ellipse minor radius should equal target radius
-        return np.array([minor_r - self.radius])
-
-    def jacobian(self, x):
-        n = len(x)
-        J = np.zeros((1, n))
-        
-        # Derivative with respect to ellipse minor radius
-        J[0, self.ellipse.radius2_index] = 1  # d/dminor_r of (minor_r - target_radius)
-        
-        return J
-
-
-class EllipseRotationConstraint(Constraint):
-    def __init__(self, ellipse: Ellipse, angle: float):
-        self.ellipse = ellipse
-        self.angle = normalize_degrees(angle)
-
-    def residual(self, x):
-        # Get the current ellipse rotation angle
-        rotation_angle = normalize_degrees(x[self.ellipse.rotation_index])
-        
-        # Constraint: ellipse rotation should equal target angle
-        return np.array([rotation_angle - self.angle])
-
-    def jacobian(self, x):
-        n = len(x)
-        J = np.zeros((1, n))
-        
-        # Derivative with respect to ellipse rotation angle
-        # Since we're using normalize_degrees, the derivative is 1
-        J[0, self.ellipse.rotation_index] = 1  # d/drotation of (rotation - target_angle)
-        
-        return J
-
-
-class EllipseEccentricityConstraint(Constraint):
-    def __init__(self, ellipse: Ellipse, eccentricity: float):
-        self.ellipse = ellipse
-        self.eccentricity = eccentricity
-
-    def residual(self, x):
-        # Get the current ellipse eccentricity
-        current_eccentricity = self.ellipse.eccentricity(x)
-        
-        # Constraint: ellipse eccentricity should equal target eccentricity
-        return np.array([current_eccentricity - self.eccentricity])
-
-    def jacobian(self, x):
-        n = len(x)
-        J = np.zeros((1, n))
-        
-        # Get ellipse parameters
-        major_r = x[self.ellipse.radius1_index]
-        minor_r = x[self.ellipse.radius2_index]
-        
-        # Eccentricity is defined as: e = sqrt(1 - (b/a)^2) where a > b
-        # So de/da = (b^2/a^3) / sqrt(1 - (b/a)^2)
-        # And de/db = -(b/a^2) / sqrt(1 - (b/a)^2)
-        
-        if major_r > minor_r and major_r > 0:
-            ratio = minor_r / major_r
-            ratio_sq = ratio * ratio
-            
-            if ratio_sq < 1:  # Valid eccentricity
-                sqrt_term = math.sqrt(1 - ratio_sq)
-                
-                # Derivatives with respect to major and minor radii
-                J[0, self.ellipse.radius1_index] = (ratio_sq / major_r) / sqrt_term  # de/da
-                J[0, self.ellipse.radius2_index] = -(ratio / major_r) / sqrt_term     # de/db
-            else:
-                # Invalid eccentricity (ratio >= 1)
-                J[0, self.ellipse.radius1_index] = 0
-                J[0, self.ellipse.radius2_index] = 0
-        else:
-            # Invalid case (major_r <= minor_r or major_r <= 0)
-            J[0, self.ellipse.radius1_index] = 0
-            J[0, self.ellipse.radius2_index] = 0
-        
-        return J
+# ===========================================
+# ConstrainableEllipse Constraint Functions
+# ===========================================
 
 
 class EllipseTangentToEllipseConstraint(Constraint):
-    def __init__(self, ellipse1: Ellipse, ellipse2: Ellipse):
+    def __init__(self, ellipse1: ConstrainableEllipse, ellipse2: ConstrainableEllipse):
         self.ellipse1 = ellipse1
         self.ellipse2 = ellipse2
 
@@ -3023,7 +3036,7 @@ class EllipseTangentToEllipseConstraint(Constraint):
             # Derivatives with respect to ellipse1 parameters (numerical)
             eps = 1e-6
             for i in [self.ellipse1.center.xi, self.ellipse1.center.yi, 
-                     self.ellipse1.radius1_index, self.ellipse1.radius2_index, self.ellipse1.rotation_index]:
+                     self.ellipse1.radius1.index, self.ellipse1.radius2.index, self.ellipse1.rotation_angle.index]:
                 x_plus = x.copy()
                 x_plus[i] += eps
                 closest_pt2_plus = self.ellipse2.closest_point_on_perimeter(x_plus, cx1, cy1)
@@ -3037,7 +3050,7 @@ class EllipseTangentToEllipseConstraint(Constraint):
             
             # Derivatives with respect to ellipse2 parameters (numerical)
             for i in [self.ellipse2.center.xi, self.ellipse2.center.yi, 
-                     self.ellipse2.radius1_index, self.ellipse2.radius2_index, self.ellipse2.rotation_index]:
+                     self.ellipse2.radius1.index, self.ellipse2.radius2.index, self.ellipse2.rotation_angle.index]:
                 x_plus = x.copy()
                 x_plus[i] += eps
                 closest_pt2_plus = self.ellipse2.closest_point_on_perimeter(x_plus, cx1, cy1)
@@ -3061,7 +3074,7 @@ class EllipseTangentToEllipseConstraint(Constraint):
             if abs(angle_diff) > 1e-10:
                 # Derivatives with respect to ellipse1 parameters (numerical)
                 for i in [self.ellipse1.center.xi, self.ellipse1.center.yi, 
-                         self.ellipse1.radius1_index, self.ellipse1.radius2_index, self.ellipse1.rotation_index]:
+                         self.ellipse1.radius1.index, self.ellipse1.radius2.index, self.ellipse1.rotation_angle.index]:
                     x_plus = x.copy()
                     x_plus[i] += eps
                     closest_pt1_plus = self.ellipse1.closest_point_on_perimeter(x_plus, cx2, cy2)
@@ -3076,7 +3089,7 @@ class EllipseTangentToEllipseConstraint(Constraint):
                 
                 # Derivatives with respect to ellipse2 parameters (numerical)
                 for i in [self.ellipse2.center.xi, self.ellipse2.center.yi, 
-                         self.ellipse2.radius1_index, self.ellipse2.radius2_index, self.ellipse2.rotation_index]:
+                         self.ellipse2.radius1.index, self.ellipse2.radius2.index, self.ellipse2.rotation_angle.index]:
                     x_plus = x.copy()
                     x_plus[i] += eps
                     closest_pt2_plus = self.ellipse2.closest_point_on_perimeter(x_plus, cx1, cy1)
@@ -3093,7 +3106,7 @@ class EllipseTangentToEllipseConstraint(Constraint):
 
 
 class EllipseTangentToBezierConstraint(Constraint):
-    def __init__(self, ellipse: Ellipse, bezier: BezierPath):
+    def __init__(self, ellipse: ConstrainableEllipse, bezier: ConstrainableBezierPath):
         self.ellipse = ellipse
         self.bezier = bezier
 
@@ -3182,7 +3195,7 @@ class EllipseTangentToBezierConstraint(Constraint):
             # Derivatives with respect to ellipse parameters (numerical)
             eps = 1e-6
             for i in [self.ellipse.center.xi, self.ellipse.center.yi, 
-                     self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                     self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                 x_plus = x.copy()
                 x_plus[i] += eps
                 closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, bezier_point[0], bezier_point[1])
@@ -3217,7 +3230,7 @@ class EllipseTangentToBezierConstraint(Constraint):
             if abs(angle_diff) > 1e-10:
                 # Derivatives with respect to ellipse parameters (numerical)
                 for i in [self.ellipse.center.xi, self.ellipse.center.yi, 
-                         self.ellipse.radius1_index, self.ellipse.radius2_index, self.ellipse.rotation_index]:
+                         self.ellipse.radius1.index, self.ellipse.radius2.index, self.ellipse.rotation_angle.index]:
                     x_plus = x.copy()
                     x_plus[i] += eps
                     closest_pt_plus = self.ellipse.closest_point_on_perimeter(x_plus, bezier_point[0], bezier_point[1])
@@ -3266,296 +3279,190 @@ class EllipseTangentToBezierConstraint(Constraint):
 # Constraints Matrix
 # ============================
 
-constraints_matrix = {
-    "point": {
-        "": {
-        },
-        "scalar": {
-        },
-        "point": {
-            "Is at": CoincidentConstraint,
-            "Vertical to": VerticalConstraint,
-            "Horizontal to": HorizontalConstraint,
-        },
-        "line": {
-            "Is on": PointIsOnLineSegmentConstraint,
-            "Starts at":
-                lambda point, line:
-                    CoincidentConstraint(line.p1, point),
-            "Ends at":
-                lambda point, line:
-                    CoincidentConstraint(line.p2, point),
-        },
-        "arc": {
-            "Is on": PointIsOnArcConstraint,
-            "Starts at": PointCoincidentWithArcStartConstraint,
-            "Ends at": PointCoincidentWithArcEndConstraint,
-            "Concentric":
-                lambda point, arc:
-                    CoincidentConstraint(arc.center, point),
-        },
-        "circle": {
-            "Is on": PointIsOnCircleConstraint,
-            "Concentric":
-                lambda point, circle:
-                    CoincidentConstraint(circle.center, point),
-        },
-        "bezier": {
-            "Is on": PointIsOnBezierPathConstraint,
-            "Starts at":
-                lambda point, bezier:
-                    CoincidentConstraint(bezier.points[0], point),
-            "Ends at":
-                lambda point, bezier:
-                    CoincidentConstraint(bezier.points[-1], point),
-        },
-        "ellipse": {
-            "Is on": PointIsOnEllipseConstraint,
-            "Concentric":
-                lambda ellipse, point:
-                    CoincidentConstraint(ellipse.center, point),
-        }
-    },
-    "line": {
-        "": {
-            "Horizontal":
-                lambda line:
-                    HorizontalConstraint(line.p1, line.p2),
-            "Vertical":
-                lambda line:
-                    VerticalConstraint(line.p1, line.p2),
-        },
-        "scalar": {
-            "Angle is": LineAngleConstraint,
-            "Length is": LineLengthConstraint,
-        },
-        "point": {
-            "Is on":
-                lambda line, point:
-                    PointIsOnLineSegmentConstraint(point, line),
-            "Starts at":
-                lambda line, point:
-                    CoincidentConstraint(point.p1, line),
-            "Ends at":
-                lambda line, point:
-                    CoincidentConstraint(point.p2, line),
-        },
-        "line": {
-            "Equal": LinesEqualLengthConstraint,
-            "Perpendicular": LinesPerpendicularConstraint,
-            "Parallel": LinesParallelConstraint,
-        },
-        "arc": {
-            "Tangent":
-                lambda line, arc:
-                    LineTangentToArcConstraint(line, arc),
-        },
-        "circle": {
-            "Tangent": LineTangentToCircleConstraint,
-        },
-        "bezier": {
-            "Tangent": LineTangentToBezierConstraint,
-        },
-        "ellipse": {
-            "Tangent": LineTangentToEllipseConstraint,
-        }
-    },
-    "arc": {
-        "": {
-        },
-        "scalar": {
-            "Start angle is": ArcStartAngleConstraint,
-            "End angle is": ArcEndAngleConstraint,
-            "Span angle is": ArcSpanAngleConstraint,
-            "Radius is": ArcRadiusConstraint,
-        },
-        "point": {
-            "Is on":
-                lambda arc, point:
-                    PointIsOnArcConstraint(point, arc),
-            "Concentric":
-                lambda arc, point:
-                    CoincidentConstraint(arc.center, point),
-            "Starts at":
-                lambda arc, point:
-                    PointCoincidentWithArcStartConstraint(point, arc),
-            "Ends at":
-                lambda arc, point:
-                    PointCoincidentWithArcEndConstraint(point, arc),
-        },
-        "line": {
-            "Tangent": LineTangentToArcConstraint,
-        },
-        "arc": {
-            "Tangent": ArcTangentToArcConstraint,
-            "Concentric":
-                lambda arc, circle:
-                    CoincidentConstraint(arc.center, circle.center),
-        },
-        "circle": {
-            "Tangent": ArcTangentToCircleConstraint,
-            "Concentric":
-                lambda arc, circle:
-                    CoincidentConstraint(arc.center, circle.center),
-        },
-        "bezier": {
-            "Tangent": ArcTangentToBezierConstraint,
-        },
-        "ellipse": {
-            "Tangent":
-                lambda arc, ellipse:
-                    ArcTangentToEllipseConstraint(arc, ellipse),
-        }
-    },
-    "circle": {
-        "": {
-        },
-        "scalar": {
-            "Radius is": CircleRadiusConstraint,
-        },
-        "point": {
-            "Is on":
-                lambda circle, point:
-                    PointIsOnCircleConstraint(point, circle),
-            "Concentric":
-                lambda circle, point:
-                    CoincidentConstraint(circle.center, point),
-        },
-        "line": {
-            "Tangent":
-                lambda circle, line:
-                    LineTangentToCircleConstraint(line, circle),
-        },
-        "arc": {
-            "Tangent":
-                lambda circle, arc:
-                    ArcTangentToCircleConstraint(arc, circle),
-            "Concentric":
-                lambda circle, arc:
-                    CoincidentConstraint(circle.center, arc.center),
-        },
-        "circle": {
-            "Tangent": CircleTangentToCircleConstraint,
-            "Concentric":
-                lambda circle1, circle2:
-                    CoincidentConstraint(circle1.center,circle2.center),
-        },
-        "bezier": {
-            "Tangent": CircleTangentToBezierConstraint,
-        },
-        "ellipse": {
-            "Tangent": CircleTangentToEllipseConstraint,
-        }
-    },
-    "ellipse": {
-        "": {},
-        "scalar": {
-            "Major radius is": EllipseMajorRadiusConstraint,
-            "Minor radius is": EllipseMinorRadiusConstraint,
-            "Rotation is": EllipseRotationConstraint,
-            "Eccentricity is": EllipseEccentricityConstraint,
-        },
-        "point": {
-            "Is on": PointIsOnEllipseConstraint,
-            "Concentric":
-                lambda ellipse, point:
-                    CoincidentConstraint(ellipse.center, point),
-        },
-        "line": {
-            "Tangent": LineTangentToEllipseConstraint,
-        },
-        "arc": {
-            "Tangent":
-                lambda ellipse, arc:
-                    ArcTangentToEllipseConstraint(arc, ellipse),
-        },
-        "circle": {
-            "Tangent":
-                lambda ellipse, circle:
-                    CircleTangentToEllipseConstraint(circle, ellipse),
-        },
-        "ellipse": {
-            "Concentric":
-                lambda ellipse1, ellipse2:
-                    CoincidentConstraint(ellipse1.center, ellipse2.center),
-            "Tangent":
-                lambda ellipse1, ellipse2:
-                    EllipseTangentToEllipseConstraint(ellipse1, ellipse2),
-        },
-        "bezier": {
-            "Tangent":
-                lambda ellipse, bezier:
-                    EllipseTangentToBezierConstraint(ellipse, bezier),
-        }
-    },
-    "bezier": {
-        "": {},
-        "point": {
-            "Is on":
-                lambda bezier, point:
-                    PointIsOnBezierPathConstraint(point, bezier),
-            "Starts at":
-                lambda bezier, point:
-                    CoincidentConstraint(bezier.points[0], point),
-            "Ends at":
-                lambda bezier, point:
-                    CoincidentConstraint(bezier.points[-1], point),
-        },
-        "line": {
-            "Tangent":
-                lambda bezier, line:
-                    LineTangentToBezierConstraint(line, bezier),
-        },
-        "arc": {
-            "Tangent":
-                lambda bezier, arc:
-                    ArcTangentToBezierConstraint(arc, bezier),
-        },
-        "circle": {
-            "Tengent":
-                lambda bezier, circle:
-                    CircleTangentToBezierConstraint(circle, bezier),
-        },
-        "ellipse": {
-            "Tangent":
-                lambda bezier, ellipse:
-                    EllipseTangentToBezierConstraint(ellipse, bezier),
-        }
-    },
-}
-
+constraint_type_order = [
+    "length", "angle", "point", "line", "arc", "circle", "ellipse", "bezier", ""
+]
 
 def get_objtype(obj):
     """
     Returns the type of the given object.
     """
-    if isinstance(obj, float) or isinstance(obj, int):
-        return "scalar"
-    elif isinstance(obj, Point2D):
+    if isinstance(obj, ConstrainableLength):
+        return "length"
+    elif isinstance(obj, ConstrainableAngle):
+        return "angle"
+    elif isinstance(obj, ConstrainablePoint2D):
         return "point"
-    elif isinstance(obj, LineSegment):
+    elif isinstance(obj, ConstrainableLine2D):
         return "line"
-    elif isinstance(obj, Arc):
+    elif isinstance(obj, ConstrainableArc):
         return "arc"
-    elif isinstance(obj, Circle):
+    elif isinstance(obj, ConstrainableCircle):
         return "circle"
-    elif isinstance(obj, Ellipse):
+    elif isinstance(obj, ConstrainableEllipse):
         return "ellipse"
-    elif isinstance(obj, BezierPath):
+    elif isinstance(obj, ConstrainableBezierPath):
         return "bezier"
     return ""
 
+constraints_matrix = {
+    "length": {
+        "length": {
+            "equals": LengthEqualsConstraint,
+        },
+        "angle": {},
+        "point": {},
+        "line": {},
+        "arc": {},
+        "circle": {},
+        "ellipse": {},
+        "bezier": {},
+        "": {},
+    },
+    "angle": {
+        "angle": {
+            "equals": AngleEqualsConstraint,
+        },
+        "point": {},
+        "line": {},
+        "arc": {},
+        "circle": {},
+        "ellipse": {},
+        "bezier": {},
+        "": {},
+    },
+    "point": {
+        "point": {
+            "coincides with": CoincidentConstraint,
+            "is vertical to": VerticalConstraint,
+            "is horizontal to": HorizontalConstraint,
+        },
+        "line": {
+            "is on": PointIsOnLineSegmentConstraint,
+        },
+        "arc": {
+            "is on": PointIsOnArcConstraint,
+            "coincides with start of": PointCoincidentWithArcStartConstraint,
+            "coincides with end of": PointCoincidentWithArcEndConstraint,
+        },
+        "circle": {
+            "is on": PointIsOnCircleConstraint,
+        },
+        "bezier": {
+            "is on": PointIsOnBezierPathConstraint,
+        },
+        "ellipse": {
+            "is on": PointIsOnEllipseConstraint,
+        },
+        "": {},
+    },
+    "line": {
+        "line": {
+            "is equal length to": LinesEqualLengthConstraint,
+            "is perpendicular to": LinesPerpendicularConstraint,
+            "is parallel to": LinesParallelConstraint,
+        },
+        "arc": {
+            "is tangent to": LineTangentToArcConstraint,
+        },
+        "circle": {
+            "is tangent to": LineTangentToCircleConstraint,
+        },
+        "ellipse": {
+            "is tangent to": LineTangentToEllipseConstraint,
+        },
+        "bezier": {
+            "is tangent to": LineTangentToBezierConstraint,
+        },
+        "": {
+            "is horizontal":
+                lambda line:
+                    HorizontalConstraint(line.p1, line.p2),
+            "is vertical":
+                lambda line:
+                    VerticalConstraint(line.p1, line.p2),
+        },
+    },
+    "arc": {
+        "arc": {
+            "is tangent to": ArcTangentToArcConstraint,
+        },
+        "circle": {
+            "is tangent to": ArcTangentToCircleConstraint,
+        },
+        "ellipse": {
+            "is tangent to": ArcTangentToEllipseConstraint,
+        },
+        "bezier": {
+            "is tangent to": ArcTangentToBezierConstraint,
+        },
+        "": {},
+    },
+    "circle": {
+        "circle": {
+            "is tangent to": CircleTangentToCircleConstraint,
+        },
+        "ellipse": {
+            "is tangent to": CircleTangentToEllipseConstraint,
+        },
+        "bezier": {
+            "is tangent to": CircleTangentToBezierConstraint,
+        },
+        "": {},
+    },
+    "ellipse": {
+        "ellipse": {
+            "is tangent to": EllipseTangentToEllipseConstraint,
+        },
+        "bezier": {
+            "is tangent to": EllipseTangentToBezierConstraint,
+        },
+        "": {},
+    },
+    "bezier": {
+        "bezier": {},
+        "": {},
+    },
+    "": {
+        "": {},
+    },
+}
 
-def get_available_constraints(obj1, obj2):
+
+def get_constraint_type_order(objtype1):
+    return constraint_type_order.index(objtype1)
+
+
+def get_possible_constraints(obj1, obj2) -> dict[str, Constraint]:
     """
     Returns a list of available constraints for the given objects.
     """
-    objtype1 = get_objtype(obj1)
-    objtype2 = get_objtype(obj2)
-    if objtype1 == "":
-        return []
-    avail = constraints_matrix[objtype1][objtype2]
-    return list(avail.keys())
+    out = {}
+    constrainables1 = obj1.get_constrainables()
+    if obj2 is None:
+        constrainables2 = [None]
+    else:
+        constrainables2 = obj2.get_constrainables()
+    for constrainable1 in constrainables1:
+        for constrainable2 in constrainables2:
+            order1 = get_constraint_type_order(constrainable1)
+            order2 = get_constraint_type_order(constrainable2)
+            if order1 > order2:
+                constrainable1, constrainable2 = constrainable2, constrainable1
+            ctype1 = get_objtype(constrainable1)
+            ctype2 = get_objtype(constrainable2)
+            avail = constraints_matrix[ctype1][ctype2]
+            for preposition, constraint in avail.items():
+                if constrainable1 is None:
+                    continue
+                label1 = constrainable1.get_label()
+                if constrainable2 is None:
+                    phrase = f"{label1} {preposition}"
+                else:
+                    label2 = constrainable2.get_label()
+                    phrase = f"{label1} {preposition} {label2}"
+                out[phrase] = constraint(constrainable1, constrainable2)
+    return out
     
 
 def get_constraint(obj1, obj2, type):

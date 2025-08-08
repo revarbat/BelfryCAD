@@ -19,7 +19,8 @@ from PySide6.QtWidgets import (QGraphicsEllipseItem, QGraphicsPathItem,
 from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 if TYPE_CHECKING:
@@ -55,10 +56,10 @@ class WormParameters:
     table_orientation: float  # Table orientation in degrees
 
 
-class GearObject(CADObject):
+class GearObject(CadObject):
     """Gear object - represents a spur or helical gear"""
 
-    def __init__(self, mainwin: 'MainWindow', object_id: int, position: Point,
+    def __init__(self, mainwin: 'MainWindow', object_id: int, position: Point2D,
                  params: GearParameters, **kwargs):
         super().__init__(
             mainwin, object_id, ObjectType.GEAR, coords=[position], **kwargs)
@@ -71,7 +72,7 @@ class GearObject(CADObject):
         })
 
     @property
-    def position(self) -> Point:
+    def position(self) -> Point2D:
         return self.coords[0]
 
     @property
@@ -105,7 +106,7 @@ class GearTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="G",
-            node_info=["Center Point", "Pitch Radius Point"]
+            node_info=["Center Point2D", "Pitch Radius Point2D"]
         )]
 
     def show_dialog(self) -> Optional[GearParameters]:
@@ -184,7 +185,7 @@ class GearTool(Tool):
             return self.params
         return None
 
-    def create_gear(self, position: Point) -> Optional[GearObject]:
+    def create_gear(self, position: Point2D) -> Optional[GearObject]:
         """Create a gear at the specified position"""
         if not self.params:
             return None

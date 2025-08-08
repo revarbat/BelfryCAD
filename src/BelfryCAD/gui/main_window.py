@@ -17,13 +17,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QPointF
 
 
-from ..core.undo_redo import UndoRedoManager
-from ..core.cad_objects import CADObject
+from ..models.undo_redo import UndoRedoManager
+from ..models.cad_object import CadObject
 from ..tools.base import ToolCategory, ToolManager
 
 from .mainmenu import MainMenuBar
 from .grid_info import GridInfo, GridUnits
-from .views.graphics_items.grid_graphics_items import (
+from .graphics_items.grid_graphics_items import (
     GridBackground, RulersForeground, SnapCursorItem
 )
 from .palette_system import create_default_palettes
@@ -31,7 +31,7 @@ from .widgets.category_button import CategoryToolButton
 from .widgets.cad_scene import CadScene
 from .widgets.cad_view import CadView
 from .icon_manager import get_icon
-from .views.graphics_items.cad_item import CadItem
+
 from .print_manager import CadPrintManager
 from .dialogs.feed_wizard import FeedWizardDialog
 from .dialogs.tool_table_dialog import ToolTableDialog
@@ -40,15 +40,8 @@ from .dialogs.gear_wizard_dialog import GearWizardDialog
 from .dialogs.gcode_backtracer_dialog import GCodeBacktracerDialog
 from .widgets.zoom_edit_widget import ZoomEditWidget
 from .snaps_system import SnapsSystem
-from .views.graphics_items.caditems import (
-    LineCadItem, ArcCadItem,
-    CubicBezierCadItem, CircleCadItem,
-    EllipseCadItem,
-)
-from .panes.layer_pane import LayerPane
 from .panes.config_pane import ConfigPane
 from .widgets.columnar_toolbar import ColumnarToolbarWidget
-from BelfryCAD.gui.views.graphics_items.caditems.gear_cad_item import GearCadItem
 from BelfryCAD.utils.cad_expression import CadExpression
 from .panes.parameters_pane import ParametersPane
 
@@ -66,10 +59,6 @@ class MainWindow(QMainWindow):
         # Initialize undo/redo system
         self.undo_manager = UndoRedoManager(max_undo_levels=50)
         self.undo_manager.add_callback(self._on_undo_state_changed)
-
-        # Connect layer manager to undo system
-        if hasattr(self.document, 'layers'):
-            self.document.layers.set_undo_manager(self.undo_manager)
 
         # Initialize print system
         self.print_manager = None  # Will be initialized after scene creation
@@ -306,7 +295,6 @@ class MainWindow(QMainWindow):
         # Palette visibility connections
         self.main_menu.show_info_panel_toggled.connect(self.toggle_info_panel)
         self.main_menu.show_properties_toggled.connect(self.toggle_properties)
-        self.main_menu.show_layers_toggled.connect(self.toggle_layers)
         self.main_menu.show_snap_settings_toggled.connect(self.toggle_snap_settings)
         self.main_menu.show_tools_toggled.connect(self.toggle_tools)
 
@@ -585,121 +573,29 @@ class MainWindow(QMainWindow):
         # Sync menu states after all components are created
         self._sync_palette_menu_states()
 
-        # Create the LayerPane and ParametersPane as tabs
-        from PySide6.QtWidgets import QDockWidget
-        layer_pane = LayerPane(self)
+        # Create the Pane and ParametersPane as tabs
         parameters_pane = ParametersPane(self.cad_expression)
         parameters_dock = QDockWidget("Parameters", self)
         parameters_dock.setWidget(parameters_pane)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, parameters_dock)
-        self.layer_pane = layer_pane
         self.parameters_pane = parameters_pane
         self.parameters_dock = parameters_dock
         parameters_pane.parameter_changed.connect(self._on_parameters_changed)
 
     def _on_parameters_changed(self):
         # Refresh any widgets that depend on parameters (e.g., CadExpressionEdit completers)
-        # For now, just refresh the parameters pane and layer pane
         self.parameters_pane.refresh()
-        if hasattr(self, 'layer_pane') and self.layer_pane:
-            self.layer_pane.refresh() # type: ignore
 
     def _connect_palette_content(self):
         """Connect palette content widgets to the main window functionality."""
         # Connect info pane to canvas for position updates and selection
         info_pane = self.palette_manager.get_palette_content("info_pane")
-        #if info_pane and hasattr(self, 'canvas'):
-            # Connect canvas mouse move events to info pane updates
-            #self._connect_info_pane(info_pane)
 
         # Connect config pane to document and selection
         config_pane = self.palette_manager.get_palette_content("config_pane")
         if config_pane and hasattr(self, 'document'):
             # Connect the config pane to selection changes
             self._connect_config_pane(config_pane)
-
-        # Connect layer pane to document layer management
-        layer_pane = self.palette_manager.get_palette_content(
-            "layer_pane")
-        if (layer_pane and hasattr(self.document, 'layers') and
-                hasattr(self.document, 'layers')):
-            self._connect_layer_pane(layer_pane)
-
-    def _connect_layer_pane(self, layer_pane):
-        """Connect the layer pane to the document's layer manager."""
-        # Connect layer pane signals to document layer manager
-        layer_pane.layer_created.connect(self._on_layer_created)
-        layer_pane.layer_deleted.connect(self._on_layer_deleted)
-        layer_pane.layer_selected.connect(self._on_layer_selected)
-        layer_pane.layer_renamed.connect(self._on_layer_renamed)
-        layer_pane.layer_visibility_changed.connect(
-            self._on_layer_visibility_changed)
-        layer_pane.layer_lock_changed.connect(self._on_layer_lock_changed)
-        layer_pane.layer_color_changed.connect(self._on_layer_color_changed)
-        layer_pane.layer_cam_changed.connect(self._on_layer_cam_changed)
-        layer_pane.layer_reordered.connect(self._on_layer_reordered)
-
-        # Initialize layer pane with current layer data
-        self._refresh_layer_pane()
-
-    def _refresh_layer_pane(self):
-        """Refresh the layer pane with current layer data."""
-        layer_pane = self.palette_manager.get_palette_content(
-            "layer_pane")
-        if not layer_pane or not hasattr(self.document, 'layers'):
-            return
-
-        # Get all layer data from the layer manager
-        layers = self.document.layers.get_all_layers()
-        current_layer = self.document.layers.get_current_layer()
-
-        # Update the layer pane
-        if isinstance(layer_pane, LayerPane):
-            layer_pane.refresh_layers(layers, current_layer)
-
-    def _on_layer_created(self):
-        """Handle layer creation request from layer window."""
-        if hasattr(self.document, 'layers'):
-            new_layer = self.document.layers.create_layer()
-            self.document.layers.set_current_layer(new_layer)
-            self._refresh_layer_pane()
-
-    def _on_layer_deleted(self, layer):
-        """Handle layer deletion request from layer pane."""
-        if self.document.layers.delete_layer(layer):
-            self._refresh_layer_pane()
-
-    def _on_layer_selected(self, layer):
-        """Handle layer selection from layer pane."""
-        self.document.layers.set_current_layer(layer)
-        self._refresh_layer_pane()
-
-    def _on_layer_renamed(self, layer, new_name):
-        """Handle layer rename from layer pane."""
-        self.document.layers.set_layer_name(layer, new_name)
-        self._refresh_layer_pane()
-
-    def _on_layer_visibility_changed(self, layer, visible):
-        """Handle layer visibility change from layer window."""
-        self.document.layers.set_layer_visible(layer, visible)
-
-    def _on_layer_lock_changed(self, layer, locked):
-        """Handle layer lock change from layer window."""
-        self.document.layers.set_layer_locked(layer, locked)
-
-    def _on_layer_color_changed(self, layer, color):
-        """Handle layer color change from layer window."""
-        self.document.layers.set_layer_color(layer, color)
-
-    def _on_layer_cam_changed(self, layer, cut_bit, cut_depth):
-        """Handle layer CAM settings change from layer window."""
-        self.document.layers.set_layer_cut_bit(layer, cut_bit)
-        self.document.layers.set_layer_cut_depth(layer, cut_depth)
-
-    def _on_layer_reordered(self, layer, new_position):
-        """Handle layer reorder from layer pane."""
-        self.document.layers.reorder_layer(layer, new_position)
-        self._refresh_layer_pane()
 
     def _connect_config_pane(self, config_pane):
         """Connect config pane to the selection system for property editing."""
@@ -1090,7 +986,6 @@ class MainWindow(QMainWindow):
                 'type': obj.object_type,
                 'coords': [{'x': coord.x, 'y': coord.y} for coord in obj.coords],
                 'attributes': dict(obj.attributes),
-                'layer': getattr(obj, 'layer', None)
             }
             self._clipboard_data.append(obj_data)
 
@@ -1120,17 +1015,13 @@ class MainWindow(QMainWindow):
                 ))
 
             # Create new object
-            new_obj = CADObject(
+            new_obj = CadObject(
                 mainwin=self,
                 object_id=self.document.objects.get_next_id(),
                 object_type=obj_data['type'],
                 coords=new_coords,
                 attributes=obj_data['attributes'].copy()
             )
-
-            # Set layer if specified
-            if obj_data['layer'] is not None:
-                new_obj.layer = obj_data['layer']
 
             # Add to document
             if hasattr(self.document, 'objects'):
@@ -1445,12 +1336,6 @@ class MainWindow(QMainWindow):
         self.palette_manager.set_palette_visibility("config_pane", show)
         self._sync_palette_menu_states()
 
-    def toggle_layers(self, show):
-        """Handle Layers panel visibility toggle."""
-        self.preferences_viewmodel.set("show_layers", show)
-        self.palette_manager.set_palette_visibility("layer_pane", show)
-        self._sync_palette_menu_states()
-
     def toggle_snap_settings(self, show):
         """Toggle the snaps toolbar visibility."""
         if hasattr(self, 'snaps_toolbar'):
@@ -1496,9 +1381,6 @@ class MainWindow(QMainWindow):
             self.preferences_viewmodel.set("show_info_panel", visible)
         elif palette_id == "config_pane":
             self.preferences_viewmodel.set("show_properties", visible)
-        elif palette_id == "layer_pane":
-            self.preferences_viewmodel.set("show_layers", visible)
-
 
         # Sync the menu checkboxes with the new state
         self._sync_palette_menu_states()
@@ -1606,14 +1488,18 @@ class MainWindow(QMainWindow):
     def _select_all(self):
         """Select all selectable items (excluding grid and rulers)."""
         for item in self.cad_scene.items():
-            if isinstance(item, CadItem):
+            # Check if this item has a viewmodel reference in data slot 0
+            viewmodel = item.data(0)
+            if viewmodel and hasattr(viewmodel, 'object_type'):
                 item.setSelected(True)
 
     def _get_selected_items(self):
         """Get currently selected items from the scene."""
         selected_items = []
         for item in self.cad_scene.selectedItems():
-            if isinstance(item, CadItem):
+            # Check if this item has a viewmodel reference in data slot 0
+            viewmodel = item.data(0)
+            if viewmodel and hasattr(viewmodel, 'object_type'):
                 selected_items.append(item)
         return selected_items
 
@@ -1639,63 +1525,7 @@ class MainWindow(QMainWindow):
 
     def _draw_shapes(self):
         """Draw test shapes on the scene."""
-        black = QColor(0, 0, 0)
-        linewidth = None
-
-        line1 = LineCadItem(
-            self,
-            QPointF(-1, -1), QPointF(1, 1),
-            black, linewidth)
-        self.cad_scene.addItem(line1)
-
-        circle1 = CircleCadItem(
-            self,
-            center_point=QPointF(-2, 2),
-            perimeter_point=QPointF(-1, 2),
-            color=black,
-            line_width=linewidth
-        )
-        self.cad_scene.addItem(circle1)
-
-        ellipse1 = EllipseCadItem(
-            self,
-            focus1_point=QPointF(3, 0),
-            focus2_point=QPointF(4, 0),
-            perimeter_point=QPointF(4, 1),
-            color=black,
-            line_width=linewidth)
-        self.cad_scene.addItem(ellipse1)
-
-        gear = GearCadItem(
-            self,
-            center=QPointF(-2, -2),
-            pitch_radius_point=QPointF(-1, -2),
-            tooth_count=11,
-            pressure_angle=20,
-            color=black,
-            line_width=linewidth
-        )
-        self.cad_scene.addItem(gear)
-
-        bezier3 = CubicBezierCadItem(
-            self,
-            [
-                QPointF(-1, 1.5), QPointF(0, 3.5),
-                QPointF(1.5, 2.75), QPointF(2, 2), QPointF(3, 0.5),
-                QPointF(4, 2), QPointF(5, 3.5), QPointF(6, 1.5),
-                QPointF(7, 3.5), QPointF(8, 2), QPointF(9, 0.5),
-                QPointF(10, 2), QPointF(11, 3.5), QPointF(12, 1.5),
-                QPointF(13, 3.5), QPointF(14, 2),
-            ],
-            black, linewidth)
-        self.cad_scene.addItem(bezier3)
-
-        arc1 = ArcCadItem(
-            main_window=self,
-            center_point=QPointF(2, -2),
-            start_point=QPointF(3, -2),
-            end_point=QPointF(2, -1),
-            color=black,
-            line_width=linewidth)
-        self.cad_scene.addItem(arc1)
+        # This method is no longer needed since we're using MVVM pattern
+        # ViewModels are responsible for creating their own view items
+        pass
 

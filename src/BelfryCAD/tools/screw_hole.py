@@ -13,17 +13,18 @@ from PySide6.QtWidgets import (QGraphicsEllipseItem, QGraphicsPathItem,
 from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 if TYPE_CHECKING:
     from ..gui.main_window import MainWindow
 
 
-class ScrewHoleObject(CADObject):
+class ScrewHoleObject(CadObject):
     """Screw hole object - position, size, and thread parameters"""
 
-    def __init__(self, mainwin: 'MainWindow', object_id: int, position: Point, diameter: float, **kwargs):
+    def __init__(self, mainwin: 'MainWindow', object_id: int, position: Point2D, diameter: float, **kwargs):
         super().__init__(
             mainwin, object_id, ObjectType.SCREW_HOLE, coords=[position], **kwargs)
         self.attributes.update({
@@ -40,7 +41,7 @@ class ScrewHoleObject(CADObject):
         })
 
     @property
-    def position(self) -> Point:
+    def position(self) -> Point2D:
         return self.coords[0]
 
     @property
@@ -101,7 +102,7 @@ class ScrewHoleTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="H",
-            node_info=["Center Point", "Diameter Point"]
+            node_info=["Center Point2D", "Diameter Point2D"]
         )]
 
     def _setup_bindings(self):

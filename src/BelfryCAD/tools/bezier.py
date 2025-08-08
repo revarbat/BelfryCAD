@@ -8,7 +8,8 @@ tools_beziers.tcl implementation.
 import math
 from typing import Optional, List
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
@@ -31,7 +32,7 @@ class BezierTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="B",
-            node_info=["First Point", "Next Point", "..."]
+            node_info=["First Point2D", "Next Point2D", "..."]
         )]
 
     def _setup_bindings(self):
@@ -119,7 +120,7 @@ class BezierTool(Tool):
                     self.temp_objects.append(path_item)
 
     def _get_cubic_bezier_points(
-            self, p0: Point, p1: Point, p2: Point, p3: Point) -> List[Point]:
+            self, p0: Point2D, p1: Point2D, p2: Point2D, p3: Point2D) -> List[Point2D]:
         """Get points along a cubic bezier curve"""
         points = []
         steps = 20
@@ -132,19 +133,19 @@ class BezierTool(Tool):
                  3*(1-t)*t**2 * p2.x + t**3 * p3.x)
             y = ((1-t)**3 * p0.y + 3*(1-t)**2*t * p1.y +
                  3*(1-t)*t**2 * p2.y + t**3 * p3.y)
-            points.append(Point(x, y))
+            points.append(Point2D(x, y))
 
         return points
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a cubic bezier curve object from the collected points"""
         if len(self.points) < 4:
             return None
 
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.BEZIER,
-            layer=self.document.objects.current_layer,
             coords=self.points.copy(),
             attributes={
                 'color': 'black',
@@ -174,7 +175,7 @@ class BezierQuadTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="Q",
-            node_info=["First Point", "Control Point", "Next Point", "..."]
+            node_info=["First Point2D", "Control Point2D", "Next Point2D", "..."]
         )]
 
     def _setup_bindings(self):
@@ -261,7 +262,7 @@ class BezierQuadTool(Tool):
                     self.temp_objects.append(path_item)
 
     def _get_quadratic_bezier_points(
-            self, p0: Point, p1: Point, p2: Point) -> List[Point]:
+            self, p0: Point2D, p1: Point2D, p2: Point2D) -> List[Point2D]:
         """Get points along a quadratic bezier curve"""
         points = []
         steps = 20
@@ -272,19 +273,19 @@ class BezierQuadTool(Tool):
             # B(t) = (1-t)^2*P0 + 2(1-t)t*P1 + t^2*P2
             x = ((1-t)**2 * p0.x + 2*(1-t)*t * p1.x + t**2 * p2.x)
             y = ((1-t)**2 * p0.y + 2*(1-t)*t * p1.y + t**2 * p2.y)
-            points.append(Point(x, y))
+            points.append(Point2D(x, y))
 
         return points
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a quadratic bezier curve object from the collected points"""
         if len(self.points) < 3:
             return None
 
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.BEZIERQUAD,
-            layer=self.document.objects.current_layer,
             coords=self.points.copy(),
             attributes={
                 'color': 'black',

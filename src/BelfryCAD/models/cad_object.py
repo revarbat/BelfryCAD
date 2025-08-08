@@ -4,165 +4,193 @@ CAD Object business logic model.
 This module contains pure business logic for CAD objects with no UI dependencies.
 """
 
-from dataclasses import dataclass
-from typing import List, Tuple, Optional, Dict, Any
-from enum import Enum
 import uuid
+
+from enum import Enum
+from typing import List, Tuple, Optional, Dict, TYPE_CHECKING
+
+from ..utils.constraints import (
+    ConstraintSolver, Constrainable, Constraint,
+    get_possible_constraints,
+)
+from ..cad_geometry import Point2D, Transform2D, ShapeType, Shape2D
+
+if TYPE_CHECKING:
+    from .document import Document
 
 
 class ObjectType(Enum):
-    """Types of CAD objects"""
+    """Object types for CAD objects"""
     LINE = "line"
-    CIRCLE = "circle"
     ARC = "arc"
-    RECTANGLE = "rectangle"
-    POLYGON = "polygon"
-    TEXT = "text"
-    BEZIER = "bezier"
+    CIRCLE = "circle"
     ELLIPSE = "ellipse"
-    POINT = "point"
+    BEZIER = "bezier"
+    GEAR = "gear"
+    POLYGON = "polygon"
+    GROUP = "group"
 
 
-@dataclass
-class Point:
-    """2D point with pure business logic"""
-    x: float
-    y: float
-    
-    def __add__(self, other: 'Point') -> 'Point':
-        return Point(self.x + other.x, self.y + other.y)
-    
-    def __sub__(self, other: 'Point') -> 'Point':
-        return Point(self.x - other.x, self.y - other.y)
-    
-    def __mul__(self, other: float) -> 'Point':
-        return Point(self.x * other, self.y * other)
-    
-    def __truediv__(self, other: float) -> 'Point':
-        return Point(self.x / other, self.y / other)
-    
-    def __neg__(self) -> 'Point':
-        return Point(-self.x, -self.y)
-    
-    def __abs__(self) -> float:
-        return (self.x * self.x + self.y * self.y) ** 0.5
-    
-    def __str__(self) -> str:
-        return f"Point({self.x}, {self.y})"
-    
-    def __repr__(self) -> str:
-        return f"Point({self.x}, {self.y})"
-    
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Point):
-            return False
-        return self.x == other.x and self.y == other.y
-
-    def __hash__(self) -> int:
-        return hash((self.x, self.y))
-    
-    
-    def distance_to(self, other: 'Point') -> float:
-        """Calculate distance to another point"""
-        dx = self.x - other.x
-        dy = self.y - other.y
-        return (dx * dx + dy * dy) ** 0.5
-
-
-class CADObject:
+class CadObject:
     """Pure business logic for CAD objects - no UI dependencies"""
-    
-    def __init__(self, object_type: ObjectType, points: Optional[List[Point]] = None, 
-                 properties: Optional[Dict[str, Any]] = None):
-        self.object_id = str(uuid.uuid4())
-        self.object_type = object_type
-        self.points = points or []
-        self.properties = properties or {}
-        self.layer_id = 0  # Default layer
+    _object_types = {}
+    _max_id = 1
+
+    def __init__(self, document: 'Document', color: str = "black", line_width: Optional[float] = None):
+        self.object_id = str(self._max_id)
+        self._max_id += 1
+        self.document = document
+        self.color = color
+        self.line_width = line_width
         self.visible = True
         self.locked = False
+        self.parent_id: Optional[str] = None  # Parent group ID, None if root
     
-    def add_point(self, point: Point):
-        """Add a point to the object"""
-        self.points.append(point)
+    def set_parent(self, parent_id: Optional[str]):
+        """Set the parent group ID."""
+        self.parent_id = parent_id
     
-    def get_point(self, index: int) -> Optional[Point]:
-        """Get point at index"""
-        if 0 <= index < len(self.points):
-            return self.points[index]
-        return None
-    
-    def set_point(self, index: int, point: Point):
-        """Set point at index"""
-        if 0 <= index < len(self.points):
-            self.points[index] = point
-    
-    def move_by(self, dx: float, dy: float):
-        """Move all points by delta"""
-        delta = Point(dx, dy)
-        for i in range(len(self.points)):
-            self.points[i] = self.points[i] + delta
-    
-    def get_control_points(self) -> List[Tuple[float, float, str]]:
-        """Get control point data for this object type"""
-        control_points = []
-        
-        if self.object_type == ObjectType.LINE:
-            if len(self.points) >= 2:
-                # Start and end points
-                control_points.append((self.points[0].x, self.points[0].y, "endpoint"))
-                control_points.append((self.points[1].x, self.points[1].y, "endpoint"))
-        
-        elif self.object_type == ObjectType.CIRCLE:
-            if len(self.points) >= 2:
-                # Center and radius point
-                control_points.append((self.points[0].x, self.points[0].y, "center"))
-                control_points.append((self.points[1].x, self.points[1].y, "radius"))
-        
-        elif self.object_type == ObjectType.RECTANGLE:
-            if len(self.points) >= 2:
-                # Corner points
-                control_points.append((self.points[0].x, self.points[0].y, "corner"))
-                control_points.append((self.points[1].x, self.points[1].y, "corner"))
-        
-        return control_points
-    
-    def move_control_point(self, cp_index: int, x: float, y: float):
-        """Move a specific control point"""
-        control_points = self.get_control_points()
-        if 0 <= cp_index < len(control_points):
-            # Update the corresponding point in the object
-            if self.object_type == ObjectType.LINE:
-                if cp_index < len(self.points):
-                    self.points[cp_index] = Point(x, y)
-            elif self.object_type == ObjectType.CIRCLE:
-                if cp_index < len(self.points):
-                    self.points[cp_index] = Point(x, y)
-            elif self.object_type == ObjectType.RECTANGLE:
-                if cp_index < len(self.points):
-                    self.points[cp_index] = Point(x, y)
-    
+    def make_constrainables(self, solver: ConstraintSolver):
+        """
+        Setup constraints geometry for this object.
+        Overridden in subclasses.
+        """
+        pass
+
+    def get_constrainables(self) -> List[Tuple[str, Constrainable]]:
+        """
+        Get list of constrainables for this object.
+        Overridden in subclasses.
+        """
+        return []
+
+    def update_constrainables_before_solving(self, solver: ConstraintSolver):
+        """
+        Update constrainables before solving.
+        Overridden in subclasses.
+        """
+        pass
+
+    def update_from_solved_constraints(self, solver: ConstraintSolver):
+        """
+        Update object from constraints. This is called after the constraints are solved.
+        Overridden in subclasses.
+        """
+        pass
+
+    def get_possible_constraints(self, other: Optional['CadObject']) -> Dict[str, Constraint]:
+        """
+        Get possible constraints for this object.
+        """
+        out = {}
+        if self.document is None:
+            return out
+        for label, constraint in get_possible_constraints(self, other).items():
+            if other is None:
+                long_label = f"{self.object_id}-{label}"
+            else:
+                long_label = f"{self.object_id}-{label}-{other.object_id}"
+            if self.document.get_constraint(long_label) is None:
+                out[label] = constraint
+        return out
+
     def get_bounds(self) -> Tuple[float, float, float, float]:
-        """Get bounding box (min_x, min_y, max_x, max_y)"""
-        if not self.points:
-            return (0, 0, 0, 0)
-        
-        min_x = min(p.x for p in self.points)
-        min_y = min(p.y for p in self.points)
-        max_x = max(p.x for p in self.points)
-        max_y = max(p.y for p in self.points)
-        
-        return (min_x, min_y, max_x, max_y)
+        """
+        Get bounding box (min_x, min_y, max_x, max_y).
+        Overridden in subclasses.
+        """
+        return (0, 0, 0, 0)
     
-    def contains_point(self, point: Point, tolerance: float = 5.0) -> bool:
-        """Check if object contains point within tolerance"""
-        for obj_point in self.points:
-            if obj_point.distance_to(point) <= tolerance:
-                return True
+    def translate(self, dx: float, dy: float):
+        """
+        Translate the object by dx and dy.
+        Overridden in subclasses.
+        """
+        pass
+    
+    def scale(self, scale: float, center: Point2D):
+        """
+        Scale the object by scale around center.
+        Overridden in subclasses.
+        """
+        pass
+    
+    def rotate(self, angle: float, center: Point2D):
+        """
+        Rotate the object by angle around center.
+        Overridden in subclasses.
+        """
+        pass
+
+    def transform(self, transform: Transform2D):
+        """
+        Transform the object by the given transform.
+        Overridden in subclasses.
+        """
+        pass
+
+    def contains_point(self, point: Point2D, tolerance: float = 5.0) -> bool:
+        """
+        Check if the object contains the given point.
+        Overridden in subclasses.
+        """
         return False
-    
-    def clone(self) -> 'CADObject':
-        """Create a copy of this object"""
-        new_points = [Point(p.x, p.y) for p in self.points]
-        new_properties = self.properties.copy()
-        return CADObject(self.object_type, new_points, new_properties) 
+
+    def decompose(self, into: List[ShapeType] = []) -> List[Shape2D]:
+        """
+        Decompose the object into a list of simpler objects.
+        The list of types to decompose into is provided.
+        Overridden in subclasses.
+        """
+        return []
+
+    def get_data(self) -> dict:
+        """
+        Get the data needed to re-create this object.
+        """
+        data = self.get_object_data()
+        data["object_id"] = self.object_id
+        data["color"] = self.color
+        data["line_width"] = self.line_width
+        data["visible"] = self.visible
+        data["locked"] = self.locked
+        return data
+
+    def get_object_data(self) -> dict:
+        """
+        Get the data needed to re-create this object.
+        Overridden in subclasses.
+        """
+        return {}
+
+    @classmethod
+    def register_object_type(
+            cls,
+            new_cls,
+            obj_type: str,
+            obj_tags: Dict[str, str]
+            ):
+        """
+        Register an object type.
+        """
+        cls._object_types[obj_type] = (new_cls, obj_tags)
+
+    @classmethod
+    def create_object_from_data(cls, document: 'Document', obj_type: str, data: dict) -> 'CadObject':
+        """
+        Create a new object from the given data.
+        Overridden in subclasses.
+        """
+        obj_class, obj_tags = cls._object_types[obj_type]
+        for tag in data:
+            if tag not in obj_tags:
+                del data[tag]
+        for tag, dflt in obj_tags.items():
+            if tag not in data:
+                data[tag] = dflt
+        data["color"] = data["color"].strip()
+        lw = data.get("line_width", "hairline").strip().lower()
+        data["line_width"] = None if lw in ["", "none", "hairline"] else float(lw)
+        data["object_id"] = data["object_id"].strip()
+        return obj_class.create_object_from_data(document, obj_type, data)
+

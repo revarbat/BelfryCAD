@@ -13,37 +13,11 @@ from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsTextItem,
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_objects.arc_cad_object import ArcCadObject
+from ..cad_geometry import Point2D
+
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
-
-
-class ArcObject(CADObject):
-    """Arc object - center, start angle, end angle, radius"""
-
-    def __init__(self, object_id: int, center: Point, radius: float,
-                 start_angle: float, end_angle: float, **kwargs):
-        super().__init__(object_id, ObjectType.ARC, coords=[center], **kwargs)
-        self.attributes.update({
-            'radius': radius,
-            'start_angle': start_angle,
-            'end_angle': end_angle
-        })
-
-    @property
-    def center(self) -> Point:
-        return self.coords[0]
-
-    @property
-    def radius(self) -> float:
-        return self.attributes['radius']
-
-    @property
-    def start_angle(self) -> float:
-        return self.attributes['start_angle']
-
-    @property
-    def end_angle(self) -> float:
-        return self.attributes['end_angle']
+from ..models.cad_object import CadObject, ObjectType
 
 
 class ArcCenterTool(Tool):
@@ -160,7 +134,7 @@ class ArcCenterTool(Tool):
 
             self.temp_objects.extend([line1_item, line2_item])
 
-    def _draw_arc_preview(self, center: Point, radius: float,
+    def _draw_arc_preview(self, center: Point2D, radius: float,
                           start_angle: float, end_angle: float):
         """Draw an arc preview with the given parameters."""
         # Ensure proper arc direction
@@ -192,7 +166,7 @@ class ArcCenterTool(Tool):
             self.scene.addItem(path_item)
             self.temp_objects.append(path_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an arc object from the collected points."""
         if len(self.points) != 3:
             return None
@@ -200,33 +174,17 @@ class ArcCenterTool(Tool):
         center = self.points[0]
         start = self.points[1]
         end = self.points[2]
-
-        # Calculate radius
-        radius = math.sqrt(
-            (start.x - center.x)**2 + (start.y - center.y)**2
-        )
-
-        # Calculate start and end angles
-        start_angle = math.atan2(start.y - center.y, start.x - center.x)
-        end_angle = math.atan2(end.y - center.y, end.x - center.x)
-
-        # Ensure proper arc direction
-        if end_angle < start_angle:
-            end_angle += 2 * math.pi
+        if start == end:
+            return None
+        if center == start or center == end:
+            return None
 
         # Create an arc object
-        obj = CADObject(
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.ARC,
-            layer=self.document.objects.current_layer,
-            coords=[center, start, end],
-            attributes={
-                'color': 'black',      # Default color
-                'linewidth': 1,        # Default line width
-                'radius': radius,      # Store the radius
-                'start_angle': start_angle,  # Start angle in radians
-                'end_angle': end_angle      # End angle in radians
-            }
+        obj = ArcCadObject(
+            document=self.document,
+            center_point=center,
+            start_point=start,
+            end_point=end,
         )
         return obj
 
@@ -365,8 +323,8 @@ class Arc3PointTool(Tool):
                 self.temp_objects.extend([center_item, line1_item, line2_item])
 
     def _calculate_arc_center_radius(
-            self, p1: Point, p2: Point, p3: Point
-    ) -> Tuple[Optional[Point], float]:
+            self, p1: Point2D, p2: Point2D, p3: Point2D
+    ) -> Tuple[Optional[Point2D], float]:
         "Calculate center point and radius of arc passing through 3 points."
         # Check if points are in a straight line (or nearly so)
         epsilon = 1e-10
@@ -404,10 +362,10 @@ class Arc3PointTool(Tool):
         # Calculate radius
         radius = math.sqrt((cx - p1.x)**2 + (cy - p1.y)**2)
 
-        return Point(cx, cy), radius
+        return Point2D(cx, cy), radius
 
-    def _is_point_on_arc(self, p1: Point, p2: Point, p3: Point,
-                         center: Point, start_angle: float,
+    def _is_point_on_arc(self, p1: Point2D, p2: Point2D, p3: Point2D,
+                         center: Point2D, start_angle: float,
                          end_angle: float) -> bool:
         """Check if p3 is on the arc defined by p1, p2, and center."""
         angle = math.atan2(p3.y - center.y, p3.x - center.x)
@@ -426,7 +384,7 @@ class Arc3PointTool(Tool):
         else:
             return angle >= start_angle or angle <= end_angle
 
-    def _draw_arc_preview(self, center: Point, radius: float,
+    def _draw_arc_preview(self, center: Point2D, radius: float,
                           start_angle: float, end_angle: float):
         """Draw an arc preview with the given parameters."""
         # Create points along the arc
@@ -462,7 +420,7 @@ class Arc3PointTool(Tool):
             self.scene.addItem(path_item)
             self.temp_objects.append(path_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an arc object from the collected points."""
         if len(self.points) != 3:
             return None
@@ -472,37 +430,17 @@ class Arc3PointTool(Tool):
         p3 = self.points[2]  # End
 
         # Calculate center and radius
-        center, radius = self._calculate_arc_center_radius(p1, p2, p3)
+        center, _ = self._calculate_arc_center_radius(p1, p2, p3)
 
         if center is None:
             return None
 
-        # Calculate start and end angles
-        start_angle = math.atan2(p1.y - center.y, p1.x - center.x)
-        end_angle = math.atan2(p3.y - center.y, p3.x - center.x)
-
-        # Determine arc direction using middle point
-        if not self._is_point_on_arc(p1, p3, p2, center,
-                                     start_angle, end_angle):
-            if end_angle < start_angle:
-                end_angle += 2 * math.pi
-            else:
-                end_angle -= 2 * math.pi
-
         # Create an arc object
-        obj = CADObject(
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.ARC,
-            layer=self.document.objects.current_layer,
-            coords=[center, p1, p3],  # Center, start, end
-            attributes={
-                'color': 'black',      # Default color
-                'linewidth': 1,        # Default line width
-                'radius': radius,      # Store the radius
-                'start_angle': start_angle,  # Start angle in radians
-                'end_angle': end_angle,      # End angle in radians
-                'middle_point': p2      # Store middle point for reference
-            }
+        obj = ArcCadObject(
+            document=self.document,
+            center_point=center,
+            start_point=p1,
+            end_point=p3,
         )
         return obj
 
@@ -621,9 +559,9 @@ class ArcTangentTool(Tool):
 
                 self.temp_objects.extend([center_item, line1_item, line2_item])
 
-    def _calculate_tangent_arc(self, start_point: Point, tangent_point: Point,
-                               end_point: Point) -> Optional[
-                                   Tuple[Point, float, float, float]
+    def _calculate_tangent_arc(self, start_point: Point2D, tangent_point: Point2D,
+                               end_point: Point2D) -> Optional[
+                                   Tuple[Point2D, float, float, float]
     ]:
         """Calculate arc params for arc tangent to line through tangent_pt."""
 
@@ -682,7 +620,7 @@ class ArcTangentTool(Tool):
 
         center_x = mid_x + center_dist * math.cos(perp_angle)
         center_y = mid_y + center_dist * math.sin(perp_angle)
-        center = Point(center_x, center_y)
+        center = Point2D(center_x, center_y)
 
         # Calculate start and end angles
         start_angle = math.atan2(
@@ -692,7 +630,7 @@ class ArcTangentTool(Tool):
 
         return center, radius, start_angle, end_angle
 
-    def _draw_arc_preview(self, center: Point, radius: float,
+    def _draw_arc_preview(self, center: Point2D, radius: float,
                           start_angle: float, end_angle: float):
         """Draw an arc preview with the given parameters."""
         # Ensure proper arc direction
@@ -727,7 +665,7 @@ class ArcTangentTool(Tool):
             self.scene.addItem(path_item)
             self.temp_objects.append(path_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an arc object from the collected points."""
         if len(self.points) != 3:
             return None
@@ -743,21 +681,13 @@ class ArcTangentTool(Tool):
         if arc_params is None:
             return None
 
-        center, radius, start_angle, end_angle = arc_params
+        center, _, _, _ = arc_params
 
         # Create an arc object
-        obj = CADObject(
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.ARC,
-            layer=self.document.objects.current_layer,
-            coords=[center, start_point, end_point],  # Center, start, end
-            attributes={
-                'color': 'black',      # Default color
-                'linewidth': 1,        # Default line width
-                'radius': radius,      # Store the radius
-                'start_angle': start_angle,  # Start angle in radians
-                'end_angle': end_angle,      # End angle in radians
-                'tangent_point': tangent_point  # Store tangent point
-            }
+        obj = ArcCadObject(
+            document=self.document,
+            center_point=center,
+            start_point=start_point,
+            end_point=end_point,
         )
         return obj

@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QGraphicsItem, QDialog
 from PySide6.QtCore import QRectF, QLineF, Qt, QPointF
 from PySide6.QtGui import QPen, QColor, QPainter, QBrush, QFont
 
-from ...grid_info import GridInfo, UnitSelectionDialog
+from ..grid_info import GridInfo, UnitSelectionDialog
 
 
 class GridBackground(QGraphicsItem):

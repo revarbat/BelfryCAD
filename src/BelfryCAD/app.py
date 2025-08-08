@@ -10,7 +10,7 @@ from .config import AppConfig
 from .gui.main_window import MainWindow
 from .models.preferences import PreferencesModel
 from .gui.viewmodels.preferences_viewmodel import PreferencesViewModel
-from .core.document import Document
+from .models.document import Document
 from .utils.logger import get_logger
 
 

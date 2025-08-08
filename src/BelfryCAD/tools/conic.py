@@ -13,7 +13,8 @@ from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsEllipseItem,
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
@@ -30,7 +31,7 @@ class Conic2PointTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="2",
-            node_info=["Starting Point", "Ending Point"]
+            node_info=["Starting Point2D", "Ending Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -102,7 +103,7 @@ class Conic2PointTool(Tool):
 
             # Draw conic preview
             self._draw_conic_preview(
-                Point(cx, cy), rad_x, rad_y, start_rad, end_rad
+                Point2D(cx, cy), rad_x, rad_y, start_rad, end_rad
             )
 
             # Draw control points and lines
@@ -146,7 +147,7 @@ class Conic2PointTool(Tool):
             ])
 
     def _draw_conic_preview(
-            self, center: Point, rad_x: float, rad_y: float,
+            self, center: Point2D, rad_x: float, rad_y: float,
             start_angle: float, end_angle: float):
         """Draw a conic section preview with the given parameters"""
         # Create points along the conic
@@ -187,7 +188,7 @@ class Conic2PointTool(Tool):
             self.scene.addItem(path_item)
             self.temp_objects.append(path_item)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a conic object from the collected points"""
         if len(self.points) != 2:
             return None
@@ -215,13 +216,13 @@ class Conic2PointTool(Tool):
                 cx, cy = start.x, end.y
                 start_angle, extent_angle = 90.0, -90.0
 
-        center = Point(cx, cy)
+        center = Point2D(cx, cy)
 
         # Create a conic object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.CONIC,
-            layer=self.document.objects.current_layer,
             coords=[start, end],
             attributes={
                 'color': 'black',           # Default color
@@ -249,7 +250,7 @@ class Conic3PointTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="I",
-            node_info=["Starting Point", "Ending Point", "Slope Control Point"]
+            node_info=["Starting Point2D", "Ending Point2D", "Slope Control Point2D"]
         )]
 
     def _setup_bindings(self):
@@ -417,7 +418,7 @@ class Conic3PointTool(Tool):
 
         return points
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a conic object from the collected points"""
         if len(self.points) != 3:
             return None
@@ -446,10 +447,10 @@ class Conic3PointTool(Tool):
         ]
 
         # Create a conic object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.CONIC,
-            layer=self.document.objects.current_layer,
             coords=[start, end, control],
             attributes={
                 'color': 'black',           # Default color

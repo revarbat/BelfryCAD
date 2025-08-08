@@ -10,8 +10,8 @@ from PySide6.QtCore import QObject, Signal, QPointF
 from PySide6.QtWidgets import QGraphicsSceneMouseEvent
 
 from ...models.document import Document
-from ...models.cad_object import CADObject, Point, ObjectType
-from ...models.layer import Layer
+from ...models.cad_object import CadObject, ObjectType
+from ...cad_geometry import Point2D
 
 
 class DocumentViewModel(QObject):
@@ -23,18 +23,12 @@ class DocumentViewModel(QObject):
     document_saved = Signal()
     
     # Object signals
-    object_added = Signal(str, CADObject)  # object_id, object
+    object_added = Signal(str, CadObject)  # object_id, object
     object_removed = Signal(str)  # object_id
     object_moved = Signal(str, float, float)  # object_id, dx, dy
     object_selected = Signal(str)  # object_id
     object_deselected = Signal(str)  # object_id
     selection_changed = Signal(list)  # selected_object_ids
-    
-    # Layer signals
-    layer_added = Signal(str, Layer)  # layer_id, layer
-    layer_removed = Signal(str)  # layer_id
-    layer_changed = Signal(str)  # layer_id
-    active_layer_changed = Signal(str)  # layer_id
     
     # Tool signals
     tool_changed = Signal(str)  # tool_token
@@ -45,13 +39,8 @@ class DocumentViewModel(QObject):
         super().__init__()
         self._document = document
         self._selected_object_ids: List[str] = []
-        self._active_layer_id: Optional[str] = None
         self._active_tool_token: Optional[str] = None
         
-        # Set active layer to first layer
-        if document.layer_manager.get_all_layers():
-            self._active_layer_id = document.layer_manager.get_all_layers()[0].layer_id
-    
     @property
     def document(self) -> Document:
         """Get the underlying document model"""
@@ -63,16 +52,11 @@ class DocumentViewModel(QObject):
         return self._selected_object_ids.copy()
     
     @property
-    def active_layer_id(self) -> Optional[str]:
-        """Get active layer ID"""
-        return self._active_layer_id
-    
-    @property
     def active_tool_token(self) -> Optional[str]:
         """Get active tool token"""
         return self._active_tool_token
     
-    def add_object(self, cad_object: CADObject) -> str:
+    def add_object(self, cad_object: CadObject) -> str:
         """Add object to document and emit signal"""
         object_id = self._document.add_object(cad_object)
         self.object_added.emit(object_id, cad_object)
@@ -89,15 +73,15 @@ class DocumentViewModel(QObject):
             return True
         return False
     
-    def get_object(self, object_id: str) -> Optional[CADObject]:
+    def get_object(self, object_id: str) -> Optional[CadObject]:
         """Get object by ID"""
         return self._document.get_object(object_id)
     
-    def get_all_objects(self) -> List[CADObject]:
+    def get_all_objects(self) -> List[CadObject]:
         """Get all objects"""
         return self._document.get_all_objects()
     
-    def get_visible_objects(self) -> List[CADObject]:
+    def get_visible_objects(self) -> List[CadObject]:
         """Get visible objects"""
         return self._document.get_visible_objects()
     
@@ -132,7 +116,7 @@ class DocumentViewModel(QObject):
     
     def select_objects_at_point(self, point: QPointF, tolerance: float = 5.0):
         """Select objects at a specific point"""
-        model_point = Point(point.x(), point.y())
+        model_point = Point2D(point.x(), point.y())
         selected_ids = self._document.select_objects_at_point(model_point, tolerance)
         
         # Update selection
@@ -156,33 +140,6 @@ class DocumentViewModel(QObject):
                 self.remove_object(object_id)
             self._selected_object_ids.clear()
             self.selection_changed.emit(self._selected_object_ids)
-    
-    def set_active_layer(self, layer_id: str):
-        """Set active layer"""
-        if self._active_layer_id != layer_id:
-            self._active_layer_id = layer_id
-            self.active_layer_changed.emit(layer_id)
-    
-    def get_active_layer(self) -> Optional[Layer]:
-        """Get active layer"""
-        if self._active_layer_id:
-            return self._document.layer_manager.get_layer(self._active_layer_id)
-        return None
-    
-    def add_layer(self, name: str) -> str:
-        """Add a new layer"""
-        layer_id = self._document.layer_manager.add_layer(name)
-        layer = self._document.layer_manager.get_layer(layer_id)
-        if layer:
-            self.layer_added.emit(layer_id, layer)
-        return layer_id
-    
-    def remove_layer(self, layer_id: str) -> bool:
-        """Remove a layer"""
-        if self._document.layer_manager.remove_layer(layer_id):
-            self.layer_removed.emit(layer_id)
-            return True
-        return False
     
     def set_active_tool(self, tool_token: str):
         """Set active tool"""

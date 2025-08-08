@@ -8,7 +8,7 @@ from typing import Optional, List
 from PySide6.QtCore import QRectF, QPointF
 from PySide6.QtGui import QPen, QColor
 
-from ..core.cad_objects import CADObject
+from ..models.cad_object import CadObject
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
@@ -149,7 +149,7 @@ class SelectorTool(Tool):
                 self.start_x = current_x
                 self.start_y = current_y
 
-    def hit_test(self, x, y) -> Optional[CADObject]:
+    def hit_test(self, x, y) -> Optional[CadObject]:
         """Test if a point hits any object"""
         for obj in self.document.objects.get_all_objects():
             if self._point_in_object(x, y, obj):

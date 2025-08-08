@@ -6,15 +6,16 @@ tools.tcl. It provides a foundation for all drawing and editing tools
 in the pyBelfryCad application.
 """
 
-from PySide6.QtWidgets import QGraphicsScene
-from PySide6.QtCore import Qt, QObject, Signal, QPointF
-from PySide6.QtGui import QCursor
 from typing import Dict, List, Optional, Callable
+
 from enum import Enum
 from dataclasses import dataclass, field
 
-from ..core.cad_objects import CADObject, Point
-from ..gui.widgets.cad_scene import CadScene
+from PySide6.QtCore import Qt, QObject, Signal, QPointF
+from PySide6.QtGui import QCursor
+
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 
 
 class ToolState(Enum):
@@ -46,21 +47,6 @@ class ToolCategory(Enum):
     MISC = "Miscellaneous"
 
 
-class SnapType(Enum):
-    """Types of snaps available for tools"""
-    GRID = "grid"
-    ENDPOINT = "endpoint"
-    CENTER = "center"
-    MIDPOINT = "midpoint"
-    INTERSECTION = "intersection"
-    TANGENT = "tangent"
-    PERPENDICULAR = "perpendicular"
-    PARALLEL = "parallel"
-    EXTENSION = "extension"
-    NEAREST = "nearest"
-    NONE = "none"
-    ALL = "all"
-
 
 @dataclass
 class ToolDefinition:
@@ -70,7 +56,6 @@ class ToolDefinition:
     category: ToolCategory         # Tool category
     icon: str = ""                 # Icon for the tool in the toolbox
     cursor: str = "crosshair"      # Cursor shape when tool is active
-    snaps: List[SnapType] = field(default_factory=lambda: [SnapType.ALL])
     is_creator: bool = True        # Whether the tool creates objects
     show_controls: bool = False    # Whether to show control points
     keyboard_shortcut: str = ""    # Optional keyboard shortcut
@@ -82,7 +67,7 @@ class Tool(QObject):
     """Base class for all drawing and editing tools"""
 
     # Signal emitted when an object is created
-    object_created = Signal(CADObject)
+    object_created = Signal(CadObject)
 
     # Class-level tool definitions - subclasses should override this
     tool_definitions: List[ToolDefinition] = []
@@ -94,7 +79,7 @@ class Tool(QObject):
         self.document = document
         self.preferences = preferences
         self.state = ToolState.INIT
-        self.points: List[Point] = []
+        self.points: List[Point2D] = []
         self.temp_objects: List = []  # List to track temporary preview objects
 
         # Set up tool definitions from class attribute
@@ -204,12 +189,12 @@ class Tool(QObject):
         # Override in subclasses
         pass
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a CAD object from the collected points"""
         # Override in subclasses
         return None
 
-    def get_snap_point(self, x: float, y: float) -> Point:
+    def get_snap_point(self, x: float, y: float) -> Point2D:
         """Get the snapped point based on snap settings"""
         # Get the snaps system from the main window
         if hasattr(self.main_window, 'snaps_system'):
@@ -217,10 +202,10 @@ class Tool(QObject):
             recent_points = [QPointF(p.x, p.y) for p in self.points]
             snapped_point = self.main_window.snaps_system.get_snap_point(mouse_pos, recent_points)
             if snapped_point:
-                return Point(snapped_point.x(), snapped_point.y())
+                return Point2D(snapped_point.x(), snapped_point.y())
         
         # Fallback to original position if no snap system or no snap found
-        return Point(x, y)
+        return Point2D(x, y)
 
     def draw_preview(self, current_x: float, current_y: float):
         """Draw a preview of the object being created"""

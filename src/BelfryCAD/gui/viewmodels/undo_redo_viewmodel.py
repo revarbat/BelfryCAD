@@ -9,7 +9,8 @@ from typing import List, Dict, Any, Optional, Callable
 from PySide6.QtCore import QObject, Signal
 
 from ...models.document import Document
-from ...models.cad_object import CADObject, Point
+from ...models.cad_object import CadObject
+from ...cad_geometry import Point2D
 
 
 class UndoRedoViewModel(QObject):
@@ -158,23 +159,8 @@ class UndoRedoViewModel(QObject):
                 'object_type': cad_object.object_type,
                 'points': [(p.x, p.y) for p in cad_object.points],
                 'properties': cad_object.properties.copy(),
-                'layer_id': cad_object.layer_id,
                 'visible': cad_object.visible,
                 'locked': cad_object.locked
-            }
-        
-        # Snapshot layer manager
-        layers_snapshot = {}
-        for layer_id, layer in document.layer_manager.layers.items():
-            layers_snapshot[layer_id] = {
-                'name': layer.properties.name,
-                'visible': layer.properties.visible,
-                'locked': layer.properties.locked,
-                'color': layer.properties.color,
-                'line_width': layer.properties.line_width,
-                'line_style': layer.properties.line_style,
-                'layer_type': layer.properties.layer_type,
-                'objects': layer.objects.copy()
             }
         
         # Snapshot selection
@@ -182,7 +168,6 @@ class UndoRedoViewModel(QObject):
         
         return {
             'objects': objects_snapshot,
-            'layers': layers_snapshot,
             'selection': selection_snapshot,
             'document_modified': document.modified,
             'filename': document.filename
@@ -194,38 +179,19 @@ class UndoRedoViewModel(QObject):
         
         # Clear current document
         document.objects.clear()
-        document.layer_manager.layers.clear()
-        
-        # Restore layers
-        for layer_id, layer_data in snapshot['layers'].items():
-            layer = document.layer_manager.get_layer(layer_id)
-            if not layer:
-                # Create layer if it doesn't exist
-                layer = document.layer_manager.add_layer(layer_data['name'])
-                layer = document.layer_manager.get_layer(layer_id)
-            
-            # Restore layer properties
-            layer.properties.visible = layer_data['visible']
-            layer.properties.locked = layer_data['locked']
-            layer.properties.color = layer_data['color']
-            layer.properties.line_width = layer_data['line_width']
-            layer.properties.line_style = layer_data['line_style']
-            layer.properties.layer_type = layer_data['layer_type']
-            layer.objects = layer_data['objects']
         
         # Restore objects
         for object_id, object_data in snapshot['objects'].items():
             # Create points
-            points = [Point(x, y) for x, y in object_data['points']]
+            points = [Point2D(x, y) for x, y in object_data['points']]
             
             # Create CAD object
-            cad_object = CADObject(
+            cad_object = CadObject(
                 object_data['object_type'],
                 points,
                 object_data['properties']
             )
             cad_object.object_id = object_id  # Preserve original ID
-            cad_object.layer_id = object_data['layer_id']
             cad_object.visible = object_data['visible']
             cad_object.locked = object_data['locked']
             
@@ -250,7 +216,7 @@ class UndoRedoViewModel(QObject):
             # Auto-save state for undo
             self.save_state("Document Modified")
     
-    def _on_object_added(self, object_id: str, cad_object: CADObject):
+    def _on_object_added(self, object_id: str, cad_object: CadObject):
         """Handle object addition"""
         if not self._is_undoing and not self._is_redoing:
             self.save_state(f"Added {cad_object.object_type.value}")

@@ -2,9 +2,9 @@
 ControlPoint - A class representing a control point for CAD items.
 """
 import math
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 from PySide6.QtCore import (
-    QPointF, QRectF, Qt
+    Qt, QPointF, QRectF, QTimer, QPropertyAnimation, QEasingCurve
 )
 from PySide6.QtGui import (
     QPen, QBrush, QColor, QFont, QFontMetrics, QPainterPath, QTransform
@@ -12,7 +12,9 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QGraphicsItem, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
 )
-from BelfryCAD.gui.widgets.cad_expression_edit import CadExpressionEdit
+
+if TYPE_CHECKING:
+    from BelfryCAD.gui.widgets.cad_expression_edit import CadExpressionEdit
 
 
 class ControlPoint(QGraphicsItem):
@@ -20,13 +22,15 @@ class ControlPoint(QGraphicsItem):
 
     def __init__(
             self,
-            cad_item=None,
-            setter=None
+            model_view=None,
+            setter=None,
+            tool_tip=None
     ):
         super().__init__()  # Use parent-child relationship
+        self.model_view = model_view
         self.setter = setter
-        self.cad_item = cad_item
         self.control_size = 9
+        self.tool_tip = tool_tip
         
         # Use Qt's built-in flags (movable disabled since parent handles movement)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
@@ -34,6 +38,9 @@ class ControlPoint(QGraphicsItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
         self.setAcceptHoverEvents(True)
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+
+        if self.tool_tip:
+            self.setToolTip(self.tool_tip)
         
         # Set high Z value to appear above other items
         self.setZValue(10000)
@@ -50,19 +57,11 @@ class ControlPoint(QGraphicsItem):
         Call the setter with new scene coordinates and handle all necessary
         updates.
         """
-        if self.setter and self.cad_item:
+        if self.setter and self.model_view:
             try:
-                # prepare CadItem for geometry change.
-                self.cad_item.prepareGeometryChange()
-
                 # Call the setter with the new position in scene coordinates
                 self.setter(value)
-                
-                # Update control point positions if the CAD item has that method
-                if hasattr(self.cad_item, 'updateControls'):
-                    self.cad_item.updateControls()
-                    
-                self.cad_item.update()
+                self.model_view.update_view()
                 
             except (RuntimeError, AttributeError, TypeError) as e:
                 print(f"Error in control point setter: {e}")
@@ -115,7 +114,6 @@ class ControlPoint(QGraphicsItem):
 
     def itemChange(self, change, value):
         """Handle item state changes using Qt's built-in system."""
-        # Position changes are now handled by the parent CadItem's mouse event system
         return super().itemChange(change, value)
 
     def mousePressEvent(self, event):
@@ -224,6 +222,7 @@ class ControlDatum(ControlPoint):
 
     def __init__(
         self,
+        model_view=None,
         setter=None,
         format_string=None,
         prefix="",
@@ -238,7 +237,7 @@ class ControlDatum(ControlPoint):
         max_value=None
     ):
         super().__init__(
-            cad_item=cad_item,
+            model_view=model_view,
             setter=setter)
         self.setZValue(10002)
         # Store precision for dynamic updates
@@ -443,30 +442,16 @@ class ControlDatum(ControlPoint):
         painter.restore()
 
     def start_editing(self):
-        """Start editing the datum value."""
-        # Defensive check for attributes
-        if not hasattr(self, '_is_editing'):
+        """Start editing the control datum value."""
+        if hasattr(self, '_is_editing') and self._is_editing:
             return
         
-        if self._is_editing:
-            return
-
         self._is_editing = True
-        self.update()
-
-        # Use the current stored value
-        current_value = self._current_value
-        if self._is_length:
-            main_window = self.cad_item.main_window # type: ignore
-            grid_info = main_window.grid_info
-            current_value = grid_info.format_label(current_value, no_subs=True)
-            current_value = current_value.replace("\n", "+")
-        else:
-            main_window = self.cad_item.main_window # type: ignore
-            precision = main_window.cad_scene.get_precision()
-            current_value = f"{current_value:.{precision}g}"
-
-        # Create editing dialog
+        
+        # Get current value
+        current_value = self._format_text(self._current_value)
+        
+        # Create dialog
         dialog = QDialog()
         dialog.setWindowTitle(f"Edit {self._label}")
         dialog.setModal(True)
@@ -479,7 +464,9 @@ class ControlDatum(ControlPoint):
         layout.addWidget(label)
 
         # Add CadExpressionEdit for expression editing
-        # Try to get variable names from the parent CadItem if possible
+        # Import at runtime to avoid circular imports
+        from BelfryCAD.gui.widgets.cad_expression_edit import CadExpressionEdit
+        
         main_window = self.scene().parent()
         expr_edit = CadExpressionEdit(main_window.cad_expression) # type: ignore
         expr_edit.setMinimumWidth(200)

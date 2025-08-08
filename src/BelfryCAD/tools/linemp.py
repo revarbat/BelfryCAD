@@ -11,18 +11,19 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QPen, QColor
 from PySide6.QtWidgets import QGraphicsLineItem
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
-class LineMPObject(CADObject):
+class LineMPObject(CadObject):
     """Line Midpoint object - stores midpoint and endpoint, renders as full line"""
 
-    def __init__(self, object_id: int, midpoint: Point, endpoint: Point, **kwargs):
+    def __init__(self, object_id: int, midpoint: Point2D, endpoint: Point2D, **kwargs):
         # Calculate the extended endpoint: extended_point = midpoint + 2*(endpoint - midpoint)
         extended_x = (endpoint.x - midpoint.x) * 2.0 + midpoint.x
         extended_y = (endpoint.y - midpoint.y) * 2.0 + midpoint.y
-        extended_point = Point(extended_x, extended_y)
+        extended_point = Point2D(extended_x, extended_y)
 
         # Store the full line (midpoint to extended endpoint)
         super().__init__(
@@ -33,12 +34,12 @@ class LineMPObject(CADObject):
         self.endpoint = endpoint
 
     @property
-    def start(self) -> Point:
+    def start(self) -> Point2D:
         """Start point of the full line"""
         return self.coords[0]
 
     @property
-    def end(self) -> Point:
+    def end(self) -> Point2D:
         """End point of the full line"""
         return self.coords[1]
 
@@ -71,7 +72,7 @@ class LineMPObject(CADObject):
                 angle_rad = math.radians(current_angle)
                 new_endpoint_x = self.midpoint.x + radius * math.cos(angle_rad)
                 new_endpoint_y = self.midpoint.y + radius * math.sin(angle_rad)
-                self.endpoint = Point(new_endpoint_x, new_endpoint_y)
+                self.endpoint = Point2D(new_endpoint_x, new_endpoint_y)
                 self._update_coords()
         elif field_name == "ANGLE":
             # Calculate new endpoint based on angle
@@ -82,7 +83,7 @@ class LineMPObject(CADObject):
                 angle_rad = math.radians(value)
                 new_endpoint_x = self.midpoint.x + radius * math.cos(angle_rad)
                 new_endpoint_y = self.midpoint.y + radius * math.sin(angle_rad)
-                self.endpoint = Point(new_endpoint_x, new_endpoint_y)
+                self.endpoint = Point2D(new_endpoint_x, new_endpoint_y)
                 self._update_coords()
 
     def _update_coords(self):
@@ -91,10 +92,10 @@ class LineMPObject(CADObject):
             2.0 + self.midpoint.x
         extended_y = (self.endpoint.y - self.midpoint.y) * \
             2.0 + self.midpoint.y
-        extended_point = Point(extended_x, extended_y)
+        extended_point = Point2D(extended_x, extended_y)
         self.coords = [self.midpoint, extended_point]
 
-    def get_points_of_interest(self) -> List[Point]:
+    def get_points_of_interest(self) -> List[Point2D]:
         """Get control points and midpoint (matching TCL implementation)"""
         return [self.midpoint, self.endpoint, self.midpoint]  # Midpoint listed twice as in TCL
 
@@ -222,7 +223,7 @@ class LineMPTool(Tool):
             )
             self.temp_objects.append(endpoint_marker)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a line midpoint object from the collected points"""
         if len(self.points) != 2:
             return None
@@ -246,7 +247,6 @@ class LineMPTool(Tool):
             object_id=self.document.objects.get_next_id(),
             midpoint=midpoint,
             endpoint=endpoint,
-            layer=self.document.objects.current_layer,
             attributes={
                 'color': 'black',  # Default color
                 'linewidth': 1     # Default line width

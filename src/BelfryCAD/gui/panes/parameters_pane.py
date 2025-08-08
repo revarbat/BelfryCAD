@@ -49,7 +49,6 @@ class ParametersPane(QWidget):
         self.table.model().rowsMoved.connect(self._on_rows_moved)
         layout.addWidget(self.table)
 
-        # Create toolbar at the bottom (same style as Layers pane)
         self.toolbar = QToolBar()
         self.toolbar.setIconSize(QSize(16, 16))
         self.toolbar.setMovable(False)

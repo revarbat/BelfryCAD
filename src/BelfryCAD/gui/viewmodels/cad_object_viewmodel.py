@@ -9,7 +9,8 @@ from typing import List, Tuple, Optional
 from PySide6.QtCore import QObject, Signal, QPointF
 from PySide6.QtWidgets import QGraphicsSceneMouseEvent
 
-from ...models.cad_object import CADObject, Point
+from ...models.cad_object import CadObject
+from ...cad_geometry import Point2D
 
 
 class CADObjectViewModel(QObject):
@@ -21,7 +22,7 @@ class CADObjectViewModel(QObject):
     object_modified = Signal(str)  # object_id
     control_points_changed = Signal(str, list)  # object_id, control_points
     
-    def __init__(self, cad_object: CADObject):
+    def __init__(self, cad_object: CadObject):
         super().__init__()
         self._cad_object = cad_object
         self._is_selected = False
@@ -32,11 +33,6 @@ class CADObjectViewModel(QObject):
     def object_id(self) -> str:
         """Get object ID"""
         return self._cad_object.object_id
-    
-    @property
-    def object_type(self):
-        """Get object type"""
-        return self._cad_object.object_type
     
     @property
     def is_selected(self) -> bool:
@@ -60,10 +56,10 @@ class CADObjectViewModel(QObject):
         """Get lock state"""
         return self._cad_object.locked
     
-    def move_by(self, dx: float, dy: float):
+    def translate(self, dx: float, dy: float):
         """Move object by delta and emit signal"""
         if dx != 0 or dy != 0:
-            self._cad_object.move_by(dx, dy)
+            self._cad_object.translate(dx, dy)
             new_pos = self._get_position()
             self.object_moved.emit(self.object_id, new_pos)
             self._update_control_points()
@@ -78,7 +74,7 @@ class CADObjectViewModel(QObject):
         current_pos = self._get_position()
         dx = pos.x() - current_pos.x()
         dy = pos.y() - current_pos.y()
-        self.move_by(dx, dy)
+        self.translate(dx, dy)
     
     def get_control_points(self) -> List[Tuple[float, float, str]]:
         """Get control points for this object"""
@@ -96,7 +92,7 @@ class CADObjectViewModel(QObject):
     
     def contains_point(self, point: QPointF, tolerance: float = 5.0) -> bool:
         """Check if object contains point"""
-        model_point = Point(point.x(), point.y())
+        model_point = Point2D(point.x(), point.y())
         return self._cad_object.contains_point(model_point, tolerance)
     
     def get_points(self) -> List[QPointF]:
@@ -105,7 +101,7 @@ class CADObjectViewModel(QObject):
     
     def set_points(self, points: List[QPointF]):
         """Set object points"""
-        model_points = [Point(p.x(), p.y()) for p in points]
+        model_points = [Point2D(p.x(), p.y()) for p in points]
         if model_points != self._cad_object.points:
             self._cad_object.points = model_points
             self._update_control_points()

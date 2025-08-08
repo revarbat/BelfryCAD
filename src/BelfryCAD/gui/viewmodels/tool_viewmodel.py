@@ -10,7 +10,8 @@ from enum import Enum
 from PySide6.QtCore import QObject, Signal, QPointF
 from PySide6.QtWidgets import QGraphicsSceneMouseEvent
 
-from ...models.cad_object import CADObject, Point, ObjectType
+from ...models.cad_object import CadObject, ObjectType
+from ...cad_geometry import Point2D
 from ...models.document import Document
 
 
@@ -35,7 +36,7 @@ class ToolViewModel(QObject):
     # Drawing signals
     drawing_started = Signal(str, QPointF)  # tool_token, start_point
     drawing_point_added = Signal(str, QPointF)  # tool_token, point
-    drawing_finished = Signal(str, CADObject)  # tool_token, created_object
+    drawing_finished = Signal(str, CadObject)  # tool_token, created_object
     drawing_cancelled = Signal(str)  # tool_token
     
     # Selection signals
@@ -209,7 +210,7 @@ class ToolViewModel(QObject):
             self._tool_states[self._active_tool_token] = ToolState.ACTIVE
             self.tool_state_changed.emit(self._active_tool_token, ToolState.ACTIVE.value)
     
-    def _create_object_from_drawing(self) -> Optional[CADObject]:
+    def _create_object_from_drawing(self) -> Optional[CadObject]:
         """Create CAD object from drawing points"""
         if not self._drawing_points or len(self._drawing_points) < 2:
             return None
@@ -217,15 +218,15 @@ class ToolViewModel(QObject):
         start_point = self._drawing_points[0]
         end_point = self._drawing_points[-1]
         
-        model_start = Point(start_point.x(), start_point.y())
-        model_end = Point(end_point.x(), end_point.y())
+        model_start = Point2D(start_point.x(), start_point.y())
+        model_end = Point2D(end_point.x(), end_point.y())
         
         if self._active_tool_token == "line":
-            return CADObject(ObjectType.LINE, [model_start, model_end])
+            return CadObject(ObjectType.LINE, [model_start, model_end])
         elif self._active_tool_token == "circle":
-            return CADObject(ObjectType.CIRCLE, [model_start, model_end])
+            return CadObject(ObjectType.CIRCLE, [model_start, model_end])
         elif self._active_tool_token == "rectangle":
-            return CADObject(ObjectType.RECTANGLE, [model_start, model_end])
+            return CadObject(ObjectType.RECTANGLE, [model_start, model_end])
         
         return None
     

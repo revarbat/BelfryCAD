@@ -12,15 +12,16 @@ from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsTextItem)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QColor, QTransform
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
-class DimensionObject(CADObject):
+class DimensionObject(CadObject):
     """Dimension object - measurement between two points"""
 
-    def __init__(self, object_id: int, start: Point, end: Point,
-                 text_position: Point, **kwargs):
+    def __init__(self, object_id: int, start: Point2D, end: Point2D,
+                 text_position: Point2D, **kwargs):
         super().__init__(object_id, ObjectType.DIMENSION,
                          coords=[start, end, text_position], **kwargs)
         self.attributes.update({
@@ -29,15 +30,15 @@ class DimensionObject(CADObject):
         })
 
     @property
-    def start(self) -> Point:
+    def start(self) -> Point2D:
         return self.coords[0]
 
     @property
-    def end(self) -> Point:
+    def end(self) -> Point2D:
         return self.coords[1]
 
     @property
-    def text_position(self) -> Point:
+    def text_position(self) -> Point2D:
         return self.coords[2]
 
     def measured_distance(self) -> float:
@@ -57,7 +58,7 @@ class HorizontalDimensionTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="H",
-            node_info=["Start Point", "End Point", "Line Offset"]
+            node_info=["Start Point2D", "End Point2D", "Line Offset"]
         )]
 
     def _setup_bindings(self):
@@ -84,12 +85,12 @@ class HorizontalDimensionTool(Tool):
             # Second point - end of dimension line
             # For horizontal dimension, we need to adjust the Y to match
             # the first point
-            adjusted_point = Point(point.x, self.points[0].y)
+            adjusted_point = Point2D(point.x, self.points[0].y)
             self.points.append(adjusted_point)
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
             # Third point - offset distance for dimension line
             # For horizontal dimension, we only care about the Y coordinate
-            adjusted_point = Point(point.x, point.y)
+            adjusted_point = Point2D(point.x, point.y)
             self.points.append(adjusted_point)
             self.complete()
 
@@ -112,7 +113,7 @@ class HorizontalDimensionTool(Tool):
             start = self.points[0]
 
             # For horizontal dimension, adjust the Y to match
-            end = Point(point.x, start.y)
+            end = Point2D(point.x, start.y)
 
             # Draw temporary line
             line_item = QGraphicsLineItem(start.x, start.y, end.x, end.y)
@@ -205,7 +206,7 @@ class HorizontalDimensionTool(Tool):
                 text_item
             ])
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a dimension object from the collected points"""
         if len(self.points) != 3:
             return None
@@ -218,10 +219,10 @@ class HorizontalDimensionTool(Tool):
         length = abs(end.x - start.x)
 
         # Create a dimension object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.DIMENSION,
-            layer=self.document.objects.current_layer,
             coords=[start, end, offset],
             attributes={
                 'color': 'black',      # Default color
@@ -247,7 +248,7 @@ class VerticalDimensionTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="V",
-            node_info=["Start Point", "End Point", "Line Offset"]
+            node_info=["Start Point2D", "End Point2D", "Line Offset"]
         )]
 
     def _setup_bindings(self):
@@ -274,12 +275,12 @@ class VerticalDimensionTool(Tool):
             # Second point - end of dimension line
             # For vertical dimension, we need to adjust the X to match
             # the first point
-            adjusted_point = Point(self.points[0].x, point.y)
+            adjusted_point = Point2D(self.points[0].x, point.y)
             self.points.append(adjusted_point)
         elif self.state == ToolState.DRAWING and len(self.points) == 2:
             # Third point - offset distance for dimension line
             # For vertical dimension, we only care about the X coordinate
-            adjusted_point = Point(point.x, point.y)
+            adjusted_point = Point2D(point.x, point.y)
             self.points.append(adjusted_point)
             self.complete()
 
@@ -302,7 +303,7 @@ class VerticalDimensionTool(Tool):
             start = self.points[0]
 
             # For vertical dimension, adjust the X to match
-            end = Point(start.x, point.y)
+            end = Point2D(start.x, point.y)
 
             # Draw temporary line
             line_item = QGraphicsLineItem(start.x, start.y, end.x, end.y)
@@ -403,7 +404,7 @@ class VerticalDimensionTool(Tool):
                 text_item
             ])
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a dimension object from the collected points"""
         if len(self.points) != 3:
             return None
@@ -416,10 +417,10 @@ class VerticalDimensionTool(Tool):
         length = abs(end.y - start.y)
 
         # Create a dimension object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.DIMENSION,
-            layer=self.document.objects.current_layer,
             coords=[start, end, offset],
             attributes={
                 'color': 'black',      # Default color
@@ -445,7 +446,7 @@ class LinearDimensionTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="L",
-            node_info=["Start Point", "End Point", "Line Offset"]
+            node_info=["Start Point2D", "End Point2D", "Line Offset"]
         )]
 
     def _setup_bindings(self):
@@ -666,7 +667,7 @@ class LinearDimensionTool(Tool):
                 text_item
             ])
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a dimension object from the collected points"""
         if len(self.points) != 3:
             return None
@@ -682,10 +683,10 @@ class LinearDimensionTool(Tool):
         angle = math.degrees(math.atan2(end.y - start.y, end.x - start.x))
 
         # Create a dimension object
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.DIMENSION,
-            layer=self.document.objects.current_layer,
             coords=[start, end, offset],
             attributes={
                 'color': 'black',      # Default color
@@ -699,11 +700,11 @@ class LinearDimensionTool(Tool):
         return obj
 
 
-class ArcDimensionObject(CADObject):
+class ArcDimensionObject(CadObject):
     """Arc dimension object - angle measurement between two points"""
 
-    def __init__(self, object_id: int, center: Point, start_angle: Point,
-                 end_angle: Point, arc_offset: Point, **kwargs):
+    def __init__(self, object_id: int, center: Point2D, start_angle: Point2D,
+                 end_angle: Point2D, arc_offset: Point2D, **kwargs):
         super().__init__(object_id, ObjectType.DIMENSION,
                          coords=[center, start_angle, end_angle, arc_offset],
                          **kwargs)
@@ -714,19 +715,19 @@ class ArcDimensionObject(CADObject):
         })
 
     @property
-    def center(self) -> Point:
+    def center(self) -> Point2D:
         return self.coords[0]
 
     @property
-    def start_angle_point(self) -> Point:
+    def start_angle_point(self) -> Point2D:
         return self.coords[1]
 
     @property
-    def end_angle_point(self) -> Point:
+    def end_angle_point(self) -> Point2D:
         return self.coords[2]
 
     @property
-    def arc_offset_point(self) -> Point:
+    def arc_offset_point(self) -> Point2D:
         return self.coords[3]
 
     def measured_angle(self) -> float:
@@ -766,7 +767,7 @@ class ArcDimensionTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="A",
-            node_info=["Center Point", "Start Point", "End Point",
+            node_info=["Center Point2D", "Start Point2D", "End Point2D",
                        "Arc Offset"]
         )]
 
@@ -851,8 +852,8 @@ class ArcDimensionTool(Tool):
             self._draw_arc_dimension_preview(center, start_point,
                                              end_point, point)
 
-    def _draw_arc_dimension_preview(self, center: Point, start_point: Point,
-                                    end_point: Point, offset_point: Point):
+    def _draw_arc_dimension_preview(self, center: Point2D, start_point: Point2D,
+                                    end_point: Point2D, offset_point: Point2D):
         """Draw a complete arc dimension preview"""
         # Calculate angles
         start_angle = math.atan2(start_point.y - center.y,
@@ -1001,7 +1002,7 @@ class ArcDimensionTool(Tool):
             text_item
         ])
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create an arc dimension object from the collected points"""
         if len(self.points) != 4:
             return None
@@ -1027,12 +1028,12 @@ class ArcDimensionTool(Tool):
 
         # Create arc dimension object
         obj = ArcDimensionObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             center=center,
             start_angle=start_point,
             end_angle=end_point,
             arc_offset=offset_point,
-            layer=self.document.objects.current_layer,
             attributes={
                 'color': 'black',
                 'linewidth': 1,

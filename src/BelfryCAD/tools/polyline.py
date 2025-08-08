@@ -11,14 +11,15 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QPen, QColor
 from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsEllipseItem
 
-from ..core.cad_objects import CADObject, ObjectType, Point
+from ..models.cad_object import CadObject, ObjectType
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
-class PolylineObject(CADObject):
+class PolylineObject(CadObject):
     """Polyline object - list of connected line segments"""
 
-    def __init__(self, object_id: int, vertices: List[Point], **kwargs):
+    def __init__(self, object_id: int, vertices: List[Point2D], **kwargs):
         super().__init__(
             object_id, ObjectType.POLYGON, coords=vertices, **kwargs)
 
@@ -168,16 +169,16 @@ class PolylineTool(Tool):
             self.scene.addItem(current_marker)
             self.temp_objects.append(current_marker)
 
-    def create_object(self) -> Optional[CADObject]:
+    def create_object(self) -> Optional[CadObject]:
         """Create a polyline object from the collected points"""
         if len(self.points) < 2:
             return None
 
         # Create a polyline object using POLYGON type with closed=False
-        obj = CADObject(
+        obj = CadObject(
+            mainwin=self.main_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POLYGON,
-            layer=self.document.objects.current_layer,
             coords=self.points.copy(),
             attributes={
                 'color': 'black',       # Default color

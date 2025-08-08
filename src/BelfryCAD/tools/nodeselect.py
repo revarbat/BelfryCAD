@@ -11,7 +11,8 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPen, QColor, QBrush
 from PySide6.QtWidgets import QGraphicsEllipseItem
 
-from ..core.cad_objects import CADObject, Point
+from ..models.cad_object import CadObject
+from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
 
@@ -21,7 +22,7 @@ class NodeSelectTool(Tool):
     def __init__(self, scene, document, preferences):
         super().__init__(scene, document, preferences)
         self.selected_nodes: Dict[str, Set[int]] = {}  # objid -> node indices
-        self.selected_objects: List[CADObject] = []
+        self.selected_objects: List[CadObject] = []
         self.start_x = 0
         self.start_y = 0
         self.click_has_moved = False
@@ -190,7 +191,7 @@ class NodeSelectTool(Tool):
         return closest_node
 
     def _find_object_near_point(self, x: float, y: float) -> Optional[
-            CADObject]:
+            CadObject]:
         """Find an object near the given point"""
         tolerance = 8.0
         for obj in self.document.objects.get_all_objects():
@@ -206,7 +207,7 @@ class NodeSelectTool(Tool):
                 continue
         return None
 
-    def _find_object_by_id(self, obj_id: str) -> Optional[CADObject]:
+    def _find_object_by_id(self, obj_id: str) -> Optional[CadObject]:
         """Find an object by its ID"""
         for obj in self.document.objects.get_all_objects():
             if obj.id == obj_id:
@@ -233,13 +234,13 @@ class NodeSelectTool(Tool):
                 del self.selected_nodes[obj_id]
         self._update_node_visuals()
 
-    def _select_object(self, obj: CADObject):
+    def _select_object(self, obj: CadObject):
         """Select an entire object"""
         if obj not in self.selected_objects:
             self.selected_objects.append(obj)
             obj.selected = True
 
-    def _deselect_object(self, obj: CADObject):
+    def _deselect_object(self, obj: CadObject):
         """Deselect an entire object"""
         if obj in self.selected_objects:
             self.selected_objects.remove(obj)
@@ -290,7 +291,7 @@ class NodeSelectTool(Tool):
             self.scene.removeItem(item)
         self.node_visual_items.clear()
 
-    def _delete_nodes_from_object(self, obj: CADObject, node_indices: List[
+    def _delete_nodes_from_object(self, obj: CadObject, node_indices: List[
             int]):
         """Delete specified nodes from an object"""
         # TODO: Implement node deletion based on object type

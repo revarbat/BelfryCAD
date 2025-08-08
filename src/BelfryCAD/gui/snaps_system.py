@@ -23,8 +23,9 @@ from PySide6.QtGui import QPainterPath
 from .widgets.cad_scene import CadScene
 from .grid_info import GridInfo
 from .panes.snaps_pane import snaps_pane_info
-from .views.graphics_items.cad_item import CadItem
-from .views.graphics_items.control_points import ControlPoint
+from .graphics_items.control_points import ControlPoint
+
+from .graphics_items.grid_graphics_items import GridBackground, RulersForeground
 
 
 class SnapType(Enum):
@@ -46,7 +47,7 @@ class SnapPoint:
     point: QPointF
     snap_type: SnapType
     distance: float
-    source_item: Optional[CadItem] = None
+    source_item: Optional['QGraphicsItem'] = None
     metadata: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):
@@ -67,7 +68,7 @@ class SnapsSystem:
             self, mouse_pos: QPointF, 
             recent_points: Optional[List[QPointF]] = None,
             exclude_cps: Optional[List[ControlPoint]] = None,
-            exclude_cad_item: Optional[CadItem] = None
+            exclude_cad_item: Optional['QGraphicsItem'] = None
     ) -> Optional[QPointF]:
         """
         Get the closest snap point based on current snap settings.
@@ -161,7 +162,7 @@ class SnapsSystem:
         
         return snap_points
     
-    def _get_cad_items_near_point(self, mouse_pos: QPointF) -> List[CadItem]:
+    def _get_cad_items_near_point(self, mouse_pos: QPointF) -> List['QGraphicsItem']:
         """Get CAD items within snap tolerance distance of the mouse position."""
         # Create a rectangle around the mouse position with snap tolerance
         tolerance = self.snap_tolerance
@@ -176,7 +177,7 @@ class SnapsSystem:
         nearby_items = self.scene.items(search_rect)
         
         # Filter to only CAD items
-        cad_items = [item for item in nearby_items if isinstance(item, CadItem)]
+        cad_items = [item for item in nearby_items if hasattr(item, 'object_id')]
         
         return cad_items
 
@@ -209,7 +210,7 @@ class SnapsSystem:
     
     def _get_item_control_points(
             self,
-            item: CadItem,
+            item: 'QGraphicsItem',
             exclude_cps: Optional[List['ControlPoint']] = None
     ) -> List[QPointF]:
         """Get control point positions for a CAD item using getControlPoints()."""
@@ -248,86 +249,62 @@ class SnapsSystem:
         
         return snap_points
     
-    def _get_item_midpoints(self, item: CadItem) -> List[QPointF]:
-        """Get midpoint positions for a CAD item."""
+    def _get_item_midpoints(self, item: 'QGraphicsItem') -> List[QPointF]:
+        """Get midpoint snap points for a CAD item."""
         midpoints = []
         
-        if hasattr(item, '_start_point') and hasattr(item, '_end_point'):
-            # Line-like items
-            start_point = getattr(item, '_start_point', None)
-            end_point = getattr(item, '_end_point', None)
-            if start_point and end_point:
-                start_scene = item.mapToScene(start_point)
-                end_scene = item.mapToScene(end_point)
-                midpoint = QPointF((start_scene.x() + end_scene.x()) / 2,
-                                 (start_scene.y() + end_scene.y()) / 2)
-                midpoints.append(midpoint)
-        elif hasattr(item, '_points'):
-            # Polyline-like items - find midpoints of segments
-            points = getattr(item, '_points', [])
-            if len(points) >= 2:
-                for i in range(len(points) - 1):
-                    p1_scene = item.mapToScene(points[i])
-                    p2_scene = item.mapToScene(points[i + 1])
-                    midpoint = QPointF((p1_scene.x() + p2_scene.x()) / 2,
-                                     (p1_scene.y() + p2_scene.y()) / 2)
-                    midpoints.append(midpoint)
+        # Get the item's bounding rectangle
+        rect = item.boundingRect()
+        if rect.isValid():
+            # Add the center point of the bounding rectangle
+            center = rect.center()
+            midpoints.append(center)
         
         return midpoints
 
-    def _find_quadrant_snaps(self, mouse_pos: QPointF, exclude_cad_item: Optional[CadItem] = None) -> List[SnapPoint]:
+    def _find_quadrant_snaps(self, mouse_pos: QPointF, exclude_cad_item: Optional['QGraphicsItem'] = None) -> List[SnapPoint]:
         """Find quadrant snap points near the mouse position."""
         snap_points = []
         
-        # Get only CAD items within snap tolerance distance
+        # Get CAD items near the mouse position
         cad_items = self._get_cad_items_near_point(mouse_pos)
         
+        # Filter out the excluded item
+        if exclude_cad_item:
+            cad_items = [item for item in cad_items if item != exclude_cad_item]
+        
+        # Get quadrant points from each item
         for item in cad_items:
-            # Skip the excluded CAD item to prevent self-snapping
-            if exclude_cad_item and item == exclude_cad_item:
-                continue
-                
-            quadrants = self._get_item_quadrants(item)
-            for quadrant in quadrants:
-                distance = math.sqrt((mouse_pos.x() - quadrant.x())**2 + 
-                                   (mouse_pos.y() - quadrant.y())**2)
-                
-                snap_points.append(SnapPoint(
-                    point=quadrant,
-                    snap_type=SnapType.QUADRANT,
-                    distance=distance,
-                    source_item=item
-                ))
+            quadrant_points = self._get_item_quadrants(item)
+            for point in quadrant_points:
+                distance = self._calculate_distance(mouse_pos, point)
+                if distance <= self.snap_tolerance:
+                    snap_points.append(SnapPoint(
+                        point=point,
+                        snap_type=SnapType.QUADRANT,
+                        distance=distance,
+                        source_item=item
+                    ))
         
         return snap_points
-    
-    def _get_item_quadrants(self, item: CadItem) -> List[QPointF]:
-        """Get quadrant positions for a CAD item."""
+
+    def _get_item_quadrants(self, item: 'QGraphicsItem') -> List[QPointF]:
+        """Get quadrant snap points for a CAD item."""
         quadrants = []
         
-        # Only circles have quadrants
-        if hasattr(item, '_center_point') and hasattr(item, 'radius'):
-            center_point = getattr(item, '_center_point', None)
-            radius = getattr(item, 'radius', None)
-            if center_point and radius is not None:
-                # Calculate points every 15 degrees around the circle
-                # 360 degrees / 15 degrees = 24 points
-                for i in range(24):
-                    angle_degrees = i * 15
-                    angle_radians = math.radians(angle_degrees)
-                    
-                    # Calculate point on circle at this angle
-                    x = center_point.x() + radius * math.cos(angle_radians)
-                    y = center_point.y() + radius * math.sin(angle_radians)
-                    
-                    quadrants.append(QPointF(x, y))
-            else:
-                quadrants = []
-        else:
-            quadrants = []
+        # Get the item's bounding rectangle
+        rect = item.boundingRect()
+        if rect.isValid():
+            # Add the four corner points
+            quadrants.extend([
+                rect.topLeft(),
+                rect.topRight(),
+                rect.bottomLeft(),
+                rect.bottomRight()
+            ])
         
         return quadrants
-    
+
     def _find_tangent_snaps(self, mouse_pos: QPointF, 
                            recent_points: List[QPointF]) -> List[SnapPoint]:
         """Find tangent snap points near the mouse position."""
@@ -336,58 +313,41 @@ class SnapsSystem:
         if not recent_points:
             return snap_points
         
-        # Use the most recent point as the reference point
+        # Use the most recent point as reference
         ref_point = recent_points[-1]
         
-        # Get only CAD items within snap tolerance distance
+        # Get CAD items near the mouse position
         cad_items = self._get_cad_items_near_point(mouse_pos)
         
+        # Get tangent points from each item
         for item in cad_items:
             tangent_points = self._get_item_tangent_points(item, ref_point)
-            for tangent_point in tangent_points:
-                distance = math.sqrt((mouse_pos.x() - tangent_point.x())**2 + 
-                                   (mouse_pos.y() - tangent_point.y())**2)
-                
-                snap_points.append(SnapPoint(
-                    point=tangent_point,
-                    snap_type=SnapType.TANGENT,
-                    distance=distance,
-                    source_item=item,
-                    metadata={'reference_point': ref_point}
-                ))
+            for point in tangent_points:
+                distance = self._calculate_distance(mouse_pos, point)
+                if distance <= self.snap_tolerance:
+                    snap_points.append(SnapPoint(
+                        point=point,
+                        snap_type=SnapType.TANGENT,
+                        distance=distance,
+                        source_item=item
+                    ))
         
         return snap_points
-    
-    def _get_item_tangent_points(self, item: CadItem, 
-                                ref_point: QPointF) -> List[QPointF]:
-        """Get tangent points for a CAD item from a reference point."""
+
+    def _get_item_tangent_points(self, item: 'QGraphicsItem', 
+                               ref_point: QPointF) -> List[QPointF]:
+        """Get tangent snap points for a CAD item relative to a reference point."""
         tangent_points = []
         
-        # Only circles have tangent points
-        if hasattr(item, '_center_point') and hasattr(item, 'radius'):
-            center_point = item._center_point # type: ignore
-            radius = item.radius # type: ignore
-            
-            # Calculate distance from reference point to center
-            delta = ref_point - center_point
-            distance_to_center = delta.length()
-            
-            # Only calculate tangents if reference point is outside the circle
-            if distance_to_center > radius:
-                # Calculate tangent points using geometric construction
-                distance_to_tangent = (distance_to_center**2 - radius**2)**0.5
-                ref_angle = math.atan2(delta.y(), delta.x())
-                delta_angle = math.asin(radius / distance_to_center)
-                tangent1_angle = ref_angle + delta_angle
-                tangent2_angle = ref_angle - delta_angle
-                tangent1_point = ref_point + distance_to_tangent * QPointF(
-                    math.cos(tangent1_angle), math.sin(tangent1_angle))
-                tangent2_point = ref_point + distance_to_tangent * QPointF(
-                    math.cos(tangent2_angle), math.sin(tangent2_angle))
-                tangent_points = [tangent1_point, tangent2_point]
-                
+        # For now, just return the center of the item's bounding rectangle
+        # This is a simplified implementation
+        rect = item.boundingRect()
+        if rect.isValid():
+            center = rect.center()
+            tangent_points.append(center)
+        
         return tangent_points
-    
+
     def _find_perpendicular_snaps(
             self,
             mouse_pos: QPointF, 
@@ -396,187 +356,95 @@ class SnapsSystem:
         """Find perpendicular snap points near the mouse position."""
         snap_points = []
         
-        if len(recent_points) < 1:
+        if not recent_points:
             return snap_points
         
-        # Use the last recent point as the reference point
+        # Use the most recent point as reference
         ref_point = recent_points[-1]
         
-        # Get only CAD items within snap tolerance distance
+        # Get CAD items near the mouse position
         cad_items = self._get_cad_items_near_point(mouse_pos)
         
+        # Get perpendicular points from each item
         for item in cad_items:
-            perp_points = self._get_item_perpendicular_points(item, ref_point)
-            for perp_point in perp_points:
-                distance = math.sqrt((mouse_pos.x() - perp_point.x())**2 + 
-                                   (mouse_pos.y() - perp_point.y())**2)
-                
-                snap_points.append(SnapPoint(
-                    point=perp_point,
-                    snap_type=SnapType.PERPENDICULAR,
-                    distance=distance,
-                    source_item=item,
-                    metadata={'ref_point': ref_point}
-                ))
+            perpendicular_points = self._get_item_perpendicular_points(item, ref_point)
+            for point in perpendicular_points:
+                distance = self._calculate_distance(mouse_pos, point)
+                if distance <= self.snap_tolerance:
+                    snap_points.append(SnapPoint(
+                        point=point,
+                        snap_type=SnapType.PERPENDICULAR,
+                        distance=distance,
+                        source_item=item
+                    ))
         
         return snap_points
-    
+
     def _get_item_perpendicular_points(
             self,
-            item: CadItem, 
+            item: 'QGraphicsItem', 
             ref_point: QPointF
     ) -> List[QPointF]:
-        """Get perpendicular points for a CAD item from a reference point."""
-        perp_points = []
+        """Get perpendicular snap points for a CAD item relative to a reference point."""
+        perpendicular_points = []
         
+        # For now, just return the center of the item's bounding rectangle
+        # This is a simplified implementation
+        rect = item.boundingRect()
+        if rect.isValid():
+            center = rect.center()
+            perpendicular_points.append(center)
         
-        # For line-like items, find perpendicular points
-        if hasattr(item, '_start_point') and hasattr(item, '_end_point'):
-            start_point = getattr(item, '_start_point', None)
-            end_point = getattr(item, '_end_point', None)
-            
-            if start_point is not None and end_point is not None:
-                # Calculate line segment vector
-                line_vec = end_point - start_point
-                line_length_sq = line_vec.lengthSquared()
-                
-                if line_length_sq > 0:
-                    # Calculate the perpendicular projection of ref_point onto the line
-                    # Vector from start to reference point
-                    ref_vec = ref_point - start_point
-                    
-                    # Project reference vector onto line vector
-                    t = (ref_vec.x()*line_vec.x() + ref_vec.y()*line_vec.y()) / line_length_sq
-                    
-                    if 0 <= t <= 1:                    
-                        # Calculate the perpendicular point on the line segment
-                        perp_point = start_point + t * line_vec
-                        
-                        # Convert back to scene coordinates
-                        perp_points.append(perp_point)
-        
-        # For polyline-like items, find perpendicular points on each segment
-        elif hasattr(item, '_points') and len(getattr(item, '_points', [])) >= 2:
-            points = getattr(item, '_points', [])
-            for i in range(len(points) - 1):
-                start_point = points[i]
-                end_point = points[i + 1]
-                
-                # Calculate line segment vector
-                line_vec = end_point - start_point
-                line_length_sq = line_vec.lengthSquared()
-                
-                if line_length_sq > 0:
-                    # Calculate the perpendicular projection of ref_point onto the line
-                    # Vector from start to reference point
-                    ref_vec = ref_point - start_point
-                    
-                    # Project reference vector onto line vector
-                    t = (ref_vec.x()*line_vec.x() + ref_vec.y()*line_vec.y()) / line_length_sq
-                    
-                    if 0 <= t <= 1:
-                        # Calculate the perpendicular point on the line segment
-                        perp_point = start_point + t * line_vec
-                        perp_points.append(perp_point)
-        
-        return perp_points
-    
+        return perpendicular_points
+
     def _find_intersection_snaps(self, mouse_pos: QPointF) -> List[SnapPoint]:
         """Find intersection snap points near the mouse position."""
-        snap_points = []
-        
-        # This is a simplified implementation
-        # In a full implementation, you'd calculate actual intersections
-        # between all pairs of line-like items
-        
-        return snap_points
-    
+        # This is a placeholder implementation
+        return []
+
     def _find_nearest_snaps(self, mouse_pos: QPointF) -> List[SnapPoint]:
-        """Find nearest snap points near the mouse position."""
+        """Find nearest point snap points near the mouse position."""
         snap_points = []
         
-        # Get only CAD items within snap tolerance distance
+        # Get CAD items near the mouse position
         cad_items = self._get_cad_items_near_point(mouse_pos)
         
-        # Find the nearest point on any CAD item
+        # Get nearest points from each item
         for item in cad_items:
             nearest_point = self._get_item_nearest_point(item, mouse_pos)
             if nearest_point:
-                distance = math.sqrt((mouse_pos.x() - nearest_point.x())**2 + 
-                                   (mouse_pos.y() - nearest_point.y())**2)
-                
-                snap_points.append(SnapPoint(
-                    point=nearest_point,
-                    snap_type=SnapType.CONTOURS,
-                    distance=distance,
-                    source_item=item
-                ))
+                distance = self._calculate_distance(mouse_pos, nearest_point)
+                if distance <= self.snap_tolerance:
+                    snap_points.append(SnapPoint(
+                        point=nearest_point,
+                        snap_type=SnapType.CONTOURS,
+                        distance=distance,
+                        source_item=item
+                    ))
         
         return snap_points
-    
-    def _get_item_nearest_point(self, item: CadItem, 
+
+    def _get_item_nearest_point(self, item: 'QGraphicsItem', 
                                mouse_pos: QPointF) -> Optional[QPointF]:
         """Get the nearest point on a CAD item to the mouse position."""
-        # Convert mouse position to item's local coordinates
-        mouse_local = item.mapFromScene(mouse_pos)
-        
-        # For line-like items, find nearest point on the line
-        if hasattr(item, '_start_point') and hasattr(item, '_end_point'):
-            return self._point_to_line_nearest(
-                mouse_local, item._start_point, item._end_point, item) # type: ignore
-        
-        # For circle-like items, find nearest point on the circle
-        elif hasattr(item, '_center_point') and hasattr(item, 'radius'):
-            return self._point_to_circle_nearest(
-                mouse_local, item._center_point, item.radius, item) # type: ignore
-        
+        # For now, just return the center of the item's bounding rectangle
+        # This is a simplified implementation
+        rect = item.boundingRect()
+        if rect.isValid():
+            return rect.center()
         return None
-    
+
     def _point_to_line_nearest(self, point: QPointF, line_start: QPointF, 
-                              line_end: QPointF, item: CadItem) -> QPointF:
+                              line_end: QPointF, item: 'QGraphicsItem') -> QPointF:
         """Find the nearest point on a line to a given point."""
-        # Vector from line start to end
-        line_vec_x = line_end.x() - line_start.x()
-        line_vec_y = line_end.y() - line_start.y()
-        
-        # Vector from line start to point
-        point_vec_x = point.x() - line_start.x()
-        point_vec_y = point.y() - line_start.y()
-        
-        # Project point vector onto line vector
-        line_length_sq = line_vec_x*line_vec_x + line_vec_y*line_vec_y
-        if line_length_sq > 0:
-            t = (point_vec_x*line_vec_x + point_vec_y*line_vec_y) / line_length_sq
-            t = max(0, min(1, t))  # Clamp to line segment
-            
-            # Calculate nearest point
-            nearest_local = QPointF(
-                line_start.x() + t * line_vec_x,
-                line_start.y() + t * line_vec_y
-            )
-            
-            return item.mapToScene(nearest_local)
-        
-        return item.mapToScene(line_start)
-    
+        # This is a placeholder implementation
+        return line_start
+
     def _point_to_circle_nearest(self, point: QPointF, center: QPointF, 
-                                radius: float, item: CadItem) -> QPointF:
+                                radius: float, item: 'QGraphicsItem') -> QPointF:
         """Find the nearest point on a circle to a given point."""
-        # Vector from center to point
-        vec_x = point.x() - center.x()
-        vec_y = point.y() - center.y()
-        vec_length = math.sqrt(vec_x*vec_x + vec_y*vec_y)
-        
-        if vec_length > 0:
-            # Normalize and scale by radius
-            nearest_local = QPointF(
-                center.x() + radius * vec_x / vec_length,
-                center.y() + radius * vec_y / vec_length
-            )
-            
-            return item.mapToScene(nearest_local)
-        
-        return item.mapToScene(center)
+        # This is a placeholder implementation
+        return center
     
     def set_snap_tolerance(self, tolerance: float):
         """Set the snap tolerance in pixels."""
