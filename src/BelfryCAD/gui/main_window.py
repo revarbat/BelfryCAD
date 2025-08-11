@@ -3,6 +3,7 @@
 
 import logging
 from tracemalloc import start
+from typing import Set
 
 from PySide6.QtCore import (
     Qt, QSize, QTimer
@@ -44,6 +45,22 @@ from .panes.config_pane import ConfigPane
 from .widgets.columnar_toolbar import ColumnarToolbarWidget
 from BelfryCAD.utils.cad_expression import CadExpression
 from .panes.parameters_pane import ParametersPane
+from .panes.object_tree_pane import ObjectTreePane
+from BelfryCAD.utils.xml_serializer import load_belfrycad_document
+from .viewmodels.cad_viewmodels import (
+    LineViewModel,
+    CircleViewModel,
+    ArcViewModel,
+    EllipseViewModel,
+    CubicBezierViewModel,
+    GearViewModel,
+)
+from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
+from BelfryCAD.models.cad_objects.circle_cad_object import CircleCadObject
+from BelfryCAD.models.cad_objects.arc_cad_object import ArcCadObject
+from BelfryCAD.models.cad_objects.ellipse_cad_object import EllipseCadObject
+from BelfryCAD.models.cad_objects.cubic_bezier_cad_object import CubicBezierCadObject
+from BelfryCAD.models.cad_objects.gear_cad_object import GearCadObject
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +250,7 @@ class MainWindow(QMainWindow):
         # File menu connections
         self.main_menu.new_triggered.connect(self.new_file)
         self.main_menu.open_triggered.connect(self.open_file)
+        self.main_menu.file_selected.connect(self.open_recent_file)
         self.main_menu.save_triggered.connect(self.save_file)
         self.main_menu.save_as_triggered.connect(self.save_as_file)
         self.main_menu.close_triggered.connect(self.close_file)
@@ -524,6 +542,9 @@ class MainWindow(QMainWindow):
             self, self.cad_scene, self.document)
         self.cad_view.mouseMoveEvent = self._mouse_move_event
 
+        # Track viewmodels by object id
+        self._object_viewmodels = {}
+
         # Add grid background
         self.grid = GridBackground(self.grid_info)
         self.cad_scene.addItem(self.grid)
@@ -552,6 +573,101 @@ class MainWindow(QMainWindow):
         # Set the snaps system reference in the scene for control point dragging
         self.cad_scene.set_snaps_system(self.snaps_system)
 
+    def _rebuild_scene_overlays(self):
+        """Re-add grid, rulers, and snap cursor after a scene clear."""
+        if not hasattr(self, 'cad_scene'):
+            return
+        # Grid
+        self.grid = GridBackground(self.grid_info)
+        self.cad_scene.addItem(self.grid)
+        self.grid.setVisible(self.preferences_viewmodel.get("grid_visible", True))
+        # Rulers
+        self.rulers = RulersForeground(self.grid_info)
+        self.cad_scene.addItem(self.rulers)
+        self.rulers.setVisible(self.preferences_viewmodel.get("show_rulers", True))
+        # Snap cursor
+        self.snap_cursor = SnapCursorItem()
+        self.cad_scene.addItem(self.snap_cursor)
+
+    def load_belcad_file(self, filepath: str) -> bool:
+        """
+        Load a .belcad document, then create CadViewModels and their views in the scene.
+        """
+        try:
+            loaded = load_belfrycad_document(filepath)
+            if not loaded:
+                raise RuntimeError("Failed to load .belcad document")
+            # Replace current document reference
+            self.document = loaded
+            # Attach document CadExpression (parameters) into main window if available
+            if hasattr(self.document, 'cad_expression'):
+                self.cad_expression = self.document.cad_expression
+            # Optionally solve constraints after load
+            try:
+                if hasattr(self.document, 'solve_constraints'):
+                    self.document.solve_constraints()
+            except Exception:
+                logger.debug("Constraint solving after load failed or is not available.")
+            # Update panes that depend on document
+            if hasattr(self, 'object_tree_pane'):
+                self.object_tree_pane.set_document(self.document)
+            if hasattr(self, 'parameters_pane') and hasattr(self, 'cad_expression'):
+                # Bind parameters pane to the document's CadExpression and refresh
+                try:
+                    if hasattr(self.document, 'cad_expression') and self.document.cad_expression is not None:
+                        self.parameters_pane.cad_expression = self.document.cad_expression
+                except Exception:
+                    pass
+                # Refresh parameter list from the new expression set
+                self.parameters_pane.refresh()
+            # Apply grid units and precision from document preferences before rebuilding overlays
+            self._apply_grid_units_from_document()
+            # Clear and rebuild scene overlays
+            if hasattr(self, 'cad_scene'):
+                self.cad_scene.clear()
+                self._rebuild_scene_overlays()
+            # Build viewmodels and views
+            self._build_viewmodels_for_document()
+            # Update title
+            self.update_title()
+            return True
+        except Exception as e:
+            logger.exception("Error loading .belcad file: %s", e)
+            msg = QMessageBox(self)
+            msg.setIcon(QMessageBox.Icon.Critical)
+            msg.setWindowTitle("Open Error")
+            msg.setText(f"Failed to open file:\n{e}")
+            msg.exec()
+            return False
+
+    def _build_viewmodels_for_document(self):
+        """Create a CadViewModel for each object and add its views to the scene."""
+        if not hasattr(self, 'cad_scene'):
+            return
+        # Reset mapping
+        self._object_viewmodels = {}
+        # Mapping from model type to viewmodel class
+        vm_map = {
+            LineCadObject: LineViewModel,
+            CircleCadObject: CircleViewModel,
+            ArcCadObject: ArcViewModel,
+            EllipseCadObject: EllipseViewModel,
+            CubicBezierCadObject: CubicBezierViewModel,
+            GearCadObject: GearViewModel,
+        }
+        for obj in self.document.get_all_objects():
+            vm_class = None
+            for cls, vcls in vm_map.items():
+                if isinstance(obj, cls):
+                    vm_class = vcls
+                    break
+            if not vm_class:
+                continue
+            vm = vm_class(self, obj)
+            # Ensure view is created/updated in scene
+            vm.update_view(self.cad_scene)
+            self._object_viewmodels[obj.object_id] = vm
+
     def _setup_palettes(self):
         """Setup the palette system with dockable windows."""
         # Create the palette manager and default palettes
@@ -572,6 +688,24 @@ class MainWindow(QMainWindow):
         
         # Sync menu states after all components are created
         self._sync_palette_menu_states()
+
+        # Create Object Tree pane
+        object_tree_pane = ObjectTreePane()
+        object_tree_dock = QDockWidget("Object Tree", self)
+        object_tree_dock.setWidget(object_tree_pane)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, object_tree_dock)
+        self.object_tree_pane = object_tree_pane
+        self.object_tree_dock = object_tree_dock
+        
+        # Connect Object Tree pane to document
+        if hasattr(self, 'document'):
+            object_tree_pane.set_document(self.document)
+            
+        # Connect Object Tree signals
+        object_tree_pane.object_selected.connect(self._on_object_tree_selection)
+        object_tree_pane.visibility_changed.connect(self._on_object_tree_visibility_changed)
+        object_tree_pane.color_changed.connect(self._on_object_tree_color_changed)
+        object_tree_pane.name_changed.connect(self._on_object_tree_name_changed)
 
         # Create the Pane and ParametersPane as tabs
         parameters_pane = ParametersPane(self.cad_expression)
@@ -630,6 +764,9 @@ class MainWindow(QMainWindow):
             if current_selection != self._current_selection:
                 self._current_selection = current_selection
                 self._update_config_pane_for_selection(selected_objects)
+                
+                # Update Object Tree selection
+                self.update_object_tree_selection(current_selection)
 
     def _update_config_pane_for_selection(self, selected_objects):
         """Update config pane based on current selection."""
@@ -748,13 +885,6 @@ class MainWindow(QMainWindow):
         if "OBJSEL" in self.tools:
             self.activate_tool("OBJSEL")
 
-    def get_dpi(self):
-        """Get the DPI from the main window."""
-        screen = self.screen()
-        if screen:
-            return screen.physicalDotsPerInch()
-        return 96.0  # Default DPI if screen info not available
-
     def activate_tool(self, tool_token):
         """Activate a tool by its token"""
         self.tool_manager.activate_tool(tool_token)
@@ -796,20 +926,23 @@ class MainWindow(QMainWindow):
             self,
             "Open Document",
             "",
-            "BelfryCad files (*.tkcad);;SVG files (*.svg);;"
-            "DXF files (*.dxf);;All files (*.*)"
+            "BelfryCAD files (*.belcad);;All files (*.*)"
         )
         if filename:
-            try:
-                self.document.load(filename)
-                self.update_title()
-                self.cad_scene.clear()
-            except Exception as e:
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Icon.Critical)
-                msg.setWindowTitle("Open Error")
-                msg.setText(f"Failed to open file:\n{e}")
-                msg.exec()
+            # Delegate to .belcad loader which also builds viewmodels and views
+            if self.load_belcad_file(filename):
+                # Add to recent files after successful load
+                self.main_menu.add_recent_file(filename)
+
+    def open_recent_file(self, filename: str):
+        """Open a file from the recent files list."""
+        if self.document.is_modified():
+            if not self._confirm_discard_changes():
+                return
+        # Load the file directly without showing file dialog
+        if self.load_belcad_file(filename):
+            # Add to recent files after successful load (moves to front)
+            self.main_menu.add_recent_file(filename)
 
     def save_file(self):
         if not self.document.filename:
@@ -825,6 +958,8 @@ class MainWindow(QMainWindow):
             self.document.filename = filename
         try:
             self.document.save()
+            # Add to recent files after successful save
+            self.main_menu.add_recent_file(self.document.filename)
             self.update_title()
         except Exception as e:
             msg = QMessageBox()
@@ -902,7 +1037,11 @@ class MainWindow(QMainWindow):
                     # Use print manager for PDF export
                     if hasattr(self, 'print_manager') and \
                             self.print_manager is not None:
-                        return self.print_manager.export_to_pdf(filename)
+                        success = self.print_manager.export_to_pdf(filename)
+                        if success:
+                            # Add to recent files after successful export
+                            self.main_menu.add_recent_file(filename)
+                        return success
                     else:
                         QMessageBox.information(
                             self, "Export",
@@ -1031,6 +1170,9 @@ class MainWindow(QMainWindow):
         # Select the newly pasted objects
         if new_objects:
             self._select_items(new_objects)
+            
+        # Refresh the object tree
+        self.refresh_object_tree()
 
         return len(new_objects) > 0
 
@@ -1385,6 +1527,32 @@ class MainWindow(QMainWindow):
         # Sync the menu checkboxes with the new state
         self._sync_palette_menu_states()
 
+    def _on_object_tree_color_changed(self, object_id: str, color: QColor):
+        """Handle color changes from the Object Tree pane."""
+        # Find the object in the document
+        obj = self.document.get_object(object_id)
+        if obj:
+            # Update the object's color attribute
+            obj.attributes['color'] = color.name()
+            # Mark the object as modified
+            obj.selected = True
+            # Update the config pane to reflect the new color
+            self._update_config_pane_for_selection([obj])
+            # Refresh the object tree
+            self.refresh_object_tree()
+
+    def _on_object_tree_name_changed(self, object_id: str, name: str):
+        """Handle name changes from the Object Tree pane."""
+        # Find the object in the document
+        obj = self.document.get_object(object_id)
+        if obj:
+            # Update the object's name
+            obj.name = name
+            # Mark the document as modified
+            self.document.modified = True
+            # Refresh the object tree to show the updated name
+            self.refresh_object_tree()
+
     def tool_table(self):
         """Handle Tool Table menu action."""
         logger.info("Opening tool table dialog")
@@ -1524,8 +1692,93 @@ class MainWindow(QMainWindow):
         pass
 
     def _draw_shapes(self):
-        """Draw test shapes on the scene."""
-        # This method is no longer needed since we're using MVVM pattern
-        # ViewModels are responsible for creating their own view items
+        """Draw shapes on the canvas."""
         pass
+
+    def _on_object_tree_selection(self, object_id: str):
+        """Handle object selection from the Object Tree pane."""
+        # Find the object in the document
+        obj = self.document.get_object(object_id)
+        if obj:
+            # Update scene selection
+            if hasattr(self, 'tool_manager'):
+                current_tool = self.tool_manager.get_active_tool()
+                if current_tool and hasattr(current_tool, 'select_object'):
+                    current_tool.select_object(obj)
+                    
+    def _on_object_tree_visibility_changed(self, object_id: str, visible: bool):
+        """Handle visibility changes from the Object Tree pane."""
+        # Update graphics items visibility
+        if object_id in self.graphics_items:
+            for item in self.graphics_items[object_id]:
+                item.setVisible(visible)
+                
+        # Update the scene
+        if hasattr(self, 'scene'):
+            self.scene.update()
+            
+    def _on_object_tree_color_changed(self, object_id: str, color):
+        """Handle color changes from the Object Tree pane."""
+        # Update graphics items color
+        if object_id in self.graphics_items:
+            for item in self.graphics_items[object_id]:
+                if hasattr(item, 'setPen'):
+                    pen = item.pen()
+                    pen.setColor(color)
+                    item.setPen(pen)
+                if hasattr(item, 'setBrush'):
+                    brush = item.brush()
+                    brush.setColor(color)
+                    item.setBrush(brush)
+                
+        # Update the scene
+        if hasattr(self, 'scene'):
+            self.scene.update()
+            
+    def update_object_tree_selection(self, selected_object_ids: Set[str]):
+        """Update Object Tree selection based on scene selection."""
+        if hasattr(self, 'object_tree_pane'):
+            self.object_tree_pane.set_selection_from_scene(selected_object_ids)
+            
+    def refresh_object_tree(self):
+        """Refresh the Object Tree pane."""
+        if hasattr(self, 'object_tree_pane'):
+            self.object_tree_pane.refresh_tree()
+
+    def _apply_grid_units_from_document(self):
+        """Set GridInfo units and precision from document preferences (units, use_fractions, precision)."""
+        if not hasattr(self, 'grid_info'):
+            return
+        prefs = getattr(self.document, 'preferences', {}) if hasattr(self.document, 'preferences') else {}
+        units = prefs.get('units')
+        use_fractions = prefs.get('use_fractions')
+        precision = prefs.get('precision')
+        # Map document units + use_fractions to GridUnits
+        unit_map = {
+            ('inches', False): GridUnits.INCHES_DECIMAL,
+            ('inches', True): GridUnits.INCHES_FRACTION,
+            ('inch', False): GridUnits.INCHES_DECIMAL,
+            ('inch', True): GridUnits.INCHES_FRACTION,
+            ('feet', False): GridUnits.FEET_DECIMAL,
+            ('feet', True): GridUnits.FEET_FRACTION,
+            ('foot', False): GridUnits.FEET_DECIMAL,
+            ('foot', True): GridUnits.FEET_FRACTION,
+            ('yards', False): GridUnits.YARDS_DECIMAL,
+            ('yards', True): GridUnits.YARDS_FRACTION,
+            ('yard', False): GridUnits.YARDS_DECIMAL,
+            ('yard', True): GridUnits.YARDS_FRACTION,
+            ('mm', False): GridUnits.MILLIMETERS,
+            ('millimeters', False): GridUnits.MILLIMETERS,
+            ('cm', False): GridUnits.CENTIMETERS,
+            ('centimeters', False): GridUnits.CENTIMETERS,
+            ('m', False): GridUnits.METERS,
+            ('meters', False): GridUnits.METERS,
+        }
+        if isinstance(units, str):
+            key = (units.lower(), bool(use_fractions))
+            grid_units = unit_map.get(key)
+            if grid_units:
+                self.grid_info.units = grid_units
+        if isinstance(precision, int):
+            self.grid_info.decimal_places = precision
 

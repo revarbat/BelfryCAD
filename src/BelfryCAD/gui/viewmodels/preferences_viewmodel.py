@@ -233,6 +233,24 @@ class PreferencesViewModel(QObject):
         """Set recent files count preference"""
         self.set('recent_files_count', count)
     
+    def add_recent_file(self, file_path: str):
+        """Add a file to the recent files list."""
+        recent_files = self.get('recent_files', [])
+        
+        # Remove if already in list
+        if file_path in recent_files:
+            recent_files.remove(file_path)
+        
+        # Add to beginning
+        recent_files.insert(0, file_path)
+        
+        # Limit to configured recent files count
+        max_count = self.get('recent_files_count', 10)
+        recent_files = recent_files[:max_count]
+        
+        # Save back to preferences
+        self.set('recent_files', recent_files)
+    
     # Window preferences convenience methods
     def get_window_geometry(self) -> str:
         """Get window geometry preference"""
@@ -267,7 +285,7 @@ class PreferencesViewModel(QObject):
             },
             'file': {
                 'description': 'File and document settings',
-                'keys': ['auto_save', 'auto_save_interval', 'recent_files_count']
+                'keys': ['auto_save', 'auto_save_interval', 'recent_files_count', 'recent_files']
             },
             'window': {
                 'description': 'Window and interface settings',

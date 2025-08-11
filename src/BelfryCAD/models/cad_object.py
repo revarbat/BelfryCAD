@@ -34,17 +34,71 @@ class ObjectType(Enum):
 class CadObject:
     """Pure business logic for CAD objects - no UI dependencies"""
     _object_types = {}
-    _max_id = 1
+    _max_id = 0
 
     def __init__(self, document: 'Document', color: str = "black", line_width: Optional[float] = None):
-        self.object_id = str(self._max_id)
-        self._max_id += 1
+        CadObject._max_id += 1
+        self.object_id = str(CadObject._max_id)
         self.document = document
         self.color = color
         self.line_width = line_width
         self.visible = True
         self.locked = False
         self.parent_id: Optional[str] = None  # Parent group ID, None if root
+        
+        # Initialize name - will be set by document when object is added
+        self._name: Optional[str] = None
+    
+    @property
+    def name(self) -> str:
+        """Get the object's name."""
+        if self._name is None:
+            # Only generate a default name if the object is in a document
+            if self.document:
+                # Let the document handle the naming
+                return f"object{self.object_id}"
+            else:
+                return f"object{self.object_id}"
+        return self._name
+    
+    @name.setter
+    def name(self, value: str):
+        """Set the object's name."""
+        if self.document:
+            # Ensure the name is unique
+            unique_name = self.document.get_unique_name(value, self.object_id)
+            self._name = unique_name
+        else:
+            self._name = value
+    
+    def _generate_default_name(self) -> str:
+        """Generate a default name for this object based on its type."""
+        if not self.document:
+            return f"object{self.object_id}"
+        
+        # Get the object type name
+        obj_type = type(self).__name__.replace('CadObject', '').lower()
+        if obj_type == 'line':
+            base_name = 'line'
+        elif obj_type == 'circle':
+            base_name = 'circle'
+        elif obj_type == 'arc':
+            base_name = 'arc'
+        elif obj_type == 'ellipse':
+            base_name = 'ellipse'
+        elif obj_type == 'bezier':
+            base_name = 'bezier'
+        elif obj_type == 'gear':
+            base_name = 'gear'
+        elif obj_type == 'polygon':
+            base_name = 'polygon'
+        elif obj_type == 'group':
+            base_name = 'group'
+        else:
+            base_name = 'object'
+        
+        # Get a unique name from the document
+        return self.document.get_unique_name(base_name, self.object_id)
     
     def set_parent(self, parent_id: Optional[str]):
         """Set the parent group ID."""
@@ -150,6 +204,7 @@ class CadObject:
         """
         data = self.get_object_data()
         data["object_id"] = self.object_id
+        data["name"] = self.name
         data["color"] = self.color
         data["line_width"] = self.line_width
         data["visible"] = self.visible
@@ -192,5 +247,12 @@ class CadObject:
         lw = data.get("line_width", "hairline").strip().lower()
         data["line_width"] = None if lw in ["", "none", "hairline"] else float(lw)
         data["object_id"] = data["object_id"].strip()
+        
+        # Handle name field
+        if "name" in data:
+            data["name"] = data["name"].strip()
+        else:
+            data["name"] = None
+            
         return obj_class.create_object_from_data(document, obj_type, data)
 

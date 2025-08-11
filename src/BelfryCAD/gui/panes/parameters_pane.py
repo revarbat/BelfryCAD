@@ -111,15 +111,22 @@ class ParametersPane(QWidget):
             self.table.insertRow(i)
             self.table.setItem(i, 0, QTableWidgetItem(str(name)))
             expr_item = QTableWidgetItem(str(expr_str))
-            # Add tooltip with evaluated value
+            # Add tooltip with both expression and evaluated value (but not for simple numbers)
             try:
                 value = self.cad_expression.get_variable(name)
-                expr_item.setToolTip(f"Value: {value}")
+                # Check if expression is just a number (no tooltip needed)
+                try:
+                    float(expr_str.strip())
+                    # Expression is just a number, no tooltip needed
+                except ValueError:
+                    # Expression is not just a number, set tooltip
+                    expr_item.setToolTip(f"{expr_str}\n= {value}")
                 # Check if parameter is valid (can be evaluated)
                 if not self._is_parameter_valid(name):
                     expr_item.setForeground(QColor(255, 0, 0))  # Red for invalid
             except Exception as e:
-                expr_item.setToolTip(f"Error: {e}")
+                # Always show tooltip for errors, even if expression is just a number
+                expr_item.setToolTip(f"{expr_str}\nError: {e}")
                 expr_item.setForeground(QColor(255, 0, 0))  # Red for invalid
             self.table.setItem(i, 1, expr_item)
 

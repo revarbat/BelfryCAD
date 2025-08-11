@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget,
     QWidget, QLabel, QLineEdit, QPushButton, QCheckBox, QSpinBox,
     QDoubleSpinBox, QComboBox, QColorDialog, QFileDialog, QDialogButtonBox,
-    QMessageBox, QApplication, QScrollArea, QGroupBox
+    QMessageBox, QApplication, QScrollArea, QGroupBox, QListWidget, QListWidgetItem
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
@@ -189,6 +189,100 @@ class ColorPreferenceControl(PreferenceControlWidget):
         self._update_button_color()
 
 
+class RecentFilesPreferenceControl(PreferenceControlWidget):
+    """Recent files preference control widget."""
+
+    def _create_widget(self):
+        """Create the recent files widget."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        # Label
+        self.label = QLabel(self.pref_name + ":")
+        layout.addWidget(self.label)
+
+        # List widget for recent files
+        self.list_widget = QListWidget()
+        self.list_widget.setMaximumHeight(150)
+        layout.addWidget(self.list_widget)
+
+        # Buttons layout
+        button_layout = QHBoxLayout()
+        
+        # Clear button
+        self.clear_button = QPushButton("Clear All")
+        self.clear_button.clicked.connect(self._clear_recent_files)
+        button_layout.addWidget(self.clear_button)
+        
+        # Remove selected button
+        self.remove_button = QPushButton("Remove Selected")
+        self.remove_button.clicked.connect(self._remove_selected)
+        button_layout.addWidget(self.remove_button)
+        
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
+
+        # Initialize internal state
+        self._recent_files = []
+        self._update_list()
+
+    def _update_list(self):
+        """Update the recent files list."""
+        self.list_widget.clear()
+        
+        # Filter out non-existent files
+        valid_files = []
+        for file_path in self._recent_files:
+            if file_path and len(file_path) > 0:
+                # Check if file exists
+                if Path(file_path).exists():
+                    valid_files.append(file_path)
+                # If file doesn't exist, it's automatically removed from the list
+        
+        # Update internal list if any files were removed
+        if len(valid_files) != len(self._recent_files):
+            self._recent_files = valid_files
+            self.valueChanged.emit()
+        
+        # Display valid files
+        for file_path in valid_files:
+            # Show just the filename, not the full path
+            filename = file_path.split('/')[-1] if '/' in file_path else file_path
+            filename = filename.split('\\')[-1] if '\\' in filename else filename
+            
+            item = QListWidgetItem(f"{filename}")
+            item.setToolTip(file_path)  # Show full path in tooltip
+            item.setData(Qt.ItemDataRole.UserRole, file_path)
+            self.list_widget.addItem(item)
+
+    def _clear_recent_files(self):
+        """Clear all recent files."""
+        self._recent_files = []
+        self._update_list()
+        self.valueChanged.emit()
+
+    def _remove_selected(self):
+        """Remove selected files from recent files list."""
+        selected_items = self.list_widget.selectedItems()
+        
+        for item in selected_items:
+            file_path = item.data(Qt.ItemDataRole.UserRole)
+            if file_path in self._recent_files:
+                self._recent_files.remove(file_path)
+        
+        self._update_list()
+        self.valueChanged.emit()
+
+    def get_value(self) -> list:
+        """Get the current recent files list."""
+        return self._recent_files.copy()
+
+    def set_value(self, value: list):
+        """Set the recent files list."""
+        self._recent_files = value.copy() if value else []
+        self._update_list()
+
+
 class PreferencesDialog(QDialog):
     """
     Pure View preferences dialog that delegates to PreferencesViewModel.
@@ -259,6 +353,7 @@ class PreferencesDialog(QDialog):
                 'auto_save': ('bool', 'Enable Auto-save'),
                 'auto_save_interval': ('int', 'Auto-save Interval (seconds)', 30, 3600),
                 'recent_files_count': ('int', 'Recent Files Count', 1, 50),
+                'recent_files': ('recent_files', 'Recent Files'),
             },
             'units': {
                 'units': ('combo', 'Default Units', ['inches', 'mm']),
@@ -328,6 +423,8 @@ class PreferencesDialog(QDialog):
                 control = ComboPreferenceControl(pref_key, pref_name, choices)
             elif control_type == 'color':
                 control = ColorPreferenceControl(pref_key, pref_name)
+            elif control_type == 'recent_files':
+                control = RecentFilesPreferenceControl(pref_key, pref_name)
             else:
                 return None
 

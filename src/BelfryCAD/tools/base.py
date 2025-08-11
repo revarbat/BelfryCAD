@@ -96,9 +96,9 @@ class Tool(QObject):
         return self.main_window.get_scene()
 
     @property
-    def dpi(self):
-        """Get the DPI from the main window"""
-        return self.main_window.get_dpi()
+    def dpmm(self):
+        """Get the dots per millimeter from the main window"""
+        return self.main_window.get_dpmm()
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definitions - uses class-level definitions by default"""

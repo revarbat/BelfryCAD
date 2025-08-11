@@ -9,6 +9,7 @@ from .info_pane import InfoPane, create_info_pane
 from .config_pane import ConfigPane
 from .snaps_pane import SnapsToolBar, SnapsPaneInfo, create_snaps_toolbar
 from .tool_palette import ToolPalette
+from .object_tree_pane import ObjectTreePane
 
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     'SnapsToolBar',
     'SnapsPaneInfo',
     'create_snaps_toolbar',
-    'ToolPalette'
+    'ToolPalette',
+    'ObjectTreePane'
 ]

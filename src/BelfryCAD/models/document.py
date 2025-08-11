@@ -21,11 +21,53 @@ class Document:
         self.modified = False
         self.filename: Optional[str] = None
         self.constraints_manager = ConstraintsManager(self)
+        self._name_counter: Dict[str, int] = {}  # Track name counters for each type
     
     def add_object(self, cad_object: CadObject) -> str:
         """Add an object to the document"""
         self.objects[cad_object.object_id] = cad_object
         cad_object.document = self
+        
+        # Generate a unique name for the object if it doesn't have one
+        if cad_object._name is None:
+            # Get the base name for this object type
+            obj_type = type(cad_object).__name__.replace('CadObject', '').lower()
+            if obj_type == 'line':
+                base_name = 'line'
+            elif obj_type == 'circle':
+                base_name = 'circle'
+            elif obj_type == 'arc':
+                base_name = 'arc'
+            elif obj_type == 'ellipse':
+                base_name = 'ellipse'
+            elif obj_type == 'bezier':
+                base_name = 'bezier'
+            elif obj_type == 'gear':
+                base_name = 'gear'
+            elif obj_type == 'polygon':
+                base_name = 'polygon'
+            elif obj_type == 'group':
+                base_name = 'group'
+            else:
+                base_name = 'object'
+            
+            # Generate unique name by checking existing names
+            counter = 1
+            while True:
+                candidate_name = f"{base_name}{counter}"
+                name_exists = False
+                
+                # Check if this name is already used by another object
+                for obj_id, obj in self.objects.items():
+                    if obj_id != cad_object.object_id and hasattr(obj, '_name') and obj._name == candidate_name:
+                        name_exists = True
+                        break
+                
+                if not name_exists:
+                    cad_object._name = candidate_name
+                    break
+                
+                counter += 1
         
         # If it's a group object, add it to root groups if it has no parent
         if isinstance(cad_object, GroupCadObject) and cad_object.is_root():
@@ -33,6 +75,65 @@ class Document:
         
         self.modified = True
         return cad_object.object_id
+    
+    def get_unique_name(self, base_name: str, object_id: str) -> str:
+        """
+        Generate a unique name for an object.
+        
+        Args:
+            base_name: The base name (e.g., 'line', 'circle')
+            object_id: The object's ID to exclude from uniqueness check
+            
+        Returns:
+            A unique name for the object
+        """
+        # Initialize counter for this base name if not exists
+        if base_name not in self._name_counter:
+            self._name_counter[base_name] = 0
+        
+        # Find the next available number starting from 1
+        counter = 1
+        while True:
+            candidate_name = f"{base_name}{counter}"
+            
+            # Check if this name is already used by another object
+            name_exists = False
+            for obj_id, obj in self.objects.items():
+                if obj_id != object_id and hasattr(obj, '_name') and obj._name == candidate_name:
+                    name_exists = True
+                    break
+            
+            if not name_exists:
+                self._name_counter[base_name] = counter
+                return candidate_name
+            
+            counter += 1
+    
+    def rename_object(self, object_id: str, new_name: str) -> bool:
+        """
+        Rename an object.
+        
+        Args:
+            object_id: The ID of the object to rename
+            new_name: The new name for the object
+            
+        Returns:
+            True if the rename was successful, False otherwise
+        """
+        if object_id not in self.objects:
+            return False
+        
+        obj = self.objects[object_id]
+        
+        # Check if the new name is already used by another object
+        for other_id, other_obj in self.objects.items():
+            if other_id != object_id and hasattr(other_obj, 'name') and other_obj.name == new_name:
+                return False
+        
+        # Set the new name
+        obj._name = new_name
+        self.modified = True
+        return True
     
     def remove_object(self, object_id: str) -> bool:
         """Remove an object from the document"""

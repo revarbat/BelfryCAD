@@ -71,42 +71,42 @@ class GridInfo(object):
     def grid_spacings(self):
         return {
             GridUnits.INCHES_DECIMAL: [
-                    120.0, 60.0, 10.0, 5.0, 1.0, 0.5,
+                    36.0, 12.0, 3.0, 1.0, 0.5,
                     0.1, 0.05, 0.01, 0.005, 0.001
                 ],
             GridUnits.INCHES_FRACTION: [
-                    120.0, 36.0, 12.0, 3.0, 1.0,
+                    36.0, 12.0, 3.0, 1.0,
                     1/4, 1/16, 1/64, 1/256
                 ],
             GridUnits.FEET_DECIMAL: [
-                    100.0, 50.0, 10.0, 5.0, 1.0, 0.5,
-                    0.1, 0.05, 0.01, 0.005, 0.001
+                    3.0, 1.0, 0.5, 0.1,
+                    0.05, 0.01, 0.005, 0.001, 0.0005,
                 ],
             GridUnits.FEET_FRACTION: [
-                    100.0, 50.0, 10.0, 5.0, 1.0,
-                    1/2, 1/4, 1/12, 1/12/4, 1/12/16,
-                    1/12/64, 1/12/256
+                    3.0, 1.0, 1/4,
+                    1/12, 1/4/12, 1/16/12, 1/64/12, 1/256/12,
                 ],
             GridUnits.YARDS_DECIMAL: [
-                    100.0, 50.0, 10.0, 5.0, 1.0,
-                    0.5, 0.1, 0.05, 0.01
+                    3.0, 1.0,
+                    0.5, 0.1, 0.05, 0.01,
+                    0.005, 0.001, 0.0005, 0.0001
                 ],
             GridUnits.YARDS_FRACTION: [
-                    100.0, 50.0, 10.0, 5.0, 1.0,
-                    1/3, 1/3/2, 1/3/4, 1/3/12, 1/3/12/4,
-                    1/3/12/16, 1/3/12/64, 1/3/12/256
+                    3.0, 1.0, 1/3, 1/3/4, 1/36,
+                    1/36/4, 1/36/16, 1/36/64,
+                    1/36/256, 1/36/1024,
                 ],
             GridUnits.MILLIMETERS: [
-                    10000.0, 5000.0, 1000.0, 500.0, 100.0, 50.0,
-                    10.0, 5.0, 1.0, 0.5, 0.1
+                    5000.0, 1000.0, 500.0, 100.0, 50.0,
+                    10.0, 5.0, 1.0, 0.5, 0.1, 0.05, 0.01
                 ],
             GridUnits.CENTIMETERS: [
-                    1000.0, 500.0, 100.0, 50.0, 10.0, 5.0,
-                    1.0, 0.5, 0.1, 0.05, 0.01
+                    500.0, 100.0, 50.0, 10.0, 5.0,
+                    1.0, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001
                 ],
             GridUnits.METERS: [
-                    100.0, 50.0, 10.0, 5.0, 1.0, 0.5,
-                    0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001
+                    5.0, 1.0, 0.5, 0.1, 0.05, 0.01,
+                    0.005, 0.001, 0.0005, 0.0001, 0.00005, 0.00001
                 ],
         }[self.units]
 
@@ -151,15 +151,15 @@ class GridInfo(object):
     @property
     def unit_scale(self):
         return {
-            GridUnits.INCHES_DECIMAL: 1.0,
-            GridUnits.INCHES_FRACTION: 1.0,
-            GridUnits.FEET_DECIMAL: 12.0,
-            GridUnits.FEET_FRACTION: 12.0,
-            GridUnits.YARDS_DECIMAL: 36.0,
-            GridUnits.YARDS_FRACTION: 36.0,
-            GridUnits.MILLIMETERS: 1/25.4,
-            GridUnits.CENTIMETERS: 1/2.54,
-            GridUnits.METERS: 1/0.0254,
+            GridUnits.INCHES_DECIMAL: 2.54,
+            GridUnits.INCHES_FRACTION: 2.54,
+            GridUnits.FEET_DECIMAL: 12.0 * 2.54,
+            GridUnits.FEET_FRACTION: 12.0 * 2.54,
+            GridUnits.YARDS_DECIMAL: 36.0 * 2.54,
+            GridUnits.YARDS_FRACTION: 36.0 * 2.54,
+            GridUnits.MILLIMETERS: 0.1,
+            GridUnits.CENTIMETERS: 1.0,
+            GridUnits.METERS: 100.0,
         }[self.units]
 
     def get_relevant_spacings(self, scaling: float) \
@@ -286,22 +286,23 @@ class GridInfo(object):
             return valstr
 
     @staticmethod
-    def get_dpi(view: QGraphicsView) -> float:
-        """Get the DPI from the view."""
-        return view.physicalDpiX()
+    def get_dpmm(view: QGraphicsView) -> float:
+        """Get the dots per millimeter from the view."""
+        dpmm = view.physicalDpiX() / 2.54
+        return dpmm
     
     @staticmethod
     def get_zoom(view: QGraphicsView) -> float:
         """Get the zoom level, in percentage."""
-        dpi = GridInfo.get_dpi(view)
-        return view.transform().m11() / dpi * 100
+        dpmm = GridInfo.get_dpmm(view)
+        return view.transform().m11() / dpmm * 100
 
     @staticmethod
     def set_zoom(view: QGraphicsView, zoom: float) -> float:
         """Set the zoom level, in percentage."""
-        dpi = GridInfo.get_dpi(view)
+        dpmm = GridInfo.get_dpmm(view)
         view.resetTransform()
-        view.scale(dpi, -dpi)
+        view.scale(dpmm, -dpmm)
         view.scale(zoom / 100.0, zoom / 100.0)
         view.update()
         return zoom

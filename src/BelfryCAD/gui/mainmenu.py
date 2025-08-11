@@ -6,6 +6,7 @@ original TCL mainmenu.tcl implementation.
 """
 
 import platform
+from pathlib import Path
 
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QObject, Signal
@@ -40,16 +41,33 @@ class RecentFilesManager(QObject):
         # Get recent files from preferences
         recent_files = self.preferences_viewmodel.get("recent_files", [])
 
+        # Filter out non-existent files and update the list
+        valid_files = []
+        for filepath in recent_files:
+            if filepath and len(filepath) > 0:
+                # Check if file exists
+                if Path(filepath).exists():
+                    valid_files.append(filepath)
+                # If file doesn't exist, it's automatically removed from the list
+
+        # Update the preferences if any files were removed
+        if len(valid_files) != len(recent_files):
+            self.preferences_viewmodel.set("recent_files", valid_files)
+
         # Add recent file entries
         count = 0
-        for filename in recent_files:
-            if filename and len(filename) > 0:
-                action = QAction(filename, self.recent_menu)
-                action.triggered.connect(
-                    lambda checked, f=filename: self.file_selected.emit(f)
-                )
-                self.recent_menu.addAction(action)
-                count += 1
+        for filepath in valid_files:
+            # Extract just the filename for display
+            filename = filepath.split('/')[-1] if '/' in filepath else filepath
+            filename = filename.split('\\')[-1] if '\\' in filename else filename
+            
+            action = QAction(filename, self.recent_menu)
+            action.setToolTip(filepath)  # Show full path in tooltip
+            action.triggered.connect(
+                lambda checked, f=filepath: self.file_selected.emit(f)
+            )
+            self.recent_menu.addAction(action)
+            count += 1
 
         # Add separator and clear option if we have files
         if count > 0:
@@ -74,8 +92,9 @@ class RecentFilesManager(QObject):
         # Add to beginning
         recent_files.insert(0, filename)
 
-        # Limit to 10 recent files
-        recent_files = recent_files[:10]
+        # Limit to configured recent files count
+        max_count = self.preferences_viewmodel.get("recent_files_count", 10)
+        recent_files = recent_files[:max_count]
 
         # Save back to preferences
         self.preferences_viewmodel.set("recent_files", recent_files)
@@ -97,6 +116,7 @@ class MainMenuBar(QObject):
     # File menu signals
     new_triggered = Signal()
     open_triggered = Signal()
+    file_selected = Signal(str)  # Signal for recent file selection
     save_triggered = Signal()
     save_as_triggered = Signal()
     close_triggered = Signal()
@@ -635,9 +655,8 @@ class MainMenuBar(QObject):
 
     def _handle_recent_file(self, filename: str):
         """Handle selection of a recent file."""
-        # For now, just emit the open signal
-        # The main window should handle opening the specific file
-        self.open_triggered.emit()
+        # Emit the file_selected signal with the specific filename
+        self.file_selected.emit(filename)
 
     def add_recent_file(self, filename: str):
         """Add a file to the recent files list."""

@@ -47,6 +47,31 @@ class CADObjectFactory(QObject):
             "cubic_bezier": CubicBezierViewModel,
         }
     
+    def create_viewmodel_for(self, cad_object: 'CadObject') -> Optional[CadViewModel]:
+        """
+        Create a ViewModel instance for an existing CadObject model.
+        
+        Args:
+            cad_object: The model object to wrap in a ViewModel
+        
+        Returns:
+            A CadViewModel instance appropriate for the model, or None for unsupported types
+        """
+        # Derive type key similar to model class naming convention
+        type_name = type(cad_object).__name__.replace('CadObject', '').lower()
+        # Normalize known names that differ from keys
+        mapping_overrides = {
+            'cubic_bezier': 'cubic_bezier',
+        }
+        # For classes like LineCadObject -> 'line'
+        if type_name.endswith('_cad_object'):
+            type_name = type_name.replace('_cad_object', '')
+        type_key = mapping_overrides.get(type_name, type_name)
+        vm_class = self._viewmodel_classes.get(type_key)
+        if not vm_class:
+            return None
+        return vm_class(self._main_window, cad_object)
+    
     def create_gear_object(self,
                           center_point: Point2D,
                           pitch_diameter: float,

@@ -1,0 +1,172 @@
+<?xml version="1.0" ?>
+<belfry:belfrycad_document xmlns:belfry="http://belfrydw.com/xml/BelfryCAD/1.0" version="1.0">
+  <belfry:header>
+    <belfry:preferences units="mm" precision="2" use_fractions="false" grid_visible="True" show_rulers="True" canvas_bg_color="#f0f0f0" grid_color="#d0d0d0" selection_color="#ff8000"/>
+  </belfry:header>
+  <belfry:parameters>
+    <belfry:parameter name="base_width" expression="100.0"/>
+    <belfry:parameter name="base_height" expression="80.0"/>
+    <belfry:parameter name="hole_diameter" expression="8.0"/>
+    <belfry:parameter name="gear_ratio" expression="2.5"/>
+    <belfry:parameter name="mounting_clearance" expression="5.0"/>
+    <belfry:parameter name="center_distance" expression="60.0"/>
+    <belfry:parameter name="gear_pressure_angle" expression="20.0"/>
+    <belfry:parameter name="gear_teeth_1" expression="20"/>
+    <belfry:parameter name="gear_teeth_2" expression="$gear_teeth_1 * $gear_ratio"/>
+    <belfry:parameter name="gear_pitch_radius_1" expression="25.0"/>
+    <belfry:parameter name="gear_pitch_radius_2" expression="$gear_pitch_radius_1 * $gear_ratio"/>
+    <belfry:parameter name="spring_length" expression="40.0"/>
+    <belfry:parameter name="spring_coils" expression="8"/>
+    <belfry:parameter name="spring_diameter" expression="12.0"/>
+    <belfry:parameter name="angle_offset" expression="45.0"/>
+  </belfry:parameters>
+  <belfry:objects>
+    <belfry:group id="16" name="Base Assembly1" color="black" line_width="0.5" visible="true" locked="false">
+      <belfry:line id="1" name="Base Line 11" color="black" line_width="0.5" visible="true" locked="false" parent="16">
+        <belfry:start_point x="0.0" y="0.0"/>
+        <belfry:end_point x="100.0" y="0.0"/>
+      </belfry:line>
+      <belfry:line id="2" name="Base Line 21" color="black" line_width="0.5" visible="true" locked="false" parent="16">
+        <belfry:start_point x="100.0" y="0.0"/>
+        <belfry:end_point x="100.0" y="80.0"/>
+      </belfry:line>
+      <belfry:line id="3" name="Base Line 31" color="black" line_width="0.5" visible="true" locked="false" parent="16">
+        <belfry:start_point x="100.0" y="80.0"/>
+        <belfry:end_point x="0.0" y="80.0"/>
+      </belfry:line>
+      <belfry:line id="4" name="Base Line 41" color="black" line_width="0.5" visible="true" locked="false" parent="16">
+        <belfry:start_point x="0.0" y="80.0"/>
+        <belfry:end_point x="0.0" y="0.0"/>
+      </belfry:line>
+    </belfry:group>
+    <belfry:group id="17" name="Mounting Holes1" color="blue" line_width="0.3" visible="true" locked="false">
+      <belfry:circle id="5" name="Mounting Hole 11" color="blue" line_width="0.3" visible="true" locked="false" parent="17">
+        <belfry:center_point x="10.0" y="10.0"/>
+        <belfry:radius value="8.0"/>
+      </belfry:circle>
+      <belfry:circle id="6" name="Mounting Hole 21" color="blue" line_width="0.3" visible="true" locked="false" parent="17">
+        <belfry:center_point x="90.0" y="10.0"/>
+        <belfry:radius value="8.0"/>
+      </belfry:circle>
+      <belfry:circle id="7" name="Mounting Hole 31" color="blue" line_width="0.3" visible="true" locked="false" parent="17">
+        <belfry:center_point x="10.0" y="70.0"/>
+        <belfry:radius value="8.0"/>
+      </belfry:circle>
+      <belfry:circle id="8" name="Mounting Hole 41" color="blue" line_width="0.3" visible="true" locked="false" parent="17">
+        <belfry:center_point x="90.0" y="70.0"/>
+        <belfry:radius value="8.0"/>
+      </belfry:circle>
+    </belfry:group>
+    <belfry:group id="18" name="Gear Assembly1" color="red" line_width="0.4" visible="true" locked="false">
+      <belfry:gear id="9" name="Drive Gear1" color="red" line_width="0.4" visible="true" locked="false" parent="18">
+        <belfry:center_point x="25.0" y="40.0"/>
+        <belfry:pitch_radius value="25.0"/>
+        <belfry:num_teeth value="20"/>
+        <belfry:pressure_angle value="20.0"/>
+      </belfry:gear>
+      <belfry:gear id="10" name="Driven Gear1" color="red" line_width="0.4" visible="true" locked="false" parent="18">
+        <belfry:center_point x="85.0" y="40.0"/>
+        <belfry:pitch_radius value="62.5"/>
+        <belfry:num_teeth value="50"/>
+        <belfry:pressure_angle value="20.0"/>
+      </belfry:gear>
+    </belfry:group>
+    <belfry:group id="19" name="Mechanism1" color="green" line_width="0.3" visible="true" locked="false">
+      <belfry:arc id="11" name="Spring Arc1" color="green" line_width="0.3" visible="true" locked="false" parent="19">
+        <belfry:center_point x="50.0" y="20.0"/>
+        <belfry:start_point x="45.0" y="20.0"/>
+        <belfry:end_point x="55.0" y="20.0"/>
+      </belfry:arc>
+      <belfry:ellipse id="12" name="Elliptical Cam1" color="purple" line_width="0.4" visible="true" locked="false" parent="19">
+        <belfry:center_point x="50.0" y="60.0"/>
+        <belfry:major_axis_point x="65.0" y="60.0"/>
+        <belfry:minor_axis_point x="50.0" y="55.0"/>
+      </belfry:ellipse>
+      <belfry:cubicbezier id="13" name="Decorative Bezier1" color="orange" line_width="0.3" visible="true" locked="false" parent="19">
+        <belfry:control_point index="0" x="15.0" y="45.0"/>
+        <belfry:control_point index="1" x="25.0" y="55.0"/>
+        <belfry:control_point index="2" x="35.0" y="45.0"/>
+        <belfry:control_point index="3" x="45.0" y="55.0"/>
+      </belfry:cubicbezier>
+    </belfry:group>
+    <belfry:group id="20" name="Reference Elements1" color="gray" line_width="0.2" visible="true" locked="false">
+      <belfry:line id="14" name="Center Line1" color="gray" line_width="0.2" visible="true" locked="false" parent="20">
+        <belfry:start_point x="50.0" y="0.0"/>
+        <belfry:end_point x="50.0" y="80.0"/>
+      </belfry:line>
+      <belfry:circle id="15" name="Reference Circle1" color="lightblue" line_width="0.2" visible="true" locked="false" parent="20">
+        <belfry:center_point x="50.0" y="40.0"/>
+        <belfry:radius value="20.0"/>
+      </belfry:circle>
+    </belfry:group>
+    <belfry:line id="1" name="Base Line 11" color="black" line_width="0.5" visible="true" locked="false" parent="16">
+      <belfry:start_point x="0.0" y="0.0"/>
+      <belfry:end_point x="100.0" y="0.0"/>
+    </belfry:line>
+    <belfry:line id="2" name="Base Line 21" color="black" line_width="0.5" visible="true" locked="false" parent="16">
+      <belfry:start_point x="100.0" y="0.0"/>
+      <belfry:end_point x="100.0" y="80.0"/>
+    </belfry:line>
+    <belfry:line id="3" name="Base Line 31" color="black" line_width="0.5" visible="true" locked="false" parent="16">
+      <belfry:start_point x="100.0" y="80.0"/>
+      <belfry:end_point x="0.0" y="80.0"/>
+    </belfry:line>
+    <belfry:line id="4" name="Base Line 41" color="black" line_width="0.5" visible="true" locked="false" parent="16">
+      <belfry:start_point x="0.0" y="80.0"/>
+      <belfry:end_point x="0.0" y="0.0"/>
+    </belfry:line>
+    <belfry:circle id="5" name="Mounting Hole 11" color="blue" line_width="0.3" visible="true" locked="false" parent="17">
+      <belfry:center_point x="10.0" y="10.0"/>
+      <belfry:radius value="8.0"/>
+    </belfry:circle>
+    <belfry:circle id="6" name="Mounting Hole 21" color="blue" line_width="0.3" visible="true" locked="false" parent="17">
+      <belfry:center_point x="90.0" y="10.0"/>
+      <belfry:radius value="8.0"/>
+    </belfry:circle>
+    <belfry:circle id="7" name="Mounting Hole 31" color="blue" line_width="0.3" visible="true" locked="false" parent="17">
+      <belfry:center_point x="10.0" y="70.0"/>
+      <belfry:radius value="8.0"/>
+    </belfry:circle>
+    <belfry:circle id="8" name="Mounting Hole 41" color="blue" line_width="0.3" visible="true" locked="false" parent="17">
+      <belfry:center_point x="90.0" y="70.0"/>
+      <belfry:radius value="8.0"/>
+    </belfry:circle>
+    <belfry:gear id="9" name="Drive Gear1" color="red" line_width="0.4" visible="true" locked="false" parent="18">
+      <belfry:center_point x="25.0" y="40.0"/>
+      <belfry:pitch_radius value="25.0"/>
+      <belfry:num_teeth value="20"/>
+      <belfry:pressure_angle value="20.0"/>
+    </belfry:gear>
+    <belfry:gear id="10" name="Driven Gear1" color="red" line_width="0.4" visible="true" locked="false" parent="18">
+      <belfry:center_point x="85.0" y="40.0"/>
+      <belfry:pitch_radius value="62.5"/>
+      <belfry:num_teeth value="50"/>
+      <belfry:pressure_angle value="20.0"/>
+    </belfry:gear>
+    <belfry:arc id="11" name="Spring Arc1" color="green" line_width="0.3" visible="true" locked="false" parent="19">
+      <belfry:center_point x="50.0" y="20.0"/>
+      <belfry:start_point x="45.0" y="20.0"/>
+      <belfry:end_point x="55.0" y="20.0"/>
+    </belfry:arc>
+    <belfry:ellipse id="12" name="Elliptical Cam1" color="purple" line_width="0.4" visible="true" locked="false" parent="19">
+      <belfry:center_point x="50.0" y="60.0"/>
+      <belfry:major_axis_point x="65.0" y="60.0"/>
+      <belfry:minor_axis_point x="50.0" y="55.0"/>
+    </belfry:ellipse>
+    <belfry:cubicbezier id="13" name="Decorative Bezier1" color="orange" line_width="0.3" visible="true" locked="false" parent="19">
+      <belfry:control_point index="0" x="15.0" y="45.0"/>
+      <belfry:control_point index="1" x="25.0" y="55.0"/>
+      <belfry:control_point index="2" x="35.0" y="45.0"/>
+      <belfry:control_point index="3" x="45.0" y="55.0"/>
+    </belfry:cubicbezier>
+    <belfry:line id="14" name="Center Line1" color="gray" line_width="0.2" visible="true" locked="false" parent="20">
+      <belfry:start_point x="50.0" y="0.0"/>
+      <belfry:end_point x="50.0" y="80.0"/>
+    </belfry:line>
+    <belfry:circle id="15" name="Reference Circle1" color="lightblue" line_width="0.2" visible="true" locked="false" parent="20">
+      <belfry:center_point x="50.0" y="40.0"/>
+      <belfry:radius value="20.0"/>
+    </belfry:circle>
+  </belfry:objects>
+</belfry:belfrycad_document>
+

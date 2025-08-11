@@ -5,14 +5,13 @@ This base class provides the common interface that all CAD object viewmodels sho
 It defines the standard signals, properties, and methods for managing CAD objects in the UI.
 """
 
-from typing import List, Tuple, Optional, TYPE_CHECKING
+from typing import List, Tuple, TYPE_CHECKING
 from PySide6.QtCore import QObject, Signal, QPointF
 from PySide6.QtWidgets import QGraphicsScene
-import math
 
 if TYPE_CHECKING:
-    from ...models.cad_object import CadObject
-    from ...gui.main_window import MainWindow
+    from ....models.cad_object import CadObject
+    from ....gui.main_window import MainWindow
 
 
 class CadViewModel(QObject):

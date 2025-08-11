@@ -71,6 +71,7 @@ class AppConfig:
             "auto_save": True,
             "auto_save_interval": 300,  # seconds
             "recent_files_count": 10,
+            "recent_files": [],  # List of recent file paths
             "window_geometry": "1200x800+100+100",
             "canvas_bg_color": "#ffffff",
             "grid_color": "#cccccc",

@@ -19,7 +19,8 @@ from ...graphics_items.control_points import (
     ControlDatum
 )
 from ...graphics_items.cad_arc_graphics_item import (
-    CadArcGraphicsItem
+    CadArcGraphicsItem,
+    CadArcArrowheadEndcaps
 )
 from ....models.cad_objects.arc_cad_object import ArcCadObject
 from ....cad_geometry import Point2D
@@ -59,7 +60,11 @@ class ArcViewModel(CadViewModel):
         span_angle = math.degrees(self.span_angle)    # Convert to degrees for CadArcGraphicsItem
         
         # Create main arc using CadArcGraphicsItem
-        arc_pen = QPen(color, line_width)
+        if line_width is None:
+            arc_pen = QPen(color, 1.0)
+            arc_pen.setCosmetic(True)
+        else:
+            arc_pen = QPen(color, line_width)
         arc_item = CadArcGraphicsItem(
             center_point=center,
             radius=radius,
@@ -88,7 +93,9 @@ class ArcViewModel(CadViewModel):
         start_angle = math.degrees(self.start_angle)
         span_angle = math.degrees(self.span_angle)
         
-        decoration_pen = QPen(QColor(0x7f, 0x7f, 0x7f), line_width)  # Gray color
+        const_color = QColor(0x7f, 0x7f, 0x7f)
+        decoration_pen = QPen(const_color, 1.0)
+        decoration_pen.setCosmetic(True)
         decoration_pen.setStyle(Qt.PenStyle.DashLine)
         decoration_pen.setDashPattern([5.0, 5.0])
         
