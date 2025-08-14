@@ -26,7 +26,7 @@ from ...utils.geometry import Point2D, SpurGear
 
 # After
 from ...utils.geometry import Point2D
-from ...utils.spur_gear import SpurGear
+from ...cad_geometry.spur_gear import SpurGear
 ```
 
 ### 3. Removed SpurGear from geometry.py

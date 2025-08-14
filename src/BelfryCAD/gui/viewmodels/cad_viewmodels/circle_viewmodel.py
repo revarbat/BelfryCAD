@@ -10,7 +10,7 @@ from typing import Tuple, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QPointF, Signal
 from PySide6.QtGui import QColor, QTransform, QPen
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsEllipseItem
+from PySide6.QtWidgets import QGraphicsScene
 
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
@@ -18,11 +18,12 @@ from ...graphics_items.control_points import (
     SquareControlPoint,
     ControlDatum
 )
+from ...graphics_items.cad_circle_graphics_item import CadCircleGraphicsItem
 from ....models.cad_objects.circle_cad_object import CircleCadObject
 from ....cad_geometry import Point2D
 
 if TYPE_CHECKING:
-    from ....gui.main_window import MainWindow
+    from ....gui.document_window import DocumentWindow
 
 
 class CircleViewModel(CadViewModel):
@@ -34,8 +35,8 @@ class CircleViewModel(CadViewModel):
     diameter_changed = Signal(float)  # new diameter
     perimeter_point_changed = Signal(QPointF)  # new perimeter point
     
-    def __init__(self, main_window: 'MainWindow', circle_object: CircleCadObject):
-        super().__init__(main_window, circle_object)
+    def __init__(self, document_window: 'DocumentWindow', circle_object: CircleCadObject):
+        super().__init__(document_window, circle_object)
         self._circle_object = circle_object  # Keep reference for type-specific access
         
     def update_view(self, scene: QGraphicsScene):
@@ -47,17 +48,21 @@ class CircleViewModel(CadViewModel):
 
         color = QColor(self._circle_object.color)
         line_width = self._circle_object.line_width
+        if line_width is None:
+            line_width = 1.0  # Default line width
         center = self.center_point
         radius = self.radius
+        print(f"CircleViewModel: center={center}, radius={radius}")
+        pen = QPen(color, line_width)
         
         # Create circle graphics item
-        view_item = QGraphicsEllipseItem(
-            center.x() - radius,
-            center.y() - radius,
-            radius * 2,
-            radius * 2
+        view_item = CadCircleGraphicsItem(
+            center_point=center,
+            radius=radius,
+            pen=pen
         )
-        view_item.setPen(QPen(color, line_width))
+        # Selection flags are now set by the base class
+
         self._view_items.append(view_item)
 
         self._add_view_items_to_scene(scene)
@@ -111,8 +116,8 @@ class CircleViewModel(CadViewModel):
         )
         self._controls.append(perimeter_cp)
 
-        # Get precision from main window or use default
-        precision = self._main_window.preferences_viewmodel.get_precision()
+        # Get precision from document window or use default
+        precision = self._document_window.preferences_viewmodel.get_precision()
         
         # Radius datum
         radius_datum = ControlDatum(

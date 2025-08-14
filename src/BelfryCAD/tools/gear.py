@@ -1,11 +1,7 @@
 """
-Gear Tools Implementation
+Gear tool for BelfryCAD.
 
-This module implements gear creation tools based on the original TCL
-mlcnc-gears.tcl implementation. It provides tools for creating:
-- Spur and helical gears
-- Worm gears
-- Worms
+This tool allows users to create and manipulate gear objects in the CAD document.
 """
 
 import math
@@ -22,9 +18,13 @@ from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from ..cad_geometry.spur_gear import SpurGear
+from ..utils.logger import get_logger
 
 if TYPE_CHECKING:
-    from ..gui.main_window import MainWindow
+    from ..gui.document_window import DocumentWindow
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -56,41 +56,60 @@ class WormParameters:
     table_orientation: float  # Table orientation in degrees
 
 
-class GearObject(CadObject):
-    """Gear object - represents a spur or helical gear"""
-
-    def __init__(self, mainwin: 'MainWindow', object_id: int, position: Point2D,
-                 params: GearParameters, **kwargs):
+class GearCadObject(CadObject):
+    """CAD object representing a gear."""
+    
+    def __init__(self, document_window: 'DocumentWindow', object_id: int, position: Point2D,
+                 pitch_diameter: float, num_teeth: int, pressure_angle: float = 20.0, **kwargs):
         super().__init__(
-            mainwin, object_id, ObjectType.GEAR, coords=[position], **kwargs)
-        self.attributes.update({
-            'pitch': params.pitch,
-            'num_teeth': params.num_teeth,
-            'helical_angle': params.helical_angle,
-            'gear_width': params.gear_width,
-            'table_orientation': params.table_orientation
-        })
-
-    @property
-    def position(self) -> Point2D:
-        return self.coords[0]
-
-    @property
-    def pitch_diameter(self) -> float:
-        """Calculate pitch diameter"""
-        hel_rad = math.radians(self.attributes['helical_angle'])
-        return ((self.attributes['num_teeth'] / self.attributes['pitch']) /
-                math.cos(hel_rad))
-
-    @property
-    def outside_diameter(self) -> float:
-        """Calculate outside diameter"""
-        return self.pitch_diameter + (2.0 / self.attributes['pitch'])
-
-    @property
-    def whole_depth(self) -> float:
-        """Calculate whole depth"""
-        return 2.157 / self.attributes['pitch']
+            document_window, object_id, ObjectType.GEAR, coords=[position], **kwargs)
+        self.position = position
+        self.pitch_diameter = pitch_diameter
+        self.num_teeth = num_teeth
+        self.pressure_angle = pressure_angle
+        
+        # Create the spur gear geometry
+        self.gear = SpurGear(
+            pitch_diameter=pitch_diameter,
+            num_teeth=num_teeth,
+            pressure_angle=pressure_angle
+        )
+    
+    def get_bounds(self):
+        """Get the bounding box of the gear."""
+        radius = self.pitch_diameter / 2
+        return (
+            self.position.x - radius,
+            self.position.y - radius,
+            self.position.x + radius,
+            self.position.y + radius
+        )
+    
+    def translate(self, dx: float, dy: float):
+        """Translate the gear by the given offset."""
+        self.position = Point2D(self.position.x + dx, self.position.y + dy)
+    
+    def scale(self, scale_factor: float, center: Point2D):
+        """Scale the gear around the given center point."""
+        # Scale the position relative to center
+        dx = self.position.x - center.x
+        dy = self.position.y - center.y
+        self.position = Point2D(center.x + dx * scale_factor, center.y + dy * scale_factor)
+        
+        # Scale the pitch diameter
+        self.pitch_diameter *= scale_factor
+        
+        # Update the gear geometry
+        self.gear = SpurGear(
+            pitch_diameter=self.pitch_diameter,
+            num_teeth=self.num_teeth,
+            pressure_angle=self.pressure_angle
+        )
+    
+    def rotate(self, angle: float, center: Point2D):
+        """Rotate the gear around the given center point."""
+        # TODO: Implement rotation
+        pass
 
 
 class GearTool(Tool):
@@ -111,7 +130,7 @@ class GearTool(Tool):
 
     def show_dialog(self) -> Optional[GearParameters]:
         """Show gear creation dialog"""
-        dialog = QDialog(self.main_window)
+        dialog = QDialog(self.document_window)
         dialog.setWindowTitle("Create Gear")
         layout = QVBoxLayout()
 
@@ -185,21 +204,23 @@ class GearTool(Tool):
             return self.params
         return None
 
-    def create_gear(self, position: Point2D) -> Optional[GearObject]:
+    def create_gear(self, position: Point2D) -> Optional[GearCadObject]:
         """Create a gear at the specified position"""
         if not self.params:
             return None
 
         # Create gear object
-        gear = GearObject(
-            self.main_window,
-            self.main_window.document.get_next_object_id(),
+        gear = GearCadObject(
+            self.document_window,
+            self.document_window.document.get_next_object_id(),
             position,
-            self.params
+            self.params.pitch_diameter,
+            self.params.num_teeth,
+            pressure_angle=20.0  # Default pressure angle
         )
 
         # Add to document
-        self.main_window.document.add_object(gear)
+        self.document_window.document.add_object(gear)
         return gear
 
 

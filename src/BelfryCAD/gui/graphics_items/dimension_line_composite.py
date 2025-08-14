@@ -531,10 +531,26 @@ class DimensionLineComposite(QGraphicsItem):
         return stroker.createStroke(path)
     
     def paint(self, painter: QPainter, option, widget=None):
-        """Paint the dimension line."""
+        """Paint the dimension line and selection indication."""
         # The actual painting is done by the child items
-        # This method is mainly for hit testing and selection
-        pass
+        # But we need to draw selection indication if this item is selected
+        
+        if self.isSelected():
+            # Draw selection indication
+            from PySide6.QtCore import Qt
+            from PySide6.QtGui import QPen, QColor
+            from PySide6.QtWidgets import QApplication
+            
+            # Create selection pen using Qt's standard selection color
+            standard_selection_color = QApplication.palette().highlight().color()
+            selection_pen = QPen(standard_selection_color, 2.0)
+            selection_pen.setStyle(Qt.PenStyle.DashLine)
+            selection_pen.setCosmetic(True)
+            
+            # Draw selection rectangle around the bounding rect
+            painter.setPen(selection_pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRect(self.boundingRect())
     
     def mousePressEvent(self, event):
         """Handle mouse press events."""

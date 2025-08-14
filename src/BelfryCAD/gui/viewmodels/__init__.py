@@ -19,7 +19,7 @@ from .cad_viewmodels import (
     EllipseViewModel,
     CubicBezierViewModel
 )
-from .cad_object_factory import CADObjectFactory
+from .cad_object_factory import CadObjectFactory
 
 __all__ = [
     'DocumentViewModel',
@@ -35,5 +35,5 @@ __all__ = [
     'ArcViewModel',
     'EllipseViewModel',
     'CubicBezierViewModel',
-    'CADObjectFactory'
+    'CadObjectFactory'
 ] 

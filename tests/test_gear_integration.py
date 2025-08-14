@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-Integration test to verify that the gear system works correctly.
+Test gear integration functionality.
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+import pytest
+import math
+from typing import List
 
+from PySide6.QtWidgets import QApplication
+
+from BelfryCAD.cad_geometry import Point2D
+from BelfryCAD.cad_geometry.spur_gear import SpurGear
 from BelfryCAD.models.cad_objects.gear_cad_object import GearCadObject
-from BelfryCAD.utils.geometry import Point2D
-from BelfryCAD.utils.spur_gear import SpurGear
+from BelfryCAD.gui.viewmodels.cad_viewmodels.gear_viewmodel import GearViewModel
 
 
 def test_gear_integration():

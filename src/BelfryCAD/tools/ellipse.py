@@ -141,7 +141,7 @@ class EllipseCenterTool(Tool):
 
         # Create an ellipse object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
             coords=[center, corner],
@@ -313,7 +313,7 @@ class EllipseDiagonalTool(Tool):
 
         # Create an ellipse object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
             coords=[center, Point2D(center_x + rad_x, center_y + rad_y)],
@@ -488,7 +488,7 @@ class Ellipse3CornerTool(Tool):
 
         # Create an ellipse object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
             coords=[center, Point2D(center_x + rad_x, center_y + rad_y)],
@@ -672,7 +672,7 @@ class EllipseCenterTangentTool(Tool):
 
         # Create an ellipse object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
             coords=[center, Point2D(center_x + rad_x, center_y + rad_y)],
@@ -854,7 +854,7 @@ class EllipseOppositeTangentTool(Tool):
 
         # Create an ellipse object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.ELLIPSE,
             coords=[center, Point2D(center_x + rad_x, center_y + rad_y)],

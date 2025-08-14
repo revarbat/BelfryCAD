@@ -118,19 +118,13 @@ class RulersForeground(QGraphicsItem):
             dialog = UnitSelectionDialog(self.grid_info.units, widget)
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 new_unit = dialog.get_selected_unit()
-                if new_unit != self.grid_info.units:
-                    self.grid_info.units = new_unit
-                    # Update both grid and rulers
-                    self.update()
-                    # Find and update the grid background
-                    for item in self.scene().items():
-                        if isinstance(item, GridBackground):
-                            item.update()
-                            break
-                    # Notify the scene to refresh gear items
-                    scene = self.scene()
-                    if scene and hasattr(scene, 'refresh_gear_items_for_unit_change'):
-                        scene.refresh_gear_items_for_unit_change()  # type: ignore
+                self.grid_info.units = new_unit
+                # Refresh the view
+                widget.viewport().update()
+            event.accept()
+        else:
+            # Not in unit label area - ignore the event so it passes through to items underneath
+            event.ignore()
 
     @staticmethod
     def draw_label(

@@ -220,7 +220,7 @@ class Conic2PointTool(Tool):
 
         # Create a conic object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.CONIC,
             coords=[start, end],
@@ -448,7 +448,7 @@ class Conic3PointTool(Tool):
 
         # Create a conic object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.CONIC,
             coords=[start, end, control],

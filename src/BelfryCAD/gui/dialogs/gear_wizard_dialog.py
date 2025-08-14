@@ -1,30 +1,28 @@
 """
 Gear Wizard Dialog
 
-This module provides a dialog for generating G-code for various types of gears.
+This module provides a dialog for creating gears with various parameters.
 """
 
-from typing import Optional, cast, TYPE_CHECKING
+from typing import Optional, Dict, Any, List, cast, TYPE_CHECKING
 import logging
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QDoubleSpinBox,
-    QSpinBox, QComboBox, QPushButton, QGroupBox, QRadioButton,
-    QButtonGroup, QFileDialog, QMessageBox
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QSpinBox, QDoubleSpinBox, QComboBox, QCheckBox, QGroupBox,
+    QFormLayout, QTabWidget, QWidget, QTextEdit, QMessageBox,
+    QTableWidget, QTableWidgetItem, QHeaderView
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 
-from ...mlcnc.gear_generator import (
-    GearParameters, WormParameters, GearGenerator,
-    WormGearGenerator, WormGenerator, Handedness, TableOrientation
-)
-from ...mlcnc.cutting_params import (
-    ToolSpecification, ToolGeometry, ToolMaterial, ToolCoating
-)
-from .tool_table_dialog import ToolTableDialog
+from ...mlcnc.material_db import MaterialDatabase
+from ...mlcnc.gear_generator import GearParameters, TableOrientation
+from ...mlcnc.feed_optimizer import FeedOptimizer
+from ...utils.logger import get_logger
 
 if TYPE_CHECKING:
-    from ..main_window import MainWindow
+    from ..document_window import DocumentWindow
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +266,7 @@ class GearWizardDialog(QDialog):
         
         # Get tools from preferences
         tool_dicts = []
-        main_window = cast('MainWindow', self.parent())
+        main_window = cast('DocumentWindow', self.parent())
         if main_window:
             tool_dicts = main_window.preferences_viewmodel.get('tool_table', [])
             logger.info(f"Loaded {len(tool_dicts)} tools from preferences")

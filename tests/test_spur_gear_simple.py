@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Simple test to verify the SpurGear class functionality directly.
+Simple test for spur gear functionality.
 """
 
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from BelfryCAD.utils.geometry import Point2D
-from BelfryCAD.utils.spur_gear import SpurGear
+from BelfryCAD.cad_geometry import Point2D
+from BelfryCAD.cad_geometry.spur_gear import SpurGear
 
 
 def test_spur_gear():

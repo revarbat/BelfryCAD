@@ -96,7 +96,7 @@ class GridCopyTool(Tool):
 
         # Add new objects to document
         for obj in new_objects:
-            self.document.objects.add_object(obj)
+            self.document.add_object(obj)
 
         self.document.mark_modified()
         msg = f"Grid copied {len(new_objects)} objects"
@@ -190,7 +190,7 @@ class LinearCopyTool(Tool):
 
         # Add new objects to document
         for obj in new_objects:
-            self.document.objects.add_object(obj)
+            self.document.add_object(obj)
 
         self.document.mark_modified()
         msg = f"Linear copied {len(new_objects)} objects"
@@ -297,7 +297,7 @@ class RadialCopyTool(Tool):
 
         # Add new objects to document
         for obj in new_objects:
-            self.document.objects.add_object(obj)
+            self.document.add_object(obj)
 
         self.document.mark_modified()
         msg = f"Radial copied {len(new_objects)} objects"
@@ -421,7 +421,7 @@ class OffsetCopyTool(Tool):
 
         # Add new objects to document
         for obj in new_objects:
-            self.document.objects.add_object(obj)
+            self.document.add_object(obj)
 
         self.document.mark_modified()
         msg = f"Offset copied {len(new_objects)} objects"

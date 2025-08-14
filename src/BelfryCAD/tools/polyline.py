@@ -174,18 +174,12 @@ class PolylineTool(Tool):
         if len(self.points) < 2:
             return None
 
-        # Create a polyline object using POLYGON type with closed=False
-        obj = CadObject(
-            mainwin=self.main_window,
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.POLYGON,
-            coords=self.points.copy(),
-            attributes={
-                'color': 'black',       # Default color
-                'linewidth': 1,         # Default line width
-                'closed': False,        # Open polyline (not closed polygon)
-                'is_polyline': True,    # Mark as polyline for special handling
-                'segment_count': len(self.points) - 1  # Number of segments
-            }
+        # Create polyline object
+        polyline = PolylineCadObject(
+            mainwin=self.document_window,
+            object_id=self.document.get_next_object_id(),
+            points=self.points.copy(),
+            color=self.preferences.get("default_color", "black"),
+            line_width=self.preferences.get("default_line_width", 0.5)
         )
         return obj

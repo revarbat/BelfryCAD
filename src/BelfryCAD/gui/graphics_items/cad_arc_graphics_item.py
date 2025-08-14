@@ -6,8 +6,14 @@ import math
 from enum import Enum
 from typing import Optional, List
 from PySide6.QtCore import QPointF, QRectF
-from PySide6.QtGui import QPen, QColor, QBrush, QPainterPath, QPolygonF, Qt
-from PySide6.QtWidgets import QGraphicsItem, QAbstractGraphicsShapeItem, QGraphicsPathItem, QGraphicsPolygonItem
+from PySide6.QtGui import (
+    Qt, QPen, QColor, QBrush,
+    QPainterPath, QPainterPathStroker, QPolygonF
+)
+from PySide6.QtWidgets import (
+    QGraphicsItem, QAbstractGraphicsShapeItem,
+    QGraphicsPathItem, QGraphicsPolygonItem, QApplication
+)
 
 
 class CadArcArrowheadEndcaps(Enum):
@@ -52,6 +58,7 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         
         # Ensure the item is visible
         self.setVisible(True)
+        self.setPen(pen)
         
         # Create the arc
         self._create_arc()
@@ -204,12 +211,32 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         for arrowhead in self._arrowhead_items:
             shape.addPath(arrowhead.shape())
         
+        stroker = QPainterPathStroker()
+        stroker.setWidth(self.pen().widthF())
+        stroker.setCapStyle(self.pen().capStyle())
+        stroker.setJoinStyle(self.pen().joinStyle())
+        shape = stroker.createStroke(shape)
+
         return shape
 
     def paint(self, painter, option, widget=None):
-        """Paint the arc (delegated to child items)."""
+        """Paint the arc (delegated to child items) and selection indication."""
         # The actual painting is done by the child QGraphicsPathItem and QGraphicsPolygonItem
-        pass
+        # But we need to draw selection indication if this item is selected
+        
+        if self.isSelected():
+            # Draw selection indication
+            # Create selection pen using Qt's standard selection color
+            # standard_selection_color = QApplication.palette().highlight().color()
+            selection_pen = QPen(Qt.GlobalColor.red, 3.0)
+            selection_pen.setStyle(Qt.PenStyle.DashLine)
+            selection_pen.setCosmetic(True)
+            
+            # Draw selection rectangle around the bounding rect
+            painter.setPen(selection_pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            path = self.shape()
+            painter.drawPath(path)
 
     # Property setters
     def setCenterPoint(self, center_point: QPointF):

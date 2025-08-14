@@ -1,5 +1,5 @@
-# filepath: /Users/gminette/dev/git-repos/pyBelfryCad/src/gui/main_window.py
-"""Main window for the BelfryCad application."""
+# filepath: /Users/gminette/dev/git-repos/pyBelfryCad/src/gui/document_window.py
+"""Document window for the BelfryCad application."""
 
 import logging
 from tracemalloc import start
@@ -46,7 +46,7 @@ from .widgets.columnar_toolbar import ColumnarToolbarWidget
 from BelfryCAD.utils.cad_expression import CadExpression
 from .panes.parameters_pane import ParametersPane
 from .panes.object_tree_pane import ObjectTreePane
-from BelfryCAD.utils.xml_serializer import load_belfrycad_document
+from BelfryCAD.utils.xml_serializer import load_belfrycad_document, load_belfrycad_xml_document, save_belfrycad_document, save_belfrycad_xml_document
 from .viewmodels.cad_viewmodels import (
     LineViewModel,
     CircleViewModel,
@@ -65,7 +65,7 @@ from BelfryCAD.models.cad_objects.gear_cad_object import GearCadObject
 logger = logging.getLogger(__name__)
 
 
-class MainWindow(QMainWindow):
+class DocumentWindow(QMainWindow):
     def __init__(self, config, preferences_viewmodel, document):
         super().__init__()
         self.cad_expression = CadExpression()
@@ -591,12 +591,24 @@ class MainWindow(QMainWindow):
 
     def load_belcad_file(self, filepath: str) -> bool:
         """
-        Load a .belcad document, then create CadViewModels and their views in the scene.
+        Load a BelfryCAD document (.belcad or .belcadx), then create CadViewModels and their views in the scene.
         """
         try:
-            loaded = load_belfrycad_document(filepath)
+            # Determine file format by extension
+            filepath_lower = filepath.lower()
+            if filepath_lower.endswith('.belcadx'):
+                # Load uncompressed XML format
+                loaded = load_belfrycad_xml_document(filepath)
+            elif filepath_lower.endswith('.belcad'):
+                # Load compressed zip format
+                loaded = load_belfrycad_document(filepath)
+            else:
+                # Try compressed format as default
+                loaded = load_belfrycad_document(filepath)
+                
             if not loaded:
-                raise RuntimeError("Failed to load .belcad document")
+                raise RuntimeError("Failed to load BelfryCAD document")
+                
             # Replace current document reference
             self.document = loaded
             # Attach document CadExpression (parameters) into main window if available
@@ -628,6 +640,8 @@ class MainWindow(QMainWindow):
                 self._rebuild_scene_overlays()
             # Build viewmodels and views
             self._build_viewmodels_for_document()
+            # Zoom to fit the loaded document
+            self._zoom_to_fit()
             # Update title
             self.update_title()
             return True
@@ -644,29 +658,24 @@ class MainWindow(QMainWindow):
         """Create a CadViewModel for each object and add its views to the scene."""
         if not hasattr(self, 'cad_scene'):
             return
+        
+        # Import the factory here to avoid circular imports
+        from .viewmodels.cad_object_factory import CadObjectFactory
+        
+        # Create factory for viewmodels
+        factory = CadObjectFactory(self)
+        
         # Reset mapping
         self._object_viewmodels = {}
-        # Mapping from model type to viewmodel class
-        vm_map = {
-            LineCadObject: LineViewModel,
-            CircleCadObject: CircleViewModel,
-            ArcCadObject: ArcViewModel,
-            EllipseCadObject: EllipseViewModel,
-            CubicBezierCadObject: CubicBezierViewModel,
-            GearCadObject: GearViewModel,
-        }
+        
+        # Create viewmodels for all objects in the document
         for obj in self.document.get_all_objects():
-            vm_class = None
-            for cls, vcls in vm_map.items():
-                if isinstance(obj, cls):
-                    vm_class = vcls
-                    break
-            if not vm_class:
-                continue
-            vm = vm_class(self, obj)
-            # Ensure view is created/updated in scene
-            vm.update_view(self.cad_scene)
-            self._object_viewmodels[obj.object_id] = vm
+            if obj.visible:  # Only create graphics for visible objects
+                viewmodel = factory.create_viewmodel(obj)
+                if viewmodel:
+                    self._object_viewmodels[obj.object_id] = viewmodel
+                    # Add the graphics items to the scene
+                    viewmodel.update_view(self.cad_scene)
 
     def _setup_palettes(self):
         """Setup the palette system with dockable windows."""
@@ -917,6 +926,8 @@ class MainWindow(QMainWindow):
         self.document.new()
         self.update_title()
         self.cad_scene.clear()
+        # Refresh graphics after creating new document
+        self._draw_shapes()
 
     def open_file(self):
         if self.document.is_modified():
@@ -926,13 +937,15 @@ class MainWindow(QMainWindow):
             self,
             "Open Document",
             "",
-            "BelfryCAD files (*.belcad);;All files (*.*)"
+            "BelfryCAD files (*.belcad *.belcadx);;BelfryCAD Compressed (*.belcad);;BelfryCAD XML (*.belcadx);;All files (*.*)"
         )
         if filename:
             # Delegate to .belcad loader which also builds viewmodels and views
             if self.load_belcad_file(filename):
                 # Add to recent files after successful load
                 self.main_menu.add_recent_file(filename)
+                # Refresh graphics after loading document
+                self._draw_shapes()
 
     def open_recent_file(self, filename: str):
         """Open a file from the recent files list."""
@@ -943,6 +956,8 @@ class MainWindow(QMainWindow):
         if self.load_belcad_file(filename):
             # Add to recent files after successful load (moves to front)
             self.main_menu.add_recent_file(filename)
+            # Refresh graphics after loading document
+            self._draw_shapes()
 
     def save_file(self):
         if not self.document.filename:
@@ -950,17 +965,19 @@ class MainWindow(QMainWindow):
                 self,
                 "Save Document",
                 "",
-                "BelfryCad files (*.tkcad);;SVG files (*.svg);;"
+                "BelfryCAD Compressed (*.belcad);;BelfryCAD XML (*.belcadx);;BelfryCad files (*.tkcad);;SVG files (*.svg);;"
                 "DXF files (*.dxf);;All files (*.*)"
             )
             if not filename:
                 return
             self.document.filename = filename
         try:
-            self.document.save()
-            # Add to recent files after successful save
-            self.main_menu.add_recent_file(self.document.filename)
-            self.update_title()
+            if self._save_document_file(self.document.filename):
+                # Add to recent files after successful save
+                self.main_menu.add_recent_file(self.document.filename)
+                self.update_title()
+            else:
+                raise Exception("Save operation failed")
         except Exception as e:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Icon.Critical)
@@ -974,15 +991,17 @@ class MainWindow(QMainWindow):
             self,
             "Save Document As",
             "",
-            "BelfryCad files (*.tkcad);;SVG files (*.svg);;"
+            "BelfryCAD Compressed (*.belcad);;BelfryCAD XML (*.belcadx);;BelfryCad files (*.tkcad);;SVG files (*.svg);;"
             "DXF files (*.dxf);;All files (*.*)"
         )
         if filename:
             try:
                 self.document.filename = filename
-                self.document.save()
-                self.main_menu.add_recent_file(filename)
-                self.update_title()
+                if self._save_document_file(filename):
+                    self.main_menu.add_recent_file(filename)
+                    self.update_title()
+                else:
+                    raise Exception("Save operation failed")
             except Exception as e:
                 msg = QMessageBox()
                 msg.setIcon(QMessageBox.Icon.Critical)
@@ -998,6 +1017,8 @@ class MainWindow(QMainWindow):
         self.document.new()  # Reset to new document
         self.cad_scene.clear()
         self.update_title()
+        # Refresh graphics after closing document
+        self._draw_shapes()
 
     def import_file(self):
         """Handle Import menu action."""
@@ -1163,9 +1184,8 @@ class MainWindow(QMainWindow):
             )
 
             # Add to document
-            if hasattr(self.document, 'objects'):
-                self.document.objects.add_object(new_obj)
-                new_objects.append(new_obj)
+            self.document.add_object(new_obj)
+            new_objects.append(new_obj)
 
         # Select the newly pasted objects
         if new_objects:
@@ -1693,7 +1713,30 @@ class MainWindow(QMainWindow):
 
     def _draw_shapes(self):
         """Draw shapes on the canvas."""
-        pass
+        # Import the factory here to avoid circular imports
+        from .viewmodels.cad_object_factory import CadObjectFactory
+        
+        # Create factory for viewmodels
+        factory = CadObjectFactory(self)
+        
+        # Clear existing viewmodels if any
+        if not hasattr(self, '_object_viewmodels'):
+            self._object_viewmodels = {}
+        else:
+            # Clean up existing viewmodels
+            for viewmodel in self._object_viewmodels.values():
+                if hasattr(viewmodel, '_clear_view_items'):
+                    viewmodel._clear_view_items(self.cad_scene)
+            self._object_viewmodels.clear()
+        
+        # Create viewmodels for all objects in the document
+        for obj in self.document.get_all_objects():
+            if obj.visible:  # Only create graphics for visible objects
+                viewmodel = factory.create_viewmodel(obj)
+                if viewmodel:
+                    self._object_viewmodels[obj.object_id] = viewmodel
+                    # Add the graphics items to the scene
+                    viewmodel.update_view(self.cad_scene)
 
     def _on_object_tree_selection(self, object_id: str):
         """Handle object selection from the Object Tree pane."""
@@ -1781,4 +1824,55 @@ class MainWindow(QMainWindow):
                 self.grid_info.units = grid_units
         if isinstance(precision, int):
             self.grid_info.decimal_places = precision
+
+    def _save_document_file(self, filepath: str) -> bool:
+        """
+        Save the document using the appropriate format based on file extension.
+        
+        Args:
+            filepath: Path to save the file
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get preferences for saving
+            preferences = {}
+            if hasattr(self, 'preferences_viewmodel'):
+                preferences = {
+                    'units': self.preferences_viewmodel.get('units', 'mm'),
+                    'precision': self.preferences_viewmodel.get('precision', 2),
+                    'use_fractions': self.preferences_viewmodel.get('use_fractions', False),
+                    'grid_visible': self.preferences_viewmodel.get('grid_visible', True),
+                    'show_rulers': self.preferences_viewmodel.get('show_rulers', True),
+                    'canvas_bg_color': self.preferences_viewmodel.get('canvas_bg_color', '#f0f0f0'),
+                    'grid_color': self.preferences_viewmodel.get('grid_color', '#d0d0d0'),
+                    'selection_color': self.preferences_viewmodel.get('selection_color', '#ff8000')
+                }
+            
+            # Determine file format by extension
+            filepath_lower = filepath.lower()
+            if filepath_lower.endswith('.belcadx'):
+                # Save as uncompressed XML format
+                success = save_belfrycad_xml_document(self.document, filepath, preferences)
+            elif filepath_lower.endswith('.belcad'):
+                # Save as compressed zip format
+                success = save_belfrycad_document(self.document, filepath, preferences)
+            else:
+                # Try to guess format from extension or default to compressed
+                if filepath_lower.endswith('.xml'):
+                    success = save_belfrycad_xml_document(self.document, filepath, preferences)
+                else:
+                    # Default to compressed format for unknown extensions
+                    success = save_belfrycad_document(self.document, filepath, preferences)
+            
+            if success:
+                self.document.mark_saved()
+                return True
+            else:
+                return False
+                
+        except Exception as e:
+            print(f"Error saving document: {e}")
+            return False
 

@@ -108,15 +108,11 @@ class PointTool(Tool):
 
         point = self.points[0]
 
-        # Create a point object
-        obj = CadObject(
-            mainwin=self.main_window,
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.POINT,
-            coords=[point],
-            attributes={
-                'color': 'black',      # Default color
-                'linewidth': 1         # Default line width
-            }
+        # Create point object
+        point = PointCadObject(
+            mainwin=self.document_window,
+            object_id=self.document.get_next_object_id(),
+            position=point_pos,
+            color=self.preferences.get("default_color", "black"),
+            line_width=self.preferences.get("default_line_width", 0.5)
         )
-        return obj

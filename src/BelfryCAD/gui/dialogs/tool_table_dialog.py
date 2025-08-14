@@ -6,7 +6,7 @@ This module provides a dialog for managing a list of tool specifications.
 
 import logging
 
-from typing import List, Optional, cast, TYPE_CHECKING
+from typing import Optional, Dict, Any, List, cast, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 
 from PySide6.QtWidgets import (
@@ -21,10 +21,10 @@ from ...mlcnc.cutting_params import (
 from .tool_spec_dialog import ToolSpecDialog
 
 if TYPE_CHECKING:
-    from ..main_window import MainWindow
-
+    from ..document_window import DocumentWindow
 
 logger = logging.getLogger(__name__)
+
 
 class ToolTableDialog(QDialog):
     """Dialog for managing a list of tool specifications."""
@@ -281,14 +281,14 @@ class ToolTableDialog(QDialog):
             tool_dicts.append(tool_dict)
 
         logger.info(f"Saving {len(tool_dicts)} tools to preferences: {tool_dicts}")
-        # Get preferences from main window
-        main_window = cast('MainWindow', self.parent())
+        # Get preferences from document window
+        main_window = cast('DocumentWindow', self.parent())
         if main_window:
             main_window.preferences_viewmodel.set('tool_table', tool_dicts)
             main_window.preferences_viewmodel.save_preferences()
             logger.info("Tools saved to preferences")
         else:
-            logger.warning("No main window found, tools not saved")
+            logger.warning("No document window found, tools not saved")
         super().accept()
 
     @classmethod
@@ -297,7 +297,7 @@ class ToolTableDialog(QDialog):
         # Load tool specs from preferences
         tool_dicts = []
         if parent:
-            main_window = cast('MainWindow', parent)
+            main_window = cast('DocumentWindow', parent)
             tool_dicts = main_window.preferences_viewmodel.get('tool_table', [])
             logger.info(f"Loaded {len(tool_dicts)} tools from preferences: {tool_dicts}")
         else:
@@ -316,3 +316,11 @@ class ToolTableDialog(QDialog):
                 continue
 
         return cls(tool_specs=tool_specs, parent=parent)
+
+
+if __name__ == "__main__":
+    import sys
+    from PySide6.QtWidgets import QApplication
+    app = QApplication(sys.argv)
+    dialog = ToolTableDialog()
+    dialog.exec()

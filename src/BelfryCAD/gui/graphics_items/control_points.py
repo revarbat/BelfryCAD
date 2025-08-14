@@ -241,11 +241,9 @@ class ControlDatum(ControlPoint):
             setter=setter)
         self.setZValue(10002)
         # Store precision for dynamic updates
-        main_window = self.cad_item.main_window # type: ignore
-        if precision_override is None:
-            precision = main_window.cad_scene.get_precision()
-        else:
-            precision = precision_override
+        document_window = self.cad_item.document_window # type: ignore
+        
+        precision = document_window.cad_scene.get_precision()
         self._precision = precision
         self._precision_override = precision_override
         # Use provided format_string or create one from precision
@@ -328,8 +326,8 @@ class ControlDatum(ControlPoint):
     def _format_text(self, value):
         """Format the text for display."""
         if self._is_length:
-            main_window = self.cad_item.main_window # type: ignore
-            grid_info = main_window.grid_info
+            document_window = self.cad_item.document_window # type: ignore
+            grid_info = document_window.grid_info
             valstr = grid_info.format_label(value, no_subs=True).replace("\n", " ")
         else:
             valstr = self._format_string.format(value)
@@ -467,8 +465,8 @@ class ControlDatum(ControlPoint):
         # Import at runtime to avoid circular imports
         from BelfryCAD.gui.widgets.cad_expression_edit import CadExpressionEdit
         
-        main_window = self.scene().parent()
-        expr_edit = CadExpressionEdit(main_window.cad_expression) # type: ignore
+        document_window = self.scene().parent()
+        expr_edit = CadExpressionEdit(document_window.cad_expression) # type: ignore
         expr_edit.setMinimumWidth(200)
         expr_edit.setText(current_value)
         expr_edit.selectAll()
@@ -495,7 +493,7 @@ class ControlDatum(ControlPoint):
                 try:
                     # Evaluate the expression to check if it's within range
                     new_value = float(expr_edit._expression.evaluate(text))
-                    scale = self.cad_item.main_window.grid_info.unit_scale # type: ignore
+                    scale = self.cad_item.document_window.grid_info.unit_scale # type: ignore
                     scaled_value = new_value * scale
                     
                     # Check if the value is within range
@@ -531,7 +529,7 @@ class ControlDatum(ControlPoint):
         try:
             # Evaluate the expression to a float
             new_value = float(expr_edit._expression.evaluate(expr_edit.text()))
-            scale = self.cad_item.main_window.grid_info.unit_scale # type: ignore
+            scale = self.cad_item.document_window.grid_info.unit_scale # type: ignore
             self.call_setter_with_updates(new_value * scale)
         except Exception:
             pass

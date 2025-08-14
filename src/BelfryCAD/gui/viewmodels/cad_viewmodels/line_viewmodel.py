@@ -11,7 +11,7 @@ from typing import Tuple, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QPointF, Signal
 from PySide6.QtGui import QColor, QTransform, QPen
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsLineItem
+from PySide6.QtWidgets import QGraphicsScene
 
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
@@ -22,11 +22,12 @@ from ...graphics_items.control_points import (
 from ...graphics_items.dimension_line_composite import (
     DimensionLineComposite
 )
+from ...graphics_items.cad_line_graphics_item import CadLineGraphicsItem
 from ....models.cad_objects.line_cad_object import LineCadObject
 from ....cad_geometry import Point2D
 
 if TYPE_CHECKING:
-    from ....gui.main_window import MainWindow
+    from ....gui.document_window import DocumentWindow
 
 
 class LineViewModel(CadViewModel):
@@ -36,8 +37,8 @@ class LineViewModel(CadViewModel):
     start_point_changed = Signal(QPointF)  # new start point
     end_point_changed = Signal(QPointF)  # new end point
     
-    def __init__(self, main_window: 'MainWindow', line_object: LineCadObject):
-        super().__init__(main_window, line_object)
+    def __init__(self, document_window: 'DocumentWindow', line_object: LineCadObject):
+        super().__init__(document_window, line_object)
         self._line_object = line_object  # Keep reference for type-specific access
         
     def update_view(self, scene: QGraphicsScene):
@@ -49,8 +50,12 @@ class LineViewModel(CadViewModel):
 
         color = QColor(self._line_object.color)
         line_width = self._line_object.line_width
-        view_item = QGraphicsLineItem(self._line_object.line.to_qlinef())
-        view_item.setPen(QPen(color, line_width))
+        pen = QPen(color, line_width)
+        view_item = CadLineGraphicsItem(
+            self._line_object.line.start.to_qpointf(),
+            self._line_object.line.end.to_qpointf(),
+            pen=pen
+        )
         self._view_items.append(view_item)
 
         self._add_view_items_to_scene(scene)
@@ -122,8 +127,8 @@ class LineViewModel(CadViewModel):
         )
         self._controls.append(mid_cp)
 
-        # Get precision from main window or use default
-        precision = self._main_window.preferences_viewmodel.get_precision()
+        # Get precision from document window or use default
+        precision = self._document_window.preferences_viewmodel.get_precision()
         
         # Length datum
         length_datum = ControlDatum(

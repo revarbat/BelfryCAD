@@ -9,8 +9,8 @@ import math
 from typing import List, Tuple, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QPointF, Signal
-from PySide6.QtGui import QColor, QTransform, QPen, QPainterPath
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsPathItem
+from PySide6.QtGui import QColor, QPen, QPainterPath
+from PySide6.QtWidgets import QGraphicsScene
 
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
@@ -18,11 +18,12 @@ from ...graphics_items.control_points import (
     SquareControlPoint,
     ControlDatum
 )
+from ...graphics_items.cad_bezier_graphics_item import CadBezierGraphicsItem
 from ....models.cad_objects.cubic_bezier_cad_object import CubicBezierCadObject
 from ....cad_geometry import Point2D
 
 if TYPE_CHECKING:
-    from ....gui.main_window import MainWindow
+    from ....gui.document_window import DocumentWindow
 
 
 class CubicBezierViewModel(CadViewModel):
@@ -34,8 +35,8 @@ class CubicBezierViewModel(CadViewModel):
     end_point_changed = Signal(QPointF)  # new end point
     is_closed_changed = Signal(bool)  # new closed state
     
-    def __init__(self, main_window: 'MainWindow', bezier_object: CubicBezierCadObject):
-        super().__init__(main_window, bezier_object)
+    def __init__(self, document_window: 'DocumentWindow', bezier_object: CubicBezierCadObject):
+        super().__init__(document_window, bezier_object)
         self._bezier_object = bezier_object  # Keep reference for type-specific access
         
     def update_view(self, scene: QGraphicsScene):
@@ -72,8 +73,8 @@ class CubicBezierViewModel(CadViewModel):
                 last_control2 = points[-1]
                 path.cubicTo(last_control1, last_control2, points[0])
             
-            view_item = QGraphicsPathItem(path)
-            view_item.setPen(QPen(color, line_width))
+            pen = QPen(color, line_width)
+            view_item = CadBezierGraphicsItem(path, pen=pen)
             self._view_items.append(view_item)
 
         self._add_view_items_to_scene(scene)
@@ -124,7 +125,7 @@ class CubicBezierViewModel(CadViewModel):
             self._controls.append(cp)
 
         # Get precision from main window or use default
-        precision = self._main_window.preferences_viewmodel.get_precision()
+        precision = self._document_window.preferences_viewmodel.get_precision()
         
         # Point count datum (read-only)
         point_count_datum = ControlDatum(

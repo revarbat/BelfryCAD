@@ -140,19 +140,13 @@ class TextTool(Tool):
 
         position = self.points[0]
 
-        # Create a text object
-        obj = CadObject(
-            mainwin=self.main_window,
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.TEXT,
-            coords=[position],
-            attributes={
-                'color': 'black',                 # Default color
-                'text': self.text,                # The text string
-                'font_family': self.font_family,  # Font family
-                'font_size': self.font_size,      # Font size
-                'angle': self.text_angle,         # Rotation angle in degrees
-                'anchor': 'sw'                    # Text anchor (southwest)
-            }
+        # Create text object
+        text = TextCadObject(
+            mainwin=self.document_window,
+            object_id=self.document.get_next_object_id(),
+            position=text_pos,
+            text=text_content,
+            color=self.preferences.get("default_color", "black"),
+            line_width=self.preferences.get("default_line_width", 0.5)
         )
         return obj

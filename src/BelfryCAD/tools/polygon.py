@@ -149,7 +149,7 @@ class RectangleTool(Tool):
 
         # Create a rectangle object (as a polygon)
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POLYGON,
             coords=corners,
@@ -458,7 +458,7 @@ class RoundedRectangleTool(Tool):
 
         # Create a rounded rectangle object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POLYGON,
             coords=vertices,
@@ -666,7 +666,7 @@ class RegularPolygonTool(Tool):
 
         # Create a regular polygon object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.POLYGON,
             coords=vertices,

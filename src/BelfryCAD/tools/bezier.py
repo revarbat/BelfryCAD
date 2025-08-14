@@ -143,7 +143,7 @@ class BezierTool(Tool):
             return None
 
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.BEZIER,
             coords=self.points.copy(),
@@ -283,7 +283,7 @@ class BezierQuadTool(Tool):
             return None
 
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.BEZIERQUAD,
             coords=self.points.copy(),

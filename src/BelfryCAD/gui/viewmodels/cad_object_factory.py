@@ -1,253 +1,147 @@
 """
-CAD Object Factory for creating proper MVVM structure.
-
-This factory creates the MVVM chain: Model -> ViewModel
-for CAD objects, ensuring proper separation of concerns.
-The ViewModels are responsible for creating and managing their own view items.
+Factory for creating CAD object viewmodels.
 """
 
-from typing import Dict, Type, Optional, TYPE_CHECKING, Tuple
-from PySide6.QtCore import QObject
-from PySide6.QtGui import QColor
+from typing import Optional, Type, Dict, Any, TYPE_CHECKING
 
-from ...models.cad_objects.gear_cad_object import GearCadObject
-from ...models.cad_objects.circle_cad_object import CircleCadObject
+from ...models.cad_object import CadObject
 from ...models.cad_objects.line_cad_object import LineCadObject
+from ...models.cad_objects.circle_cad_object import CircleCadObject
 from ...models.cad_objects.arc_cad_object import ArcCadObject
 from ...models.cad_objects.ellipse_cad_object import EllipseCadObject
 from ...models.cad_objects.cubic_bezier_cad_object import CubicBezierCadObject
-from ...cad_geometry import Point2D
+from ...models.cad_objects.gear_cad_object import GearCadObject
 
-from .cad_viewmodels import (
-    CadViewModel,
-    GearViewModel,
-    CircleViewModel,
-    LineViewModel,
-    ArcViewModel,
-    EllipseViewModel,
-    CubicBezierViewModel
-)
+from .cad_viewmodels.cad_viewmodel import CadViewModel
+from .cad_viewmodels.line_viewmodel import LineViewModel
+from .cad_viewmodels.circle_viewmodel import CircleViewModel
+from .cad_viewmodels.arc_viewmodel import ArcViewModel
+from .cad_viewmodels.ellipse_viewmodel import EllipseViewModel
+from .cad_viewmodels.cubic_bezier_viewmodel import CubicBezierViewModel
+from .cad_viewmodels.gear_viewmodel import GearViewModel
 
 if TYPE_CHECKING:
-    from ...models.cad_object import CadObject
+    from ..document_window import DocumentWindow
 
 
-class CADObjectFactory(QObject):
-    """Factory for creating CAD objects with proper MVVM structure."""
-    
-    def __init__(self, main_window=None):
-        super().__init__()
-        self._main_window = main_window
-        self._viewmodel_classes: Dict[str, Type] = {
-            "gear": GearViewModel,
-            "circle": CircleViewModel,
-            "line": LineViewModel,
-            "arc": ArcViewModel,
-            "ellipse": EllipseViewModel,
-            "cubic_bezier": CubicBezierViewModel,
-        }
-    
-    def create_viewmodel_for(self, cad_object: 'CadObject') -> Optional[CadViewModel]:
-        """
-        Create a ViewModel instance for an existing CadObject model.
+class CadObjectFactory:
+    """Factory for creating CAD object viewmodels."""
+
+    # Mapping of CadObject types to their corresponding ViewModel classes
+    _viewmodel_map: Dict[Type[CadObject], Type[CadViewModel]] = {
+        LineCadObject: LineViewModel,
+        CircleCadObject: CircleViewModel,
+        ArcCadObject: ArcViewModel,
+        EllipseCadObject: EllipseViewModel,
+        CubicBezierCadObject: CubicBezierViewModel,
+        GearCadObject: GearViewModel,
+    }
+
+    def __init__(self, document_window: Optional['DocumentWindow'] = None):
+        """Initialize the factory.
         
         Args:
-            cad_object: The model object to wrap in a ViewModel
-        
-        Returns:
-            A CadViewModel instance appropriate for the model, or None for unsupported types
+            document_window: Reference to the document window
         """
-        # Derive type key similar to model class naming convention
-        type_name = type(cad_object).__name__.replace('CadObject', '').lower()
-        # Normalize known names that differ from keys
-        mapping_overrides = {
-            'cubic_bezier': 'cubic_bezier',
-        }
-        # For classes like LineCadObject -> 'line'
-        if type_name.endswith('_cad_object'):
-            type_name = type_name.replace('_cad_object', '')
-        type_key = mapping_overrides.get(type_name, type_name)
-        vm_class = self._viewmodel_classes.get(type_key)
-        if not vm_class:
+        self._document_window = document_window
+
+    def create_viewmodel(self, cad_object: CadObject) -> Optional[CadViewModel]:
+        """Create a viewmodel for the given CAD object.
+        
+        Args:
+            cad_object: The CAD object to create a viewmodel for
+            
+        Returns:
+            The created viewmodel, or None if no suitable viewmodel class is found
+        """
+        # Get the viewmodel class for this object type
+        vm_class = self._viewmodel_map.get(type(cad_object))
+        if not vm_class or not self._document_window:
             return None
-        return vm_class(self._main_window, cad_object)
-    
-    def create_gear_object(self,
-                          center_point: Point2D,
-                          pitch_diameter: float,
-                          num_teeth: int,
-                          pressure_angle: float = 20.0,
-                          color: str = "black",
-                          line_width: Optional[float] = 0.05) -> Tuple['CadObject', 'CadViewModel']:
-        """Create a gear object with MVVM structure."""
-        # Create Model
-        model = GearCadObject(
-            center_point=center_point,
-            pitch_diameter=pitch_diameter,
-            num_teeth=num_teeth,
-            pressure_angle=pressure_angle,
-            color=color,
-            line_width=line_width
-        )
-        
-        # Create ViewModel
-        viewmodel = GearViewModel(self._main_window, model)
-        
-        return model, viewmodel
-    
-    def create_circle_object(self,
-                           center_point: Point2D,
-                           radius: float,
-                           color: str = "black",
-                           line_width: Optional[float] = 0.05) -> Tuple['CadObject', 'CadViewModel']:
-        """
-        Create a circle object with MVVM structure.
+            
+        # Create and return the viewmodel
+        return vm_class(self._document_window, cad_object)
+
+    def create_gear_viewmodel(self, model: GearCadObject) -> GearViewModel:
+        """Create a gear viewmodel.
         
         Args:
-            center_point: Center point of the circle
-            radius: Radius of the circle
-            color: Color of the circle
-            line_width: Line width of the circle
+            model: The gear CAD object
             
         Returns:
-            Tuple of (model, viewmodel)
+            The created gear viewmodel
         """
-        # Create Model
-        perimeter_point = center_point + Point2D(radius, 0)
-        model = CircleCadObject(
-            center_point=center_point,
-            perimeter_point=perimeter_point,
-            color=color,
-            line_width=line_width
-        )
-        
-        # Create ViewModel
-        viewmodel = CircleViewModel(self._main_window, model)
-        
-        return model, viewmodel
-    
-    def create_line_object(self,
-                          start_point: Point2D,
-                          end_point: Point2D,
-                          color: str = "black",
-                          line_width: Optional[float] = 0.05) -> Tuple['CadObject', 'CadViewModel']:
-        """
-        Create a line object with MVVM structure.
+        if not self._document_window:
+            raise ValueError("Document window is required to create viewmodels")
+        viewmodel = GearViewModel(self._document_window, model)
+        return viewmodel
+
+    def create_circle_viewmodel(self, model: CircleCadObject) -> CircleViewModel:
+        """Create a circle viewmodel.
         
         Args:
-            start_point: Start point of the line
-            end_point: End point of the line
-            color: Color of the line
-            line_width: Line width of the line
+            model: The circle CAD object
             
         Returns:
-            Tuple of (model, viewmodel)
+            The created circle viewmodel
         """
-        # Create Model
-        model = LineCadObject(
-            start_point=start_point,
-            end_point=end_point,
-            color=color,
-            line_width=line_width
-        )
-        
-        # Create ViewModel
-        viewmodel = LineViewModel(self._main_window, model)
-        
-        return model, viewmodel
-    
-    def create_arc_object(self,
-                         center_point: Point2D,
-                         start_point: Point2D,
-                         end_point: Point2D,
-                         color: str = "black",
-                         line_width: Optional[float] = 0.05) -> Tuple['CadObject', 'CadViewModel']:
-        """
-        Create an arc object with MVVM structure.
+        if not self._document_window:
+            raise ValueError("Document window is required to create viewmodels")
+        viewmodel = CircleViewModel(self._document_window, model)
+        return viewmodel
+
+    def create_line_viewmodel(self, model: LineCadObject) -> LineViewModel:
+        """Create a line viewmodel.
         
         Args:
-            center_point: Center point of the arc
-            start_point: Start point of the arc
-            end_point: End point of the arc
-            color: Color of the arc
-            line_width: Line width of the arc
+            model: The line CAD object
             
         Returns:
-            Tuple of (model, viewmodel)
+            The created line viewmodel
         """
-        # Create Model
-        model = ArcCadObject(
-            center_point=center_point,
-            start_point=start_point,
-            end_point=end_point,
-            color=color,
-            line_width=line_width,
-            main_window=self._main_window
-        )
-        
-        # Create ViewModel
-        viewmodel = ArcViewModel(self._main_window, model)
-        
-        return model, viewmodel
-    
-    def create_ellipse_object(self,
-                             center_point: Point2D,
-                             major_axis_point: Point2D,
-                             minor_axis_point: Point2D,
-                             color: str = "black",
-                             line_width: Optional[float] = 0.05) -> Tuple['CadObject', 'CadViewModel']:
-        """
-        Create an ellipse object with MVVM structure.
+        if not self._document_window:
+            raise ValueError("Document window is required to create viewmodels")
+        viewmodel = LineViewModel(self._document_window, model)
+        return viewmodel
+
+    def create_arc_viewmodel(self, model: ArcCadObject) -> ArcViewModel:
+        """Create an arc viewmodel.
         
         Args:
-            center_point: Center point of the ellipse
-            major_axis_point: Point defining the major axis
-            minor_axis_point: Point defining the minor axis
-            color: Color of the ellipse
-            line_width: Line width of the ellipse
+            model: The arc CAD object
             
         Returns:
-            Tuple of (model, viewmodel)
+            The created arc viewmodel
         """
-        # Create Model
-        model = EllipseCadObject(
-            center_point=center_point,
-            major_axis_point=major_axis_point,
-            minor_axis_point=minor_axis_point,
-            color=color,
-            line_width=line_width,
-            main_window=self._main_window
-        )
-        
-        # Create ViewModel
-        viewmodel = EllipseViewModel(self._main_window, model)
-        
-        return model, viewmodel
-    
-    def create_cubic_bezier_object(self,
-                                  points: list,
-                                  color: str = "black",
-                                  line_width: Optional[float] = 0.05) -> Tuple['CadObject', 'CadViewModel']:
-        """
-        Create a cubic bezier object with MVVM structure.
+        if not self._document_window:
+            raise ValueError("Document window is required to create viewmodels")
+        viewmodel = ArcViewModel(self._document_window, model)
+        return viewmodel
+
+    def create_ellipse_viewmodel(self, model: EllipseCadObject) -> EllipseViewModel:
+        """Create an ellipse viewmodel.
         
         Args:
-            points: List of control points for the bezier curve
-            color: Color of the bezier curve
-            line_width: Line width of the bezier curve
+            model: The ellipse CAD object
             
         Returns:
-            Tuple of (model, viewmodel)
+            The created ellipse viewmodel
         """
-        # Create Model
-        model = CubicBezierCadObject(
-            points=points,
-            color=color,
-            line_width=line_width,
-            main_window=self._main_window
-        )
+        if not self._document_window:
+            raise ValueError("Document window is required to create viewmodels")
+        viewmodel = EllipseViewModel(self._document_window, model)
+        return viewmodel
+
+    def create_cubic_bezier_viewmodel(self, model: CubicBezierCadObject) -> CubicBezierViewModel:
+        """Create a cubic bezier viewmodel.
         
-        # Create ViewModel
-        viewmodel = CubicBezierViewModel(self._main_window, model)
-        
-        return model, viewmodel 
+        Args:
+            model: The cubic bezier CAD object
+            
+        Returns:
+            The created cubic bezier viewmodel
+        """
+        if not self._document_window:
+            raise ValueError("Document window is required to create viewmodels")
+        viewmodel = CubicBezierViewModel(self._document_window, model)
+        return viewmodel 

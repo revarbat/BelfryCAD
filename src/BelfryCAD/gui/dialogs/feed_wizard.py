@@ -23,7 +23,7 @@ from ...mlcnc.cutting_params import (
 from .tool_table_dialog import ToolTableDialog
 
 if TYPE_CHECKING:
-    from ..main_window import MainWindow
+    from ..document_window import DocumentWindow
 
 logger = logging.getLogger(__name__)
 
@@ -279,8 +279,8 @@ class FeedWizardDialog(QDialog):
 
         # Get tools from preferences
         tool_dicts = []
-        if main_window:
-            tool_dicts = main_window.preferences_viewmodel.get('tool_table', [])
+        if self.parent() and isinstance(self.parent(), DocumentWindow):
+            tool_dicts = self.parent().preferences_viewmodel.get('tool_table', [])
 
             # Convert tool dicts to ToolSpecification objects
             for tool_dict in tool_dicts:

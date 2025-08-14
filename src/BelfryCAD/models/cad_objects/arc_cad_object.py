@@ -3,6 +3,7 @@ ArcCadObject - An arc CAD object defined by center point, start point, and end p
 """
 
 from typing import Optional, Tuple, List, TYPE_CHECKING
+import math
 
 from ..cad_object import CadObject
 from ...cad_geometry import (
@@ -41,7 +42,18 @@ class ArcCadObject(CadObject):
         radius = self._center_point.distance_to(self._start_point)
         start_angle = (self._start_point - self._center_point).angle_radians
         end_angle = (self._end_point - self._center_point).angle_radians
-        self.arc = Arc(self._center_point, radius, start_angle, end_angle)
+        
+        # Calculate span angle (handling wraparound)
+        span_angle = end_angle - start_angle
+        
+        # Normalize span angle to handle wraparound cases
+        # If the span would be negative or very large, assume the shorter arc is intended
+        if span_angle > math.pi:
+            span_angle -= 2 * math.pi
+        elif span_angle < -math.pi:
+            span_angle += 2 * math.pi
+            
+        self.arc = Arc(self._center_point, radius, start_angle, span_angle)
 
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get the bounds of the arc."""

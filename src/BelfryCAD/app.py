@@ -7,7 +7,7 @@ from typing import Optional
 from PySide6.QtCore import Qt
 
 from .config import AppConfig
-from .gui.main_window import MainWindow
+from .gui.document_window import DocumentWindow
 from .models.preferences import PreferencesModel
 from .gui.viewmodels.preferences_viewmodel import PreferencesViewModel
 from .models.document import Document
@@ -30,7 +30,7 @@ class BelfryCadApplication:
         self.preferences_model = PreferencesModel(config)
         self.preferences_viewmodel = PreferencesViewModel(self.preferences_model)
         self.document = Document()
-        self.main_window: Optional[MainWindow] = None
+        self.document_window: Optional[DocumentWindow] = None
 
         # Create the QApplication
         self.app = QApplication.instance()
@@ -53,16 +53,16 @@ class BelfryCadApplication:
             self.preferences_viewmodel.load_preferences()
             self.logger.info("Preferences loaded")
 
-            # Create the main window
-            self.logger.info("Creating main window...")
-            self.main_window = MainWindow(
+            # Create the document window
+            self.logger.info("Creating document window...")
+            self.document_window = DocumentWindow(
                 self.config, self.preferences_viewmodel, self.document)
-            self.logger.info("Main window created")
+            self.logger.info("Document window created")
 
             # Show the window
-            self.logger.info("Showing main window...")
-            self.main_window.show()
-            self.logger.info("Main window shown")
+            self.logger.info("Showing document window...")
+            self.document_window.show()
+            self.logger.info("Document window shown")
 
             self.logger.info("Application started successfully")
 
@@ -76,83 +76,64 @@ class BelfryCadApplication:
             self.logger.error(f"Error in main application loop: {e}")
             raise
 
-    def on_closing(self):
-        """Handle application closing."""
+    def cleanup(self):
+        """Clean up application resources before exit."""
         try:
-            # Check if document has unsaved changes
-            if self.document and self.document.is_modified():
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Icon.Question)
-                msg.setWindowTitle("Unsaved Changes")
-                msg.setText("You have unsaved changes. Do you want to save before closing?")
-                msg.setStandardButtons(
-                    QMessageBox.StandardButton.Yes |
-                    QMessageBox.StandardButton.No |
-                    QMessageBox.StandardButton.Cancel
-                )
-                msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+            # Save preferences
+            if self.preferences_viewmodel:
+                self.preferences_viewmodel.save_preferences()
+                self.logger.info("Preferences saved")
 
-                result = msg.exec()
-
-                if result == QMessageBox.StandardButton.Cancel:
-                    return False
-                elif result == QMessageBox.StandardButton.Yes:
-                    if not self.save_document():
-                        return False  # Save was cancelled or failed
-
-            # Save preferences using MVVM system
-            if self.main_window:
-                # Update window geometry in preferences
-                geometry = self.main_window.geometry()
-                self.preferences_viewmodel.set_window_geometry(
-                    f"{geometry.width()}x{geometry.height()}+"
-                    f"{geometry.x()}+{geometry.y()}")
-
-            self.preferences_viewmodel.save_preferences()
-
-            self.logger.info("Application closing normally")
-            return True
+            # Save window geometry
+            if self.document_window:
+                geometry = self.document_window.geometry()
+                geometry_str = (f"{geometry.width()}x{geometry.height()}+"
+                               f"{geometry.x()}+{geometry.y()}")
+                self.preferences_viewmodel.set("window_geometry", geometry_str)
+                self.logger.info("Window geometry saved")
 
         except Exception as e:
-            self.logger.error(f"Error during application shutdown: {e}")
-            return True
+            self.logger.error(f"Error during cleanup: {e}")
 
-    def save_document(self) -> bool:
-        """Save the current document.
-
-        Returns:
-            True if saved successfully, False if cancelled or failed
-        """
+    def show_error_dialog(self, title: str, message: str):
+        """Show an error dialog to the user."""
         try:
-            if not self.document.filename:
-                # No filename set, show save dialog
-                filename, _ = QFileDialog.getSaveFileName(
-                    self.main_window,
-                    "Save Document",
-                    "",
-                    "BelfryCad files (*.tkcad);;SVG files (*.svg);;"
-                    "DXF files (*.dxf);;All files (*.*)"
-                )
-
-                if not filename:
-                    return False  # User cancelled
-
-                self.document.filename = filename
-
-            # Save the document
-            self.document.save()
-
-            if self.main_window:
-                self.main_window.update_title()
-
-            return True
-
-        except Exception as e:
-            self.logger.error(f"Error saving document: {e}")
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Icon.Critical)
-            msg.setWindowTitle("Save Error")
-            msg.setText(f"Failed to save document:\n{str(e)}")
-            msg.setParent(self.main_window)
+            msg.setWindowTitle(title)
+            msg.setText(message)
+            msg.setParent(self.document_window)
             msg.exec()
-            return False
+        except Exception as e:
+            self.logger.error(f"Error showing error dialog: {e}")
+
+    def show_info_dialog(self, title: str, message: str):
+        """Show an info dialog to the user."""
+        try:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Icon.Information)
+            msg.setWindowTitle(title)
+            msg.setText(message)
+            msg.setParent(self.document_window)
+            msg.exec()
+        except Exception as e:
+            self.logger.error(f"Error showing info dialog: {e}")
+
+    def update_title(self):
+        """Update the document window title."""
+        if self.document_window:
+            self.document_window.update_title()
+
+    def show_file_dialog(self, title: str, filter: str, save_mode: bool = False) -> Optional[str]:
+        """Show a file dialog and return the selected file path."""
+        try:
+            if save_mode:
+                file_path, _ = QFileDialog.getSaveFileName(
+                    self.document_window, title, "", filter)
+            else:
+                file_path, _ = QFileDialog.getOpenFileName(
+                    self.document_window, title, "", filter)
+            return file_path if file_path else None
+        except Exception as e:
+            self.logger.error(f"Error showing file dialog: {e}")
+            return None

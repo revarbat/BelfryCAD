@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QGraphicsScene
 
 if TYPE_CHECKING:
     from ....models.cad_object import CadObject
-    from ....gui.main_window import MainWindow
+    from ....gui.document_window import DocumentWindow
 
 
 class CadViewModel(QObject):
@@ -28,16 +28,16 @@ class CadViewModel(QObject):
     object_modified = Signal()  # object changed
     control_points_updated = Signal()  # control points updated
     
-    def __init__(self, main_window: 'MainWindow', cad_object: 'CadObject'):
+    def __init__(self, document_window: 'DocumentWindow', cad_object: 'CadObject'):
         """
         Initialize the CAD viewmodel.
         
         Args:
-            main_window: Reference to the main window for accessing preferences and other UI state
+            document_window: Reference to the document window for accessing preferences and other UI state
             cad_object: The CAD object model that this viewmodel represents
         """
         super().__init__()
-        self._main_window = main_window
+        self._document_window = document_window
         self._cad_object = cad_object
         self._is_selected = False
         self._view_items = []
@@ -223,12 +223,19 @@ class CadViewModel(QObject):
     
     def _add_view_items_to_scene(self, scene: QGraphicsScene):
         """Add all view items to the scene and set viewmodel reference."""
+        from PySide6.QtWidgets import QGraphicsItem
+        
         for item in self._view_items:
             if item and item.scene() != scene:
                 scene.addItem(item)
             if item:
                 # Store reference to this viewmodel in data slot 0
                 item.setData(0, self)
+                
+                # Ensure all graphics items have proper selection flags
+                item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+                item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
+                item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
     
     def _clear_view_items(self, scene: QGraphicsScene):
         """Remove all view items from the scene."""
@@ -272,9 +279,9 @@ class CadViewModel(QObject):
     # Helper methods for accessing common properties
     
     @property
-    def main_window(self) -> 'MainWindow':
-        """Get the main window reference"""
-        return self._main_window
+    def document_window(self) -> 'DocumentWindow':
+        """Get the document window reference."""
+        return self._document_window
     
     @property
     def cad_object(self) -> 'CadObject':

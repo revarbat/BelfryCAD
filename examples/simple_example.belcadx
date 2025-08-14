@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<belfry:belfrycad_document xmlns:belfry="http://belfrydw.com/xml/BelfryCAD/1.0" version="1.0">
+  <belfry:header>
+    <belfry:preferences units="mm" precision="2" use_fractions="false" grid_visible="True" show_rulers="True" canvas_bg_color="#f0f0f0" grid_color="#d0d0d0" selection_color="#ff8000" />
+  </belfry:header>
+  <belfry:objects>
+    <belfry:line id="1" name="line1" color="black" line_width="0.5" visible="true" locked="false">
+      <belfry:start_point x="0.0" y="0.0" />
+      <belfry:end_point x="500.0" y="250.0" />
+    </belfry:line>
+    <belfry:circle id="2" name="circle1" color="black" line_width="0.5" visible="true" locked="false">
+      <belfry:center_point x="250.0" y="250.0" />
+      <belfry:radius value="100.0" />
+    </belfry:circle>
+  </belfry:objects>
+</belfry:belfrycad_document>

@@ -51,23 +51,8 @@ class Document:
             else:
                 base_name = 'object'
             
-            # Generate unique name by checking existing names
-            counter = 1
-            while True:
-                candidate_name = f"{base_name}{counter}"
-                name_exists = False
-                
-                # Check if this name is already used by another object
-                for obj_id, obj in self.objects.items():
-                    if obj_id != cad_object.object_id and hasattr(obj, '_name') and obj._name == candidate_name:
-                        name_exists = True
-                        break
-                
-                if not name_exists:
-                    cad_object._name = candidate_name
-                    break
-                
-                counter += 1
+            # Use the get_unique_name method to properly manage counters
+            cad_object._name = self.get_unique_name(base_name, cad_object.object_id)
         
         # If it's a group object, add it to root groups if it has no parent
         if isinstance(cad_object, GroupCadObject) and cad_object.is_root():

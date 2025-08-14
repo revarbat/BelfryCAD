@@ -9,8 +9,8 @@ import math
 from typing import List, Tuple, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QPointF, Signal
-from PySide6.QtGui import QColor, QTransform, QPen, QPolygonF
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsPolygonItem
+from PySide6.QtGui import QColor, QTransform, QPen, QBrush, QPolygonF
+from PySide6.QtWidgets import QGraphicsScene
 
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
@@ -18,11 +18,12 @@ from ...graphics_items.control_points import (
     SquareControlPoint,
     ControlDatum
 )
+from ...graphics_items.cad_polygon_graphics_item import CadPolygonGraphicsItem
 from ....models.cad_objects.gear_cad_object import GearCadObject
 from ....cad_geometry import Point2D
 
 if TYPE_CHECKING:
-    from ....gui.main_window import MainWindow
+    from ....gui.document_window import DocumentWindow
 
 
 class GearViewModel(CadViewModel):
@@ -35,8 +36,8 @@ class GearViewModel(CadViewModel):
     pressure_angle_changed = Signal(float)  # new pressure angle
     gear_path_changed = Signal()  # gear geometry updated
     
-    def __init__(self, main_window: 'MainWindow', gear_object: GearCadObject):
-        super().__init__(main_window, gear_object)
+    def __init__(self, document_window: 'DocumentWindow', gear_object: GearCadObject):
+        super().__init__(document_window, gear_object)
         self._gear_object = gear_object  # Keep reference for type-specific access
         
     def update_view(self, scene: QGraphicsScene):
@@ -56,11 +57,10 @@ class GearViewModel(CadViewModel):
             # Convert to QPointF for Qt
             qpoints = [QPointF(point.x, point.y) for point in gear_points]
             
-            # Create polygon item
-            polygon = QPolygonF(qpoints)
-            view_item = QGraphicsPolygonItem(polygon)
-            view_item.setPen(QPen(color, line_width))
-            view_item.setBrush(QColor(0, 0, 0, 0))  # No fill
+            # Create polygon item with no fill (gears are typically outlines)
+            pen = QPen(color, line_width)
+            brush = QBrush()  # No fill
+            view_item = CadPolygonGraphicsItem(qpoints, pen=pen, brush=brush)
             self._view_items.append(view_item)
 
         self._add_view_items_to_scene(scene)
@@ -78,11 +78,11 @@ class GearViewModel(CadViewModel):
         pitch_points = self._gear_object.get_pitch_circle_points()
         if pitch_points:
             qpoints = [QPointF(point.x, point.y) for point in pitch_points]
-            polygon = QPolygonF(qpoints)
             
-            decoration_item = QGraphicsPolygonItem(polygon)
-            decoration_item.setPen(QPen(QColor(0x7f, 0x7f, 0x7f), 1.0))  # Gray
-            decoration_item.setBrush(QColor(0, 0, 0, 0))  # No fill
+            # Create pitch circle decoration with no fill
+            pen = QPen(QColor(0x7f, 0x7f, 0x7f), 1.0)  # Gray
+            brush = QBrush()  # No fill
+            decoration_item = CadPolygonGraphicsItem(qpoints, pen=pen, brush=brush)
             self._decorations.append(decoration_item)
         
         self._add_decorations_to_scene(scene)
@@ -127,7 +127,7 @@ class GearViewModel(CadViewModel):
         self._controls.append(radius_cp)
 
         # Get precision from main window or use default
-        precision = self._main_window.preferences_viewmodel.get_precision()
+        precision = self._document_window.preferences_viewmodel.get_precision()
         
         # Tooth count datum
         tooth_count_datum = ControlDatum(

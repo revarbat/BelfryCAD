@@ -17,6 +17,7 @@ import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional, Any, Tuple, Set
 from pathlib import Path
 import json
+import math
 
 from ..models.document import Document
 from ..models.cad_object import CadObject
@@ -201,6 +202,93 @@ class BelfryCADXMLSerializer:
             print(f"Error loading document: {e}")
             return None
     
+    def save_document_xml(self, document: Document, filepath: str, 
+                          preferences: Dict[str, Any] = None) -> bool:
+        """
+        Save a document to an uncompressed XML file (.belcadx format).
+        
+        Args:
+            document: The document to save
+            filepath: Path to save the file
+            preferences: Document preferences to include
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Create the root XML element
+            root = ET.Element(f"{{{self.NAMESPACE}}}belfrycad_document")
+            root.set("version", "1.0")
+            
+            # Establish scale from preferences for write-out
+            self._set_scale_from_preferences(preferences or {})
+            
+            # Add document header with preferences
+            self._add_document_header(root, preferences or {})
+            
+            # Add parameters section
+            self._add_parameters_section(root, document)
+            
+            # Add CAD objects section
+            self._add_cad_objects_section(root, document)
+            
+            # Add constraints section
+            self._add_constraints_section(root, document)
+            
+            # Write directly to XML file (no compression)
+            tree = ET.ElementTree(root)
+            ET.indent(tree, space="  ", level=0)  # Pretty-print the XML
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write('<?xml version="1.0" encoding="utf-8"?>\n')
+                tree.write(f, encoding='unicode', xml_declaration=False)
+                
+            return True
+            
+        except Exception as e:
+            print(f"Error saving document to XML: {e}")
+            return False
+    
+    def load_document_xml(self, filepath: str, document: Document = None) -> Optional[Document]:
+        """
+        Load a document from an uncompressed XML file (.belcadx format).
+        
+        Args:
+            filepath: Path to the file to load
+            document: Optional existing document to populate
+            
+        Returns:
+            The loaded document, or None if failed
+        """
+        try:
+            # Create new document if none provided
+            if document is None:
+                document = Document()
+            
+            # Read and parse the XML file directly
+            tree = ET.parse(filepath)
+            root = tree.getroot()
+            
+            # Parse document header (sets preferences)
+            self._parse_document_header(root, document)
+            # Establish scale using parsed preferences
+            prefs = getattr(document, 'preferences', {}) if hasattr(document, 'preferences') else {}
+            self._set_scale_from_preferences(prefs)
+            
+            # Parse parameters
+            self._parse_parameters_section(root, document)
+            
+            # Parse CAD objects
+            self._parse_cad_objects_section(root, document)
+            
+            # Parse constraints
+            self._parse_constraints_section(root, document)
+            
+            return document
+            
+        except Exception as e:
+            print(f"Error loading document from XML: {e}")
+            return None
+    
     def _add_document_header(self, root: ET.Element, preferences: Dict[str, Any]):
         """Add document header with preferences."""
         header = ET.SubElement(root, f"{{{self.NAMESPACE}}}header")
@@ -348,13 +436,19 @@ class BelfryCADXMLSerializer:
         center_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}center_point")
         self._write_point_attrs(center_elem, arc.center_point.x, arc.center_point.y)
         
-        # Start point
-        start_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}start_point")
-        self._write_point_attrs(start_elem, arc.start_point.x, arc.start_point.y)
+        # Radius
+        radius_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}radius")
+        self._write_scalar(radius_elem, "value", arc.radius)
         
-        # End point
-        end_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}end_point")
-        self._write_point_attrs(end_elem, arc.end_point.x, arc.end_point.y)
+        # Start angle in degrees
+        start_angle_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}start_angle")
+        start_angle_degrees = math.degrees(arc.start_angle)
+        start_angle_elem.set("value", str(start_angle_degrees))
+        
+        # Span angle in degrees
+        span_angle_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}span_angle")
+        span_angle_degrees = math.degrees(arc.span_angle)
+        span_angle_elem.set("value", str(span_angle_degrees))
     
     def _add_ellipse_data(self, obj_elem: ET.Element, ellipse: EllipseCadObject):
         """Add ellipse-specific data."""
@@ -362,13 +456,20 @@ class BelfryCADXMLSerializer:
         center_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}center_point")
         self._write_point_attrs(center_elem, ellipse.center_point.x, ellipse.center_point.y)
         
-        # Major axis point
-        major_axis_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}major_axis_point")
-        self._write_point_attrs(major_axis_elem, ellipse.major_axis_point.x, ellipse.major_axis_point.y)
+        # Radius1 (semi-major axis) - distance from center to major axis point
+        radius1_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}radius1")
+        radius1 = ellipse.center_point.distance_to(ellipse.major_axis_point)
+        self._write_scalar(radius1_elem, "value", radius1)
         
-        # Minor axis point
-        minor_axis_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}minor_axis_point")
-        self._write_point_attrs(minor_axis_elem, ellipse.minor_axis_point.x, ellipse.minor_axis_point.y)
+        # Radius2 (semi-minor axis) - distance from center to minor axis point
+        radius2_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}radius2")
+        radius2 = ellipse.center_point.distance_to(ellipse.minor_axis_point)
+        self._write_scalar(radius2_elem, "value", radius2)
+        
+        # Rotation angle in degrees (counter-clockwise)
+        rotation_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}rotation_angle")
+        rotation_degrees = math.degrees(ellipse.rotation)
+        rotation_elem.set("value", str(rotation_degrees))
     
     def _add_bezier_data(self, obj_elem: ET.Element, bezier: CubicBezierCadObject):
         """Add bezier-specific data."""
@@ -598,19 +699,29 @@ class BelfryCADXMLSerializer:
                           name: str, color: str, line_width: Optional[float]) -> ArcCadObject:
         """Create an arc object from XML."""
         center_elem = obj_elem.find(f"{{{self.NAMESPACE}}}center_point")
-        start_elem = obj_elem.find(f"{{{self.NAMESPACE}}}start_point")
-        end_elem = obj_elem.find(f"{{{self.NAMESPACE}}}end_point")
+        radius_elem = obj_elem.find(f"{{{self.NAMESPACE}}}radius")
+        start_angle_elem = obj_elem.find(f"{{{self.NAMESPACE}}}start_angle")
+        span_angle_elem = obj_elem.find(f"{{{self.NAMESPACE}}}span_angle")
         
-        if center_elem is None or start_elem is None or end_elem is None:
+        if center_elem is None or radius_elem is None or start_angle_elem is None or span_angle_elem is None:
             raise ValueError("Arc object missing required elements")
         
         cx, cy = self._read_point_attrs(center_elem)
-        sx, sy = self._read_point_attrs(start_elem)
-        ex, ey = self._read_point_attrs(end_elem)
+        radius = self._read_scalar(radius_elem, "value")
+        start_angle_degrees = float(start_angle_elem.get("value", "0"))
+        span_angle_degrees = float(span_angle_elem.get("value", "90")) # Default to 90 degrees if not present
+        
+        start_angle_radians = math.radians(start_angle_degrees)
+        span_angle_radians = math.radians(span_angle_degrees)
         
         center_point = Point2D(cx, cy)
-        start_point = Point2D(sx, sy)
-        end_point = Point2D(ex, ey)
+        
+        # Calculate start and end points from center, radius, and angles
+        start_point = center_point + Point2D(radius * math.cos(start_angle_radians), 
+                                             radius * math.sin(start_angle_radians))
+        end_angle_radians = start_angle_radians + span_angle_radians
+        end_point = center_point + Point2D(radius * math.cos(end_angle_radians), 
+                                           radius * math.sin(end_angle_radians))
         
         return ArcCadObject(document, center_point, start_point, end_point, color, line_width)
     
@@ -618,19 +729,32 @@ class BelfryCADXMLSerializer:
                               name: str, color: str, line_width: Optional[float]) -> EllipseCadObject:
         """Create an ellipse object from XML."""
         center_elem = obj_elem.find(f"{{{self.NAMESPACE}}}center_point")
-        major_axis_elem = obj_elem.find(f"{{{self.NAMESPACE}}}major_axis_point")
-        minor_axis_elem = obj_elem.find(f"{{{self.NAMESPACE}}}minor_axis_point")
+        radius1_elem = obj_elem.find(f"{{{self.NAMESPACE}}}radius1")
+        radius2_elem = obj_elem.find(f"{{{self.NAMESPACE}}}radius2")
+        rotation_elem = obj_elem.find(f"{{{self.NAMESPACE}}}rotation_angle")
         
-        if center_elem is None or major_axis_elem is None or minor_axis_elem is None:
+        if center_elem is None or radius1_elem is None or radius2_elem is None:
             raise ValueError("Ellipse object missing required elements")
         
+        # Read center point
         cx, cy = self._read_point_attrs(center_elem)
-        maxx, maxy = self._read_point_attrs(major_axis_elem)
-        minx, miny = self._read_point_attrs(minor_axis_elem)
-        
         center_point = Point2D(cx, cy)
-        major_axis_point = Point2D(maxx, maxy)
-        minor_axis_point = Point2D(minx, miny)
+        
+        # Read radii (semi-axes)
+        radius1 = self._read_scalar(radius1_elem, "value")
+        radius2 = self._read_scalar(radius2_elem, "value")
+        
+        # Read rotation angle (default to 0 if not present for backward compatibility)
+        rotation_degrees = 0.0
+        if rotation_elem is not None:
+            rotation_degrees = float(rotation_elem.get("value", "0"))
+        rotation_radians = math.radians(rotation_degrees)
+        
+        # Create major and minor axis points based on center, radii, and rotation
+        major_axis_point = center_point + Point2D(radius1 * math.cos(rotation_radians), 
+                                                  radius1 * math.sin(rotation_radians))
+        minor_axis_point = center_point + Point2D(radius2 * math.cos(rotation_radians + math.pi/2), 
+                                                  radius2 * math.sin(rotation_radians + math.pi/2))
         
         return EllipseCadObject(document, center_point, major_axis_point, minor_axis_point, color, line_width)
     
@@ -715,4 +839,17 @@ def save_belfrycad_document(document: Document, filepath: str,
 def load_belfrycad_document(filepath: str, document: Document = None) -> Optional[Document]:
     """Load a BelfryCAD document from a zip-compressed XML file."""
     serializer = BelfryCADXMLSerializer()
-    return serializer.load_document(filepath, document) 
+    return serializer.load_document(filepath, document)
+
+
+def save_belfrycad_xml_document(document: Document, filepath: str, 
+                               preferences: Dict[str, Any] = None) -> bool:
+    """Save a BelfryCAD document to an uncompressed XML file (.belcadx format)."""
+    serializer = BelfryCADXMLSerializer()
+    return serializer.save_document_xml(document, filepath, preferences)
+
+
+def load_belfrycad_xml_document(filepath: str, document: Document = None) -> Optional[Document]:
+    """Load a BelfryCAD document from an uncompressed XML file (.belcadx format)."""
+    serializer = BelfryCADXMLSerializer()
+    return serializer.load_document_xml(filepath, document) 

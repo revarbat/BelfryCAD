@@ -72,10 +72,10 @@ class Tool(QObject):
     # Class-level tool definitions - subclasses should override this
     tool_definitions: List[ToolDefinition] = []
 
-    def __init__(self, main_window, document, preferences):
+    def __init__(self, document_window, document, preferences):
         """Initialize the tool"""
         super().__init__()
-        self.main_window = main_window
+        self.document_window = document_window
         self.document = document
         self.preferences = preferences
         self.state = ToolState.INIT
@@ -92,13 +92,13 @@ class Tool(QObject):
 
     @property
     def scene(self):
-        """Get the CAD graphics scene from the main window"""
-        return self.main_window.get_scene()
+        """Get the CAD graphics scene from the document window"""
+        return self.document_window.get_scene()
 
     @property
     def dpmm(self):
-        """Get the dots per millimeter from the main window"""
-        return self.main_window.get_dpmm()
+        """Get the dots per millimeter from the document window"""
+        return self.document_window.get_dpmm()
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definitions - uses class-level definitions by default"""
@@ -197,10 +197,10 @@ class Tool(QObject):
     def get_snap_point(self, x: float, y: float) -> Point2D:
         """Get the snapped point based on snap settings"""
         # Get the snaps system from the main window
-        if hasattr(self.main_window, 'snaps_system'):
+        if hasattr(self.document_window, 'snaps_system'):
             mouse_pos = QPointF(x, y)
             recent_points = [QPointF(p.x, p.y) for p in self.points]
-            snapped_point = self.main_window.snaps_system.get_snap_point(mouse_pos, recent_points)
+            snapped_point = self.document_window.snaps_system.get_snap_point(mouse_pos, recent_points)
             if snapped_point:
                 return Point2D(snapped_point.x(), snapped_point.y())
         
@@ -217,7 +217,7 @@ class Tool(QObject):
         if self.state == ToolState.DRAWING:
             obj = self.create_object()
             if obj:
-                self.document.objects.add_object(obj)
+                self.document.add_object(obj)
                 self.document.mark_modified()
                 # Emit signal to notify the main window to redraw
                 self.object_created.emit(obj)
@@ -237,9 +237,9 @@ class Tool(QObject):
 class ToolManager:
     """Manages the creation, registration and activation of tools"""
 
-    def __init__(self, main_window, document, preferences):
-        print(f"ToolManager init: {main_window}, {document}, {preferences}")
-        self.main_window = main_window
+    def __init__(self, document_window, document, preferences):
+        print(f"ToolManager init: {document_window}, {document}, {preferences}")
+        self.document_window = document_window
         self.document = document
         self.preferences = preferences
         self.tools: Dict[str, Tool] = {}
@@ -248,7 +248,7 @@ class ToolManager:
 
     def register_tool(self, tool_class):
         """Register a tool with the manager"""
-        tool = tool_class(self.main_window, self.document, self.preferences)
+        tool = tool_class(self.document_window, self.document, self.preferences)
         # Register all definitions from this tool
         for definition in tool.definitions:
             self.tools[definition.token] = tool

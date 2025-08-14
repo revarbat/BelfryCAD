@@ -1,16 +1,16 @@
 """
 Arc ViewModel for BelfryCAD.
 
-This ViewModel handles presentation logic for arc CAD objects and emits signals
-for UI updates when arc properties change.
+This viewmodel manages the display and interaction of arc CAD objects.
 """
 
 import math
-from typing import Tuple, Optional, TYPE_CHECKING
+from typing import List, Tuple, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QPointF, Signal, QRectF
 from PySide6.QtGui import QColor, QTransform, QPen
-from PySide6.QtWidgets import QGraphicsScene
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsItem
+from PySide6.QtGui import QBrush
 
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
@@ -23,10 +23,11 @@ from ...graphics_items.cad_arc_graphics_item import (
     CadArcArrowheadEndcaps
 )
 from ....models.cad_objects.arc_cad_object import ArcCadObject
-from ....cad_geometry import Point2D
+from ....cad_geometry import Point2D, Arc
+from ....utils.cad_expression import CadExpression
 
 if TYPE_CHECKING:
-    from ....gui.main_window import MainWindow
+    from ....gui.document_window import DocumentWindow
 
 
 class ArcViewModel(CadViewModel):
@@ -41,8 +42,15 @@ class ArcViewModel(CadViewModel):
     end_angle_changed = Signal(float)  # new end angle
     span_angle_changed = Signal(float)  # new span angle
     
-    def __init__(self, main_window: 'MainWindow', arc_object: ArcCadObject):
-        super().__init__(main_window, arc_object)
+    def __init__(self, document_window: 'DocumentWindow', arc_object: ArcCadObject):
+        """
+        Initialize the arc viewmodel.
+        
+        Args:
+            document_window: Reference to the document window
+            arc_object: The arc CAD object to represent
+        """
+        super().__init__(document_window, arc_object)
         self._arc_object = arc_object  # Keep reference for type-specific access
         
     def update_view(self, scene: QGraphicsScene):
@@ -161,7 +169,7 @@ class ArcViewModel(CadViewModel):
         self._controls.append(end_cp)
 
         # Get precision from main window or use default
-        precision = self._main_window.preferences_viewmodel.get_precision()
+        precision = self._document_window.preferences_viewmodel.get_precision()
         
         # Radius datum
         radius_datum = ControlDatum(

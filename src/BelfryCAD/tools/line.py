@@ -116,15 +116,12 @@ class LineTool(Tool):
         if len(self.points) != 2:
             return None
 
-        # Create a line object
-        obj = CadObject(
-            mainwin=self.main_window,
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.LINE,
-            coords=self.points.copy(),
-            attributes={
-                'color': 'black',  # Default color
-                'linewidth': 1     # Default line width
-            }
+        # Create line object
+        line = LineCadObject(
+            mainwin=self.document_window,
+            object_id=self.document.get_next_object_id(),
+            start=start_point,
+            end=end_point,
+            color=self.preferences.get("default_color", "black"),
+            line_width=self.preferences.get("default_line_width", 0.5)
         )
-        return obj

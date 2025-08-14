@@ -8,9 +8,9 @@ for UI updates when ellipse properties change.
 import math
 from typing import Tuple, Optional, TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QPointF, Signal, QRectF
+from PySide6.QtCore import Qt, QPointF, QRectF, Signal
 from PySide6.QtGui import QColor, QTransform, QPen
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsEllipseItem
+from PySide6.QtWidgets import QGraphicsScene
 
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
@@ -18,11 +18,12 @@ from ...graphics_items.control_points import (
     SquareControlPoint,
     ControlDatum
 )
+from ...graphics_items.cad_ellipse_graphics_item import CadEllipseGraphicsItem
 from ....models.cad_objects.ellipse_cad_object import EllipseCadObject
 from ....cad_geometry import Point2D
 
 if TYPE_CHECKING:
-    from ....gui.main_window import MainWindow
+    from ....gui.document_window import DocumentWindow
 
 
 class EllipseViewModel(CadViewModel):
@@ -38,8 +39,8 @@ class EllipseViewModel(CadViewModel):
     focus1_changed = Signal(QPointF)  # new focus 1
     focus2_changed = Signal(QPointF)  # new focus 2
     
-    def __init__(self, main_window: 'MainWindow', ellipse_object: EllipseCadObject):
-        super().__init__(main_window, ellipse_object)
+    def __init__(self, document_window: 'DocumentWindow', ellipse_object: EllipseCadObject):
+        super().__init__(document_window, ellipse_object)
         self._ellipse_object = ellipse_object  # Keep reference for type-specific access
         
     def update_view(self, scene: QGraphicsScene):
@@ -65,9 +66,9 @@ class EllipseViewModel(CadViewModel):
             major_axis * 2,
             minor_axis * 2
         )
+        pen = QPen(color, line_width)
         
-        view_item = QGraphicsEllipseItem(rect)
-        view_item.setPen(QPen(color, line_width))
+        view_item = CadEllipseGraphicsItem(rect, pen=pen)
         
         # Apply rotation if needed
         if rotation != 0:
@@ -137,8 +138,8 @@ class EllipseViewModel(CadViewModel):
         )
         self._controls.append(minor_cp)
 
-        # Get precision from main window or use default
-        precision = self._main_window.preferences_viewmodel.get_precision()
+        # Get precision from document window or use default
+        precision = self._document_window.preferences_viewmodel.get_precision()
         
         # Major axis datum
         major_datum = ControlDatum(

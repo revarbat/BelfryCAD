@@ -171,16 +171,14 @@ class CircleTool(Tool):
             (radius_point.y - center_point.y)**2
         )
 
-        # Create a circle object
-        obj = CircleObject(
-            mainwin=self.main_window,
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.CIRCLE,
-            coords=[center_point, radius_point],  # Only need center point
-            attributes={
-                'color': 'black',  # Default color
-                'linewidth': 1    # Default line width
-            }
+        # Create circle object
+        circle = CircleCadObject(
+            mainwin=self.document_window,
+            object_id=self.document.get_next_object_id(),
+            center=center_point,
+            radius=radius,
+            color=self.preferences.get("default_color", "black"),
+            line_width=self.preferences.get("default_line_width", 0.5)
         )
         return obj
 
@@ -343,7 +341,7 @@ class Circle2PTTool(Tool):
             # Create the circle object
             obj = self.create_object()
             if obj:
-                self.document.objects.add_object(obj)
+                self.document.add_object(obj)
                 self.object_created.emit(obj)
             self.reset()
 
@@ -386,7 +384,7 @@ class Circle2PTTool(Tool):
             return None
 
         obj = Circle2PTObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             point1=self.points[0],
             point2=self.points[1],
@@ -433,7 +431,7 @@ class Circle3PTTool(Tool):
                 # Create the circle object
                 obj = self.create_object()
                 if obj:
-                    self.document.objects.add_object(obj)
+                    self.document.add_object(obj)
                     self.object_created.emit(obj)
                 self.reset()
 
@@ -536,7 +534,7 @@ class Circle3PTTool(Tool):
             return None
 
         obj = Circle3PTObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             point1=self.points[0],
             point2=self.points[1],

@@ -220,7 +220,7 @@ class HorizontalDimensionTool(Tool):
 
         # Create a dimension object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.DIMENSION,
             coords=[start, end, offset],
@@ -418,7 +418,7 @@ class VerticalDimensionTool(Tool):
 
         # Create a dimension object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.DIMENSION,
             coords=[start, end, offset],
@@ -684,7 +684,7 @@ class LinearDimensionTool(Tool):
 
         # Create a dimension object
         obj = CadObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             object_type=ObjectType.DIMENSION,
             coords=[start, end, offset],
@@ -1028,7 +1028,7 @@ class ArcDimensionTool(Tool):
 
         # Create arc dimension object
         obj = ArcDimensionObject(
-            mainwin=self.main_window,
+            mainwin=self.document_window,
             object_id=self.document.objects.get_next_id(),
             center=center,
             start_angle=start_point,
