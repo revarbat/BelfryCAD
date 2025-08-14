@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
-from PySide6.QtCore import Qt, QPointF, QTimer
+from PySide6.QtCore import Qt, QPointF, QTimer, Signal
 
 
 
@@ -9,11 +9,17 @@ from ..graphics_items.control_points import ControlPoint, ControlDatum
 class CadScene(QGraphicsScene):
     """Custom graphics scene for CAD operations with centralized event handling."""
 
+    # Signal to emit when selection changes with object IDs
+    scene_selection_changed = Signal(set)  # set of selected object_ids
+
     def __init__(self, parent=None, precision=3):
         super().__init__(parent)
         
         # Store precision for CAD items to use
         self._precision = precision
+        
+        # Flag to prevent circular selection updates
+        self._updating_selection_from_tree = False
         
         # Control point management
         self._control_points = {}  # {cad_item: [control_points]}
@@ -67,18 +73,29 @@ class CadScene(QGraphicsScene):
         pass
 
     def _on_selection_changed(self):
-        """Handle Qt's built-in selection changes."""
+        """Handle selection changes and emit signals with object IDs."""
+        # Don't emit signals if we're updating selection from tree to prevent circular updates
+        if self._updating_selection_from_tree:
+            return
+            
+        # Get all selected items
         selected_items = self.selectedItems()
+        selected_object_ids = set()
         
         # Update control points for selected items
         self._hide_all_control_points()
         
-        for view_item in selected_items:
-            viewmodel = view_item.data(0)
+        for item in selected_items:
+            # Get the viewmodel from the item data
+            viewmodel = item.data(0)
             if viewmodel:
                 # Update the viewmodel's selection state
                 viewmodel.is_selected = True
                 self._show_control_points_for_viewmodel(viewmodel)
+                # Collect object ID for the signal
+                if hasattr(viewmodel, '_cad_object') and viewmodel._cad_object:
+                    object_id = viewmodel._cad_object.object_id
+                    selected_object_ids.add(object_id)
         
         # Update non-selected viewmodels
         for item in self.items():
@@ -86,6 +103,13 @@ class CadScene(QGraphicsScene):
                 viewmodel = item.data(0)
                 if viewmodel:
                     viewmodel.is_selected = False
+        
+        # Emit the signal with selected object IDs
+        self.scene_selection_changed.emit(selected_object_ids)
+
+    def set_updating_from_tree(self, updating: bool):
+        """Set flag to indicate we're updating selection from tree (to prevent circular updates)."""
+        self._updating_selection_from_tree = updating
 
     def _show_control_points_for_viewmodel(self, viewmodel):
         """Show control points for a specific viewmodel."""

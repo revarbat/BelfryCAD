@@ -107,7 +107,7 @@ class BelfryCADXMLSerializer:
         return raw * scale
     
     def save_document(self, document: Document, filepath: str, 
-                     preferences: Dict[str, Any] = None) -> bool:
+                     preferences: Optional[Dict[str, Any]] = None) -> bool:
         """
         Save a document to a zip-compressed XML file.
         
@@ -160,7 +160,7 @@ class BelfryCADXMLSerializer:
             print(f"Error saving document: {e}")
             return False
     
-    def load_document(self, filepath: str, document: Document = None) -> Optional[Document]:
+    def load_document(self, filepath: str, document: Optional[Document] = None) -> Optional[Document]:
         """
         Load a document from a zip-compressed XML file.
         
@@ -203,7 +203,7 @@ class BelfryCADXMLSerializer:
             return None
     
     def save_document_xml(self, document: Document, filepath: str, 
-                          preferences: Dict[str, Any] = None) -> bool:
+                          preferences: Optional[Dict[str, Any]] = None) -> bool:
         """
         Save a document to an uncompressed XML file (.belcadx format).
         
@@ -248,7 +248,7 @@ class BelfryCADXMLSerializer:
             print(f"Error saving document to XML: {e}")
             return False
     
-    def load_document_xml(self, filepath: str, document: Document = None) -> Optional[Document]:
+    def load_document_xml(self, filepath: str, document: Optional[Document] = None) -> Optional[Document]:
         """
         Load a document from an uncompressed XML file (.belcadx format).
         

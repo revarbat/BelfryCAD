@@ -52,7 +52,6 @@ class CircleViewModel(CadViewModel):
             line_width = 1.0  # Default line width
         center = self.center_point
         radius = self.radius
-        print(f"CircleViewModel: center={center}, radius={radius}")
         pen = QPen(color, line_width)
         
         # Create circle graphics item

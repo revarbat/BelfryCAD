@@ -22,7 +22,6 @@ class CadCircleGraphicsItem(CadGraphicsItemBase):
         # Store circle geometry
         self._center_point = center_point
         self._radius = radius
-        print(f"CadCircleGraphicsItem: center_point={center_point}, radius={radius}")
         if pen is not None:
             self.setPen(pen)
         if brush is not None:

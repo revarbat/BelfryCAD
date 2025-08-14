@@ -83,6 +83,12 @@ class DocumentWindow(QMainWindow):
         # Track graphics items by object ID for updates/deletion
         self.graphics_items = {}  # object_id -> list of graphics items
         
+        # Flag to prevent circular updates when programmatically updating tree selection
+        self._updating_tree_programmatically = False
+        
+        # Track previous tree selection for detecting deselections
+        self._previous_tree_selection = set()
+        
         # Initialize snaps system (will be set up after scene creation)
         self._snaps_system = None
 
@@ -545,6 +551,9 @@ class DocumentWindow(QMainWindow):
         # Track viewmodels by object id
         self._object_viewmodels = {}
 
+        # Connect CAD scene selection changes to object tree synchronization
+        self.cad_scene.scene_selection_changed.connect(self._on_scene_selection_changed)
+
         # Add grid background
         self.grid = GridBackground(self.grid_info)
         self.cad_scene.addItem(self.grid)
@@ -711,7 +720,7 @@ class DocumentWindow(QMainWindow):
             object_tree_pane.set_document(self.document)
             
         # Connect Object Tree signals
-        object_tree_pane.object_selected.connect(self._on_object_tree_selection)
+        object_tree_pane.selection_changed.connect(self._on_object_tree_selection_changed)
         object_tree_pane.visibility_changed.connect(self._on_object_tree_visibility_changed)
         object_tree_pane.color_changed.connect(self._on_object_tree_color_changed)
         object_tree_pane.name_changed.connect(self._on_object_tree_name_changed)
@@ -1547,6 +1556,70 @@ class DocumentWindow(QMainWindow):
         # Sync the menu checkboxes with the new state
         self._sync_palette_menu_states()
 
+    def _on_object_tree_selection_changed(self, selected_object_ids: Set[str]):
+        """Handle multiple object selection changes from the Object Tree pane."""
+        # Skip if we're already updating the tree programmatically
+        if self._updating_tree_programmatically:
+            return
+            
+        # Detect deselected groups and remove their children too
+        deselected_groups = self._get_deselected_groups(self._previous_tree_selection, selected_object_ids)
+        adjusted_selection = self._remove_children_of_deselected_groups(selected_object_ids, deselected_groups)
+        
+        # Apply group auto-selection logic for tree selections too
+        selection_with_groups = self._expand_selection_for_groups(adjusted_selection)
+        
+        # Expand selection to include children of selected groups for scene
+        expanded_selection = self._expand_selection_for_children(selection_with_groups)
+        
+        # Set flag to prevent scene from emitting selection signals during update
+        self.cad_scene.set_updating_from_tree(True)
+        
+        try:
+            # Update scene selection directly
+            self._clear_selection() # Clear current selection
+            for obj_id in expanded_selection:
+                obj = self.document.get_object(obj_id)
+                if obj:
+                    if obj_id in self._object_viewmodels:
+                        viewmodel = self._object_viewmodels[obj_id]
+                        for item in self.cad_scene.items():
+                            item_viewmodel = item.data(0)
+                            if item_viewmodel == viewmodel:
+                                item.setSelected(True)
+                                break
+        finally:
+            # Always reset the flag even if an exception occurs
+            self.cad_scene.set_updating_from_tree(False)
+            
+        # Update tree to show the complete selection (groups + children)
+        if selection_with_groups != selected_object_ids:
+            # Reset the tree's updating flag first, then set our programmatic flag
+            if hasattr(self, 'object_tree_pane'):
+                self.object_tree_pane.updating_selection = False
+            
+            self._updating_tree_programmatically = True
+            try:
+                self.update_object_tree_selection(selection_with_groups)
+                # Update our tracking after the tree update
+                self._previous_tree_selection = selection_with_groups.copy()
+            finally:
+                self._updating_tree_programmatically = False
+        else:
+            # Update tracking even if no tree update needed
+            self._previous_tree_selection = selected_object_ids.copy()
+
+    def _on_object_tree_visibility_changed(self, object_id: str, visible: bool):
+        """Handle visibility changes from the Object Tree pane."""
+        # Update graphics items visibility
+        if object_id in self.graphics_items:
+            for item in self.graphics_items[object_id]:
+                item.setVisible(visible)
+                
+        # Update the scene
+        if hasattr(self, 'scene'):
+            self.scene.update()
+            
     def _on_object_tree_color_changed(self, object_id: str, color: QColor):
         """Handle color changes from the Object Tree pane."""
         # Find the object in the document
@@ -1572,16 +1645,99 @@ class DocumentWindow(QMainWindow):
             self.document.modified = True
             # Refresh the object tree to show the updated name
             self.refresh_object_tree()
+            
+    def update_object_tree_selection(self, selected_object_ids: Set[str]):
+        """Update the object tree selection to match given object IDs."""
+        if hasattr(self, 'object_tree_pane'):
+            self.object_tree_pane.set_selection_from_scene(selected_object_ids)
 
-    def tool_table(self):
-        """Handle Tool Table menu action."""
-        logger.info("Opening tool table dialog")
-        dialog = ToolTableDialog.load_from_preferences(parent=self)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            logger.info("Tool table dialog accepted")
-            # Preferences are saved in the dialog's accept() method
-        else:
-            logger.info("Tool table dialog cancelled")
+    def _on_scene_selection_changed(self, selected_object_ids: Set[str]):
+        """Handle selection changes from the CAD scene and sync with object tree."""
+        # Apply hierarchical selection logic
+        expanded_selection = self._expand_selection_for_groups(selected_object_ids)
+        
+        # Update the object tree selection to match the expanded scene selection
+        self._updating_tree_programmatically = True
+        try:
+            self.update_object_tree_selection(expanded_selection)
+            # Update our tracking after the tree update
+            self._previous_tree_selection = expanded_selection.copy()
+        finally:
+            self._updating_tree_programmatically = False
+
+    def _expand_selection_for_groups(self, selected_object_ids: Set[str]) -> Set[str]:
+        """If all children of a group are selected, add the group to the selection too."""
+        from BelfryCAD.models.cad_objects.group_cad_object import GroupCadObject
+        
+        expanded = selected_object_ids.copy()
+        
+        # Find all groups in the document using the objects dictionary directly
+        all_groups = []
+        for obj_id, obj in self.document.objects.items():
+            if isinstance(obj, GroupCadObject):
+                all_groups.append((obj_id, obj))
+        
+        # Check each group to see if all its children are selected
+        for group_id, group in all_groups:
+            children = set(group.get_all_descendants())
+            
+            # If group has children and all children are selected
+            if children and children.issubset(selected_object_ids):
+                expanded.add(group_id)  # Add the group (keep children too)
+        
+        return expanded
+
+    def _expand_selection_for_children(self, selected_object_ids: Set[str]) -> Set[str]:
+        """For each selected group, add all its children to the selection."""
+        from BelfryCAD.models.cad_objects.group_cad_object import GroupCadObject
+        
+        expanded = set()
+        
+        for object_id in selected_object_ids:
+            obj = self.document.get_object(object_id)
+            if isinstance(obj, GroupCadObject):
+                # Add all descendants of the group
+                descendants = obj.get_all_descendants()
+                expanded.update(descendants)
+                # NOTE: Don't add the group itself - groups don't have graphics items
+            else:
+                # Add the object itself (not a group)
+                expanded.add(object_id)
+        
+        return expanded
+
+    def _get_deselected_groups(self, previous_selection: Set[str], current_selection: Set[str]) -> Set[str]:
+        """Find groups that were deselected (in previous but not in current)."""
+        from BelfryCAD.models.cad_objects.group_cad_object import GroupCadObject
+        
+        deselected_items = previous_selection - current_selection
+        deselected_groups = set()
+        
+        for item_id in deselected_items:
+            obj = self.document.get_object(item_id)
+            if isinstance(obj, GroupCadObject):
+                deselected_groups.add(item_id)
+        
+        return deselected_groups
+
+    def _remove_children_of_deselected_groups(self, current_selection: Set[str], deselected_groups: Set[str]) -> Set[str]:
+        """Remove children of deselected groups from the current selection."""
+        from BelfryCAD.models.cad_objects.group_cad_object import GroupCadObject
+        
+        adjusted_selection = current_selection.copy()
+        
+        for group_id in deselected_groups:
+            group = self.document.get_object(group_id)
+            if isinstance(group, GroupCadObject):
+                children = set(group.get_all_descendants())
+                adjusted_selection -= children
+        
+        return adjusted_selection
+
+    def refresh_object_tree(self):
+        """Refresh the Object Tree pane."""
+        if hasattr(self, 'object_tree_pane'):
+            self.object_tree_pane.refresh_tree()
 
     def _mouse_move_event(self, event):
         """Handle mouse move events to update position label."""
@@ -1656,20 +1812,23 @@ class DocumentWindow(QMainWindow):
     def _clear_selection(self):
         """Deselect all selected items."""
         try:
-            # First, manually deselect all items to ensure proper cleanup
-            selected_items = self.cad_scene.selectedItems()
-            for item in selected_items:
+            
+            # First call Qt's clearSelection to clear the internal state
+            self.cad_scene.clearSelection()
+            
+            # Then manually deselect all items to ensure proper cleanup
+            all_items = self.cad_scene.items()
+            for item in all_items:
                 try:
-                    if hasattr(item, 'setSelected'):
-                        item.setSelected(False)
+                    if hasattr(item, 'setSelected') and hasattr(item, 'isSelected'):
+                        if item.isSelected():
+                            item.setSelected(False)
                 except (RuntimeError, AttributeError, TypeError):
                     # Item may be invalid, continue with others
                     continue
-
-            # Then call clearSelection to ensure Qt's internal state is updated
-            self.cad_scene.clearSelection()
+            
         except (RuntimeError, AttributeError, TypeError) as e:
-            # If clearSelection fails, just log the error and continue
+            # If clearing fails, just log the error and continue
             print(f"Warning: Failed to clear selection: {e}")
             pass
 
@@ -1678,7 +1837,7 @@ class DocumentWindow(QMainWindow):
         for item in self.cad_scene.items():
             # Check if this item has a viewmodel reference in data slot 0
             viewmodel = item.data(0)
-            if viewmodel and hasattr(viewmodel, 'object_type'):
+            if viewmodel and hasattr(viewmodel, '_cad_object'):
                 item.setSelected(True)
 
     def _get_selected_items(self):
@@ -1687,7 +1846,7 @@ class DocumentWindow(QMainWindow):
         for item in self.cad_scene.selectedItems():
             # Check if this item has a viewmodel reference in data slot 0
             viewmodel = item.data(0)
-            if viewmodel and hasattr(viewmodel, 'object_type'):
+            if viewmodel and hasattr(viewmodel, '_cad_object'):
                 selected_items.append(item)
         return selected_items
 
@@ -1738,55 +1897,15 @@ class DocumentWindow(QMainWindow):
                     # Add the graphics items to the scene
                     viewmodel.update_view(self.cad_scene)
 
-    def _on_object_tree_selection(self, object_id: str):
-        """Handle object selection from the Object Tree pane."""
-        # Find the object in the document
-        obj = self.document.get_object(object_id)
-        if obj:
-            # Update scene selection
-            if hasattr(self, 'tool_manager'):
-                current_tool = self.tool_manager.get_active_tool()
-                if current_tool and hasattr(current_tool, 'select_object'):
-                    current_tool.select_object(obj)
-                    
-    def _on_object_tree_visibility_changed(self, object_id: str, visible: bool):
-        """Handle visibility changes from the Object Tree pane."""
-        # Update graphics items visibility
-        if object_id in self.graphics_items:
-            for item in self.graphics_items[object_id]:
-                item.setVisible(visible)
-                
-        # Update the scene
-        if hasattr(self, 'scene'):
-            self.scene.update()
-            
-    def _on_object_tree_color_changed(self, object_id: str, color):
-        """Handle color changes from the Object Tree pane."""
-        # Update graphics items color
-        if object_id in self.graphics_items:
-            for item in self.graphics_items[object_id]:
-                if hasattr(item, 'setPen'):
-                    pen = item.pen()
-                    pen.setColor(color)
-                    item.setPen(pen)
-                if hasattr(item, 'setBrush'):
-                    brush = item.brush()
-                    brush.setColor(color)
-                    item.setBrush(brush)
-                
-        # Update the scene
-        if hasattr(self, 'scene'):
-            self.scene.update()
-            
-    def update_object_tree_selection(self, selected_object_ids: Set[str]):
-        """Update Object Tree selection based on scene selection."""
-        if hasattr(self, 'object_tree_pane'):
-            self.object_tree_pane.set_selection_from_scene(selected_object_ids)
-            
-    def refresh_object_tree(self):
-        """Refresh the Object Tree pane."""
-        if hasattr(self, 'object_tree_pane'):
-            self.object_tree_pane.refresh_tree()
+    def tool_table(self):
+        """Handle Tool Table menu action."""
+        logger.info("Opening tool table dialog")
+        dialog = ToolTableDialog.load_from_preferences(parent=self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            logger.info("Tool table dialog accepted")
+            # Preferences are saved in the dialog's accept() method
+        else:
+            logger.info("Tool table dialog cancelled")
 
     def _apply_grid_units_from_document(self):
         """Set GridInfo units and precision from document preferences (units, use_fractions, precision)."""

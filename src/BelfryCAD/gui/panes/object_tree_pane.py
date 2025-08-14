@@ -5,7 +5,7 @@ This module provides a collapsible tree view of all CAD objects and groups
 with visibility toggle functionality and automatic updates.
 """
 
-from typing import Optional, Dict, Any, Set
+from typing import Optional, Dict, Any, Set, List
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTreeWidget, QTreeWidgetItem, 
     QHBoxLayout, QLabel, QHeaderView, QPushButton, QColorDialog,
@@ -24,6 +24,7 @@ class ObjectTreePane(QWidget):
     
     # Signals
     object_selected = Signal(str)  # Emitted when an object is selected
+    selection_changed = Signal(set)  # Emitted when selection changes with all selected object IDs
     visibility_changed = Signal(str, bool)  # Emitted when object visibility changes
     color_changed = Signal(str, QColor)  # Emitted when object color changes
     name_changed = Signal(str, str)  # Emitted when object name changes (object_id, new_name)
@@ -53,11 +54,25 @@ class ObjectTreePane(QWidget):
         self.tree_widget.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.tree_widget.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         
+        # Set selection mode to allow extended selection (Ctrl+click, Shift+click)
+        self.tree_widget.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
+        
         # Enable item editing
         self.tree_widget.setEditTriggers(QTreeWidget.EditTrigger.DoubleClicked)
         
-        # Connect signals
-        self.tree_widget.itemClicked.connect(self.on_item_clicked)
+        # Set stylesheet to ensure active selection colors regardless of focus
+        self.tree_widget.setStyleSheet("""
+            QTreeWidget::item:selected {
+                background-color: #3d7afe;
+                color: white;
+            }
+            QTreeWidget::item:selected:!active {
+                background-color: #3d7afe;
+                color: white;
+            }
+        """)
+        
+        # Connect signals - use Qt's built-in selection behavior
         self.tree_widget.itemSelectionChanged.connect(self.on_selection_changed)
         self.tree_widget.itemDoubleClicked.connect(self.on_item_double_clicked)
         self.tree_widget.itemChanged.connect(self.on_item_changed)
@@ -209,13 +224,6 @@ class ObjectTreePane(QWidget):
         
         return icon_mapping.get(obj_type, 'object-visible' if obj.visible else 'object-invisible')
         
-    def on_item_clicked(self, item: QTreeWidgetItem, column: int):
-        """Handle item click events."""
-        if column == 0:  # Only emit for object column, not visibility column
-            object_id = item.data(0, Qt.ItemDataRole.UserRole)
-            if object_id:
-                self.object_selected.emit(object_id)
-                
     def on_selection_changed(self):
         """Handle selection changes in the tree."""
         if self.updating_selection:
@@ -235,33 +243,51 @@ class ObjectTreePane(QWidget):
         # Update internal selection tracking
         self.selected_object_ids = new_selection
         
-        # Emit selection signal for each selected object
-        for object_id in new_selection:
-            self.object_selected.emit(object_id)
-            
+        # Emit selection changed signal with all selected object IDs
+        self.selection_changed.emit(new_selection)
+        
         self.updating_selection = False
         
+    def expand_to_show_item(self, tree_item: QTreeWidgetItem):
+        """Expand all parent groups to make the given tree item visible."""
+        # Walk up the parent chain and expand each parent
+        parent = tree_item.parent()
+        while parent is not None:
+            parent.setExpanded(True)
+            parent = parent.parent()
+
     def set_selection_from_scene(self, selected_object_ids: Set[str]):
-        """Update tree selection based on scene selection."""
+        """Set tree selection based on scene selection. Prevent circular updates."""
         if self.updating_selection:
             return
             
         self.updating_selection = True
         
-        # Clear current selection
-        self.tree_widget.clearSelection()
-        
-        # Select items in the tree
-        for object_id in selected_object_ids:
-            items = self.find_items_by_object_id(self.tree_widget.invisibleRootItem(), object_id)
-            for item in items:
-                item.setSelected(True)
+        try:
+            # Clear current selection
+            self.tree_widget.clearSelection()
+            
+            total_items_found = 0
+            for object_id in selected_object_ids:
+                items = self.find_items_by_object_id(self.tree_widget.invisibleRootItem(), object_id)
+                total_items_found += len(items)
                 
-        # Update internal tracking
-        self.selected_object_ids = selected_object_ids.copy()
-        
-        self.updating_selection = False
-        
+                for item in items:
+                    # Expand parent groups to make this item visible
+                    self.expand_to_show_item(item)
+                    # Select the item
+                    item.setSelected(True)
+                    # Scroll to the first item to ensure it's visible
+                    if total_items_found == 1:  # Only scroll for the first item
+                        self.tree_widget.scrollToItem(item)
+            
+            # Set focus to the tree widget so selections show with active colors
+            if total_items_found > 0:
+                self.tree_widget.setFocus()
+                    
+        finally:
+            self.updating_selection = False
+
     def toggle_visibility(self, object_id: str):
         """Toggle visibility of an object and all its children."""
         if not self.document:
@@ -304,16 +330,20 @@ class ObjectTreePane(QWidget):
             self.tree_widget.setCurrentItem(items[0])
             self.tree_widget.scrollToItem(items[0])
             
-    def find_items_by_object_id(self, parent_item, object_id: str) -> list:
-        """Recursively find tree items by object ID."""
+    def find_items_by_object_id(self, parent_item: QTreeWidgetItem, object_id: str) -> List[QTreeWidgetItem]:
+        """Recursively find all QTreeWidgetItem instances that match the given object_id."""
         items = []
         
+        # Check if this parent item matches the object_id
+        if parent_item.data(0, Qt.ItemDataRole.UserRole) == object_id:
+            items.append(parent_item)
+        
+        # Recursively check all child items
         for i in range(parent_item.childCount()):
-            child = parent_item.child(i)
-            if child.data(0, Qt.ItemDataRole.UserRole) == object_id:
-                items.append(child)
-            items.extend(self.find_items_by_object_id(child, object_id))
-            
+            child_item = parent_item.child(i)
+            child_items = self.find_items_by_object_id(child_item, object_id)
+            items.extend(child_items)
+        
         return items
         
     def restore_selection(self, object_ids: Set[str]):

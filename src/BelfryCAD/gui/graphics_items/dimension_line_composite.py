@@ -82,9 +82,6 @@ class DimensionLineComposite(QGraphicsItem):
         
         # Calculate the main vector from start to end
         self._main_vector = end_point - start_point
-        print(f"mv={self._main_vector}")
-        print(f"start={start_point}")
-        print(f"end={end_point}")
 
         # Initialize component items
         self._extension_lines = []
