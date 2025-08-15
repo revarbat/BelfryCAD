@@ -7,7 +7,7 @@ a thicker outline in the selection color behind the normal shape.
 
 from typing import Optional
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPen, QBrush
+from PySide6.QtGui import QPen, QBrush, QColor
 from PySide6.QtWidgets import QAbstractGraphicsShapeItem, QGraphicsItem, QApplication
 
 
@@ -32,9 +32,9 @@ class CadGraphicsItemBase(QAbstractGraphicsShapeItem):
             # Step 1: Draw selection outline (thicker, selection color)
             painter.save()
             # selection_color = QApplication.palette().highlight().color()
-            selection_pen = QPen(Qt.GlobalColor.red, 3.0)
+            selection_pen = QPen(QColor("#00ffff"), 2.0)
+            #selection_pen.setDashPattern([3, 3])
             selection_pen.setCosmetic(True)
-            selection_pen.setStyle(Qt.PenStyle.DashLine)
             painter.setPen(selection_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)  # No fill for selection outline
             shape = self.shape()

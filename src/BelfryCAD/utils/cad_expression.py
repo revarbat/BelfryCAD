@@ -1,4 +1,9 @@
+# -*- coding: utf-8 -*-
+
 """
+belfrycad.utils.cad_expression
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
 CadExpression - A mathematical expression evaluator for CAD calculations.
 
 Supports:

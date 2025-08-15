@@ -78,22 +78,12 @@ class CadObject:
         
         # Get the object type name
         obj_type = type(self).__name__.replace('CadObject', '').lower()
-        if obj_type == 'line':
-            base_name = 'line'
-        elif obj_type == 'circle':
-            base_name = 'circle'
-        elif obj_type == 'arc':
-            base_name = 'arc'
-        elif obj_type == 'ellipse':
-            base_name = 'ellipse'
-        elif obj_type == 'bezier':
-            base_name = 'bezier'
-        elif obj_type == 'gear':
-            base_name = 'gear'
-        elif obj_type == 'polygon':
-            base_name = 'polygon'
-        elif obj_type == 'group':
-            base_name = 'group'
+        types = [
+            'line', 'arc', 'circle', 'ellipse',
+            'bezier', 'gear', 'polygon', 'group'
+        ]
+        if obj_type in types:
+            base_name = obj_type
         else:
             base_name = 'object'
         

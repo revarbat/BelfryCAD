@@ -39,7 +39,7 @@ class ConstructionLineItem(QGraphicsLineItem):
             line: QLineF,
             dash_pattern: DashPattern = DashPattern.DASHED,
             arrow_tips: ArrowTip = ArrowTip.NONE,
-            line_width: float = 1.0,
+            line_width: Optional[float] = None,
             parent: Optional[QGraphicsLineItem] = None
     ):
         super().__init__(line, parent)
@@ -51,7 +51,6 @@ class ConstructionLineItem(QGraphicsLineItem):
         self._line_width = line_width
 
         # Configure the line item
-        self.setLineWidth(self._line_width)
         self._update_pen()
         
         # Set high Z value to appear above other items
@@ -90,6 +89,8 @@ class ConstructionLineItem(QGraphicsLineItem):
 
         # If there are no arrow tips, just return the base rect
         width = self._line_width
+        if width is None:
+            width = 1.0
         if self._arrow_tips != ArrowTip.NONE:
             width *= self.arrow_width
 
@@ -104,6 +105,8 @@ class ConstructionLineItem(QGraphicsLineItem):
     def shape(self) -> QPainterPath:
         """Return the shape for hit testing, including arrow tips."""
         width = self._line_width
+        if width is None:
+            width = 1.0
         if self._arrow_tips != ArrowTip.NONE:
             width *= self.arrow_width
 
@@ -136,7 +139,10 @@ class ConstructionLineItem(QGraphicsLineItem):
         # based on which arrows are present
         actual_start = start_point
         actual_end = end_point
-        offset = vector * (self.arrow_length * self._line_width)
+        line_width = self._line_width
+        if line_width is None:
+            line_width = 1.0
+        offset = vector * (self.arrow_length * line_width)
         
         if self._arrow_tips in [ArrowTip.START, ArrowTip.BOTH]:
             actual_start = start_point + offset
@@ -177,7 +183,11 @@ class ConstructionLineItem(QGraphicsLineItem):
 
     def _update_pen(self):
         """Update the pen based on current settings."""
-        pen = QPen(self._construction_color, self._line_width)
+        if self._line_width is None:
+            pen = QPen(self._construction_color, 2.0)
+            pen.setCosmetic(True)
+        else:
+            pen = QPen(self._construction_color, self._line_width)
         
         if self._dash_pattern == DashPattern.SOLID:
             pen.setStyle(Qt.PenStyle.SolidLine)

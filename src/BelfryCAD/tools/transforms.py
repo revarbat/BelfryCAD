@@ -26,7 +26,60 @@ from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush, QTransform
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
-from ..utils.matrixmath import Matrix
+
+
+def _reflect_point_across_line(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> tuple[float, float]:
+    """Reflect a point across a line defined by two points."""
+    # Calculate line direction vector
+    dx = x2 - x1
+    dy = y2 - y1
+    
+    # Handle degenerate case (line is a point)
+    if dx == 0 and dy == 0:
+        return px, py
+    
+    # Normalize line direction
+    length = math.sqrt(dx * dx + dy * dy)
+    dx /= length
+    dy /= length
+    
+    # Vector from line start to point
+    wx = px - x1
+    wy = py - y1
+    
+    # Project point onto line
+    t = wx * dx + wy * dy
+    closest_x = x1 + t * dx
+    closest_y = y1 + t * dy
+    
+    # Reflect point across line
+    reflected_x = 2 * closest_x - px
+    reflected_y = 2 * closest_y - py
+    
+    return reflected_x, reflected_y
+
+
+def _transform_coords_reflection(coords: List[float], x1: float, y1: float, x2: float, y2: float) -> List[float]:
+    """Transform coordinates using reflection across a line."""
+    result = []
+    for i in range(0, len(coords), 2):
+        if i + 1 < len(coords):
+            rx, ry = _reflect_point_across_line(coords[i], coords[i + 1], x1, y1, x2, y2)
+            result.extend([rx, ry])
+    return result
+
+
+def _transform_coords_skew(coords: List[float], shear_x: float, shear_y: float, cx: float, cy: float) -> List[float]:
+    """Transform coordinates using skew transformation."""
+    result = []
+    for i in range(0, len(coords), 2):
+        if i + 1 < len(coords):
+            x, y = coords[i], coords[i + 1]
+            # Apply skew transformation relative to center
+            new_x = x + shear_x * (y - cy)
+            new_y = y + shear_y * (x - cx)
+            result.extend([new_x, new_y])
+    return result
 
 
 class NodeAddTool(Tool):
@@ -833,53 +886,51 @@ class FlipTool(Tool):
     def _draw_flip_preview_box(self, bbox: QRectF, x1: float, y1: float,
                                x2: float, y2: float):
         """Draw a preview box showing the flipped position"""
-        # Create reflection matrix
         try:
-            matrix = Matrix.reflect_line(x1, y1, x2, y2)
-        except:
-            return
+            # Get corners of bounding box and center
+            corners = [
+                (bbox.left(), bbox.top()),
+                (bbox.left(), bbox.bottom()),
+                (bbox.right(), bbox.bottom()),
+                (bbox.right(), bbox.top())
+            ]
 
-        # Get corners of bounding box and center
-        corners = [
-            (bbox.left(), bbox.top()),
-            (bbox.left(), bbox.bottom()),
-            (bbox.right(), bbox.bottom()),
-            (bbox.right(), bbox.top())
-        ]
+            center_x = bbox.center().x()
+            center_y = bbox.center().y()
+            quarter_x = (bbox.left() + bbox.right() * 3) / 4
+            quarter_y = (bbox.top() + bbox.bottom() * 3) / 4
 
-        center_x = bbox.center().x()
-        center_y = bbox.center().y()
-        quarter_x = (bbox.left() + bbox.right() * 3) / 4
-        quarter_y = (bbox.top() + bbox.bottom() * 3) / 4
+            # Add center and quarter point lines for reference
+            preview_lines = corners + [
+                (bbox.left(), center_y), (bbox.right(), center_y),
+                (center_x, bbox.top()), (center_x, bbox.bottom()),
+                (center_x, bbox.top()), (quarter_x, quarter_y)
+            ]
 
-        # Add center and quarter point lines for reference
-        preview_lines = corners + [
-            (bbox.left(), center_y), (bbox.right(), center_y),
-            (center_x, bbox.top()), (center_x, bbox.bottom()),
-            (center_x, bbox.top()), (quarter_x, quarter_y)
-        ]
-
-        # Transform and draw original and reflected lines
-        for i in range(0, len(preview_lines), 2):
-            if i + 1 < len(preview_lines):
-                # Original line in light blue
-                x_orig1, y_orig1 = preview_lines[i]
-                x_orig2, y_orig2 = preview_lines[i + 1]
-                line_item = QGraphicsLineItem(
-                    x_orig1, y_orig1, x_orig2, y_orig2)
-                line_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
-                self.scene.addItem(line_item)
-                self.temp_objects.append(line_item)
-
-                # Reflected line in blue
-                coords = [x_orig1, y_orig1, x_orig2, y_orig2]
-                reflected_coords = matrix.transform_coords(coords)
-                if len(reflected_coords) >= 4:
-                    line_item = QGraphicsLineItem(reflected_coords[0], reflected_coords[1],
-                                                  reflected_coords[2], reflected_coords[3])
-                    line_item.setPen(QPen(QColor(0, 0, 255)))  # Blue
+            # Transform and draw original and reflected lines
+            for i in range(0, len(preview_lines), 2):
+                if i + 1 < len(preview_lines):
+                    # Original line in light blue
+                    x_orig1, y_orig1 = preview_lines[i]
+                    x_orig2, y_orig2 = preview_lines[i + 1]
+                    line_item = QGraphicsLineItem(
+                        x_orig1, y_orig1, x_orig2, y_orig2)
+                    line_item.setPen(QPen(QColor(127, 127, 255)))  # Light blue
                     self.scene.addItem(line_item)
                     self.temp_objects.append(line_item)
+
+                    # Reflected line in blue
+                    coords = [x_orig1, y_orig1, x_orig2, y_orig2]
+                    # Use direct mathematical implementation for reflection
+                    reflected_coords = _transform_coords_reflection(coords, x1, y1, x2, y2)
+                    if len(reflected_coords) >= 4:
+                        line_item = QGraphicsLineItem(reflected_coords[0], reflected_coords[1],
+                                                      reflected_coords[2], reflected_coords[3])
+                        line_item.setPen(QPen(QColor(0, 0, 255)))  # Blue
+                        self.scene.addItem(line_item)
+                        self.temp_objects.append(line_item)
+        except:
+            return
 
     def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""
@@ -1021,32 +1072,29 @@ class ShearTool(Tool):
     def _draw_shear_preview_box(self, bbox: QRectF, center: Point2D,
                                 shear_x: float, shear_y: float):
         """Draw a preview box showing the sheared position"""
-        # Create shear matrix
         try:
-            matrix = Matrix.skew_xy(shear_x, shear_y, center.x, center.y)
+            # Get corners of bounding box
+            corners = [
+                (bbox.left(), bbox.top()),
+                (bbox.left(), bbox.bottom()),
+                (bbox.right(), bbox.bottom()),
+                (bbox.right(), bbox.top())
+            ]
+
+            # Transform corners and draw lines
+            for i in range(len(corners)):
+                x1, y1 = corners[i]
+                x2, y2 = corners[(i + 1) % len(corners)]
+                coords = [x1, y1, x2, y2]
+                sheared_coords = _transform_coords_skew(coords, shear_x, shear_y, center.x, center.y)
+                if len(sheared_coords) >= 4:
+                    line_item = QGraphicsLineItem(sheared_coords[0], sheared_coords[1],
+                                                  sheared_coords[2], sheared_coords[3])
+                    line_item.setPen(QPen(QColor(0, 0, 255)))  # Blue preview
+                    self.scene.addItem(line_item)
+                    self.temp_objects.append(line_item)
         except:
             return
-
-        # Get corners of bounding box
-        corners = [
-            (bbox.left(), bbox.top()),
-            (bbox.left(), bbox.bottom()),
-            (bbox.right(), bbox.bottom()),
-            (bbox.right(), bbox.top())
-        ]
-
-        # Transform corners
-        for i in range(len(corners)):
-            x1, y1 = corners[i]
-            x2, y2 = corners[(i + 1) % len(corners)]
-            coords = [x1, y1, x2, y2]
-            sheared_coords = matrix.transform_coords(coords)
-            if len(sheared_coords) >= 4:
-                line_item = QGraphicsLineItem(sheared_coords[0], sheared_coords[1],
-                                              sheared_coords[2], sheared_coords[3])
-                line_item.setPen(QPen(QColor(0, 0, 255)))  # Blue preview
-                self.scene.addItem(line_item)
-                self.temp_objects.append(line_item)
 
     def _get_selected_objects(self) -> List[CadObject]:
         """Get list of currently selected objects"""

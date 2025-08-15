@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+    belfrycad.utils.worker
+    ~~~~~~~~~~~~~~~~~~~~~~
+
+    Worker module.
+"""
+
 import sys
 import time
 import traceback

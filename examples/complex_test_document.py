@@ -37,7 +37,7 @@ def create_complex_test_document():
     document = Document()
     
     # Add parameters
-    document.parameters = {
+    parameters = {
         'base_width': '100.0',
         'base_height': '80.0',
         'hole_diameter': '8.0',
@@ -56,7 +56,7 @@ def create_complex_test_document():
     }
     
     # Create CadExpression for parameters
-    document.cad_expression = CadExpression(document.parameters)
+    document.cad_expression = CadExpression(parameters)
     
     # Create objects
     
@@ -240,9 +240,10 @@ def main():
         print()
         
         # Print document summary
+        parameters = document.cad_expression.parameters
         print("Document Summary:")
         print(f"  Total Objects: {len(document.objects)}")
-        print(f"  Parameters: {len(document.parameters)}")
+        print(f"  Parameters: {len(parameters)}")
         print(f"  Groups: {len([obj for obj in document.objects.values() if isinstance(obj, GroupCadObject)])}")
         print()
         
@@ -257,7 +258,7 @@ def main():
         print()
         
         print("Parameters:")
-        for name, expression in document.parameters.items():
+        for name, expression in document.cad_expression.parameters.items():
             try:
                 value = document.cad_expression.evaluate(expression)
                 print(f"  {name} = {expression} → {value}")

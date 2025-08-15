@@ -50,7 +50,12 @@ class LineViewModel(CadViewModel):
 
         color = QColor(self._line_object.color)
         line_width = self._line_object.line_width
-        pen = QPen(color, line_width)
+        if line_width is None:
+            pen = QPen(color, 1.0)
+            pen.setCosmetic(True)
+        else:
+            pen = QPen(color, line_width)
+        
         view_item = CadLineGraphicsItem(
             self._line_object.line.start.to_qpointf(),
             self._line_object.line.end.to_qpointf(),

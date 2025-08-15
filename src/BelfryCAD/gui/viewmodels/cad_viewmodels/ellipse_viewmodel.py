@@ -8,7 +8,7 @@ for UI updates when ellipse properties change.
 import math
 from typing import Tuple, Optional, TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QPointF, QRectF, Signal
+from PySide6.QtCore import Qt, QPointF, QRectF, Signal, QLineF
 from PySide6.QtGui import QColor, QTransform, QPen
 from PySide6.QtWidgets import QGraphicsScene
 
@@ -19,6 +19,7 @@ from ...graphics_items.control_points import (
     ControlDatum
 )
 from ...graphics_items.cad_ellipse_graphics_item import CadEllipseGraphicsItem
+from ...graphics_items.construction_line_item import ConstructionLineItem, DashPattern
 from ....models.cad_objects.ellipse_cad_object import EllipseCadObject
 from ....cad_geometry import Point2D
 
@@ -52,6 +53,8 @@ class EllipseViewModel(CadViewModel):
 
         color = QColor(self._ellipse_object.color)
         line_width = self._ellipse_object.line_width
+        if line_width is None:
+            line_width = 1.0
         center = self.center_point
         major_axis = self.major_axis
         minor_axis = self.minor_axis
@@ -90,7 +93,36 @@ class EllipseViewModel(CadViewModel):
         This is called when this object is selected.
         """
         self._clear_decorations(scene)
-        # Ellipse doesn't need special decorations for now
+        
+        # Add major and minor axis line decorations
+        center = QPointF(self._ellipse_object.center_point.x, self._ellipse_object.center_point.y)
+        major_axis_point = QPointF(self._ellipse_object.major_axis_point.x, self._ellipse_object.major_axis_point.y)
+        minor_axis_point = QPointF(self._ellipse_object.minor_axis_point.x, self._ellipse_object.minor_axis_point.y)
+        
+        # Create major axis line from one side to the other (through center)
+        opposite_major = QPointF(
+            2 * center.x() - major_axis_point.x(),
+            2 * center.y() - major_axis_point.y()
+        )
+        major_axis_line = ConstructionLineItem(
+            line=QLineF(major_axis_point, opposite_major),
+            dash_pattern=DashPattern.DASHED,
+            line_width=None
+        )
+        self._decorations.append(major_axis_line)
+        
+        # Create minor axis line from one side to the other (through center)
+        opposite_minor = QPointF(
+            2 * center.x() - minor_axis_point.x(),
+            2 * center.y() - minor_axis_point.y()
+        )
+        minor_axis_line = ConstructionLineItem(
+            line=QLineF(minor_axis_point, opposite_minor),
+            dash_pattern=DashPattern.DASHED,
+            line_width=None
+        )
+        self._decorations.append(minor_axis_line)
+        
         self._add_decorations_to_scene(scene)
     
     def hide_decorations(self, scene: QGraphicsScene):

@@ -301,4 +301,5 @@ class CadViewModel(QObject):
     @property
     def controls(self) -> List:
         """Get the list of control items"""
-        return self._controls 
+        return self._controls
+        

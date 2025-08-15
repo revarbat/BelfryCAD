@@ -27,7 +27,7 @@ class ConstructionCrossItem(QGraphicsItem):
             center: QPointF,
             size: float = 20.0,
             dash_pattern: DashPattern = DashPattern.CENTERLINE,
-            line_width: float = 1.0,
+            line_width: Optional[float] = None,
             parent: Optional[QGraphicsItem] = None
     ):
         super().__init__(parent)
@@ -83,7 +83,11 @@ class ConstructionCrossItem(QGraphicsItem):
     
     def _update_pen(self):
         """Update the pen based on current settings."""
-        self._pen = QPen(self._construction_color, self._line_width)
+        if self._line_width is None:
+            self._pen = QPen(self._construction_color, 2.0)
+            self._pen.setCosmetic(True)
+        else:
+            self._pen = QPen(self._construction_color, self._line_width)
         
         if self._dash_pattern == DashPattern.SOLID:
             self._pen.setStyle(Qt.PenStyle.SolidLine)
@@ -92,7 +96,7 @@ class ConstructionCrossItem(QGraphicsItem):
             self._pen.setDashPattern([5.0, 5.0])
         elif self._dash_pattern == DashPattern.CENTERLINE:
             self._pen.setStyle(Qt.PenStyle.DashLine)
-            self._pen.setDashPattern([8.0, 5.0, 5.0, 5.0, 7.0])
+            self._pen.setDashPattern([8.0, 5.0, 5.0, 5.0])
     
     def boundingRect(self) -> QRectF:
         """Return the bounding rectangle of the crosshair."""

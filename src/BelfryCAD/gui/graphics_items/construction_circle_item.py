@@ -27,7 +27,7 @@ class ConstructionCircleItem(QGraphicsEllipseItem):
             center: QPointF,
             radius: float,
             dash_pattern: DashPattern = DashPattern.DASHED,
-            line_width: float = 1.0,
+            line_width: Optional[float] = None,
             parent: Optional[QGraphicsEllipseItem] = None
     ):
         rect = QRectF(
@@ -43,7 +43,6 @@ class ConstructionCircleItem(QGraphicsEllipseItem):
         self._line_width = line_width
         
         # Configure the circle item
-        self.setLineWidth(self._line_width)
         self._update_pen()
         
         # Set high Z value to appear above other items
@@ -74,7 +73,11 @@ class ConstructionCircleItem(QGraphicsEllipseItem):
     
     def _update_pen(self):
         """Update the pen based on current settings."""
-        pen = QPen(self._construction_color, self._line_width)
+        if self._line_width is None:
+            pen = QPen(self._construction_color, 2.0)
+            pen.setCosmetic(True)
+        else:
+            pen = QPen(self._construction_color, self._line_width)
         
         if self._dash_pattern == DashPattern.SOLID:
             pen.setStyle(Qt.PenStyle.SolidLine)
@@ -83,7 +86,7 @@ class ConstructionCircleItem(QGraphicsEllipseItem):
             pen.setDashPattern([5.0, 5.0])
         elif self._dash_pattern == DashPattern.CENTERLINE:
             pen.setStyle(Qt.PenStyle.DashLine)
-            pen.setDashPattern([8.0, 5.0, 5.0, 5.0, 7.0])
+            pen.setDashPattern([8.0, 5.0, 5.0, 5.0])
         
         self.setPen(pen)
         # No brush for construction circles (outline only)

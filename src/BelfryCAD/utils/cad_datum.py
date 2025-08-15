@@ -1,4 +1,11 @@
-# 
+# -*- coding: utf-8 -*-
+"""
+    belfrycad.utils.cad_datum
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    CadDatum module.
+"""
+
 import math
 import numbers
 from typing import Optional

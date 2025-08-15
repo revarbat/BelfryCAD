@@ -1,15 +1,21 @@
+# -*- coding: utf-8 -*-
 """
-Document business logic model.
+    belfrycad.models.document
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This module contains pure business logic for the CAD document with no UI dependencies.
+    Document business logic model.
+
+    This module contains pure business logic for the CAD document with no UI dependencies.
 """
 
-from typing import List, Dict, Optional, Tuple, Set
+
+from typing import List, Dict, Optional, Tuple, Set, Any
 from .cad_object import CadObject
 from .cad_objects.group_cad_object import GroupCadObject
 from .constraints_manager import ConstraintsManager
-from ..utils.constraints import Constraint
 from ..cad_geometry import Point2D
+from ..utils.constraints import Constraint
+from ..utils.cad_expression import CadExpression
 
 
 class Document:
@@ -21,6 +27,8 @@ class Document:
         self.modified = False
         self.filename: Optional[str] = None
         self.constraints_manager = ConstraintsManager(self)
+        self.preferences: Dict[str, Any] = {}
+        self.cad_expression = CadExpression()
         self._name_counter: Dict[str, int] = {}  # Track name counters for each type
     
     def add_object(self, cad_object: CadObject) -> str:

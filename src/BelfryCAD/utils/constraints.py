@@ -1,10 +1,15 @@
+# -*- coding: utf-8 -*-
+"""
+    belfrycad.utils.constraints
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Constraints module.
+"""
+
 import math
 import numpy as np
 from scipy.optimize import least_squares
-from typing import List, Tuple, Callable, Dict, Optional, Sequence
-
-
-import numpy as np
+from typing import List, Tuple, Dict, Optional, Sequence
 
 
 # =========================
@@ -176,7 +181,6 @@ class ConstraintSolver:
     # SciPy least_squares solver (alternative)
     # -------------------------
     def solve(self):
-        from scipy.optimize import least_squares
         free_indices = [i for i, fixed in enumerate(self.fixed_mask) if not fixed]
 
         def masked_objective(free_vars):

@@ -3,7 +3,7 @@ CadEllipseGraphicsItem - A custom graphics item for drawing ellipses with select
 """
 
 from typing import Optional
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt, QLineF
 from PySide6.QtGui import QPen, QBrush, QPainterPath, QPainterPathStroker
 from PySide6.QtWidgets import QGraphicsItem
 
@@ -20,6 +20,7 @@ class CadEllipseGraphicsItem(CadGraphicsItemBase):
         
         # Store ellipse geometry
         self._bounding_rect = bounding_rect
+        
         if pen is not None:
             self.setPen(pen)
         if brush is not None:

@@ -22,6 +22,8 @@ from ...graphics_items.cad_arc_graphics_item import (
     CadArcGraphicsItem,
     CadArcArrowheadEndcaps
 )
+from ...graphics_items.construction_cross_item import ConstructionCrossItem, DashPattern
+from ...graphics_items.construction_circle_item import ConstructionCircleItem, DashPattern as CircleDashPattern
 from ....models.cad_objects.arc_cad_object import ArcCadObject
 from ....cad_geometry import Point2D, Arc
 from ....utils.cad_expression import CadExpression
@@ -73,6 +75,7 @@ class ArcViewModel(CadViewModel):
             arc_pen.setCosmetic(True)
         else:
             arc_pen = QPen(color, line_width)
+
         arc_item = CadArcGraphicsItem(
             center_point=center,
             radius=radius,
@@ -92,34 +95,36 @@ class ArcViewModel(CadViewModel):
         Show the decorations.
         This is called when this object is selected.
         """
+        print("show_decorations arc")
         self._clear_decorations(scene)
         
-        # Create decoration arc that completes the circle (from end to start)
-        line_width = self._arc_object.line_width
+        if not self._view_items[0].isSelected():
+            return
+        
+        # Add center cross decoration
         center = self.center_point
         radius = self.radius
-        start_angle = math.degrees(self.start_angle)
-        span_angle = math.degrees(self.span_angle)
         
-        const_color = QColor(0x7f, 0x7f, 0x7f)
-        decoration_pen = QPen(const_color, 1.0)
-        decoration_pen.setCosmetic(True)
-        decoration_pen.setStyle(Qt.PenStyle.DashLine)
-        decoration_pen.setDashPattern([5.0, 5.0])
+        # Calculate appropriate cross size based on arc radius
+        cross_size = radius * 2.5
         
-        # Calculate the completion arc (from end to start)
-        end_angle = start_angle + span_angle
-        completion_span = 360 - span_angle  # Complete the circle
-        
-        decoration_arc = CadArcGraphicsItem(
-            center_point=center,
-            radius=radius,
-            start_angle=end_angle,
-            span_angle=completion_span,
-            arrowheads=CadArcArrowheadEndcaps.NONE,
-            pen=decoration_pen
+        center_cross = ConstructionCrossItem(
+            center=center,
+            size=cross_size,
+            dash_pattern=DashPattern.CENTERLINE,
+            line_width=None
         )
-        self._decorations.append(decoration_arc)
+        self._decorations.append(center_cross)
+        
+        # Add complete circle decoration to show the remainder
+        complete_circle = ConstructionCircleItem(
+            center=center,
+            radius=radius,
+            dash_pattern=CircleDashPattern.DASHED,
+            line_width=None
+        )
+        complete_circle.setZValue(-1)
+        self._decorations.append(complete_circle)
         
         self._add_decorations_to_scene(scene)
     
@@ -128,6 +133,7 @@ class ArcViewModel(CadViewModel):
         Hide the decorations.
         This is called when this object is deselected.
         """
+        print("hide_decorations arc")
         self._clear_decorations(scene)
     
     def update_decorations(self, scene: QGraphicsScene):

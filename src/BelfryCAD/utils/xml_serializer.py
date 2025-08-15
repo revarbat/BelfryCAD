@@ -1,4 +1,8 @@
+# -*- coding: utf-8 -*-
 """
+    belfrycad.utils.xml_serializer
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 XML Serializer for BelfryCAD Documents
 
 This module provides serialization and deserialization of BelfryCAD documents
@@ -514,20 +518,31 @@ class BelfryCADXMLSerializer:
             # Add constrainable properties involved in this constraint
             if hasattr(constraint, 'constrainable1') and hasattr(constraint, 'constrainable2'):
                 # Format: object.property (e.g., "line1.start_point")
-                constrainable1 = constraint.constrainable1
-                constrainable2 = constraint.constrainable2
+                constrainable1 = getattr(constraint, 'constrainable1', None)
+                constrainable2 = getattr(constraint, 'constrainable2', None)
                 
-                if hasattr(constrainable1, 'object_id') and hasattr(constrainable1, 'property_name'):
-                    constraint_elem.set('constrainable1', f"{constrainable1.object_id}.{constrainable1.property_name}")
-                if hasattr(constrainable2, 'object_id') and hasattr(constrainable2, 'property_name'):
-                    constraint_elem.set('constrainable2', f"{constrainable2.object_id}.{constrainable2.property_name}")
+                if constrainable1:
+                    if hasattr(constrainable1, 'object_id'):
+                        if hasattr(constrainable1, 'property_name'):
+                            constraint_elem.set(
+                                'constrainable1',
+                                f"{constrainable1.object_id}." +
+                                    f"{constrainable1.property_name}"
+                            )
+                if constrainable2:
+                    if hasattr(constrainable2, 'object_id'):
+                        if hasattr(constrainable2, 'property_name'):
+                            constraint_elem.set(
+                                'constrainable2',
+                                f"{constrainable2.object_id}." +
+                                    f"{constrainable2.property_name}"
+                            )
             
             # Add constraint-specific parameters
-            if hasattr(constraint, 'parameters'):
-                for param_name, param_value in constraint.parameters.items():
-                    param_elem = ET.SubElement(constraint_elem, f"{{{self.NAMESPACE}}}parameter")
-                    param_elem.set('name', param_name)
-                    param_elem.set('value', str(param_value))
+            for param_name, param_value in getattr(constraint, 'parameters', {}).items():
+                param_elem = ET.SubElement(constraint_elem, f"{{{self.NAMESPACE}}}parameter")
+                param_elem.set('name', param_name)
+                param_elem.set('value', str(param_value))
     
     def _parse_document_header(self, root: ET.Element, document: Document):
         """Parse document header and preferences."""
@@ -562,7 +577,6 @@ class BelfryCADXMLSerializer:
                 expressions[name] = expression
         
         # Store parameters in document
-        document.parameters = expressions
         document.cad_expression = CadExpression(expressions)
     
     def _parse_cad_objects_section(self, root: ET.Element, document: Document):
@@ -580,7 +594,7 @@ class BelfryCADXMLSerializer:
         tag = obj_elem.tag.replace(f"{{{self.NAMESPACE}}}", "")
         
         # Get basic properties
-        obj_id = obj_elem.get('id')
+        obj_id : str = obj_elem.get('id')  # type: ignore
         name = obj_elem.get('name', '')
         color = obj_elem.get('color', 'black')
         line_width_str = obj_elem.get('line_width')
@@ -830,26 +844,26 @@ class BelfryCADXMLSerializer:
 
 # Convenience functions
 def save_belfrycad_document(document: Document, filepath: str, 
-                           preferences: Dict[str, Any] = None) -> bool:
+                           preferences: Optional[Dict[str, Any]] = None) -> bool:
     """Save a BelfryCAD document to a zip-compressed XML file."""
     serializer = BelfryCADXMLSerializer()
     return serializer.save_document(document, filepath, preferences)
 
 
-def load_belfrycad_document(filepath: str, document: Document = None) -> Optional[Document]:
+def load_belfrycad_document(filepath: str, document: Optional[Document] = None) -> Optional[Document]:
     """Load a BelfryCAD document from a zip-compressed XML file."""
     serializer = BelfryCADXMLSerializer()
     return serializer.load_document(filepath, document)
 
 
 def save_belfrycad_xml_document(document: Document, filepath: str, 
-                               preferences: Dict[str, Any] = None) -> bool:
+                               preferences: Optional[Dict[str, Any]] = None) -> bool:
     """Save a BelfryCAD document to an uncompressed XML file (.belcadx format)."""
     serializer = BelfryCADXMLSerializer()
     return serializer.save_document_xml(document, filepath, preferences)
 
 
-def load_belfrycad_xml_document(filepath: str, document: Document = None) -> Optional[Document]:
+def load_belfrycad_xml_document(filepath: str, document: Optional[Document] = None) -> Optional[Document]:
     """Load a BelfryCAD document from an uncompressed XML file (.belcadx format)."""
     serializer = BelfryCADXMLSerializer()
     return serializer.load_document_xml(filepath, document) 

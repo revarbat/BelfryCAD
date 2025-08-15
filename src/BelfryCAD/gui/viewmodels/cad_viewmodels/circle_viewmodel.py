@@ -18,7 +18,11 @@ from ...graphics_items.control_points import (
     SquareControlPoint,
     ControlDatum
 )
+from ...graphics_items.dimension_line_composite import (
+    DimensionLineComposite
+)
 from ...graphics_items.cad_circle_graphics_item import CadCircleGraphicsItem
+from ...graphics_items.construction_cross_item import ConstructionCrossItem, DashPattern
 from ....models.cad_objects.circle_cad_object import CircleCadObject
 from ....cad_geometry import Point2D
 
@@ -73,8 +77,24 @@ class CircleViewModel(CadViewModel):
         Show the decorations.
         This is called when this object is selected.
         """
+        print("show_decorations circle")
         self._clear_decorations(scene)
-        # Circle doesn't need special decorations for now
+        
+        # Add center cross decoration
+        center = self.center_point
+        radius = self.radius
+        
+        # Calculate appropriate cross size based on circle radius
+        cross_size = radius * 2.5
+        
+        center_cross = ConstructionCrossItem(
+            center=center,
+            size=cross_size,
+            dash_pattern=DashPattern.CENTERLINE,
+            line_width=None
+        )
+        
+        self._decorations.append(center_cross)
         self._add_decorations_to_scene(scene)
     
     def hide_decorations(self, scene: QGraphicsScene):
@@ -82,6 +102,7 @@ class CircleViewModel(CadViewModel):
         Hide the decorations.
         This is called when this object is deselected.
         """
+        print("hide_decorations circle")
         self._clear_decorations(scene)
     
     def update_decorations(self, scene: QGraphicsScene):

@@ -46,21 +46,10 @@ from .widgets.columnar_toolbar import ColumnarToolbarWidget
 from BelfryCAD.utils.cad_expression import CadExpression
 from .panes.parameters_pane import ParametersPane
 from .panes.object_tree_pane import ObjectTreePane
-from BelfryCAD.utils.xml_serializer import load_belfrycad_document, load_belfrycad_xml_document, save_belfrycad_document, save_belfrycad_xml_document
-from .viewmodels.cad_viewmodels import (
-    LineViewModel,
-    CircleViewModel,
-    ArcViewModel,
-    EllipseViewModel,
-    CubicBezierViewModel,
-    GearViewModel,
+from BelfryCAD.utils.xml_serializer import (
+    load_belfrycad_document, load_belfrycad_xml_document,
+    save_belfrycad_document, save_belfrycad_xml_document
 )
-from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
-from BelfryCAD.models.cad_objects.circle_cad_object import CircleCadObject
-from BelfryCAD.models.cad_objects.arc_cad_object import ArcCadObject
-from BelfryCAD.models.cad_objects.ellipse_cad_object import EllipseCadObject
-from BelfryCAD.models.cad_objects.cubic_bezier_cad_object import CubicBezierCadObject
-from BelfryCAD.models.cad_objects.gear_cad_object import GearCadObject
 
 logger = logging.getLogger(__name__)
 
@@ -726,7 +715,7 @@ class DocumentWindow(QMainWindow):
         object_tree_pane.name_changed.connect(self._on_object_tree_name_changed)
 
         # Create the Pane and ParametersPane as tabs
-        parameters_pane = ParametersPane(self.cad_expression)
+        parameters_pane = ParametersPane(self.document.cad_expression)
         parameters_dock = QDockWidget("Parameters", self)
         parameters_dock.setWidget(parameters_pane)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, parameters_dock)
@@ -932,7 +921,7 @@ class DocumentWindow(QMainWindow):
         if self.document.is_modified():
             if not self._confirm_discard_changes():
                 return
-        self.document.new()
+        self.document.clear()
         self.update_title()
         self.cad_scene.clear()
         # Refresh graphics after creating new document
@@ -1023,7 +1012,7 @@ class DocumentWindow(QMainWindow):
         if self.document.is_modified():
             if not self._confirm_discard_changes():
                 return
-        self.document.new()  # Reset to new document
+        self.document.clear()  # Reset to new document
         self.cad_scene.clear()
         self.update_title()
         # Refresh graphics after closing document
@@ -1185,11 +1174,9 @@ class DocumentWindow(QMainWindow):
 
             # Create new object
             new_obj = CadObject(
-                mainwin=self,
-                object_id=self.document.objects.get_next_id(),
-                object_type=obj_data['type'],
-                coords=new_coords,
-                attributes=obj_data['attributes'].copy()
+                self.document,
+                color = "black",
+                line_width = None
             )
 
             # Add to document
@@ -1572,6 +1559,15 @@ class DocumentWindow(QMainWindow):
         # Expand selection to include children of selected groups for scene
         expanded_selection = self._expand_selection_for_children(selection_with_groups)
         
+        # Store previous selection before updating
+        previous_selection = self._current_selection.copy()
+        
+        # Update decorations based on selection changes
+        self._update_decorations_for_selection_change(previous_selection, selection_with_groups)
+        
+        # Update current selection tracking
+        self._current_selection = selection_with_groups.copy()
+        
         # Set flag to prevent scene from emitting selection signals during update
         self.cad_scene.set_updating_from_tree(True)
         
@@ -1617,8 +1613,8 @@ class DocumentWindow(QMainWindow):
                 item.setVisible(visible)
                 
         # Update the scene
-        if hasattr(self, 'scene'):
-            self.scene.update()
+        if hasattr(self, 'cad_scene'):
+            self.cad_scene.update()
             
     def _on_object_tree_color_changed(self, object_id: str, color: QColor):
         """Handle color changes from the Object Tree pane."""
@@ -1626,9 +1622,9 @@ class DocumentWindow(QMainWindow):
         obj = self.document.get_object(object_id)
         if obj:
             # Update the object's color attribute
-            obj.attributes['color'] = color.name()
+            obj.color = color.name()
             # Mark the object as modified
-            obj.selected = True
+            self.document.modified = True
             # Update the config pane to reflect the new color
             self._update_config_pane_for_selection([obj])
             # Refresh the object tree
@@ -1655,6 +1651,15 @@ class DocumentWindow(QMainWindow):
         """Handle selection changes from the CAD scene and sync with object tree."""
         # Apply hierarchical selection logic
         expanded_selection = self._expand_selection_for_groups(selected_object_ids)
+        
+        # Store previous selection before updating
+        previous_selection = self._current_selection.copy()
+        
+        # Update decorations based on selection changes
+        self._update_decorations_for_selection_change(previous_selection, expanded_selection)
+        
+        # Update current selection tracking
+        self._current_selection = expanded_selection.copy()
         
         # Update the object tree selection to match the expanded scene selection
         self._updating_tree_programmatically = True
@@ -1995,3 +2000,29 @@ class DocumentWindow(QMainWindow):
             print(f"Error saving document: {e}")
             return False
 
+    def _update_decorations_for_selection_change(
+            self,
+            previous_selection: Set[str],
+            current_selection: Set[str]
+    ):
+        """Update decorations when selection changes by calling show/hide on viewmodels."""
+        print(f"DEBUG: previous_selection: {previous_selection}")
+        print(f"DEBUG: current_selection: {current_selection}")
+        
+        # Objects that were deselected - hide their decorations
+        deselected_objects = previous_selection - current_selection
+        print(f"DEBUG: deselected_objects: {deselected_objects}")
+        for obj_id in deselected_objects:
+            if obj_id in self._object_viewmodels:
+                viewmodel = self._object_viewmodels[obj_id]
+                print(f"DEBUG: Hiding decorations for {obj_id}")
+                viewmodel.hide_decorations(self.cad_scene)
+        
+        # Objects that were newly selected - show their decorations  
+        newly_selected_objects = current_selection - previous_selection
+        print(f"DEBUG: newly_selected_objects: {newly_selected_objects}")
+        for obj_id in newly_selected_objects:
+            if obj_id in self._object_viewmodels:
+                viewmodel = self._object_viewmodels[obj_id]
+                print(f"DEBUG: Showing decorations for {obj_id}")
+                viewmodel.show_decorations(self.cad_scene)

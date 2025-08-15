@@ -1,18 +1,18 @@
 """
-CadArcGraphicsItem - A graphics item for drawing arcs with optional arrowheads.
+CadArcGraphicsItem - A graphics item for drawing arcs with optional arrowheads and selection decorations.
 """
 
 import math
 from enum import Enum
 from typing import Optional, List
-from PySide6.QtCore import QPointF, QRectF
+from PySide6.QtCore import (
+    Qt, QPointF, QRectF, QPropertyAnimation, QEasingCurve, QVariantAnimation
+)
 from PySide6.QtGui import (
-    Qt, QPen, QColor, QBrush,
-    QPainterPath, QPainterPathStroker, QPolygonF
+    QPen, QBrush, QColor, QPainter, QPainterPath, QPainterPathStroker, QPolygonF
 )
 from PySide6.QtWidgets import (
-    QGraphicsItem, QAbstractGraphicsShapeItem,
-    QGraphicsPathItem, QGraphicsPolygonItem, QApplication
+    QAbstractGraphicsShapeItem, QGraphicsItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsPolygonItem, QApplication
 )
 
 
@@ -85,7 +85,6 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         
         # Create arc path
         arc_path = QPainterPath()
-        arc_path.moveTo(start_point)
         
         # Normalize span angle to -180 to 180 for Qt's arcTo
         span_angle = self._span_angle
@@ -96,9 +95,10 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         
         scale = self.transform().m11()
         circum = 2 * math.pi * self._radius
-        shy_span = 10 * scale/ circum * 360
+        shy_span = 10 * scale / circum * 360
         trimmed_span_angle = span_angle
         trimmed_start_angle = start_angle
+        trimmed_start_point = start_point
         if self._arrowheads in [CadArcArrowheadEndcaps.START, CadArcArrowheadEndcaps.BOTH]:
             trimmed_span_angle -= math.copysign(shy_span, span_angle)
             trimmed_start_angle += math.copysign(shy_span, span_angle)
@@ -107,9 +107,9 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
                 self._center_point.x() + math.cos(trimmed_start_rad) * self._radius,
                 self._center_point.y() + math.sin(trimmed_start_rad) * self._radius
             )
-            arc_path.moveTo(trimmed_start_point)
         if self._arrowheads in [CadArcArrowheadEndcaps.END, CadArcArrowheadEndcaps.BOTH]:
             trimmed_span_angle -= math.copysign(shy_span, span_angle)
+        arc_path.moveTo(trimmed_start_point)
 
         # Draw the arc
         arc_path.arcTo(
@@ -228,15 +228,17 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
             # Draw selection indication
             # Create selection pen using Qt's standard selection color
             # standard_selection_color = QApplication.palette().highlight().color()
-            selection_pen = QPen(Qt.GlobalColor.red, 3.0)
-            selection_pen.setStyle(Qt.PenStyle.DashLine)
+            selection_pen = QPen(QColor("#00ffff"), 2.0)
             selection_pen.setCosmetic(True)
+            #selection_pen.setDashPattern([3, 3])
             
             # Draw selection rectangle around the bounding rect
             painter.setPen(selection_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)
             path = self.shape()
             painter.drawPath(path)
+
+    # Removed _add_selection_decorations and _remove_selection_decorations
 
     # Property setters
     def setCenterPoint(self, center_point: QPointF):

@@ -1,5 +1,9 @@
+# -*- coding: utf-8 -*-
 """
-Logging utilities for BelfryCad.
+    belfrycad.utils.logger
+    ~~~~~~~~~~~~~~~~~~~~~~
+
+    Logging utilities for BelfryCad.
 """
 
 import logging
