@@ -2,20 +2,20 @@
 ControlPoint - A class representing a control point for CAD items.
 """
 import math
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING, cast
 from PySide6.QtCore import (
-    Qt, QPointF, QRectF, QTimer, QPropertyAnimation, QEasingCurve
+    Qt, QPointF, QRectF
 )
 from PySide6.QtGui import (
     QPen, QBrush, QColor, QFont, QFontMetrics, QPainterPath, QTransform
 )
 from PySide6.QtWidgets import (
-    QGraphicsItem, QDialog, QVBoxLayout, QLabel, QLineEdit, QDialogButtonBox
+    QGraphicsItem, QDialog, QVBoxLayout, QLabel, QDialogButtonBox
 )
 
 if TYPE_CHECKING:
     from BelfryCAD.gui.widgets.cad_expression_edit import CadExpressionEdit
-
+    from BelfryCAD.gui.widgets.cad_scene import CadScene
 
 class ControlPoint(QGraphicsItem):
     """Base class for control point graphics items."""
@@ -47,6 +47,10 @@ class ControlPoint(QGraphicsItem):
         
         # Dragging state
         self._is_dragging = False
+
+    def scene(self) -> 'CadScene':
+        """Get the scene."""
+        return cast(CadScene, super().scene())
 
     def set_dragging(self, dragging: bool):
         """Set the dragging state of this control point."""
@@ -137,11 +141,22 @@ class ControlPoint(QGraphicsItem):
         """Handle mouse move events for control point dragging."""
         if event.buttons() & Qt.MouseButton.LeftButton and self._is_dragging:
             # Get the new position in scene coordinates
-            new_pos = event.scenePos()
+            raw_pos = event.scenePos()
             
-            # Call the setter to update the object property
+            # Apply snapping if snaps system is available
+            snapped_pos = raw_pos
+            scene = self.scene()
+            if scene:
+                # Try to get snaps system from scene
+                snaps_system = getattr(scene, '_snaps_system', None)
+                if snaps_system and hasattr(snaps_system, 'get_snap_point'):
+                    snapped_pos = snaps_system.get_snap_point(raw_pos)
+                    if snapped_pos is None:
+                        snapped_pos = raw_pos  # Fallback to original position if no snap
+            
+            # Call the setter to update the object property with snapped position
             if self.setter:
-                self.call_setter_with_updates(new_pos)
+                self.call_setter_with_updates(snapped_pos)
             
             # Accept the event to prevent it from propagating to the scene
             event.accept()
