@@ -15,11 +15,14 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import (
     QPen, QColor, QPainter, QFont, QPainterPath, QFontMetrics,
-    QPainterPathStroker
+    QPainterPathStroker, QBrush
 )
 from PySide6.QtWidgets import (
     QGraphicsItem, QGraphicsLineItem, QGraphicsTextItem
 )
+
+from .arrow_line_item import ArrowLineItem
+from .alignable_simple_text_item import AlignableSimpleTextItem
 
 
 class DimensionLineOrientation(Enum):
@@ -102,7 +105,8 @@ class DimensionLineComposite(QGraphicsItem):
         
         # Create the component items
         self._create_components()
-    
+        self.setPen(self._pen)
+
     def _create_components(self):
         """Create all the component graphics items."""
         # Calculate all points
@@ -183,7 +187,7 @@ class DimensionLineComposite(QGraphicsItem):
         self._extension_lines.append(end_ext_line)
     
     def _create_arrow_lines(self):
-        """Create the arrow line graphics items."""
+        """Create the arrow line graphics items using ArrowLineItem."""
         # Clear existing arrow lines
         for line in self._arrow_lines:
             if line.scene():
@@ -193,8 +197,6 @@ class DimensionLineComposite(QGraphicsItem):
         # Calculate arrow line segments (with gap for text if needed)
         if self._show_text and self._text_gap > 0:
             # Calculate text width and gap
-            font = QFont("Arial", 10)
-            font_metrics = QFontMetrics(font)
             arrow_line_vector = self._arrow_line_end - self._arrow_line_start
             arrow_line_length = math.hypot(arrow_line_vector.x(), arrow_line_vector.y())
             arrow_line_vector = arrow_line_vector * (1.0 / arrow_line_length)
@@ -204,6 +206,8 @@ class DimensionLineComposite(QGraphicsItem):
             else:
                 text = f"{arrow_line_length:.2f}"
             
+            font = QFont("Arial", 10)
+            font_metrics = QFontMetrics(font)
             text_rect = font_metrics.boundingRect(text)
             text_width = text_rect.width()
             
@@ -218,90 +222,52 @@ class DimensionLineComposite(QGraphicsItem):
                 gap_end_x = self._arrow_line_start.x() + (self._arrow_line_end.x() - self._arrow_line_start.x()) * (0.5 + gap_ratio/2)
                 gap_end_y = self._arrow_line_start.y() + (self._arrow_line_end.y() - self._arrow_line_start.y()) * (0.5 + gap_ratio/2)
                 
-                # First segment
-                arrow_line1 = QGraphicsLineItem(
-                    QLineF(self._arrow_line_start, QPointF(gap_start_x, gap_start_y)),
-                    self
+                # First segment with start arrow
+                arrow_line1 = ArrowLineItem(
+                    line=QLineF(self._arrow_line_start, QPointF(gap_start_x, gap_start_y)),
+                    start_arrow=False,
+                    end_arrow=True,
+                    pen=self._pen,
+                    parent=self
                 )
-                arrow_line1.setPen(self._pen)
                 self._arrow_lines.append(arrow_line1)
                 
-                # Second segment
-                arrow_line2 = QGraphicsLineItem(
-                    QLineF(QPointF(gap_end_x, gap_end_y), self._arrow_line_end),
-                    self
+                # Second segment with end arrow
+                arrow_line2 = ArrowLineItem(
+                    line=QLineF(QPointF(gap_end_x, gap_end_y), self._arrow_line_end),
+                    start_arrow=True,
+                    end_arrow=False,
+                    pen=self._pen,
+                    parent=self
                 )
-                arrow_line2.setPen(self._pen)
                 self._arrow_lines.append(arrow_line2)
                 
-                # Add arrowheads
-                self._create_arrowhead(self._arrow_line_start, self._arrow_line_start + QPointF(gap_start_x - self._arrow_line_start.x(), gap_start_y - self._arrow_line_start.y()))
-                self._create_arrowhead(self._arrow_line_end, self._arrow_line_end + QPointF(gap_end_x - self._arrow_line_end.x(), gap_end_y - self._arrow_line_end.y()))
             else:
-                # Single arrow line
-                arrow_line = QGraphicsLineItem(
-                    QLineF(self._arrow_line_start, self._arrow_line_end),
-                    self
+                # Single arrow line with both arrows
+                arrow_line = ArrowLineItem(
+                    line=QLineF(self._arrow_line_start, self._arrow_line_end),
+                    start_arrow=True,
+                    end_arrow=True,
+                    pen=self._pen,
+                    parent=self
                 )
-                arrow_line.setPen(self._pen)
                 self._arrow_lines.append(arrow_line)
                 
         else:
-            # Single arrow line without gap
-            arrow_line = QGraphicsLineItem(
-                QLineF(self._arrow_line_start, self._arrow_line_end),
-                self
+            # Single arrow line without gap, with both arrows
+            arrow_line = ArrowLineItem(
+                line=QLineF(self._arrow_line_start, self._arrow_line_end),
+                start_arrow=True,
+                end_arrow=True,
+                pen=self._pen,
+                parent=self
             )
-            arrow_line.setPen(self._pen)
             self._arrow_lines.append(arrow_line)
-            
-        # Add arrowheads
-        self._create_arrowhead(self._arrow_line_start, self._arrow_line_end)
-        self._create_arrowhead(self._arrow_line_end, self._arrow_line_start)
     
-    def _create_arrowhead(self, arrow_tip: QPointF, arrow_base: QPointF):
-        """Create an arrowhead at the specified position."""
-        arrow_length = 8.0
-        arrow_width = 4.0
-        
-        # Calculate arrow direction vector
-        direction = QPointF(arrow_tip.x() - arrow_base.x(), arrow_tip.y() - arrow_base.y())
-        length = math.sqrt(direction.x()**2 + direction.y()**2)
-        
-        if length > 0:
-            # Normalize direction
-            direction = QPointF(direction.x() / length, direction.y() / length)
-            
-            # Calculate perpendicular vector
-            perp = QPointF(-direction.y(), direction.x())
-            
-            # Calculate arrow points
-            arrow_point1 = QPointF(
-                arrow_tip.x() - direction.x() * arrow_length + perp.x() * arrow_width,
-                arrow_tip.y() - direction.y() * arrow_length + perp.y() * arrow_width
-            )
-            arrow_point2 = QPointF(
-                arrow_tip.x() - direction.x() * arrow_length - perp.x() * arrow_width,
-                arrow_tip.y() - direction.y() * arrow_length - perp.y() * arrow_width
-            )
-            
-            # Create arrowhead lines
-            arrowhead_line1 = QGraphicsLineItem(
-                QLineF(arrow_tip, arrow_point1),
-                self
-            )
-            arrowhead_line1.setPen(QPen(self._color, self._line_width))
-            self._arrow_lines.append(arrowhead_line1)
-            
-            arrowhead_line2 = QGraphicsLineItem(
-                QLineF(arrow_tip, arrow_point2),
-                self
-            )
-            arrowhead_line2.setPen(QPen(self._color, self._line_width))
-            self._arrow_lines.append(arrowhead_line2)
+
     
     def _create_text_item(self):
-        """Create the text graphics item."""
+        """Create the text graphics item using AlignableSimpleTextItem."""
         # Remove existing text item
         if self._text_item and self._text_item.scene():
             self._text_item.scene().removeItem(self._text_item)
@@ -316,13 +282,20 @@ class DimensionLineComposite(QGraphicsItem):
         else:
             text = f"{arrow_line_length:.2f}"
         
-        # Create text item
-        self._text_item = QGraphicsTextItem(text, self)
-        self._text_item.setDefaultTextColor(self._color)
+        # Create text item using AlignableSimpleTextItem
+        self._text_item = AlignableSimpleTextItem(text, self)
         
         # Set font
         font = QFont("Arial", 10)
+        font.setPixelSize(10)
         self._text_item.setFont(font)
+        
+        # Set text color
+        self._text_item.setBrush(QBrush(self._color))
+        self._text_item.setPen(QPen(self._color, 0.0))
+        
+        # Set center alignment for dimension text
+        self._text_item.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
         
         # Calculate text angle
         line_angle = math.atan2(
@@ -334,17 +307,7 @@ class DimensionLineComposite(QGraphicsItem):
         # Position text at center of dimension line
         self._text_item.setPos(self._text_position)
         
-        # Get text bounding rect before rotation
-        text_rect = self._text_item.boundingRect()
-        
-        # Center the text on the dimension line
-        self._text_item.setPos(
-            self._text_position.x() - text_rect.width()/2,
-            self._text_position.y() - text_rect.height()/2
-        )
-        
-        # Apply rotation around the center of the text
-        self._text_item.setTransformOriginPoint(text_rect.width()/2, text_rect.height()/2)
+        # Apply rotation
         self._text_item.setRotation(total_rotation)
     
     def setPoints(self, start_point: QPointF, end_point: QPointF):

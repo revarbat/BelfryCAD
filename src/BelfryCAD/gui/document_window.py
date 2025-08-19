@@ -75,6 +75,9 @@ class DocumentWindow(QMainWindow):
         # Flag to prevent circular updates when programmatically updating tree selection
         self._updating_tree_programmatically = False
         
+        # Flag to prevent circular updates when programmatically updating scene selection
+        self._updating_scene_programmatically = False
+        
         # Track previous tree selection for detecting deselections
         self._previous_tree_selection = set()
         
@@ -743,70 +746,8 @@ class DocumentWindow(QMainWindow):
         # Connect config pane field changes to property updates
         config_pane.field_changed.connect(self._on_property_changed)
 
-        # Set up periodic check for selection changes
-        if not hasattr(self, '_selection_timer'):
-            self._selection_timer = QTimer()
-            self._selection_timer.timeout.connect(
-                self._check_selection_changes
-            )
-            self._selection_timer.start(100)  # Check every 100ms
-
         # Track current selection state
         self._current_selection = set()
-
-    def _check_selection_changes(self):
-        """Check if selection changed and update config pane if needed."""
-        if not hasattr(self, 'tool_manager'):
-            return
-
-        # Get current tool and check if it's the selector tool
-        current_tool = self.tool_manager.get_active_tool()
-        if current_tool and hasattr(current_tool, 'selected_objects'):
-            # Get current selection using getattr for type safety
-            selected_objects = getattr(current_tool, 'selected_objects', [])
-            current_selection = set(
-                obj.object_id for obj in selected_objects
-            )
-            # Check if selection changed
-            if current_selection != self._current_selection:
-                self._current_selection = current_selection
-                self._update_config_pane_for_selection(selected_objects)
-                
-                # Update Object Tree selection
-                self.update_object_tree_selection(current_selection)
-
-    def _update_config_pane_for_selection(self, selected_objects):
-        """Update config pane based on current selection."""
-        config_pane = self.palette_manager.get_palette_content("config_pane")
-        if not config_pane:
-            return
-
-        if not selected_objects:
-            # No selection - clear config pane or show default fields
-            self._populate_config_pane_for_objects([])
-        elif len(selected_objects) == 1:
-            # Single object selected - show its properties
-            self._populate_config_pane_for_objects(selected_objects)
-        else:
-            # Multiple objects selected - show common properties
-            self._populate_config_pane_for_objects(selected_objects)
-
-    def _populate_config_pane_for_objects(self, objects):
-        """Populate config pane with properties for given objects."""
-        config_pane = self.palette_manager.get_palette_content("config_pane")
-        if not config_pane:
-            return
-
-        # Store reference to selected objects for property updates
-        # We'll use dynamic attributes to work around type checker limitations
-        setattr(config_pane, 'selected_objects', objects)
-
-        # Update the config pane fields based on selection
-        # Check if the config pane has the populate method
-        if hasattr(config_pane, 'populate'):
-            populate_method = getattr(config_pane, 'populate', None)
-            if callable(populate_method):
-                populate_method()
 
     def _on_property_changed(self, field_name, datum, value):
         """Handle property changes from config pane."""
@@ -1556,38 +1497,9 @@ class DocumentWindow(QMainWindow):
         # Apply group auto-selection logic for tree selections too
         selection_with_groups = self._expand_selection_for_groups(adjusted_selection)
         
-        # Expand selection to include children of selected groups for scene
-        expanded_selection = self._expand_selection_for_children(selection_with_groups)
+        # Use unified selection update method
+        self._update_selection_state(selection_with_groups, "tree")
         
-        # Store previous selection before updating
-        previous_selection = self._current_selection.copy()
-        
-        # Update decorations based on selection changes
-        self._update_decorations_for_selection_change(previous_selection, selection_with_groups)
-        
-        # Update current selection tracking
-        self._current_selection = selection_with_groups.copy()
-        
-        # Set flag to prevent scene from emitting selection signals during update
-        self.cad_scene.set_updating_from_tree(True)
-        
-        try:
-            # Update scene selection directly
-            self._clear_selection() # Clear current selection
-            for obj_id in expanded_selection:
-                obj = self.document.get_object(obj_id)
-                if obj:
-                    if obj_id in self._object_viewmodels:
-                        viewmodel = self._object_viewmodels[obj_id]
-                        for item in self.cad_scene.items():
-                            item_viewmodel = item.data(0)
-                            if item_viewmodel == viewmodel:
-                                item.setSelected(True)
-                                break
-        finally:
-            # Always reset the flag even if an exception occurs
-            self.cad_scene.set_updating_from_tree(False)
-            
         # Update tree to show the complete selection (groups + children)
         if selection_with_groups != selected_object_ids:
             # Reset the tree's updating flag first, then set our programmatic flag
@@ -1649,26 +1561,18 @@ class DocumentWindow(QMainWindow):
 
     def _on_scene_selection_changed(self, selected_object_ids: Set[str]):
         """Handle selection changes from the CAD scene and sync with object tree."""
+        # Skip if we're already updating from tree to prevent circular updates
+        if self._updating_tree_programmatically:
+            return
+            
         # Apply hierarchical selection logic
         expanded_selection = self._expand_selection_for_groups(selected_object_ids)
         
-        # Store previous selection before updating
-        previous_selection = self._current_selection.copy()
+        # Use unified selection update method
+        self._update_selection_state(expanded_selection, "scene")
         
-        # Update decorations based on selection changes
-        self._update_decorations_for_selection_change(previous_selection, expanded_selection)
-        
-        # Update current selection tracking
-        self._current_selection = expanded_selection.copy()
-        
-        # Update the object tree selection to match the expanded scene selection
-        self._updating_tree_programmatically = True
-        try:
-            self.update_object_tree_selection(expanded_selection)
-            # Update our tracking after the tree update
-            self._previous_tree_selection = expanded_selection.copy()
-        finally:
-            self._updating_tree_programmatically = False
+        # Update our tracking after the selection update
+        self._previous_tree_selection = expanded_selection.copy()
 
     def _expand_selection_for_groups(self, selected_object_ids: Set[str]) -> Set[str]:
         """If all children of a group are selected, add the group to the selection too."""
@@ -2006,23 +1910,107 @@ class DocumentWindow(QMainWindow):
             current_selection: Set[str]
     ):
         """Update decorations when selection changes by calling show/hide on viewmodels."""
-        print(f"DEBUG: previous_selection: {previous_selection}")
-        print(f"DEBUG: current_selection: {current_selection}")
-        
         # Objects that were deselected - hide their decorations
         deselected_objects = previous_selection - current_selection
-        print(f"DEBUG: deselected_objects: {deselected_objects}")
         for obj_id in deselected_objects:
             if obj_id in self._object_viewmodels:
                 viewmodel = self._object_viewmodels[obj_id]
-                print(f"DEBUG: Hiding decorations for {obj_id}")
                 viewmodel.hide_decorations(self.cad_scene)
         
         # Objects that were newly selected - show their decorations  
         newly_selected_objects = current_selection - previous_selection
-        print(f"DEBUG: newly_selected_objects: {newly_selected_objects}")
         for obj_id in newly_selected_objects:
             if obj_id in self._object_viewmodels:
                 viewmodel = self._object_viewmodels[obj_id]
-                print(f"DEBUG: Showing decorations for {obj_id}")
                 viewmodel.show_decorations(self.cad_scene)
+
+    def _update_selection_state(self, new_selection: Set[str], source: str = "unknown"):
+        """
+        Unified method to update selection state across all components.
+        
+        Args:
+            new_selection: Set of object IDs representing the new selection
+            source: String indicating the source of the selection change
+        """
+        # Skip if selection hasn't actually changed
+        if new_selection == self._current_selection:
+            return
+                
+        # Store previous selection for decoration updates
+        previous_selection = self._current_selection.copy()
+        
+        # Update current selection
+        self._current_selection = new_selection.copy()
+        
+        # Update decorations based on selection changes
+        self._update_decorations_for_selection_change(previous_selection, new_selection)
+        
+        # Update config pane with selected objects
+        selected_objects = []
+        for obj_id in new_selection:
+            obj = self.document.get_object(obj_id)
+            if obj:
+                selected_objects.append(obj)
+        self._update_config_pane_for_selection(selected_objects)
+        
+        # Update other components based on source to prevent circular updates
+        if source != "tree":
+            # Update tree selection
+            self._updating_tree_programmatically = True
+            try:
+                self.update_object_tree_selection(new_selection)
+            finally:
+                self._updating_tree_programmatically = False
+                
+        if source != "scene":
+            # Update scene selection - expand to include children of groups
+            expanded_selection = self._expand_selection_for_children(new_selection)
+            self._updating_scene_programmatically = True
+            self.cad_scene.set_updating_from_tree(True)
+            try:
+                self._clear_selection()
+                for obj_id in expanded_selection:
+                    obj = self.document.get_object(obj_id)
+                    if obj and obj_id in self._object_viewmodels:
+                        viewmodel = self._object_viewmodels[obj_id]
+                        for item in self.cad_scene.items():
+                            item_viewmodel = item.data(0)
+                            if item_viewmodel == viewmodel:
+                                item.setSelected(True)
+                                break
+            finally:
+                self._updating_scene_programmatically = False
+                self.cad_scene.set_updating_from_tree(False)
+
+    def _update_config_pane_for_selection(self, selected_objects):
+        """Update config pane based on current selection."""
+        config_pane = self.palette_manager.get_palette_content("config_pane")
+        if not config_pane:
+            return
+
+        if not selected_objects:
+            # No selection - clear config pane or show default fields
+            self._populate_config_pane_for_objects([])
+        elif len(selected_objects) == 1:
+            # Single object selected - show its properties
+            self._populate_config_pane_for_objects(selected_objects)
+        else:
+            # Multiple objects selected - show common properties
+            self._populate_config_pane_for_objects(selected_objects)
+
+    def _populate_config_pane_for_objects(self, objects):
+        """Populate config pane with properties for given objects."""
+        config_pane = self.palette_manager.get_palette_content("config_pane")
+        if not config_pane:
+            return
+
+        # Store reference to selected objects for property updates
+        # We'll use dynamic attributes to work around type checker limitations
+        setattr(config_pane, 'selected_objects', objects)
+
+        # Update the config pane fields based on selection
+        # Check if the config pane has the populate method
+        if hasattr(config_pane, 'populate'):
+            populate_method = getattr(config_pane, 'populate', None)
+            if callable(populate_method):
+                populate_method()

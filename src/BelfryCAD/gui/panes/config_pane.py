@@ -14,9 +14,9 @@ from typing import Dict, Any, Optional, List, Callable
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox,
-    QColorDialog, QFontComboBox, QApplication
+    QColorDialog, QFontComboBox, QApplication, QScrollArea, QFrame
 )
-from PySide6.QtCore import Signal, QTimer
+from PySide6.QtCore import Signal, QTimer, Qt
 from PySide6.QtGui import QPalette, QValidator
 
 
@@ -82,9 +82,30 @@ class ConfigPane(QWidget):
 
     def _init_ui(self):
         """Initialize the user interface."""
+        # Create the main layout for the widget
         main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         self.setLayout(main_layout)
-        self.main_layout = main_layout
+        self.setContentsMargins(0, 0, 0, 0)
+        
+        # Create scroll area
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setContentsMargins(0, 0, 0, 0)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        
+        # Create content widget and layout
+        self.content_widget = QWidget()
+        self.main_layout = QVBoxLayout()
+        self.content_widget.setLayout(self.main_layout)
+        
+        # Set the content widget as the scroll area's widget
+        self.scroll_area.setWidget(self.content_widget)
+        
+        # Add scroll area to main layout
+        main_layout.addWidget(self.scroll_area)
     
     def update_precision(self, new_precision: int):
         """Update the precision and refresh all float fields."""
@@ -269,7 +290,7 @@ class ConfigPane(QWidget):
                     color_button: QPushButton):
         """Clear color selection."""
         color_button.setStyleSheet("background-color: white; color: black;")
-        color_button.setText("None")
+        color_button.setText("X")
         self.set_datum(canvas, name, datum, val_set_cb, "none")
 
     def edit_color(self, canvas, name: str, datum: str,
@@ -499,12 +520,12 @@ class ConfigPane(QWidget):
 
         label = QLabel(title)
         button = QPushButton()
-        button.setFixedSize(60, 25)
+        button.setFixedSize(25, 25)
 
         # Set initial color
         if default == 'none':
             button.setStyleSheet("background-color: white; color: black;")
-            button.setText("None")
+            button.setText("X")
         else:
             button.setStyleSheet(
                 f"background-color: {default}; color: {default};")

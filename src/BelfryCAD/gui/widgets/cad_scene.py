@@ -111,6 +111,10 @@ class CadScene(QGraphicsScene):
         """Set flag to indicate we're updating selection from tree (to prevent circular updates)."""
         self._updating_selection_from_tree = updating
 
+    def is_updating_from_tree(self) -> bool:
+        """Get flag indicating if we're updating selection from tree."""
+        return getattr(self, '_updating_selection_from_tree', False)
+
     def _show_control_points_for_viewmodel(self, viewmodel):
         """Show control points for a specific viewmodel."""
         # Get control points and datums from viewmodel

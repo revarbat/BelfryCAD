@@ -11,7 +11,7 @@ from typing import Tuple, Optional, TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QPointF, Signal
 from PySide6.QtGui import QColor, QTransform, QPen
-from PySide6.QtWidgets import QGraphicsScene
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsItem
 
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
@@ -73,16 +73,23 @@ class LineViewModel(CadViewModel):
         This is called when this object is selected.
         """
         self._clear_decorations(scene)
-
-        pen = QPen(QColor(191,191,191), 1)
+        line_width = self._line_object.line_width or 1.0
+        pen = QPen(QColor(191,191,191), line_width)
         pen.setStyle(Qt.PenStyle.DashLine)
-        pen.setCosmetic(True)
+        #pen.setCosmetic(True)
         view_item = DimensionLineComposite(
             self._line_object.line.start.to_qpointf(),
             self._line_object.line.end.to_qpointf(),
-            show_text=False,
+            extension=line_width*20,
+            excess=line_width*5,
+            gap=line_width*5,
+            show_text=True,
             pen=pen
         )
+        view_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+        view_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+        view_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)
+
         self._decorations.append(view_item)
 
         self._add_decorations_to_scene(scene)
