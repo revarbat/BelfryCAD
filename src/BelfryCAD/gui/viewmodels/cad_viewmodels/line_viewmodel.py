@@ -75,7 +75,7 @@ class LineViewModel(CadViewModel):
         self._clear_decorations(scene)
         line_width = self._line_object.line_width or 1.0
         pen = QPen(QColor(191,191,191), line_width)
-        pen.setStyle(Qt.PenStyle.DashLine)
+        #pen.setStyle(Qt.PenStyle.DashLine)
         #pen.setCosmetic(True)
         view_item = DimensionLineComposite(
             self._line_object.line.start.to_qpointf(),
@@ -84,6 +84,7 @@ class LineViewModel(CadViewModel):
             excess=line_width*5,
             gap=line_width*5,
             show_text=True,
+            text_format_callback=self._format_length_text,
             pen=pen
         )
         view_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
@@ -198,16 +199,20 @@ class LineViewModel(CadViewModel):
         # Update Length datum
         self._controls[3].update_datum(
             self.length,
-            mid + self._get_perpendicular_vector() * 0.75
+            mid + self._get_perpendicular_vector() * 0.5
         )
         
         # Update Angle datum
         self._controls[4].update_datum(
-            (self.angle_radians * 180 / math.pi + 360) % 360,
-            start - self._get_perpendicular_vector() * 0.75
+            self.angle_degrees,
+            start - self._get_perpendicular_vector() * 0.5
         )
     
         self.control_points_updated.emit()
+    
+    def _format_length_text(self, length: float) -> str:
+        """Format the length text"""
+        return self._document_window.grid_info.format_label(length, no_subs=True)
     
     @property
     def object_type(self) -> str:
@@ -363,27 +368,56 @@ class LineViewModel(CadViewModel):
     
     def _get_perpendicular_vector(self) -> QPointF:
         """Get the perpendicular vector to the line segment"""
-        pvec = self._line_object.line.perpendicular_vector
+        pvec = self._line_object.line.unit_vector.perpendicular_vector
         return pvec.to_qpointf()
         
     def _set_start_point(self, new_position):
         """Set the start point from control point movement"""
         self.start_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_end_point(self, new_position):
         """Set the end point from control point movement"""
         self.end_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_mid_point(self, new_position):
         """Set the mid point from control point movement"""
         self.mid_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_length(self, value):
         """Set length from control datum"""
         self.length = value
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_angle(self, value):
         """Set angle from control datum (value in degrees)"""
-        angle_radians = value * math.pi / 180
-        self.angle_radians = angle_radians
+        self.angle_degrees = value
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     

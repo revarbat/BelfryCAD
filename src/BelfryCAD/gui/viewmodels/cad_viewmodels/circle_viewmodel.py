@@ -5,10 +5,9 @@ This ViewModel handles presentation logic for circle CAD objects and emits signa
 for UI updates when circle properties change.
 """
 
-import math
 from typing import Tuple, Optional, TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QPointF, Signal
+from PySide6.QtCore import QPointF, Signal
 from PySide6.QtGui import QColor, QTransform, QPen
 from PySide6.QtWidgets import QGraphicsScene
 
@@ -17,9 +16,6 @@ from ...graphics_items.control_points import (
     ControlPoint,
     SquareControlPoint,
     ControlDatum
-)
-from ...graphics_items.dimension_line_composite import (
-    DimensionLineComposite
 )
 from ...graphics_items.cad_circle_graphics_item import CadCircleGraphicsItem
 from ...graphics_items.construction_cross_item import ConstructionCrossItem, DashPattern
@@ -77,7 +73,6 @@ class CircleViewModel(CadViewModel):
         Show the decorations.
         This is called when this object is selected.
         """
-        print("show_decorations circle")
         self._clear_decorations(scene)
         
         # Add center cross decoration
@@ -102,7 +97,6 @@ class CircleViewModel(CadViewModel):
         Hide the decorations.
         This is called when this object is deselected.
         """
-        print("hide_decorations circle")
         self._clear_decorations(scene)
     
     def update_decorations(self, scene: QGraphicsScene):
@@ -120,6 +114,7 @@ class CircleViewModel(CadViewModel):
         This is called when this object becomes the only object selected.
         """
         self._clear_controls(scene)
+        print("show_controls circle")
 
         # Create control points with direct setters
         center_cp = SquareControlPoint(
@@ -129,7 +124,7 @@ class CircleViewModel(CadViewModel):
         )
         self._controls.append(center_cp)
 
-        perimeter_cp = SquareControlPoint(
+        perimeter_cp = ControlPoint(
             model_view=self,
             setter=self._set_perimeter_point,
             tool_tip="Circle Radius"
@@ -144,25 +139,13 @@ class CircleViewModel(CadViewModel):
             model_view=self,
             label="Circle Radius",
             setter=self._set_radius,
-            format_string=f"{{:.{precision}f}}",
+            format_string=f"R {{:.{precision}f}}",
             precision_override=precision,
             min_value=0,
             is_length=True
         )
         self._controls.append(radius_datum)
         
-        # Diameter datum
-        diameter_datum = ControlDatum(
-            model_view=self,
-            label="Circle Diameter",
-            setter=self._set_diameter,
-            format_string=f"{{:.{precision}f}}",
-            precision_override=precision,
-            min_value=0,
-            is_length=True
-        )
-        self._controls.append(diameter_datum)
-
         self._add_controls_to_scene(scene)
 
     def hide_controls(self, scene: QGraphicsScene):
@@ -177,6 +160,7 @@ class CircleViewModel(CadViewModel):
         Update the controls.
         This is called when this object is modified.
         """
+        print("update_controls circle")
         if not self._controls:
             return
 
@@ -193,12 +177,6 @@ class CircleViewModel(CadViewModel):
             center + QPointF(20, -20)
         )
         
-        # Update Diameter datum
-        self._controls[3].update_datum(
-            self.diameter,
-            center + QPointF(20, 20)
-        )
-    
         self.control_points_updated.emit()
     
     @property
@@ -329,15 +307,30 @@ class CircleViewModel(CadViewModel):
     def _set_center_point(self, new_position):
         """Set the center point from control point movement"""
         self.center_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_perimeter_point(self, new_position):
         """Set the perimeter point from control point movement"""
         self.perimeter_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_radius(self, value):
         """Set radius from control datum"""
         self.radius = value
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
-    def _set_diameter(self, value):
-        """Set diameter from control datum"""
-        self.diameter = value 

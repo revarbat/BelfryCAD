@@ -95,7 +95,6 @@ class ArcViewModel(CadViewModel):
         Show the decorations.
         This is called when this object is selected.
         """
-        print("show_decorations arc")
         self._clear_decorations(scene)
         
         if not self._view_items[0].isSelected():
@@ -133,7 +132,6 @@ class ArcViewModel(CadViewModel):
         Hide the decorations.
         This is called when this object is deselected.
         """
-        print("hide_decorations arc")
         self._clear_decorations(scene)
     
     def update_decorations(self, scene: QGraphicsScene):
@@ -409,20 +407,50 @@ class ArcViewModel(CadViewModel):
     def _set_center_point(self, new_position):
         """Set the center point from control point movement"""
         self.center_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_start_point(self, new_position):
         """Set the start point from control point movement"""
         self.start_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_end_point(self, new_position):
         """Set the end point from control point movement"""
         self.end_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_radius(self, value):
         """Set radius from control datum"""
         self.radius = value
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_span_angle(self, value):
         """Set span angle from control datum (value in degrees)"""
         span_radians = math.radians(value)
-        self.span_angle = span_radians 
+        self.span_angle = span_radians
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene) 

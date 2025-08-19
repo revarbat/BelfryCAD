@@ -22,8 +22,8 @@ class ControlPoint(QGraphicsItem):
 
     def __init__(
             self,
-            model_view=None,
-            setter=None,
+            model_view,
+            setter,
             tool_tip=None
     ):
         super().__init__()  # Use parent-child relationship
@@ -32,10 +32,10 @@ class ControlPoint(QGraphicsItem):
         self.control_size = 9
         self.tool_tip = tool_tip
         
-        # Use Qt's built-in flags (movable disabled since parent handles movement)
+        # Use Qt's built-in flags - make selectable to be part of selection system
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setAcceptHoverEvents(True)
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
 
@@ -61,7 +61,10 @@ class ControlPoint(QGraphicsItem):
             try:
                 # Call the setter with the new position in scene coordinates
                 self.setter(value)
-                self.model_view.update_view()
+                
+                # The viewmodel will emit control_points_updated signal
+                # which is connected to update_controls in the document window
+                # This ensures proper coordination of all updates
                 
             except (RuntimeError, AttributeError, TypeError) as e:
                 print(f"Error in control point setter: {e}")
@@ -118,15 +121,47 @@ class ControlPoint(QGraphicsItem):
 
     def mousePressEvent(self, event):
         """Handle mouse press events for control point dragging."""
-        # Accept the event so the scene can handle control point dragging
+        # Set dragging state
+        self._is_dragging = True
+        
+        # Notify scene that control point dragging has started
+        scene = self.scene()
+        if scene and hasattr(scene, 'set_control_point_dragging'):
+            scene.set_control_point_dragging(True)
+        
+        # Accept the event to prevent it from propagating to the scene
+        # This prevents deselection of the main CAD object
         event.accept()
-        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Handle mouse move events for control point dragging."""
+        if event.buttons() & Qt.MouseButton.LeftButton and self._is_dragging:
+            # Get the new position in scene coordinates
+            new_pos = event.scenePos()
+            
+            # Call the setter to update the object property
+            if self.setter:
+                self.call_setter_with_updates(new_pos)
+            
+            # Accept the event to prevent it from propagating to the scene
+            event.accept()
+        else:
+            # If not dragging, let the event propagate normally
+            super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         """Handle mouse release events for control point dragging."""
-        # Accept the event so the scene can handle control point dragging
+        # Clear dragging state
+        self._is_dragging = False
+        
+        # Notify scene that control point dragging has ended
+        scene = self.scene()
+        if scene and hasattr(scene, 'set_control_point_dragging'):
+            scene.set_control_point_dragging(False)
+        
+        # Accept the event to prevent it from propagating to the scene
+        # This prevents deselection of the main CAD object
         event.accept()
-        super().mouseReleaseEvent(event)
 
 
 class SquareControlPoint(ControlPoint):
@@ -222,12 +257,11 @@ class ControlDatum(ControlPoint):
 
     def __init__(
         self,
-        model_view=None,
-        setter=None,
+        model_view,
+        setter,
         format_string=None,
         prefix="",
         suffix="",
-        cad_item=None,
         label="value",
         angle=None,
         pixel_offset=0,
@@ -241,7 +275,7 @@ class ControlDatum(ControlPoint):
             setter=setter)
         self.setZValue(10002)
         # Store precision for dynamic updates
-        document_window = self.cad_item.document_window # type: ignore
+        document_window = self.model_view.document_window
         
         precision = document_window.cad_scene.get_precision()
         self._precision = precision
@@ -326,7 +360,7 @@ class ControlDatum(ControlPoint):
     def _format_text(self, value):
         """Format the text for display."""
         if self._is_length:
-            document_window = self.cad_item.document_window # type: ignore
+            document_window = self.model_view.document_window
             grid_info = document_window.grid_info
             valstr = grid_info.format_label(value, no_subs=True).replace("\n", " ")
         else:
@@ -493,7 +527,7 @@ class ControlDatum(ControlPoint):
                 try:
                     # Evaluate the expression to check if it's within range
                     new_value = float(expr_edit._expression.evaluate(text))
-                    scale = self.cad_item.document_window.grid_info.unit_scale # type: ignore
+                    scale = self.model_view.document_window.grid_info.unit_scale
                     scaled_value = new_value * scale
                     
                     # Check if the value is within range
@@ -529,7 +563,7 @@ class ControlDatum(ControlPoint):
         try:
             # Evaluate the expression to a float
             new_value = float(expr_edit._expression.evaluate(expr_edit.text()))
-            scale = self.cad_item.document_window.grid_info.unit_scale # type: ignore
+            scale = self.model_view.document_window.grid_info.unit_scale
             self.call_setter_with_updates(new_value * scale)
         except Exception:
             pass

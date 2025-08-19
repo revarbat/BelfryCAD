@@ -309,7 +309,6 @@ class DocumentWindow(QMainWindow):
         self.main_menu.show_rulers_toggled.connect(self.toggle_show_rulers)
 
         # Palette visibility connections
-        self.main_menu.show_info_panel_toggled.connect(self.toggle_info_panel)
         self.main_menu.show_properties_toggled.connect(self.toggle_properties)
         self.main_menu.show_snap_settings_toggled.connect(self.toggle_snap_settings)
         self.main_menu.show_tools_toggled.connect(self.toggle_tools)
@@ -732,9 +731,6 @@ class DocumentWindow(QMainWindow):
 
     def _connect_palette_content(self):
         """Connect palette content widgets to the main window functionality."""
-        # Connect info pane to canvas for position updates and selection
-        info_pane = self.palette_manager.get_palette_content("info_pane")
-
         # Connect config pane to document and selection
         config_pane = self.palette_manager.get_palette_content("config_pane")
         if config_pane and hasattr(self, 'document'):
@@ -1423,12 +1419,6 @@ class DocumentWindow(QMainWindow):
         super().closeEvent(event)
 
     # Palette visibility handlers
-    def toggle_info_panel(self, show):
-        """Handle Info Panel visibility toggle."""
-        self.preferences_viewmodel.set("show_info_panel", show)
-        self.palette_manager.set_palette_visibility("info_pane", show)
-        self._sync_palette_menu_states()
-
     def toggle_properties(self, show):
         """Handle Properties panel visibility toggle."""
         self.preferences_viewmodel.set("show_properties", show)
@@ -1476,9 +1466,7 @@ class DocumentWindow(QMainWindow):
     def _on_palette_visibility_changed(self, palette_id: str, visible: bool):
         """Handle palette visibility changes from the palette system."""
         # Update the preference for the palette
-        if palette_id == "info_pane":
-            self.preferences_viewmodel.set("show_info_panel", visible)
-        elif palette_id == "config_pane":
+        if palette_id == "config_pane":
             self.preferences_viewmodel.set("show_properties", visible)
 
         # Sync the menu checkboxes with the new state
@@ -1924,6 +1912,34 @@ class DocumentWindow(QMainWindow):
                 viewmodel = self._object_viewmodels[obj_id]
                 viewmodel.show_decorations(self.cad_scene)
 
+    def _update_controls_for_selection_change(
+            self,
+            previous_selection: Set[str],
+            current_selection: Set[str]
+    ):
+        """
+        Update control points and datums based on selection state.
+        
+        Rules:
+        - When a CAD object becomes the only object selected: show_controls()
+        - When a CAD object is deselected or more than one object becomes selected: hide_controls()
+        - After show_controls(): update_controls()
+        """
+        # Hide controls for all previously selected objects
+        for obj_id in previous_selection:
+            if obj_id in self._object_viewmodels:
+                viewmodel = self._object_viewmodels[obj_id]
+                viewmodel.hide_controls(self.cad_scene)
+        
+        # Show controls only if exactly one object is selected
+        if len(current_selection) == 1:
+            obj_id = next(iter(current_selection))
+            if obj_id in self._object_viewmodels:
+                viewmodel = self._object_viewmodels[obj_id]
+                viewmodel.show_controls(self.cad_scene)
+                # Update controls immediately after showing them
+                viewmodel.update_controls(self.cad_scene)
+
     def _update_selection_state(self, new_selection: Set[str], source: str = "unknown"):
         """
         Unified method to update selection state across all components.
@@ -1935,7 +1951,7 @@ class DocumentWindow(QMainWindow):
         # Skip if selection hasn't actually changed
         if new_selection == self._current_selection:
             return
-                
+            
         # Store previous selection for decoration updates
         previous_selection = self._current_selection.copy()
         
@@ -1944,6 +1960,9 @@ class DocumentWindow(QMainWindow):
         
         # Update decorations based on selection changes
         self._update_decorations_for_selection_change(previous_selection, new_selection)
+        
+        # Update control points and datums based on selection state
+        self._update_controls_for_selection_change(previous_selection, new_selection)
         
         # Update config pane with selected objects
         selected_objects = []

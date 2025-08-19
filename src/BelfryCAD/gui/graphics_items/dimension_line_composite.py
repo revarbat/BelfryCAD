@@ -207,6 +207,7 @@ class DimensionLineComposite(QGraphicsItem):
                 text = f"{arrow_line_length:.2f}"
             
             font = QFont("Arial", 10)
+            font.setUnderline(True)
             font_metrics = QFontMetrics(font)
             text_rect = font_metrics.boundingRect(text)
             text_width = text_rect.width()
@@ -288,6 +289,7 @@ class DimensionLineComposite(QGraphicsItem):
         # Set font
         font = QFont("Arial", 10)
         font.setPixelSize(10)
+        font.setUnderline(True)
         self._text_item.setFont(font)
         
         # Set text color
@@ -302,12 +304,19 @@ class DimensionLineComposite(QGraphicsItem):
             self._arrow_line_end.y() - self._arrow_line_start.y(),
             self._arrow_line_end.x() - self._arrow_line_start.x()
         )
-        total_rotation = math.degrees(line_angle) + self._text_rotation
+        total_rotation = -math.degrees(line_angle) + self._text_rotation
         
         # Position text at center of dimension line
         self._text_item.setPos(self._text_position)
         
         # Apply rotation
+        total_rotation = int(((total_rotation % 360) + 360) % 360)
+        if total_rotation > 180:
+            total_rotation -= 360
+        if total_rotation <= -90:
+            total_rotation += 180
+        if total_rotation > 90:
+            total_rotation -= 180
         self._text_item.setRotation(total_rotation)
     
     def setPoints(self, start_point: QPointF, end_point: QPointF):

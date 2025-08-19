@@ -7,7 +7,8 @@ belfrycad.utils.cad_expression
 CadExpression - A mathematical expression evaluator for CAD calculations.
 
 Supports:
-- Basic arithmetic: +, -, *, /, ^ (exponentiation)
+- Basic arithmetic: +, -, *, /, % (modulo)
+- Exponentiation: ^ or **
 - Unary operators: +, -
 - Parentheses for grouping
 - Variables with values stored in a dictionary, referenced as $name
@@ -16,7 +17,11 @@ Supports:
 - Constants: e, pi, phi, π (alias for pi), ɸ (alias for phi)
 - Math functions: sin, cos, tan, asin, acos, atan, atan2, pow, sqrt, exp,
   log10, log2, ln, abs, sign, floor, ceil, round, min, max, hypot, deg, rad
-- If the expression ends with 'º', the result is converted from degrees to radians
+- With a suffix of º or °, the result is converted from degrees to radians
+- With a suffix of ², the result is squared
+- With a suffix of ³, the result is cubed
+- With a suffix of ', the result is converted from feet to inches (12x)
+- With a suffix of ", the result is left unchanged (Inches).
 """
 
 import re
@@ -29,7 +34,8 @@ class CadExpression:
     A mathematical expression evaluator for CAD calculations.
 
     Supports:
-    - Basic arithmetic: +, -, *, /, ^ (exponentiation)
+    - Basic arithmetic: +, -, *, /, % (modulo)
+    - Exponentiation: ^ or **
     - Unary operators: +, -
     - Parentheses for grouping
     - Variables with values stored in a dictionary, referenced as $name
@@ -38,7 +44,11 @@ class CadExpression:
     - Constants: e, pi, phi, π (alias for pi), ɸ (alias for phi)
     - Math functions: sin, cos, tan, asin, acos, atan, atan2, pow, sqrt, exp,
       log10, log2, ln, abs, sign, floor, ceil, round, min, max, hypot, deg, rad
-    - If the expression ends with 'º', the result is converted from degrees to radians
+    - With a suffix of º or °, the result is converted from degrees to radians
+    - With a suffix of ², the result is squared
+    - With a suffix of ³, the result is cubed
+    - With a suffix of ', the result is converted from feet to inches (12x)
+    - With a suffix of ", the result is left unchanged (Inches).
     - Parameters store their expressions as strings, not just values.
     - When a parameter is referenced, its expression is evaluated recursively.
     - Cycle detection prevents infinite recursion.
@@ -143,11 +153,15 @@ class CadExpression:
             (r'\*', 'MULTIPLY'),
             (r'/', 'DIVIDE'),
             (r'%', 'MODULO'),
-            (r'\^', 'POWER'),
+            (r'(\^|\*\*)', 'POWER'),
             (r',', 'COMMA'),
             (r'\(', 'LPAREN'),
             (r'\)', 'RPAREN'),
-            (r'º', 'DEGREE_SUFFIX'),  # Postfix degree operator
+            # The degree sign (º, 0xb0) and the masculine ordinal indicator (°, 0xba)
+            # look almost exactly the same, so we accept either.
+            (r'(º|°)', 'DEGREE_SUFFIX'),  # Postfix degree operator
+            (r'²', 'SQUARE_SUFFIX'),  # Postfix square operator
+            (r'³', 'CUBE_SUFFIX'),  # Postfix cube operator
             (r"'", 'FOOT_SUFFIX'),  # Postfix foot operator
             (r'"', 'INCH_SUFFIX'),  # Postfix inch operator
         ]
@@ -305,6 +319,12 @@ class CadExpression:
         if token_type == 'DEGREE_SUFFIX':
             self._advance()
             return math.radians(value)
+        elif token_type == 'SQUARE_SUFFIX':
+            self._advance()
+            return value * value
+        elif token_type == 'CUBE_SUFFIX':
+            self._advance()
+            return value * value * value
         elif token_type == 'FOOT_SUFFIX':
             self._advance()
             return value * 12.0

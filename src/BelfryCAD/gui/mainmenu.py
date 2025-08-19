@@ -174,7 +174,6 @@ class MainMenuBar(QObject):
     show_rulers_toggled = Signal(bool)
 
     # Palette visibility signals
-    show_info_panel_toggled = Signal(bool)
     show_properties_toggled = Signal(bool)
     show_snap_settings_toggled = Signal(bool)
     show_tools_toggled = Signal(bool)
@@ -207,7 +206,6 @@ class MainMenuBar(QObject):
         self.show_rulers_action = None
 
         # Store references to palette actions
-        self.show_info_panel_action = None
         self.show_properties_action = None
         self.show_snap_settings_action = None
 
@@ -568,17 +566,6 @@ class MainMenuBar(QObject):
         )
         view_menu.addAction(self.show_snap_settings_action)
 
-        self.show_info_panel_action = QAction(
-            "Show &Info Panel", self.parent_window)
-        self.show_info_panel_action.setCheckable(True)
-        self.show_info_panel_action.setChecked(
-            self.preferences_viewmodel.get("show_info_panel", False)
-        )
-        self.show_info_panel_action.triggered.connect(
-            lambda checked: self.show_info_panel_toggled.emit(checked)
-        )
-        view_menu.addAction(self.show_info_panel_action)
-
         self.show_properties_action = QAction(
             "Show &Properties", self.parent_window)
         self.show_properties_action.setCheckable(True)
@@ -675,10 +662,6 @@ class MainMenuBar(QObject):
 
     def update_palette_preferences(self):
         """Update palette menu checkboxes based on current preferences."""
-        if self.show_info_panel_action:
-            self.show_info_panel_action.setChecked(
-                self.preferences_viewmodel.get("show_info_panel", True)
-            )
         if self.show_properties_action:
             self.show_properties_action.setChecked(
                 self.preferences_viewmodel.get("show_properties", True)
@@ -687,10 +670,6 @@ class MainMenuBar(QObject):
 
     def sync_palette_menu_states(self, palette_manager):
         """Sync palette menu checkboxes with actual palette visibility."""
-        if self.show_info_panel_action:
-            visible = palette_manager.is_palette_visible("info_pane")
-            self.show_info_panel_action.setChecked(visible)
-
         if self.show_properties_action:
             visible = palette_manager.is_palette_visible("config_pane")
             self.show_properties_action.setChecked(visible)

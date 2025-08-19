@@ -175,9 +175,9 @@ class GridInfo(object):
         while len(spacings) < 4:
             spacings.insert(0, spacings[0] * 10.0)
         label_spacing = spacings[-2]
-        while label_spacing * scaling > 75.0:
+        while label_spacing * scaling > 100.0:
             label_spacing /= 2.0
-        while label_spacing * scaling < 30.0:
+        while label_spacing * scaling < 50.0:
             label_spacing *= 2.0
         return (spacings, label_spacing)
 

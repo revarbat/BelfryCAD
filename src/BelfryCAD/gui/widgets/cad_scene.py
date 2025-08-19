@@ -21,9 +21,12 @@ class CadScene(QGraphicsScene):
         # Flag to prevent circular selection updates
         self._updating_selection_from_tree = False
         
+        # Flag to prevent control point updates during dragging
+        self._control_point_dragging = False
+        
         # Control point management
-        self._control_points = {}  # {cad_item: [control_points]}
-        self._control_datums = {}  # {cad_item: [control_datums]}
+        self._control_points = {}
+        self._control_datums = {}
         
         # Snaps system reference (will be set by main window)
         self._snaps_system = None
@@ -72,10 +75,18 @@ class CadScene(QGraphicsScene):
         # This is now handled by viewmodels
         pass
 
+    def set_control_point_dragging(self, dragging: bool):
+        """Set flag to indicate control point is being dragged."""
+        self._control_point_dragging = dragging
+
     def _on_selection_changed(self):
         """Handle selection changes and emit signals with object IDs."""
         # Don't emit signals if we're updating selection from tree to prevent circular updates
         if self._updating_selection_from_tree:
+            return
+        
+        # Don't update control points if we're dragging one
+        if self._control_point_dragging:
             return
             
         # Get all selected items

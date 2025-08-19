@@ -16,7 +16,6 @@ from PySide6.QtCore import Qt, Signal, QPoint, QSize, QObject
 from PySide6.QtGui import QAction
 
 # Import the translated palette components
-from .panes.info_pane import InfoPane
 from .panes.config_pane import ConfigPane
 
 if TYPE_CHECKING:
@@ -34,7 +33,6 @@ class PaletteDockArea(Enum):
 
 class PaletteType(Enum):
     """Supported palette types."""
-    INFO_PANE = "info_pane"
     CONFIG_PANE = "config_pane"
     SNAPS_PANE = "snaps_pane"
 
@@ -204,13 +202,6 @@ class PaletteManager(QObject):
     def _init_default_configs(self):
         """Initialize default palette configurations."""
         self.palette_configs = {
-            PaletteType.INFO_PANE.value: {
-                'title': 'Info Panel',
-                'default_area': PaletteDockArea.TOP,
-                'visible': True,
-                'width': 600,
-                'height': 100,
-            },
             PaletteType.CONFIG_PANE.value: {
                 'title': 'Properties',
                 'default_area': PaletteDockArea.RIGHT,
@@ -282,9 +273,7 @@ class PaletteManager(QObject):
 
     def _create_content_widget(self, palette_type: PaletteType) -> QWidget:
         """Create the appropriate content widget for the palette type."""
-        if palette_type == PaletteType.INFO_PANE:
-            return InfoPane()
-        elif palette_type == PaletteType.CONFIG_PANE:
+        if palette_type == PaletteType.CONFIG_PANE:
             # Get precision from main window preferences
             precision = 3  # Default fallback
             if hasattr(self.document_window, 'preferences_viewmodel'):
@@ -466,7 +455,6 @@ def create_default_palettes(document_window) -> PaletteManager:
     manager = PaletteManager(document_window)
 
     # Create default palettes
-    manager.create_palette(PaletteType.INFO_PANE)
     manager.create_palette(PaletteType.CONFIG_PANE)
 
     # Snaps are now handled by toolbar, no longer need palette

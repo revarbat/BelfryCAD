@@ -441,24 +441,60 @@ class EllipseViewModel(CadViewModel):
     def _set_center_point(self, new_position):
         """Set the center point from control point movement"""
         self.center_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_major_axis_point(self, new_position):
         """Set the major axis point from control point movement"""
         self.major_axis_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_minor_axis_point(self, new_position):
         """Set the minor axis point from control point movement"""
         self.minor_axis_point = new_position
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_major_axis(self, value):
         """Set major axis from control datum"""
         self.major_axis = value
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_minor_axis(self, value):
         """Set minor axis from control datum"""
         self.minor_axis = value
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene)
     
     def _set_rotation(self, value):
         """Set rotation from control datum (value in degrees)"""
         rotation_radians = math.radians(value)
-        self.rotation = rotation_radians 
+        self.rotation = rotation_radians
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene) 
