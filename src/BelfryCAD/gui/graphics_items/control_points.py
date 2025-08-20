@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from BelfryCAD.gui.widgets.cad_expression_edit import CadExpressionEdit
     from BelfryCAD.gui.widgets.cad_scene import CadScene
 
+
 class ControlPoint(QGraphicsItem):
     """Base class for control point graphics items."""
 
@@ -50,7 +51,7 @@ class ControlPoint(QGraphicsItem):
 
     def scene(self) -> 'CadScene':
         """Get the scene."""
-        return cast(CadScene, super().scene())
+        return cast('CadScene', super().scene())
 
     def set_dragging(self, dragging: bool):
         """Set the dragging state of this control point."""

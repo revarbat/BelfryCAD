@@ -12,12 +12,15 @@ import re
 from typing import Dict, Any, Optional, List, Callable
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QCheckBox, QSpinBox, QDoubleSpinBox, QComboBox,
-    QColorDialog, QFontComboBox, QApplication, QScrollArea, QFrame
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpinBox,
+    QDoubleSpinBox, QCheckBox, QPushButton, QComboBox, QScrollArea,
+    QFontComboBox, QColorDialog, QApplication
 )
 from PySide6.QtCore import Signal, QTimer, Qt
-from PySide6.QtGui import QPalette, QValidator
+from PySide6.QtGui import (
+    QPalette, QValidator, QIcon, QColor,
+    QPixmap, QPainter
+)
 
 
 class ConfigPaneInfo:
@@ -91,7 +94,7 @@ class ConfigPane(QWidget):
         
         # Create scroll area
         self.scroll_area = QScrollArea()
-        self.scroll_area.setContentsMargins(0, 0, 0, 0)
+        self.scroll_area.setContentsMargins(2, 2, 2, 2)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -99,6 +102,8 @@ class ConfigPane(QWidget):
         # Create content widget and layout
         self.content_widget = QWidget()
         self.main_layout = QVBoxLayout()
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
         self.content_widget.setLayout(self.main_layout)
         
         # Set the content widget as the scroll area's widget
@@ -511,46 +516,172 @@ class ConfigPane(QWidget):
                 self._create_button_field(row, field)
 
             row += 1
+        
+        # Add stretch at the end to push all fields to the top
+        self.main_layout.addStretch()
 
     def _create_color_field(self, row: int, field: Dict[str, Any]):
-        """Create color selection field."""
+        """Create color selection field with dropdown."""
         name = field['name']
         title = field['title']
         default = field.get('default', 'black')
 
         label = QLabel(title)
-        button = QPushButton()
-        button.setFixedSize(25, 25)
-
-        # Set initial color
-        if default == 'none':
-            button.setStyleSheet("background-color: white; color: black;")
-            button.setText("X")
-        else:
-            button.setStyleSheet(
-                f"background-color: {default}; color: {default};")
-            button.setText("")
-
-        button.clicked.connect(
-            lambda: self.edit_color(self.canvas, name, name, None, button)
+        
+        # Create color dropdown
+        color_combo = QComboBox()
+        
+        # Add predefined colors
+        predefined_colors = [
+            ("None", "none"),
+            ("Black", "#000000"),
+            ("Gray", "#7f7f7f"),
+            ("White", "#ffffff"),
+            ("Red", "#ff0000"),
+            ("Orange", "#ffa500"),
+            ("Yellow", "#ffff00"),
+            ("Green", "#00ff00"),
+            ("Cyan", "#00ffff"),
+            ("Blue", "#0000ff"),
+            ("Magenta", "#ff00ff"),
+            ("Custom", "custom"),
+        ]
+        
+        # Add colors to dropdown with colored icons
+        for color_name, color_value in predefined_colors:
+            if color_value == "none":
+                # For "None", show a white box with X
+                icon = self._create_color_icon("white", "X")
+                color_combo.addItem(icon, color_name, color_value)
+            elif color_value == "custom":
+                # For "Custom", show a rainbow icon
+                icon = self._create_custom_color_icon()
+                color_combo.addItem(icon, color_name, color_value)
+            else:
+                # For predefined colors, show the actual color
+                icon = self._create_color_icon(color_value)
+                color_combo.addItem(icon, color_name, color_value)
+        
+        # Set initial value
+        self._set_color_combo_value(color_combo, default)
+        
+        # Connect signal
+        color_combo.currentIndexChanged.connect(
+            lambda: self._on_color_changed(name, color_combo)
         )
-
-        # Add clear button
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(
-            lambda: self.clear_color(self.canvas, name, name, None, button)
-        )
-
+        
         # Layout
         widget = QWidget()
         layout = QHBoxLayout()
+        layout.setSpacing(5)  # Small spacing between label and combo
+        layout.setContentsMargins(5, 2, 5, 2)  # Small margins
         layout.addWidget(label)
-        layout.addWidget(button)
-        layout.addWidget(clear_btn)
-        layout.addStretch()
+        layout.addWidget(color_combo)
+        # Remove addStretch() to make layout more compact
         widget.setLayout(layout)
+        widget.setContentsMargins(5, 0, 5, 0)
+        widget.setMaximumHeight(30)  # Limit height to reduce vertical spacing
         self.main_layout.addWidget(widget)
-        self.field_widgets[name] = button
+        self.field_widgets[name] = color_combo
+
+    def _create_color_icon(self, color_value: str, text: str = "") -> QIcon:
+        """Create a colored icon for the dropdown."""        
+        # Create a 16x16 pixmap
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(pixmap)
+        
+        # Draw colored rectangle
+        if color_value == "white":
+            painter.fillRect(0, 0, 16, 16, QColor("white"))
+            painter.setPen(QColor("black"))
+            painter.drawRect(0, 0, 15, 15)  # Border
+        else:
+            painter.fillRect(0, 0, 16, 16, QColor(color_value))
+            painter.setPen(QColor("black"))
+            painter.drawRect(0, 0, 15, 15)  # Border
+        
+        # Draw text if provided
+        if text:
+            painter.setPen(QColor("black"))
+            painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, text)
+        
+        painter.end()
+        return QIcon(pixmap)
+
+    def _create_custom_color_icon(self) -> QIcon:
+        """Create a rainbow/custom color icon."""
+        from PySide6.QtGui import QPixmap, QPainter, QLinearGradient
+        
+        # Create a 16x16 pixmap
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(pixmap)
+        
+        # Create rainbow gradient
+        gradient = QLinearGradient(0, 0, 16, 0)
+        gradient.setColorAt(0.0, QColor("red"))
+        gradient.setColorAt(0.2, QColor("yellow"))
+        gradient.setColorAt(0.4, QColor("green"))
+        gradient.setColorAt(0.6, QColor("cyan"))
+        gradient.setColorAt(0.8, QColor("blue"))
+        gradient.setColorAt(1.0, QColor("magenta"))
+        
+        painter.fillRect(0, 0, 16, 16, gradient)
+        painter.setPen(QColor("black"))
+        painter.drawRect(0, 0, 15, 15)  # Border
+        
+        painter.end()
+        return QIcon(pixmap)
+
+    def _set_color_combo_value(self, combo: QComboBox, color_value: str):
+        """Set the combo box to the specified color value."""
+        for i in range(combo.count()):
+            if combo.itemData(i) == color_value:
+                combo.setCurrentIndex(i)
+                return
+        
+        # If not found, set to "Custom" and store the custom color
+        for i in range(combo.count()):
+            if combo.itemData(i) == "custom":
+                combo.setCurrentIndex(i)
+                # Store the custom color value for later use
+                combo.setProperty("custom_color", color_value)
+                return
+        
+        # Fallback to first item
+        combo.setCurrentIndex(0)
+
+    def _on_color_changed(self, name: str, combo: QComboBox):
+        """Handle color dropdown selection change."""
+        current_data = combo.currentData()
+        
+        if current_data == "custom":
+            # Open color dialog for custom color
+            current_custom = combo.property("custom_color")
+            if current_custom and current_custom not in ["none", "custom"]:
+                initial_color = QColor(current_custom)
+            else:
+                initial_color = QColor("black")
+            
+            color = QColorDialog.getColor(initial_color, self, "Choose Custom Color")
+            if color.isValid():
+                # Store the custom color
+                combo.setProperty("custom_color", color.name())
+                # Update the icon to show the selected color
+                custom_icon = self._create_color_icon(color.name())
+                combo.setItemIcon(combo.currentIndex(), custom_icon)
+                # Emit the color change
+                self.set_datum(self.canvas, name, name, None, color.name())
+            else:
+                # User cancelled, revert to previous selection
+                # This is a bit tricky - we'd need to track the previous selection
+                pass
+        else:
+            # Emit the color change for predefined colors
+            self.set_datum(self.canvas, name, name, None, current_data)
 
     def _create_float_field(self, row: int, field: Dict[str, Any]):
         """Create float input field."""
@@ -575,10 +706,14 @@ class ConfigPane(QWidget):
         # Layout
         widget = QWidget()
         layout = QHBoxLayout()
+        layout.setSpacing(5)  # Small spacing between label and spinbox
+        layout.setContentsMargins(5, 2, 5, 2)  # Small margins
         layout.addWidget(label)
         layout.addWidget(spinbox)
-        layout.addStretch()
+        # Remove addStretch() to make layout more compact
         widget.setLayout(layout)
+        widget.setContentsMargins(5, 0, 5, 0)
+        widget.setMaximumHeight(30)  # Limit height to reduce vertical spacing
 
         self.main_layout.addWidget(widget)
         self.field_widgets[name] = spinbox
@@ -603,10 +738,14 @@ class ConfigPane(QWidget):
         # Layout
         widget = QWidget()
         layout = QHBoxLayout()
+        layout.setSpacing(5)  # Small spacing between label and spinbox
+        layout.setContentsMargins(5, 2, 5, 2)  # Small margins
         layout.addWidget(label)
         layout.addWidget(spinbox)
-        layout.addStretch()
+        # Remove addStretch() to make layout more compact
         widget.setLayout(layout)
+        widget.setContentsMargins(5, 0, 5, 0)
+        widget.setMaximumHeight(30)  # Limit height to reduce vertical spacing
 
         self.main_layout.addWidget(widget)
         self.field_widgets[name] = spinbox
@@ -644,13 +783,15 @@ class ConfigPane(QWidget):
 
         checkbox = QCheckBox(title)
         checkbox.setChecked(default)
+        checkbox.setContentsMargins(5, 2, 5, 2)
+        checkbox.setMaximumHeight(30)  # Limit height to reduce vertical spacing
 
         checkbox.toggled.connect(
             lambda checked: self.set_datum(
                 self.canvas, name, name, None, checked)
         )
         self.main_layout.addWidget(checkbox)
-        self.main_layout.addWidget(checkbox)
+        self.field_widgets[name] = checkbox
 
     def _create_options_field(self, row: int, field: Dict[str, Any]):
         """Create options combobox field."""
