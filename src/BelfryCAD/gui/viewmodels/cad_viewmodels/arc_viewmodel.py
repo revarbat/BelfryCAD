@@ -180,10 +180,13 @@ class ArcViewModel(CadViewModel):
             model_view=self,
             label="Arc Radius",
             setter=self._set_radius,
+            prefix="R",
             format_string=f"{{:.{precision}f}}",
             precision_override=precision,
             min_value=0,
-            is_length=True
+            is_length=True,
+            pixel_offset=10,
+            angle=45
         )
         self._controls.append(radius_datum)
         
@@ -193,11 +196,14 @@ class ArcViewModel(CadViewModel):
             label="Arc Span Angle",
             setter=self._set_span_angle,
             format_string="{:.1f}",
+            prefix="∠",
             suffix="°",
             precision_override=1,
             min_value=-360,
             max_value=360,
-            is_length=False
+            is_length=False,
+            pixel_offset=10,
+            angle=45
         )
         self._controls.append(span_datum)
 
@@ -230,14 +236,16 @@ class ArcViewModel(CadViewModel):
         # Update Radius datum
         self._controls[3].update_datum(
             self.radius,
-            center + QPointF(20, -20)
+            start
         )
+        self._controls[3].angle = math.degrees(self.start_angle)
         
         # Update Span Angle datum
         self._controls[4].update_datum(
             math.degrees(self.span_angle),
-            center + QPointF(20, 20)
+            end
         )
+        self._controls[4].angle = math.degrees(self.end_angle)
     
         self.control_points_updated.emit()
     

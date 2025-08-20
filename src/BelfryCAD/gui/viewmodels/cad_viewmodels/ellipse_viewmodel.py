@@ -156,14 +156,14 @@ class EllipseViewModel(CadViewModel):
         )
         self._controls.append(center_cp)
 
-        major_cp = SquareControlPoint(
+        major_cp = ControlPoint(
             model_view=self,
             setter=self._set_major_axis_point,
             tool_tip="Ellipse Major Axis"
         )
         self._controls.append(major_cp)
 
-        minor_cp = SquareControlPoint(
+        minor_cp = ControlPoint(
             model_view=self,
             setter=self._set_minor_axis_point,
             tool_tip="Ellipse Minor Axis"
@@ -178,10 +178,13 @@ class EllipseViewModel(CadViewModel):
             model_view=self,
             label="Ellipse Major Axis",
             setter=self._set_major_axis,
+            prefix="R1=",
             format_string=f"{{:.{precision}f}}",
             precision_override=precision,
             min_value=0,
-            is_length=True
+            is_length=True,
+            pixel_offset=10,
+            angle=0
         )
         self._controls.append(major_datum)
         
@@ -190,10 +193,13 @@ class EllipseViewModel(CadViewModel):
             model_view=self,
             label="Ellipse Minor Axis",
             setter=self._set_minor_axis,
+            prefix="R2=",
             format_string=f"{{:.{precision}f}}",
             precision_override=precision,
             min_value=0,
-            is_length=True
+            is_length=True,
+            pixel_offset=10,
+            angle=90
         )
         self._controls.append(minor_datum)
         
@@ -207,7 +213,9 @@ class EllipseViewModel(CadViewModel):
             precision_override=1,
             min_value=-360,
             max_value=360,
-            is_length=False
+            is_length=False,
+            pixel_offset=10,
+            angle=45
         )
         self._controls.append(rotation_datum)
 
@@ -240,19 +248,21 @@ class EllipseViewModel(CadViewModel):
         # Update Major axis datum
         self._controls[3].update_datum(
             self.major_axis,
-            center + QPointF(20, -20)
+            major
         )
+        self._controls[3].angle = self.rotation_degrees
         
         # Update Minor axis datum
         self._controls[4].update_datum(
             self.minor_axis,
-            center + QPointF(20, 0)
+            minor
         )
-        
+        self._controls[4].angle = self.rotation_degrees+90
+
         # Update Rotation datum
         self._controls[5].update_datum(
-            math.degrees(self.rotation),
-            center + QPointF(20, 20)
+            self.rotation_degrees,
+            center
         )
     
         self.control_points_updated.emit()
@@ -354,6 +364,17 @@ class EllipseViewModel(CadViewModel):
             self._ellipse_object.rotation = value
             self.rotation_changed.emit(value)
             self.object_modified.emit()
+    
+    @property
+    def rotation_degrees(self) -> float:
+        """Get rotation angle in degrees"""
+        return self._ellipse_object.rotation_degrees
+    
+    
+    @rotation_degrees.setter
+    def rotation_degrees(self, value: float):
+        """Set rotation angle in degrees"""
+        self.rotation = math.radians(value)
     
     @property
     def focus1(self) -> QPointF:
@@ -490,8 +511,7 @@ class EllipseViewModel(CadViewModel):
     
     def _set_rotation(self, value):
         """Set rotation from control datum (value in degrees)"""
-        rotation_radians = math.radians(value)
-        self.rotation = rotation_radians
+        self.rotation_degrees = value
         # Update view and control points to reflect the change
         if hasattr(self, '_controls') and self._controls:
             scene = self._document_window.cad_scene

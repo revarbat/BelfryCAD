@@ -128,6 +128,17 @@ class Ellipse(Shape2D):
         
         return Point2D(x_min, y_min), Point2D(x_max, y_max)
 
+
+    @property
+    def rotation_degrees(self) -> float:
+        """Get the rotation angle in degrees."""
+        return np.degrees(self.rotation)
+    
+    @rotation_degrees.setter
+    def rotation_degrees(self, value: float):
+        """Set the rotation angle in degrees."""
+        self.rotation = np.radians(value)
+
     def point_at_angle(self, angle: float) -> Point2D:
         """Get point on the ellipse at a specific radian angle (parametric)."""
         # Parametric equation of ellipse using semi-axes

@@ -121,6 +121,16 @@ class EllipseCadObject(CadObject):
         self._update_ellipse()
 
     @property
+    def rotation_degrees(self) -> float:
+        """Get the rotation angle in degrees."""
+        return self.ellipse.rotation_degrees
+    
+    @rotation_degrees.setter
+    def rotation_degrees(self, value: float):
+        """Set the rotation angle in degrees."""
+        self.rotation = np.radians(value)
+
+    @property
     def focus1(self) -> Point2D:
         """Get the first focus point."""
         return self.ellipse.get_foci()[0]

@@ -373,7 +373,7 @@ class ControlDatum(ControlPoint):
         self.setPos(position)
         self.update()  # Trigger repaint
 
-    def _format_text(self, value):
+    def _format_text(self, value, no_prefix=False, no_suffix=False):
         """Format the text for display."""
         if self._is_length:
             document_window = self.model_view.document_window
@@ -383,8 +383,8 @@ class ControlDatum(ControlPoint):
             valstr = self._format_string.format(value)
             if '.' in valstr:
                 valstr = valstr.rstrip('0').rstrip('.')
-        pfx = self._prefix if self._prefix else ""
-        sfx = self._suffix if self._suffix else ""
+        pfx = self._prefix if self._prefix and not no_prefix else ""
+        sfx = self._suffix if self._suffix and not no_suffix else ""
         return f"{pfx}{valstr}{sfx}"
 
     def mousePressEvent(self, event):
@@ -497,7 +497,7 @@ class ControlDatum(ControlPoint):
         self._is_editing = True
         
         # Get current value
-        current_value = self._format_text(self._current_value)
+        current_value = self._format_text(self._current_value, no_prefix=True, no_suffix=True)
         
         # Create dialog
         dialog = QDialog()

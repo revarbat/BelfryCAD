@@ -6,6 +6,7 @@ for UI updates when circle properties change.
 """
 
 from typing import Tuple, Optional, TYPE_CHECKING
+import math
 
 from PySide6.QtCore import QPointF, Signal
 from PySide6.QtGui import QColor, QTransform, QPen
@@ -114,7 +115,6 @@ class CircleViewModel(CadViewModel):
         This is called when this object becomes the only object selected.
         """
         self._clear_controls(scene)
-        print("show_controls circle")
 
         # Create control points with direct setters
         center_cp = SquareControlPoint(
@@ -139,10 +139,13 @@ class CircleViewModel(CadViewModel):
             model_view=self,
             label="Circle Radius",
             setter=self._set_radius,
-            format_string=f"R {{:.{precision}f}}",
+            prefix="R ",
+            format_string=f"{{:.{precision}f}}",
             precision_override=precision,
             min_value=0,
-            is_length=True
+            is_length=True,
+            pixel_offset=10,
+            angle=45
         )
         self._controls.append(radius_datum)
         
@@ -160,7 +163,6 @@ class CircleViewModel(CadViewModel):
         Update the controls.
         This is called when this object is modified.
         """
-        print("update_controls circle")
         if not self._controls:
             return
 
@@ -174,7 +176,7 @@ class CircleViewModel(CadViewModel):
         # Update Radius datum
         self._controls[2].update_datum(
             self.radius,
-            center + QPointF(20, -20)
+            center + QPointF(1,1) * (math.sqrt(2)/2 * self.radius)
         )
         
         self.control_points_updated.emit()
