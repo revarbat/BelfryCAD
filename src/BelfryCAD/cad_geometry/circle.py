@@ -12,6 +12,7 @@ from .shapes import Shape2D, ShapeType
 from .point import Point2D
 from .line import Line2D
 from .transform import Transform2D
+from .ellipse import Ellipse
 
 if TYPE_CHECKING:
     from .ellipse import Ellipse
@@ -41,7 +42,7 @@ class Circle(Shape2D):
         if ShapeType.CIRCLE in into:
             return [self]
         if ShapeType.ELLIPSE in into:
-            return [Ellipse(self.center, self.radius, self.radius, 0)]
+            return [Ellipse(self.center, self.radius, self.radius, 0.0)]
         if ShapeType.ARC in into:
             return [Arc(self.center, self.radius, 0, 360)]
         if ShapeType.BEZIER in into:
@@ -242,7 +243,7 @@ class Circle(Shape2D):
             scale_point = Point2D(scale)
             r1 = self.radius * scale_point.x
             r2 = self.radius * scale_point.y
-            return Ellipse(new_center, r1, r2, 0)
+            return Ellipse(new_center, r1, r2, 0.0)
 
     def rotate(self, angle: float, center = None) -> 'Circle':
         """Make a new circle, rotated around a point."""

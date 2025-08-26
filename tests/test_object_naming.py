@@ -36,9 +36,10 @@ class TestObjectNaming(unittest.TestCase):
     def test_circle_naming_sequence(self):
         """Test that circles are named circle1, circle2, circle3, etc."""
         # Create multiple circles
-        circle1 = CircleCadObject(self.document, Point2D(0, 0), Point2D(5, 0))
-        circle2 = CircleCadObject(self.document, Point2D(10, 10), Point2D(15, 10))
-        circle3 = CircleCadObject(self.document, Point2D(20, 20), Point2D(25, 20))
+        # Calculate radii from centers to perimeter points
+        circle1 = CircleCadObject(self.document, Point2D(0, 0), 5.0)
+        circle2 = CircleCadObject(self.document, Point2D(10, 10), 5.0)
+        circle3 = CircleCadObject(self.document, Point2D(20, 20), 5.0)
         
         # Add them to the document
         self.document.add_object(circle1)
@@ -54,9 +55,9 @@ class TestObjectNaming(unittest.TestCase):
         """Test that different object types have separate naming sequences."""
         # Create mixed objects
         line1 = LineCadObject(self.document, Point2D(0, 0), Point2D(10, 10))
-        circle1 = CircleCadObject(self.document, Point2D(0, 0), Point2D(5, 0))
+        circle1 = CircleCadObject(self.document, Point2D(0, 0), 5.0)
         line2 = LineCadObject(self.document, Point2D(5, 5), Point2D(15, 15))
-        circle2 = CircleCadObject(self.document, Point2D(10, 10), Point2D(15, 10))
+        circle2 = CircleCadObject(self.document, Point2D(10, 10), 5.0)
         
         # Add them to the document
         self.document.add_object(line1)

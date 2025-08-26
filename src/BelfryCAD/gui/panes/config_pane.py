@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal, QTimer, Qt
 from PySide6.QtGui import (
     QPalette, QValidator, QIcon, QColor,
-    QPixmap, QPainter
+    QPixmap, QPainter, QLinearGradient, QPixmap, QPainter, QPen
 )
 
 
@@ -290,14 +290,6 @@ class ConfigPane(QWidget):
         self.set_font_datum(canvas, name, datum, val_set_cb, base_widget)
         return True
 
-    def clear_color(self, canvas, name: str, datum: str,
-                    val_set_cb: Optional[Callable],
-                    color_button: QPushButton):
-        """Clear color selection."""
-        color_button.setStyleSheet("background-color: white; color: black;")
-        color_button.setText("X")
-        self.set_datum(canvas, name, datum, val_set_cb, "none")
-
     def edit_color(self, canvas, name: str, datum: str,
                    val_set_cb: Optional[Callable],
                    color_button: QPushButton):
@@ -551,7 +543,7 @@ class ConfigPane(QWidget):
         for color_name, color_value in predefined_colors:
             if color_value == "none":
                 # For "None", show a white box with X
-                icon = self._create_color_icon("white", "X")
+                icon = self._create_none_color_icon()
                 color_combo.addItem(icon, color_name, color_value)
             elif color_value == "custom":
                 # For "Custom", show a rainbow icon
@@ -610,10 +602,25 @@ class ConfigPane(QWidget):
         painter.end()
         return QIcon(pixmap)
 
+    def _create_none_color_icon(self) -> QIcon:
+        """Create a None color icon."""
+        # Create a 16x16 pixmap
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        
+        painter = QPainter(pixmap)
+        
+        painter.fillRect(0, 0, 16, 16, QColor("white"))
+        painter.setPen(QPen(QColor("black"), 1.0))
+        painter.drawRect(0, 0, 15, 15)  # Border
+        painter.drawLine(0, 0, 15, 15)  # X
+        painter.drawLine(0, 15, 15, 0)
+        
+        painter.end()
+        return QIcon(pixmap)
+
     def _create_custom_color_icon(self) -> QIcon:
         """Create a rainbow/custom color icon."""
-        from PySide6.QtGui import QPixmap, QPainter, QLinearGradient
-        
         # Create a 16x16 pixmap
         pixmap = QPixmap(16, 16)
         pixmap.fill(Qt.GlobalColor.transparent)

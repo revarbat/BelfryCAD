@@ -13,7 +13,6 @@ from .polygon import Polygon
 from .circle import Circle
 from .polyline import PolyLine2D
 from .bezier import BezierPath
-from .region import Region
 
 class Arc(Shape2D):
     """
@@ -21,36 +20,42 @@ class Arc(Shape2D):
     This class represents a portion of a circle's circumference.
     """
 
-    def __init__(self, center: Point2D, radius: float, start_angle: float, span_angle: float):
+    def __init__(
+            self,
+            center: Point2D,
+            radius: float,
+            start_degrees: float,
+            span_degrees: float
+    ):
         """
         Initialize an arc.
         
         Args:
             center: Center point of the arc
             radius: Radius of the arc
-            start_angle: Start angle in radians (0 = positive x-axis, counter-clockwise)
-            span_angle: Span angle in radians (positive = counter-clockwise, negative = clockwise)
+            start_degrees: Start angle in degrees (0 = positive x-axis, counter-clockwise)
+            span_degrees: Span angle in degrees (positive = counter-clockwise, negative = clockwise)
         """
         self.center = Point2D(center)
         self.radius = float(radius)
-        self.start_angle = float(start_angle)
-        self.span_angle = float(span_angle)
+        self._start_degrees = float(start_degrees)
+        self._span_degrees = float(span_degrees)
         
         # Normalize start angle to [0, 2π)
-        self.start_angle = self.start_angle % (2 * np.pi)
+        self._start_degrees = self._start_degrees % 360.0
         
         # Calculate end angle from start angle and span
-        self.end_angle = self.start_angle + self.span_angle
+        self._end_degrees = self._start_degrees + self._span_degrees
         
         # Ensure radius is positive
         if self.radius <= 0:
             raise ValueError("Radius must be positive")
 
     def __repr__(self) -> str:
-        return f"Arc(center={self.center}, radius={self.radius}, start={self.start_angle:.3f}, end={self.end_angle:.3f})"
+        return f"Arc(center={self.center}, radius={self.radius}, start={self.start_degrees:.3f}, end={self.end_degrees:.3f})"
 
     def __str__(self) -> str:
-        return f"Arc at {self.center} with radius {self.radius} from {self.start_angle:.3f} to {self.end_angle:.3f}"
+        return f"Arc at {self.center} with radius {self.radius} from {self.start_degrees:.3f} to {self.end_degrees:.3f}"
 
     def decompose(self, into: List[ShapeType] = [], tolerance: float = 0.001) -> List['Shape2D']:
         if ShapeType.ARC in into:
@@ -64,6 +69,60 @@ class Arc(Shape2D):
         raise ValueError(f"Cannot decompose arc into any of {into}")
 
     @property
+    def start_degrees(self) -> float:
+        """Get the start angle in degrees."""
+        return self._start_degrees
+
+    @start_degrees.setter
+    def start_degrees(self, value: float):
+        """Set the start angle in degrees."""
+        self._start_degrees = value % 360.0
+        self._end_degrees = self._start_degrees + self._span_degrees
+
+    @property
+    def end_degrees(self) -> float:
+        """Get the end angle in degrees."""
+        return self._end_degrees
+
+    @property
+    def span_degrees(self) -> float:
+        """Get the span angle in degrees."""
+        return self._span_degrees
+
+    @span_degrees.setter
+    def span_degrees(self, value: float):
+        """Set the span angle in degrees."""
+        self._span_degrees = value % 360.0
+        self._end_degrees = self._start_degrees + self._span_degrees
+
+    @property
+    def start_radians(self) -> float:
+        """Get the start angle in radians."""
+        return np.radians(self._start_degrees)
+
+    @start_radians.setter
+    def start_radians(self, value: float):
+        """Set the start angle in radians."""
+        self._start_degrees = np.degrees(value)
+        self._end_degrees = self._start_degrees + self._span_degrees
+
+    @property
+    def end_radians(self) -> float:
+        """Get the end angle in radians."""
+        return np.radians(self._end_degrees)
+
+    @property
+    def span_radians(self) -> float:
+        """Get the span angle in radians."""
+        return np.radians(self._span_degrees)
+
+    @span_radians.setter
+    def span_radians(self, value: float):
+        """Set the span angle in radians."""
+        self._span_degrees = np.degrees(value)
+        self._end_degrees = self._start_degrees + self._span_degrees
+
+    @property
     def diameter(self) -> float:
         """Get the diameter of the arc."""
         return 2 * self.radius
@@ -72,38 +131,29 @@ class Arc(Shape2D):
     def length(self) -> float:
         """Calculate the arc length."""
         # Use the span angle directly
-        return self.radius * abs(self.span_angle)
+        return self.radius * abs(self.span_radians)
 
     @property
     def area(self) -> float:
         """Calculate the area of the arc sector."""
         # Use the span angle directly
-        return 0.5 * self.radius * self.radius * abs(self.span_angle)
+        return 0.5 * self.radius * self.radius * abs(self.span_degrees)
 
     @property
     def start_point(self) -> Point2D:
         """Get the start point of the arc."""
-        return self.center + Point2D(
-            self.radius * np.cos(self.start_angle),
-            self.radius * np.sin(self.start_angle)
-        )
+        return self.center + Point2D(self.radius, angle=self.start_degrees)
 
     @property
     def end_point(self) -> Point2D:
         """Get the end point of the arc."""
-        return self.center + Point2D(
-            self.radius * np.cos(self.end_angle),
-            self.radius * np.sin(self.end_angle)
-        )
+        return self.center + Point2D(self.radius, angle=self.end_degrees)
 
     @property
     def midpoint(self) -> Point2D:
         """Get the midpoint of the arc."""
-        mid_angle = (self.start_angle + self.end_angle) / 2
-        return self.center + Point2D(
-            self.radius * np.cos(mid_angle),
-            self.radius * np.sin(mid_angle)
-        )
+        mid_angle = (self.start_degrees + self.end_degrees) / 2
+        return self.center + Point2D(self.radius, angle=mid_angle)
 
     @property
     def bounds(self) -> Tuple[Point2D, Point2D]:
@@ -135,18 +185,18 @@ class Arc(Shape2D):
         angle = angle % (2 * np.pi)
         
         # For positive span (counter-clockwise), check if angle is between start and end
-        if self.span_angle >= 0:
+        if self.span_degrees >= 0:
             # Handle the case where the arc crosses the 0/2π boundary
-            if self.start_angle > self.end_angle:
-                return angle >= self.start_angle or angle <= self.end_angle
+            if self.start_degrees > self.end_degrees:
+                return angle >= self.start_degrees or angle <= self.end_degrees
             else:
-                return self.start_angle <= angle <= self.end_angle
+                return self.start_degrees <= angle <= self.end_degrees
         else:
             # For negative span (clockwise), check if angle is between end and start
-            if self.end_angle > self.start_angle:
-                return angle >= self.end_angle or angle <= self.start_angle
+            if self.end_degrees > self.start_degrees:
+                return angle >= self.end_degrees or angle <= self.start_degrees
             else:
-                return self.end_angle <= angle <= self.start_angle
+                return self.end_degrees <= angle <= self.start_degrees
 
     def contains_point(self, point: Point2D, tolerance: float = 1e-6) -> bool:
         """Check if a point is on the arc within tolerance."""
@@ -180,7 +230,7 @@ class Arc(Shape2D):
 
     def translate(self, vector) -> 'Arc':
         """Translate the arc by vector."""
-        return Arc(self.center.translate(vector), self.radius, self.start_angle, self.span_angle)
+        return Arc(self.center.translate(vector), self.radius, self.start_degrees, self.span_degrees)
 
     def rotate(self, angle: float, center = None) -> 'Arc':
         """Rotate the arc around a center point."""
@@ -190,7 +240,7 @@ class Arc(Shape2D):
             center = Point2D(center)
         
         # Rotate center point
-        return Arc(self.center.rotate(angle, center), self.radius, self.start_angle+angle, self.span_angle)
+        return Arc(self.center.rotate(angle, center), self.radius, self.start_degrees+angle, self.span_degrees)
         
 
     def scale(self, scale, center = None) -> 'Shape2D':
@@ -206,12 +256,12 @@ class Arc(Shape2D):
         # Scale radius
         if isinstance(scale, (int, float, np.integer, np.floating)):
             new_radius = self.radius * float(scale)
-            return Arc(new_center, new_radius, self.start_angle, self.span_angle)
+            return Arc(new_center, new_radius, self.start_degrees, self.span_degrees)
         else:
             scale_point = Point2D(scale)
             # Generate a BezierPath from this arc.
             points = []
-            for angle in np.linspace(self.start_angle, self.end_angle, 72):
+            for angle in np.linspace(self.start_degrees, self.end_degrees, 72):
                 pt = self.point_at_angle(angle)
                 pt = pt.scale(scale_point, center)  # type: ignore
                 points.append(pt)
@@ -224,23 +274,23 @@ class Arc(Shape2D):
         # For now, we'll use the determinant to scale the radius
         points = [
             self.point_at_angle(angle).transform(transform)
-            for angle in np.linspace(self.start_angle, self.end_angle, 36)
+            for angle in np.linspace(self.start_degrees, self.end_degrees, 36)
         ]
         return BezierPath(points)
 
     def reverse(self) -> 'Arc':
         """Create a reversed arc (swap start and end angles)."""
-        return Arc(self.center, self.radius, self.end_angle, -self.span_angle)
+        return Arc(self.center, self.radius, self.end_degrees, -self.span_degrees)
 
     def to_polyline(self, segments: int = 32) -> 'PolyLine2D':
         """Convert arc to a polyline with specified number of segments."""
         # Use span angle directly
-        angle_step = self.span_angle / segments
+        angle_step = self.span_degrees / segments
         
         # Generate points along the arc
         points = []
         for i in range(segments + 1):
-            angle = self.start_angle + (angle_step * i)
+            angle = self.start_degrees + (angle_step * i)
             points.append(self.point_at_angle(angle))
         
         return PolyLine2D(points)
@@ -289,17 +339,17 @@ class Arc(Shape2D):
         circle = Circle.from_3_points([p1, p2, p3])
         center = circle.center
         radius = circle.radius  
-        start_angle = np.arctan2(p1.y - center.y, p1.x - center.x)
-        end_angle = np.arctan2(p3.y - center.y, p3.x - center.x)
-        span_angle = end_angle - start_angle
+        start_degrees = (p1 - center).angle_degrees
+        end_degrees = (p3 - center).angle_degrees
+        span_degrees = end_degrees - start_degrees
         
-        # Normalize span angle to [-2π, 2π]
-        if span_angle > np.pi:
-            span_angle -= 2 * np.pi
-        elif span_angle < -np.pi:
-            span_angle += 2 * np.pi
+        # Normalize span angle to [-360°, 360°]
+        if span_degrees > 360.0:
+            span_degrees -= 360.0
+        elif span_degrees < -360.0:
+            span_degrees += 360.0
             
-        return cls(center, radius, start_angle, span_angle)
+        return cls(center, radius, start_degrees, span_degrees)
 
     @classmethod
     def from_line_and_perimeter_point(cls, line: Line2D, perimeter_point: Point2D) -> 'Arc':
@@ -307,27 +357,27 @@ class Arc(Shape2D):
         circle = Circle.from_line_and_perimeter_point(line, perimeter_point)
         center = circle.center
         radius = circle.radius
-        start_angle = np.arctan2(line.start.y - center.y, line.start.x - center.x)
-        end_angle = np.arctan2(perimeter_point.y - center.y, perimeter_point.x - center.x)
-        span_angle = end_angle - start_angle
+        start_degrees = (line.start - center).angle_degrees
+        end_degrees = (perimeter_point - center).angle_degrees
+        span_degrees = end_degrees - start_degrees
         
-        # Normalize span angle to [-2π, 2π]
-        if span_angle > np.pi:
-            span_angle -= 2 * np.pi
-        elif span_angle < -np.pi:
-            span_angle += 2 * np.pi
+        # Normalize span angle to [-360°, 360°]
+        if span_degrees > 360.0:
+            span_degrees -= 360.0
+        elif span_degrees < -360.0:
+            span_degrees += 360.0
             
-        return cls(center, radius, start_angle, span_angle)
+        return cls(center, radius, start_degrees, span_degrees)
 
     @classmethod
-    def semicircle(cls, center: Point2D, radius: float, start_angle: float = 0) -> 'Arc':
+    def semicircle(cls, center: Point2D, radius: float, start_degrees: float = 0) -> 'Arc':
         """Create a semicircle arc."""
-        return cls(center, radius, start_angle, np.pi)
+        return cls(center, radius, start_degrees, 180)
 
     @classmethod
-    def quarter_circle(cls, center: Point2D, radius: float, start_angle: float = 0) -> 'Arc':
+    def quarter_circle(cls, center: Point2D, radius: float, start_degrees: float = 0) -> 'Arc':
         """Create a quarter circle arc."""
-        return cls(center, radius, start_angle, np.pi/2)
+        return cls(center, radius, start_degrees, 90)
 
     @classmethod
     def from_tangent_rays(cls, point: Point2D, ray1: Point2D, ray2: Point2D, radius: float) -> 'Arc':
@@ -379,12 +429,12 @@ class Arc(Shape2D):
         # Calculate start and end angles for the arc
         # The arc should be tangent to both rays
         # We need to calculate angles relative to the center, not the origin
-        start_angle = np.arctan2(ray1_norm.y, ray1_norm.x)
-        end_angle = np.arctan2(ray2_norm.y, ray2_norm.x)
+        start_degrees = np.degrees(np.arctan2(ray1_norm.y, ray1_norm.x))
+        end_degrees = np.degrees(np.arctan2(ray2_norm.y, ray2_norm.x))
         
         # Ensure the arc goes in the correct direction
         # The arc should connect the rays in the shortest way
-        angle_diff = end_angle - start_angle
+        angle_diff = end_degrees - start_degrees
         
         # Normalize angle difference to [-π, π]
         if angle_diff > np.pi:
@@ -395,11 +445,11 @@ class Arc(Shape2D):
         # If the angle difference is too large, we need to go the other way
         if abs(angle_diff) > np.pi:
             if angle_diff > 0:
-                end_angle -= 2 * np.pi
+                end_degrees -= 360
             else:
-                start_angle -= 2 * np.pi
+                start_degrees -= 360
         
-        return cls(center, radius, start_angle, end_angle - start_angle)
+        return cls(center, radius, start_degrees, end_degrees - start_degrees)
 
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get the bounds of the arc as (min_x, min_y, max_x, max_y)."""

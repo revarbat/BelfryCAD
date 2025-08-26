@@ -3,6 +3,7 @@ GroupCadObject - A group CAD object that can contain other CAD objects.
 """
 
 from typing import List, Optional, Tuple, Dict, TYPE_CHECKING
+
 from ..cad_object import CadObject
 from ...cad_geometry import Point2D, Transform2D
 

@@ -4,19 +4,14 @@ LineCadObject - A line CAD object defined by two points.
 
 from typing import Optional, Tuple, TYPE_CHECKING, List
 
-from ..cad_object import CadObject
 from ...cad_geometry import (
-    Point2D,
-    Line2D,
-    Transform2D,
-    ShapeType,
-    Shape2D,
+    ShapeType, Shape2D, Transform2D,
+    Point2D, Line2D,
 )
+from ..cad_object import CadObject
 from ...utils.constraints import (
-    ConstraintSolver,
-    ConstrainablePoint2D,
-    ConstrainableLine2D,
-    Constrainable,
+    ConstraintSolver, Constrainable,
+    ConstrainablePoint2D, ConstrainableLine2D,
 )
 
 if TYPE_CHECKING:
@@ -134,7 +129,10 @@ class LineCadObject(CadObject):
         """Setup constraints for this object."""
         csp = ConstrainablePoint2D(solver, (self.line.start.x, self.line.start.y), fixed=False)
         cep = ConstrainablePoint2D(solver, (self.line.end.x, self.line.end.y), fixed=False)
-        self.constraint_line = ConstrainableLine2D(solver, csp, cep)
+        cl = ConstrainableLine2D(solver, csp, cep)
+        self.constraint_start_point = csp
+        self.constraint_end_point = cep
+        self.constraint_line = cl
 
     def update_constrainables_before_solving(self, solver: ConstraintSolver):
         """Update constrainables with current object values before solving."""

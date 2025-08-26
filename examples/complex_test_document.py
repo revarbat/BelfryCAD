@@ -78,19 +78,39 @@ def create_complex_test_document():
     document.add_object(base_line4)
     
     # 2. Mounting holes
-    hole1 = CircleCadObject(document, Point2D(10, 10), Point2D(18, 10), "blue", 0.3)
+    # Calculate radius from center to perimeter point
+center1 = Point2D(10, 10)
+perimeter_point1 = Point2D(18, 10)
+radius1 = center1.distance_to(perimeter_point1)
+
+hole1 = CircleCadObject(document, center1, radius1, "blue", 0.3)
     hole1.name = "Mounting Hole 1"
     document.add_object(hole1)
     
-    hole2 = CircleCadObject(document, Point2D(90, 10), Point2D(98, 10), "blue", 0.3)
+    # Calculate radius from center to perimeter point
+center2 = Point2D(90, 10)
+perimeter_point2 = Point2D(98, 10)
+radius2 = center2.distance_to(perimeter_point2)
+
+hole2 = CircleCadObject(document, center2, radius2, "blue", 0.3)
     hole2.name = "Mounting Hole 2"
     document.add_object(hole2)
     
-    hole3 = CircleCadObject(document, Point2D(10, 70), Point2D(18, 70), "blue", 0.3)
+    # Calculate radius from center to perimeter point
+center3 = Point2D(10, 70)
+perimeter_point3 = Point2D(18, 70)
+radius3 = center3.distance_to(perimeter_point3)
+
+hole3 = CircleCadObject(document, center3, radius3, "blue", 0.3)
     hole3.name = "Mounting Hole 3"
     document.add_object(hole3)
     
-    hole4 = CircleCadObject(document, Point2D(90, 70), Point2D(98, 70), "blue", 0.3)
+    # Calculate radius from center to perimeter point
+center4 = Point2D(90, 70)
+perimeter_point4 = Point2D(98, 70)
+radius4 = center4.distance_to(perimeter_point4)
+
+hole4 = CircleCadObject(document, center4, radius4, "blue", 0.3)
     hole4.name = "Mounting Hole 4"
     document.add_object(hole4)
     
@@ -104,12 +124,28 @@ def create_complex_test_document():
     document.add_object(gear2)
     
     # 4. Spring (approximated with arc)
-    spring_arc = ArcCadObject(document, Point2D(50, 20), Point2D(45, 20), Point2D(55, 20), "green", 0.3)
+    # Calculate radius and angles for a semicircle
+center = Point2D(50, 20)
+start_point = Point2D(45, 20)
+end_point = Point2D(55, 20)
+radius = center.distance_to(start_point)
+start_degrees = (start_point - center).angle_degrees
+end_degrees = (end_point - center).angle_degrees
+span_degrees = end_degrees - start_degrees
+
+spring_arc = ArcCadObject(document, center, radius, start_degrees, span_degrees, "green", 0.3)
     spring_arc.name = "Spring Arc"
     document.add_object(spring_arc)
     
     # 5. Elliptical cam
-    cam = EllipseCadObject(document, Point2D(50, 60), Point2D(65, 60), Point2D(50, 55), "purple", 0.4)
+    # Calculate radii from center to axis points
+cam_center = Point2D(50, 60)
+cam_major_axis_point = Point2D(65, 60)
+cam_minor_axis_point = Point2D(50, 55)
+cam_radius1 = cam_center.distance_to(cam_major_axis_point)
+cam_radius2 = cam_center.distance_to(cam_minor_axis_point)
+
+cam = EllipseCadObject(document, cam_center, cam_radius1, cam_radius2, 0.0, "purple", 0.4)
     cam.name = "Elliptical Cam"
     document.add_object(cam)
     
@@ -130,7 +166,12 @@ def create_complex_test_document():
     document.add_object(center_line)
     
     # 8. Reference circle
-    ref_circle = CircleCadObject(document, Point2D(50, 40), Point2D(70, 40), "lightblue", 0.2)
+    # Calculate radius from center to perimeter point
+ref_center = Point2D(50, 40)
+ref_perimeter_point = Point2D(70, 40)
+ref_radius = ref_center.distance_to(ref_perimeter_point)
+
+ref_circle = CircleCadObject(document, ref_center, ref_radius, "lightblue", 0.2)
     ref_circle.name = "Reference Circle"
     document.add_object(ref_circle)
     

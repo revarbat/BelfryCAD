@@ -19,41 +19,38 @@ if TYPE_CHECKING:
 
 class Ellipse(Shape2D):
     """
-    An ellipse defined by center, major axis, minor axis, and rotation angle.
+    An ellipse defined by center, radius1, radius2, and rotation angle.
     This class represents an elliptical shape with various geometric properties.
     """
 
-    def __init__(self, center: Point2D, major_axis: float, minor_axis: float, rotation: float = 0):
+    def __init__(self, center: Point2D, radius1: float, radius2: float, rotation_degrees: float = 0):
         """
         Initialize an ellipse.
         
         Args:
             center: Center point of the ellipse
-            major_axis: Length of the major axis (must be >= minor_axis)
-            minor_axis: Length of the minor axis (must be > 0)
-            rotation: Rotation angle in radians (0 = major axis along x-axis)
+            radius1: First radius (major radius)
+            radius2: Second radius (minor radius)
+            rotation_degrees: Rotation angle in degrees (0 = major axis along x-axis)
         """
         self.center = Point2D(center)
-        self.major_axis = float(major_axis)
-        self.minor_axis = float(minor_axis)
-        self.rotation = float(rotation) % (2 * np.pi)
+        self.radius1 = float(radius1)
+        self.radius2 = float(radius2)
+        self._rotation_degrees = float(rotation_degrees) % 360
         
-        # Validate axes
-        if self.minor_axis <= 0:
-            raise ValueError("Minor axis must be positive")
-        if self.major_axis < self.minor_axis:
-            raise ValueError("Major axis must be >= minor axis")
-        
-        # Calculate eccentricity
-        self.eccentricity = np.sqrt(1 - (self.minor_axis / self.major_axis) ** 2)
-    
+        # Validate radii
+        if self.radius1 <= 0:
+            raise ValueError("Radius1 must be positive")
+        if self.radius2 <= 0:
+            raise ValueError("Radius2 must be positive")
+            
     def decompose(self, into: List[ShapeType] = [], tolerance: float = 0.001) -> List['Shape2D']:
         if ShapeType.ELLIPSE in into:
             return [self]
-        if ShapeType.CIRCLE in into and self.major_axis == self.minor_axis:
-            return [Circle(self.center, self.major_axis)]
-        if ShapeType.ARC in into and self.major_axis == self.minor_axis:
-            return [Arc(self.center, self.major_axis, 0, 360)]
+        if ShapeType.CIRCLE in into and self.radius1 == self.radius2:
+            return [Circle(self.center, self.radius1)]
+        if ShapeType.ARC in into and self.radius1 == self.radius2:
+            return [Arc(self.center, self.radius1, 0, 360)]
         points = self._to_points()
         if ShapeType.POLYGON in into:
             return [Polygon(points)]
@@ -76,34 +73,32 @@ class Ellipse(Shape2D):
 
     def get_foci(self) -> Tuple[Point2D, Point2D]:
         """Get the two foci points of the ellipse."""
-        # Calculate focal distance: c = sqrt(a^2 - b^2) where a = major_axis/2, b = minor_axis/2
-        semi_major = self.major_axis / 2
-        semi_minor = self.minor_axis / 2
-        focal_distance = np.sqrt(semi_major**2 - semi_minor**2)
+        # Calculate focal distance: c = sqrt(a^2 - b^2) where a = radius1, b = radius2
+        focal_distance = np.sqrt(self.radius1**2 - self.radius2**2)
         
         # Calculate foci along the major axis direction
-        major_direction = Point2D(1, angle=self.rotation)
-        focus1 = self.center + major_direction * focal_distance
-        focus2 = self.center - major_direction * focal_distance
+        major_vector  = Point2D(1, angle=self.rotation_degrees)
+        focus1 = self.center + major_vector * focal_distance
+        focus2 = self.center - major_vector * focal_distance
         
         return focus1, focus2
 
     def __repr__(self) -> str:
-        return f"Ellipse(center={self.center}, major={self.major_axis}, minor={self.minor_axis}, rotation={self.rotation:.3f})"
+        return f"Ellipse(center={self.center}, major={self.radius1}, minor={self.radius2}, rotation={self.rotation_degrees:.3f})"
 
     def __str__(self) -> str:
-        return f"Ellipse at {self.center} with axes ({self.major_axis}, {self.minor_axis}) rotated {self.rotation:.3f}"
+        return f"Ellipse at {self.center} with axes ({self.radius1}, {self.radius2}) rotated {self.rotation_degrees:.3f}"
 
     @property
     def area(self) -> float:
         """Calculate the area of the ellipse."""
-        return np.pi * self.major_axis * self.minor_axis
+        return np.pi * self.radius1 * self.radius2
 
     @property
     def perimeter(self) -> float:
         """Calculate the perimeter of the ellipse (approximation)."""
         # Ramanujan's approximation
-        a, b = self.major_axis, self.minor_axis
+        a, b = self.radius1, self.radius2
         h = ((a - b) / (a + b)) ** 2
         return np.pi * (a + b) * (1 + (3 * h) / (10 + np.sqrt(4 - 3 * h)))
 
@@ -111,14 +106,14 @@ class Ellipse(Shape2D):
     def bounds(self) -> Tuple[Point2D, Point2D]:
         """Get bounding box of the ellipse."""
         # Calculate extreme points in rotated coordinates
-        cos_r = np.cos(self.rotation)
-        sin_r = np.sin(self.rotation)
+        cos_r = np.cos(self.rotation_radians)
+        sin_r = np.sin(self.rotation_radians)
         
         # Extreme points in local coordinates
-        x_extreme = self.major_axis * cos_r
-        y_extreme = self.major_axis * sin_r
-        x_extreme_minor = self.minor_axis * (-sin_r)
-        y_extreme_minor = self.minor_axis * cos_r
+        x_extreme = self.radius1 * cos_r
+        y_extreme = self.radius1 * sin_r
+        x_extreme_minor = self.radius2 * (-sin_r)
+        y_extreme_minor = self.radius2 * cos_r
         
         # Calculate bounds
         x_min = self.center.x - abs(x_extreme) - abs(x_extreme_minor)
@@ -128,28 +123,55 @@ class Ellipse(Shape2D):
         
         return Point2D(x_min, y_min), Point2D(x_max, y_max)
 
-
     @property
     def rotation_degrees(self) -> float:
         """Get the rotation angle in degrees."""
-        return np.degrees(self.rotation)
+        return self._rotation_degrees
     
     @rotation_degrees.setter
     def rotation_degrees(self, value: float):
         """Set the rotation angle in degrees."""
-        self.rotation = np.radians(value)
+        self._rotation_degrees = float(value) % 360
+
+    @property
+    def rotation_radians(self) -> float:
+        """Get the rotation angle in radians."""
+        return np.radians(self._rotation_degrees)
+    
+    @rotation_radians.setter
+    def rotation_radians(self, value: float):
+        """Set the rotation angle in radians."""
+        self._rotation_degrees = np.degrees(value)
+
+    @property
+    def major_axis(self) -> float:
+        """Get the major axis length (2 * radius1)."""
+        return self.radius1 * 2
+    
+    @major_axis.setter
+    def major_axis(self, value: float):
+        """Set the major axis length."""
+        self.radius1 = value / 2
+
+    @property
+    def minor_axis(self) -> float:
+        """Get the minor axis length (2 * radius2)."""
+        return self.radius2 * 2
+    
+    @minor_axis.setter
+    def minor_axis(self, value: float):
+        """Set the minor axis length."""
+        self.radius2 = value / 2
 
     def point_at_angle(self, angle: float) -> Point2D:
         """Get point on the ellipse at a specific radian angle (parametric)."""
-        # Parametric equation of ellipse using semi-axes
-        semi_major_axis = self.major_axis / 2
-        semi_minor_axis = self.minor_axis / 2
-        x = semi_major_axis * np.cos(angle)
-        y = semi_minor_axis * np.sin(angle)
+        # Parametric equation of ellipse using radii
+        x = self.radius1 * np.cos(angle)
+        y = self.radius2 * np.sin(angle)
         
         # Rotate and translate
-        cos_r = np.cos(self.rotation)
-        sin_r = np.sin(self.rotation)
+        cos_r = np.cos(self.rotation_radians)
+        sin_r = np.sin(self.rotation_radians)
         
         x_rot = x * cos_r - y * sin_r
         y_rot = x * sin_r + y * cos_r
@@ -158,15 +180,13 @@ class Ellipse(Shape2D):
 
     def tangent_at_angle(self, angle: float) -> Point2D:
         """Get the tangent vector at a specific angle."""
-        # Derivative of parametric equation using semi-axes
-        semi_major_axis = self.major_axis / 2
-        semi_minor_axis = self.minor_axis / 2
-        dx = -semi_major_axis * np.sin(angle)
-        dy = semi_minor_axis * np.cos(angle)
+        # Derivative of parametric equation using radii
+        dx = -self.radius1 * np.sin(angle)
+        dy = self.radius2 * np.cos(angle)
         
         # Rotate
-        cos_r = np.cos(self.rotation)
-        sin_r = np.sin(self.rotation)
+        cos_r = np.cos(self.rotation_radians)
+        sin_r = np.sin(self.rotation_radians)
         
         dx_rot = dx * cos_r - dy * sin_r
         dy_rot = dx * sin_r + dy * cos_r
@@ -181,17 +201,15 @@ class Ellipse(Shape2D):
         local_point = point - self.center
         
         # Rotate to align with ellipse axes
-        cos_r = np.cos(-self.rotation)
-        sin_r = np.sin(-self.rotation)
+        cos_r = np.cos(-self.rotation_radians)
+        sin_r = np.sin(-self.rotation_radians)
         
         x_local = local_point.x * cos_r - local_point.y * sin_r
         y_local = local_point.x * sin_r + local_point.y * cos_r
         
         # Check if point is inside ellipse
-        # Use semi-axes for the ellipse equation: (x/a)^2 + (y/b)^2 <= 1
-        semi_major_axis = self.major_axis / 2
-        semi_minor_axis = self.minor_axis / 2
-        return (x_local / semi_major_axis) ** 2 + (y_local / semi_minor_axis) ** 2 <= 1 + tolerance
+        # Use radii for the ellipse equation: (x/a)^2 + (y/b)^2 <= 1
+        return (x_local / self.radius1) ** 2 + (y_local / self.radius2) ** 2 <= 1 + tolerance
 
     def point_on_ellipse(self, point: Point2D, tolerance: float = 1e-6) -> bool:
         """Check if a point is on the ellipse boundary."""
@@ -199,17 +217,15 @@ class Ellipse(Shape2D):
         local_point = point - self.center
         
         # Rotate to align with ellipse axes
-        cos_r = np.cos(-self.rotation)
-        sin_r = np.sin(-self.rotation)
+        cos_r = np.cos(-self.rotation_radians)
+        sin_r = np.sin(-self.rotation_radians)
         
         x_local = local_point.x * cos_r - local_point.y * sin_r
         y_local = local_point.x * sin_r + local_point.y * cos_r
         
         # Check if point is on ellipse boundary
-        # Use semi-axes for the ellipse equation: (x/a)^2 + (y/b)^2 = 1
-        semi_major_axis = self.major_axis / 2
-        semi_minor_axis = self.minor_axis / 2
-        distance = abs((x_local / semi_major_axis) ** 2 + (y_local / semi_minor_axis) ** 2 - 1)
+        # Use radii for the ellipse equation: (x/a)^2 + (y/b)^2 = 1
+        distance = abs((x_local / self.radius1) ** 2 + (y_local / self.radius2) ** 2 - 1)
         return distance <= tolerance
 
     def closest_point_to(self, point: Point2D) -> Point2D:
@@ -218,35 +234,33 @@ class Ellipse(Shape2D):
         local_point = point - self.center
         
         # Rotate to align with ellipse axes
-        cos_r = np.cos(-self.rotation)
-        sin_r = np.sin(-self.rotation)
+        cos_r = np.cos(-self.rotation_radians)
+        sin_r = np.sin(-self.rotation_radians)
         
         x_local = local_point.x * cos_r - local_point.y * sin_r
         y_local = local_point.x * sin_r + local_point.y * cos_r
         
         # Find closest point on ellipse using parametric approach
         # This is an approximation using iterative method
-        semi_major_axis = self.major_axis / 2
-        semi_minor_axis = self.minor_axis / 2
-        angle = np.arctan2(y_local * semi_major_axis, x_local * semi_minor_axis)
+        angle = np.arctan2(y_local * self.radius1, x_local * self.radius2)
         
         # Refine using Newton's method
         for _ in range(5):
             # Current point on ellipse
-            x_ellipse = semi_major_axis * np.cos(angle)
-            y_ellipse = semi_minor_axis * np.sin(angle)
+            x_ellipse = self.radius1 * np.cos(angle)
+            y_ellipse = self.radius2 * np.sin(angle)
             
             # Distance vector
             dx = x_local - x_ellipse
             dy = y_local - y_ellipse
             
             # Derivatives
-            dx_dt = -semi_major_axis * np.sin(angle)
-            dy_dt = semi_minor_axis * np.cos(angle)
+            dx_dt = -self.radius1 * np.sin(angle)
+            dy_dt = self.radius2 * np.cos(angle)
             
             # Newton step
             numerator = dx * dx_dt + dy * dy_dt
-            denominator = dx_dt**2 + dy_dt**2 + dx * (-semi_major_axis * np.cos(angle)) + dy * (-semi_minor_axis * np.sin(angle))
+            denominator = dx_dt**2 + dy_dt**2 + dx * (-self.radius1 * np.cos(angle)) + dy * (-self.radius2 * np.sin(angle))
             
             if abs(denominator) < 1e-10:
                 break
@@ -272,27 +286,23 @@ class Ellipse(Shape2D):
         
         # Convert point to local coordinates
         local_point = point - self.center
-        cos_r = np.cos(-self.rotation)
-        sin_r = np.sin(-self.rotation)
+        cos_r = np.cos(-self.rotation_radians)
+        sin_r = np.sin(-self.rotation_radians)
         x_local = local_point.x * cos_r - local_point.y * sin_r
         y_local = local_point.x * sin_r + local_point.y * cos_r
         
-        # Use semi-axes for calculations
-        semi_major_axis = self.major_axis / 2
-        semi_minor_axis = self.minor_axis / 2
-        
         # Find the angle corresponding to this point
         # For a point (x, y) on ellipse, angle = arctan2(y/b, x/a)
-        angle = np.arctan2(y_local / semi_minor_axis, x_local / semi_major_axis)
+        angle = np.arctan2(y_local / self.radius2, x_local / self.radius1)
         
         # Calculate tangent vector in local coordinates
         # Derivative of parametric equation
-        dx_dt = -semi_major_axis * np.sin(angle)
-        dy_dt = semi_minor_axis * np.cos(angle)
+        dx_dt = -self.radius1 * np.sin(angle)
+        dy_dt = self.radius2 * np.cos(angle)
         
         # Convert tangent vector to world coordinates
-        cos_r = np.cos(self.rotation)
-        sin_r = np.sin(self.rotation)
+        cos_r = np.cos(self.rotation_radians)
+        sin_r = np.sin(self.rotation_radians)
         dx_world = dx_dt * cos_r - dy_dt * sin_r
         dy_world = dx_dt * sin_r + dy_dt * cos_r
         
@@ -300,7 +310,7 @@ class Ellipse(Shape2D):
 
     def translate(self, vector) -> 'Ellipse':
         """Make a new ellipse, translated by vector."""
-        return Ellipse(self.center.translate(vector), self.major_axis, self.minor_axis, self.rotation)
+        return Ellipse(self.center.translate(vector), self.radius1, self.radius2, self._rotation_degrees)
 
     def rotate(self, angle: float, center = None) -> 'Ellipse':
         """Make a new ellipse, rotated around a center point."""
@@ -313,8 +323,8 @@ class Ellipse(Shape2D):
         new_center = self.center.rotate(angle, center)
         
         # Rotate ellipse rotation
-        new_rotation = self.rotation + angle
-        return Ellipse(new_center, self.major_axis, self.minor_axis, new_rotation)
+        new_rotation = self._rotation_degrees + angle
+        return Ellipse(new_center, self.radius1, self.radius2, new_rotation)
 
     def scale(self, scale, center = None) -> 'Ellipse':
         """Make a new ellipse, scaled around a center point."""
@@ -329,15 +339,15 @@ class Ellipse(Shape2D):
         # Scale axes
         if isinstance(scale, (int, float, np.integer, np.floating)):
             scale_factor = float(scale)
-            new_major_axis = self.major_axis * scale_factor
-            new_minor_axis = self.minor_axis * scale_factor
-            return Ellipse(new_center, new_major_axis, new_minor_axis, self.rotation)
+            new_radius1 = self.radius1 * scale_factor
+            new_radius2 = self.radius2 * scale_factor
+            return Ellipse(new_center, new_radius1, new_radius2, self._rotation_degrees)
         else:
             scale_point = Point2D(scale)
             # Calculate three corners of the bounding rhombus with scaling
-            p1 = Point2D(-self.major_axis, -self.minor_axis)
-            p2 = Point2D(self.major_axis, -self.minor_axis)
-            p3 = Point2D(self.major_axis, self.minor_axis)
+            p1 = Point2D(-self.radius1, -self.radius2)
+            p2 = Point2D(self.radius1, -self.radius2)
+            p3 = Point2D(self.radius1, self.radius2)
             p1 = p1.scale(scale_point, center)  # type: ignore
             p2 = p2.scale(scale_point, center)  # type: ignore
             p3 = p3.scale(scale_point, center)  # type: ignore
@@ -346,9 +356,9 @@ class Ellipse(Shape2D):
     def transform(self, transform: 'Transform2D') -> 'Ellipse':
         """Make a new ellipse, transformed using a transformation matrix."""
         # Calculate three corners of the bounding rhombus, transormed
-        p1 = Point2D(-self.major_axis, -self.minor_axis)
-        p2 = Point2D(self.major_axis, -self.minor_axis)
-        p3 = Point2D(self.major_axis, self.minor_axis)
+        p1 = Point2D(-self.radius1, -self.radius2)
+        p2 = Point2D(self.radius1, -self.radius2)
+        p3 = Point2D(self.radius1, self.radius2)
         p1 = p1.transform(transform)
         p2 = p2.transform(transform)
         p3 = p3.transform(transform)
@@ -383,8 +393,8 @@ class Ellipse(Shape2D):
         local_p2 = p2 - self.center
         
         # Rotate to align with ellipse axes
-        cos_r = np.cos(-self.rotation)
-        sin_r = np.sin(-self.rotation)
+        cos_r = np.cos(-self.rotation_radians)
+        sin_r = np.sin(-self.rotation_radians)
         
         x1 = local_p1.x * cos_r - local_p1.y * sin_r
         y1 = local_p1.x * sin_r + local_p1.y * cos_r
@@ -396,8 +406,8 @@ class Ellipse(Shape2D):
         dy = y2 - y1
         
         # Quadratic equation coefficients using semi-axes
-        semi_major_axis = self.major_axis / 2
-        semi_minor_axis = self.minor_axis / 2
+        semi_major_axis = self.radius1 / 2
+        semi_minor_axis = self.radius2 / 2
         a = (dx / semi_major_axis) ** 2 + (dy / semi_minor_axis) ** 2
         b = 2 * (x1 * dx / semi_major_axis**2 + y1 * dy / semi_minor_axis**2)
         c = (x1 / semi_major_axis) ** 2 + (y1 / semi_minor_axis) ** 2 - 1

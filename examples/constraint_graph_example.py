@@ -48,8 +48,8 @@ def constraint_graph_example():
     
     # System 2: Two circles with horizontal alignment
     print("   System 2: Two circles with horizontal alignment")
-    circle1 = CircleCadObject(document=doc, center_point=Point2D(20, 0), perimeter_point=Point2D(23, 0))
-    circle2 = CircleCadObject(document=doc, center_point=Point2D(30, 0), perimeter_point=Point2D(33, 0))
+    circle1 = CircleCadObject(document=doc, center_point=Point2D(20, 0), radius=3.0)
+circle2 = CircleCadObject(document=doc, center_point=Point2D(30, 0), radius=3.0)
     circle1_id = doc.add_object(circle1)
     circle2_id = doc.add_object(circle2)
     circle1.make_constrainables(doc.constraints_manager.solver)

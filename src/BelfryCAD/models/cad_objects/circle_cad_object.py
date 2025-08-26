@@ -1,17 +1,18 @@
 """
-CircleCadItem - A circle CAD item defined by center point and perimeter point.
+CircleCadObject - A circle CAD object defined by center point and radius.
 """
 
-from typing import Optional, Tuple, TYPE_CHECKING, List
+from typing import Optional, Tuple, List, TYPE_CHECKING
 
+from ...cad_geometry import (
+    ShapeType, Shape2D,
+    Point2D, Circle,
+)
 from ..cad_object import CadObject
-from ...cad_geometry import Point2D, Circle, ShapeType, Shape2D
 from ...utils.constraints import (
-    ConstraintSolver,
-    ConstrainableLength,
-    ConstrainablePoint2D,
+    ConstraintSolver, Constrainable,
+    ConstrainableLength, ConstrainablePoint2D,
     ConstrainableCircle,
-    Constrainable,
 )
 
 if TYPE_CHECKING:
@@ -19,97 +20,79 @@ if TYPE_CHECKING:
 
 
 class CircleCadObject(CadObject):
-    """A circle CAD item defined by center point and perimeter point."""
+    """A circle CAD object defined by center point and radius."""
 
     def __init__(
             self,
             document: 'Document',
             center_point: Point2D,
-            perimeter_point: Point2D,
+            radius: float,
             color: str = "black",
             line_width: Optional[float] = 0.05
     ):
         super().__init__(document, color, line_width)
-        self._center_point = center_point
-        self._perimeter_point = perimeter_point
-        radius = center_point.distance_to(perimeter_point)
         self.circle = Circle(center_point, radius)
 
-    def boundingRect(self):
-        """Return the bounding rectangle of the circle."""
+    def get_bounds(self) -> Tuple[float, float, float, float]:
+        """Get the bounds of the circle."""
         return self.circle.get_bounds()
 
     @property
-    def radius(self):
-        """Calculate the radius from center to perimeter point."""
+    def radius(self) -> float:
+        """Get the radius of the circle."""
         return self.circle.radius
-
+    
     @radius.setter
-    def radius(self, value):
-        """Set the radius by moving the perimeter point."""
-        angle = (self._perimeter_point - self._center_point).angle_radians
-        self._perimeter_point = self._center_point + Point2D(value, angle=angle)
-        self.circle.radius = value
+    def radius(self, value: float):
+        """Set the radius of the circle."""
+        self.circle.radius = float(value)
 
     @property
-    def diameter(self):
+    def diameter(self) -> float:
         """Get the diameter of the circle."""
-        return self.radius * 2
+        return self.circle.diameter
     
     @diameter.setter
-    def diameter(self, value):
+    def diameter(self, value: float):
         """Set the diameter of the circle."""
-        self.radius = value / 2
+        self.circle.radius = float(value) / 2
 
     @property
-    def center_point(self):
+    def center_point(self) -> Point2D:
         """Get the center point."""
-        return self._center_point
+        return self.circle.center
     
     @center_point.setter
-    def center_point(self, value):
+    def center_point(self, value: Point2D):
         """Set the center point."""
-        value = Point2D(value)
-        delta = value - self._center_point
-        self._center_point = value
-        self.circle.center = value
-        self._perimeter_point += delta
+        self.circle.center = Point2D(value)
 
     @property
-    def perimeter_point(self):
-        """Get the perimeter point."""
-        return self._perimeter_point
+    def perimeter_point(self) -> Point2D:
+        """Get a point on the perimeter (at 0 degrees)."""
+        return self.circle.center + Point2D(self.circle.radius, angle=0.0)
     
     @perimeter_point.setter
-    def perimeter_point(self, value):
-        """Set the perimeter point."""
-        self._perimeter_point = value
-        self.circle.radius = self._center_point.distance_to(value)
+    def perimeter_point(self, value: Point2D):
+        """Set the radius by calculating distance from center to the given point."""
+        point = Point2D(value)
+        self.circle.radius = self.circle.center.distance_to(point)
 
-    def translate(self, dx, dy):
-        """Move center and radius points by the specified offset."""
-        delta = Point2D(dx, dy)
-        self.circle.translate(delta)
-        self._center_point.translate(delta)
-        self._perimeter_point.translate(delta)
+    def translate(self, dx: float, dy: float):
+        """Move the circle by the specified offset."""
+        self.circle.translate(Point2D(dx, dy))
 
-    def scale(self, scale, center):
+    def scale(self, scale: float, center: Point2D):
         """Scale the circle by the specified factor around the center point."""
         self.circle.scale(scale, center)
-        self._center_point.scale(scale, center)
-        self._perimeter_point.scale(scale, center)
 
-    def rotate(self, angle, center):
+    def rotate(self, angle: float, center: Point2D):
         """Rotate the circle by the specified angle around the center point."""
         self.circle.rotate(angle, center)
-        self._center_point.rotate(angle, center)
-        self._perimeter_point.rotate(angle, center)
 
     def transform(self, transform):
         """Transform the circle by the specified transform."""
         self.circle.transform(transform)
-        self._center_point.transform(transform)
-        self._perimeter_point.transform(transform)
 
     def contains_point(self, point: Point2D, tolerance: float = 5.0) -> bool:
         """Check if the circle contains the given point."""
@@ -123,48 +106,49 @@ class CircleCadObject(CadObject):
         """Setup constraints for the circle."""
         cp = ConstrainablePoint2D(solver, (self.circle.center.x, self.circle.center.y), fixed=False)
         radius = ConstrainableLength(solver, self.circle.radius, fixed=True)
-        self.constraint_circle = ConstrainableCircle(solver, cp, radius)
+        circle = ConstrainableCircle(solver, cp, radius)
+        self.constraint_center = cp
+        self.constraint_radius = radius
+        self.constraint_circle = circle
 
     def update_constrainables_before_solving(self, solver: ConstraintSolver):
         """Update constrainables with current object values before solving."""
         if hasattr(self, 'constraint_circle'):
             # Update the constrainable center point with current center
-            self.constraint_circle.center.update_values(self.circle.center.x, self.circle.center.y)
+            self.constraint_center.update_values(self.circle.center.x, self.circle.center.y)
             # Update the constrainable radius with current radius
-            self.constraint_circle.radius.solver.update_variable(self.constraint_circle.radius.index, self.circle.radius)
+            self.constraint_radius.update_value(self.circle.radius)
 
     def update_from_solved_constraints(self, solver: ConstraintSolver):
         """Update object from constraints."""
         cx, cy, radius = self.constraint_circle.get(solver.variables)
         self.circle.center = Point2D(cx, cy)
         self.circle.radius = radius
-        # Update the stored points to match
-        self._center_point = self.circle.center
-        angle = (self._perimeter_point - self._center_point).angle_radians
-        self._perimeter_point = self._center_point + Point2D(radius, angle=angle)
 
     def get_constrainables(self) -> List[Tuple[str, Constrainable]]:
         """Get list of constrainables for this object."""
         if hasattr(self, 'constraint_circle'):
             return [
-                ("center", self.constraint_circle.center),
-                ("radius", self.constraint_circle.radius)
+                ("center", self.constraint_center),
+                ("radius", self.constraint_radius),
+                ("circle", self.constraint_circle),
             ]
         return []
 
     def get_object_data(self) -> dict:
         """Get the object data."""
         return {
-            "center": self.circle.center.to_string(),
-            "radius": str(self.circle.radius),
+            "center_point": self.circle.center.to_string(),
+            "radius": self.circle.radius,
         }
 
     @classmethod
     def create_object_from_data(cls, document: 'Document', obj_type: str, data: dict) -> 'CircleCadObject':
         """Create a circle object from the given data."""
-        data["center"] = Point2D.from_string(data["center"])
-        data["radius"] = float(data["radius"])
-        data["perimeter_point"] = Point2D(data["radius"], angle=0)
-        return cls(document, data["center"], data["perimeter_point"])
+        center_point = Point2D(*data["center_point"])
+        radius = data["radius"]
+        color = data.get("color", "black")
+        line_width = data.get("line_width", 0.05)
+        return cls(document, center_point, radius, color, line_width)
 
-CadObject.register_object_type(CircleCadObject, "circle", {"center": "0,0", "radius": "1"})
+CadObject.register_object_type(CircleCadObject, "circle", {"center_point": "0,0", "radius": "1"})

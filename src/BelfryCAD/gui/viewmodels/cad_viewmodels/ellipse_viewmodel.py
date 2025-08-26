@@ -58,16 +58,16 @@ class EllipseViewModel(CadViewModel):
         center = self.center_point
         major_axis = self.major_axis
         minor_axis = self.minor_axis
-        rotation = self.rotation
+        rotation = self.rotation_degrees
         
         # Create ellipse graphics item
         # Note: QGraphicsEllipseItem uses a bounding rectangle, so we need to calculate it
         # based on the ellipse's center, axes, and rotation
         rect = QRectF(
-            center.x() - major_axis,
-            center.y() - minor_axis,
-            major_axis * 2,
-            minor_axis * 2
+            center.x() - major_axis/2,
+            center.y() - minor_axis/2,
+            major_axis,
+            minor_axis
         )
         pen = QPen(color, line_width)
         
@@ -77,7 +77,7 @@ class EllipseViewModel(CadViewModel):
         if rotation != 0:
             transform = QTransform()
             transform.translate(center.x(), center.y())
-            transform.rotate(math.degrees(rotation))
+            transform.rotate(rotation)
             transform.translate(-center.x(), -center.y())
             view_item.setTransform(transform)
         
@@ -178,7 +178,7 @@ class EllipseViewModel(CadViewModel):
             model_view=self,
             label="Ellipse Major Axis",
             setter=self._set_major_axis,
-            prefix="R1=",
+            prefix="R₁: ",
             format_string=f"{{:.{precision}f}}",
             precision_override=precision,
             min_value=0,
@@ -193,7 +193,7 @@ class EllipseViewModel(CadViewModel):
             model_view=self,
             label="Ellipse Minor Axis",
             setter=self._set_minor_axis,
-            prefix="R2=",
+            prefix="R₂: ",
             format_string=f"{{:.{precision}f}}",
             precision_override=precision,
             min_value=0,
@@ -215,7 +215,7 @@ class EllipseViewModel(CadViewModel):
             max_value=360,
             is_length=False,
             pixel_offset=10,
-            angle=45
+            angle=self.rotation_degrees+180
         )
         self._controls.append(rotation_datum)
 
@@ -247,14 +247,14 @@ class EllipseViewModel(CadViewModel):
         
         # Update Major axis datum
         self._controls[3].update_datum(
-            self.major_axis,
+            self.major_axis/2,
             major
         )
         self._controls[3].angle = self.rotation_degrees
         
         # Update Minor axis datum
         self._controls[4].update_datum(
-            self.minor_axis,
+            self.minor_axis/2,
             minor
         )
         self._controls[4].angle = self.rotation_degrees+90
@@ -262,8 +262,9 @@ class EllipseViewModel(CadViewModel):
         # Update Rotation datum
         self._controls[5].update_datum(
             self.rotation_degrees,
-            center
+            center-(major-center)
         )
+        self._controls[5].angle = self.rotation_degrees+180
     
         self.control_points_updated.emit()
     
@@ -308,7 +309,7 @@ class EllipseViewModel(CadViewModel):
     def major_axis_point(self, value: QPointF):
         """Set major axis point and emit signal"""
         if self.major_axis_point != value:
-            self._ellipse_object.major_axis_point = Point2D(value.x(), value.y())
+            self._ellipse_object.major_axis_point = Point2D(value)
             self.major_axis_point_changed.emit(value)
             self.object_modified.emit()
     
@@ -322,7 +323,7 @@ class EllipseViewModel(CadViewModel):
     def minor_axis_point(self, value: QPointF):
         """Set minor axis point and emit signal"""
         if self.minor_axis_point != value:
-            self._ellipse_object.minor_axis_point = Point2D(value.x(), value.y())
+            self._ellipse_object.minor_axis_point = Point2D(value)
             self.minor_axis_point_changed.emit(value)
             self.object_modified.emit()
     
@@ -353,15 +354,15 @@ class EllipseViewModel(CadViewModel):
             self.object_modified.emit()
     
     @property
-    def rotation(self) -> float:
+    def rotation_radians(self) -> float:
         """Get rotation angle in radians"""
-        return self._ellipse_object.rotation
+        return self._ellipse_object.rotation_radians
     
-    @rotation.setter
-    def rotation(self, value: float):
+    @rotation_radians.setter
+    def rotation_radians(self, value: float):
         """Set rotation angle and emit signal"""
-        if self._ellipse_object.rotation != value:
-            self._ellipse_object.rotation = value
+        if self._ellipse_object.rotation_radians != value:
+            self._ellipse_object.rotation_radians = value
             self.rotation_changed.emit(value)
             self.object_modified.emit()
     
@@ -370,11 +371,10 @@ class EllipseViewModel(CadViewModel):
         """Get rotation angle in degrees"""
         return self._ellipse_object.rotation_degrees
     
-    
     @rotation_degrees.setter
     def rotation_degrees(self, value: float):
         """Set rotation angle in degrees"""
-        self.rotation = math.radians(value)
+        self.rotation_radians = math.radians(value)
     
     @property
     def focus1(self) -> QPointF:
@@ -435,7 +435,7 @@ class EllipseViewModel(CadViewModel):
     def rotate(self, angle: float, center: QPointF):
         """Rotate the ellipse around the given center"""
         current_center = self.center_point
-        current_rotation = self.rotation
+        current_rotation = self.rotation_radians
         
         # Rotate the center point
         T = QTransform()
@@ -448,7 +448,7 @@ class EllipseViewModel(CadViewModel):
         new_rotation = current_rotation + math.radians(angle)
         
         self.center_point = new_center
-        self.rotation = new_rotation
+        self.rotation_radians = new_rotation
         self.object_moved.emit(QPointF(0, 0))
         
     def get_bounds(self) -> Tuple[float, float, float, float]:
@@ -517,4 +517,4 @@ class EllipseViewModel(CadViewModel):
             scene = self._document_window.cad_scene
             if scene:
                 self.update_view(scene)
-                self.update_controls(scene) 
+                self.update_controls(scene)

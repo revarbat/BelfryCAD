@@ -66,8 +66,8 @@ class ArcViewModel(CadViewModel):
         line_width = self._arc_object.line_width
         center = self.center_point
         radius = self.radius
-        start_angle = math.degrees(self.start_angle)  # Convert to degrees for CadArcGraphicsItem
-        span_angle = math.degrees(self.span_angle)    # Convert to degrees for CadArcGraphicsItem
+        start_degrees = self.start_degrees
+        span_degrees = self.span_degrees
         
         # Create main arc using CadArcGraphicsItem
         if line_width is None:
@@ -79,8 +79,8 @@ class ArcViewModel(CadViewModel):
         arc_item = CadArcGraphicsItem(
             center_point=center,
             radius=radius,
-            start_angle=start_angle,
-            span_angle=span_angle,
+            start_degrees=start_degrees,
+            span_degrees=span_degrees,
             arrowheads=CadArcArrowheadEndcaps.NONE,  # No arrowheads for regular arcs
             pen=arc_pen
         )
@@ -191,19 +191,36 @@ class ArcViewModel(CadViewModel):
         self._controls.append(radius_datum)
         
         # Span angle datum
-        span_datum = ControlDatum(
+        start_datum = ControlDatum(
             model_view=self,
-            label="Arc Span Angle",
-            setter=self._set_span_angle,
+            label="Arc Start Angle",
+            setter=self._set_start_degrees,
             format_string="{:.1f}",
-            prefix="∠",
+            prefix="Start: ",
             suffix="°",
             precision_override=1,
             min_value=-360,
             max_value=360,
             is_length=False,
             pixel_offset=10,
-            angle=45
+            angle=self.start_degrees
+        )
+        self._controls.append(start_datum)
+
+        # Span angle datum
+        span_datum = ControlDatum(
+            model_view=self,
+            label="Arc Span Angle",
+            setter=self._set_span_degrees,
+            format_string="{:.1f}",
+            prefix="Span: ",
+            suffix="°",
+            precision_override=1,
+            min_value=-360,
+            max_value=360,
+            is_length=False,
+            pixel_offset=10,
+            angle=self.start_degrees + self.span_degrees
         )
         self._controls.append(span_datum)
 
@@ -234,18 +251,28 @@ class ArcViewModel(CadViewModel):
         self._controls[2].setPos(end)     # End point
         
         # Update Radius datum
+        radius_datum_degrees = self.start_degrees + self.span_degrees/2
+        if abs(self.span_degrees) < 45:
+            radius_datum_degrees += 180
         self._controls[3].update_datum(
             self.radius,
+            center + Point2D(self.radius, angle=radius_datum_degrees).to_qpointf()
+        )
+        self._controls[3].angle = radius_datum_degrees
+        
+        # Update Start Angle datum
+        self._controls[4].update_datum(
+            self.start_degrees,
             start
         )
-        self._controls[3].angle = math.degrees(self.start_angle)
-        
+        self._controls[4].angle = self.start_degrees
+    
         # Update Span Angle datum
-        self._controls[4].update_datum(
-            math.degrees(self.span_angle),
+        self._controls[5].update_datum(
+            self.span_degrees,
             end
         )
-        self._controls[4].angle = math.degrees(self.end_angle)
+        self._controls[5].angle = self.end_degrees
     
         self.control_points_updated.emit()
     
@@ -322,41 +349,80 @@ class ArcViewModel(CadViewModel):
             self.object_modified.emit()
     
     @property
-    def start_angle(self) -> float:
+    def start_radians(self) -> float:
         """Get start angle in radians"""
-        return self._arc_object.start_angle
+        return self._arc_object.start_degrees
     
-    @start_angle.setter
-    def start_angle(self, value: float):
-        """Set start angle and emit signal"""
-        if self._arc_object.start_angle != value:
-            self._arc_object.start_angle = value
+    @start_radians.setter
+    def start_radians(self, value: float):
+        """Set start angle in radians and emit signal"""
+        if self._arc_object.start_degrees != value:
+            self._arc_object.start_degrees = value
             self.start_angle_changed.emit(value)
             self.object_modified.emit()
     
     @property
-    def end_angle(self) -> float:
-        """Get end angle in radians"""
-        return self._arc_object.end_angle
+    def start_degrees(self) -> float:
+        """Get start angle in degrees"""
+        return self._arc_object.start_degrees
     
-    @end_angle.setter
-    def end_angle(self, value: float):
-        """Set end angle and emit signal"""
-        if self._arc_object.end_angle != value:
-            self._arc_object.end_angle = value
+    @start_degrees.setter
+    def start_degrees(self, value: float):
+        """Set start angle in degrees and emit signal"""
+        if self._arc_object.start_degrees != value:
+            self._arc_object.start_degrees = value
+            self.start_angle_changed.emit(value)
+            self.object_modified.emit()
+    
+    @property
+    def end_radians(self) -> float:
+        """Get end angle in radians"""
+        return self._arc_object.end_degrees
+    
+    @end_radians.setter
+    def end_radians(self, value: float):
+        """Set end angle in radians and emit signal"""
+        if self._arc_object.end_degrees != value:
+            self._arc_object.end_degrees = value
             self.end_angle_changed.emit(value)
             self.object_modified.emit()
     
     @property
-    def span_angle(self) -> float:
-        """Get span angle in radians"""
-        return self._arc_object.span_angle
+    def end_degrees(self) -> float:
+        """Get end angle in degrees"""
+        return self._arc_object.end_degrees
     
-    @span_angle.setter
-    def span_angle(self, value: float):
-        """Set span angle and emit signal"""
-        if self._arc_object.span_angle != value:
-            self._arc_object.span_angle = value
+    @end_degrees.setter
+    def end_degrees(self, value: float):
+        """Set end angle in degrees and emit signal"""
+        if self._arc_object.end_degrees != value:
+            self._arc_object.end_degrees = value
+            self.end_angle_changed.emit(value)
+            self.object_modified.emit()
+    
+    @property
+    def span_radians(self) -> float:
+        """Get span angle in radians"""
+        return self._arc_object.span_degrees
+    
+    @span_radians.setter
+    def span_radians(self, value: float):
+        """Set span angle in radians and emit signal"""
+        if self._arc_object.span_degrees != value:
+            self._arc_object.span_degrees = value
+            self.span_angle_changed.emit(value)
+            self.object_modified.emit()
+    
+    @property
+    def span_degrees(self) -> float:
+        """Get span angle in degrees"""
+        return self._arc_object.span_degrees
+    
+    @span_degrees.setter
+    def span_degrees(self, value: float):
+        """Set span angle in degrees and emit signal"""
+        if self._arc_object.span_degrees != value:
+            self._arc_object.span_degrees = value
             self.span_angle_changed.emit(value)
             self.object_modified.emit()
 
@@ -388,7 +454,7 @@ class ArcViewModel(CadViewModel):
     def rotate(self, angle: float, center: QPointF):
         """Rotate the arc around the given center"""
         current_center = self.center_point
-        current_start_angle = self.start_angle
+        current_start_radians = self.start_radians
         
         # Rotate the center point
         T = QTransform()
@@ -398,10 +464,10 @@ class ArcViewModel(CadViewModel):
         new_center = T.map(current_center)
         
         # Rotate the start angle
-        new_start_angle = current_start_angle + math.radians(angle)
+        new_start_radians = current_start_radians + math.radians(angle)
         
         self.center_point = new_center
-        self.start_angle = new_start_angle
+        self.start_radians = new_start_radians
         self.object_moved.emit(QPointF(0, 0))
         
     def get_bounds(self) -> Tuple[float, float, float, float]:
@@ -452,10 +518,19 @@ class ArcViewModel(CadViewModel):
                 self.update_view(scene)
                 self.update_controls(scene)
     
-    def _set_span_angle(self, value):
+    def _set_start_degrees(self, value):
         """Set span angle from control datum (value in degrees)"""
-        span_radians = math.radians(value)
-        self.span_angle = span_radians
+        self.start_degrees = value
+        # Update view and control points to reflect the change
+        if hasattr(self, '_controls') and self._controls:
+            scene = self._document_window.cad_scene
+            if scene:
+                self.update_view(scene)
+                self.update_controls(scene) 
+
+    def _set_span_degrees(self, value):
+        """Set span angle from control datum (value in degrees)"""
+        self.span_degrees = value
         # Update view and control points to reflect the change
         if hasattr(self, '_controls') and self._controls:
             scene = self._document_window.cad_scene

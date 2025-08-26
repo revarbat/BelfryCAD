@@ -66,7 +66,7 @@ class CircleViewModelTest(QMainWindow):
         radius = 50.0
         self.circle_object = CircleCadObject(
             center_point=center_point,
-            perimeter_point=center_point + Point2D(radius, 0),
+            radius=radius,
             color="red",
             line_width=2.0
         )

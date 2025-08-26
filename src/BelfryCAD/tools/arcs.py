@@ -179,12 +179,25 @@ class ArcCenterTool(Tool):
         if center == start or center == end:
             return None
 
+        # Calculate radius and angles
+        radius = center.distance_to(start)
+        start_degrees = (start - center).angle_degrees
+        end_degrees = (end - center).angle_degrees
+        span_degrees = end_degrees - start_degrees
+        
+        # Normalize span angle to handle wraparound cases
+        if span_degrees > 180.0:
+            span_degrees -= 360.0
+        elif span_degrees < -180.0:
+            span_degrees += 360.0
+
         # Create an arc object
         obj = ArcCadObject(
             document=self.document,
             center_point=center,
-            start_point=start,
-            end_point=end,
+            radius=radius,
+            start_degrees=start_degrees,
+            span_degrees=span_degrees,
         )
         return obj
 
@@ -435,12 +448,25 @@ class Arc3PointTool(Tool):
         if center is None:
             return None
 
+        # Calculate radius and angles
+        radius = center.distance_to(p1)
+        start_degrees = (p1 - center).angle_degrees
+        end_degrees = (p3 - center).angle_degrees
+        span_degrees = end_degrees - start_degrees
+        
+        # Normalize span angle to handle wraparound cases
+        if span_degrees > 180.0:
+            span_degrees -= 360.0
+        elif span_degrees < -180.0:
+            span_degrees += 360.0
+
         # Create an arc object
         obj = ArcCadObject(
             document=self.document,
             center_point=center,
-            start_point=p1,
-            end_point=p3,
+            radius=radius,
+            start_degrees=start_degrees,
+            span_degrees=span_degrees,
         )
         return obj
 
@@ -683,11 +709,24 @@ class ArcTangentTool(Tool):
 
         center, _, _, _ = arc_params
 
+        # Calculate radius and angles
+        radius = center.distance_to(start_point)
+        start_degrees = (start_point - center).angle_degrees
+        end_degrees = (end_point - center).angle_degrees
+        span_degrees = end_degrees - start_degrees
+        
+        # Normalize span angle to handle wraparound cases
+        if span_degrees > 180.0:
+            span_degrees -= 360.0
+        elif span_degrees < -180.0:
+            span_degrees += 360.0
+
         # Create an arc object
         obj = ArcCadObject(
             document=self.document,
             center_point=center,
-            start_point=start_point,
-            end_point=end_point,
+            radius=radius,
+            start_degrees=start_degrees,
+            span_degrees=span_degrees,
         )
         return obj

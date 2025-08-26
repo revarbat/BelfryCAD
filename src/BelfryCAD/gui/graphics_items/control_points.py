@@ -223,7 +223,7 @@ class DiamondControlPoint(ControlPoint):
 
         # Get control point size in scene coordinates based on current zoom
         base_size = self._get_control_size_in_scene_coords(painter)
-        control_size = base_size * 1.44  # 44% larger
+        control_size = base_size * 1.414  # 41.4% larger
         control_padding = control_size / 2
 
         # Create diamond shape using QPainterPath
@@ -422,6 +422,7 @@ class ControlDatum(ControlPoint):
 
         # Set up font
         font = QFont("Arial", 14)
+        #font.setUnderline(True)
         painter.setFont(font)
         
         # Calculate text metrics
@@ -579,7 +580,9 @@ class ControlDatum(ControlPoint):
         try:
             # Evaluate the expression to a float
             new_value = float(expr_edit._expression.evaluate(expr_edit.text()))
-            scale = self.model_view.document_window.grid_info.unit_scale
+            scale = 1.0
+            if self._is_length:
+                scale = self.model_view.document_window.grid_info.unit_scale
             self.call_setter_with_updates(new_value * scale)
         except Exception:
             pass

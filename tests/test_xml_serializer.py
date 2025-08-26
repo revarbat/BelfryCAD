@@ -67,17 +67,38 @@ class TestXMLSerializer(unittest.TestCase):
         document.objects[line.object_id] = line
         
         # Create a circle
-        circle = CircleCadObject(document, Point2D(5, 5), Point2D(10, 5), "blue", 0.1)
+        # Calculate radius from center to perimeter point
+        center = Point2D(5, 5)
+        perimeter_point = Point2D(10, 5)
+        radius = center.distance_to(perimeter_point)
+        
+        circle = CircleCadObject(document, center, radius, "blue", 0.1)
         circle.name = "Test Circle"
         document.objects[circle.object_id] = circle
         
         # Create an arc
-        arc = ArcCadObject(document, Point2D(0, 0), Point2D(5, 0), Point2D(0, 5), "red", 0.05)
+        # Calculate radius and angles for a quarter circle
+        center = Point2D(0, 0)
+        start_point = Point2D(5, 0)
+        end_point = Point2D(0, 5)
+        radius = center.distance_to(start_point)
+        start_degrees = (start_point - center).angle_degrees
+        end_degrees = (end_point - center).angle_degrees
+        span_degrees = end_degrees - start_degrees
+        
+        arc = ArcCadObject(document, center, radius, start_degrees, span_degrees, "red", 0.05)
         arc.name = "Test Arc"
         document.objects[arc.object_id] = arc
         
         # Create an ellipse
-        ellipse = EllipseCadObject(document, Point2D(15, 5), Point2D(20, 5), Point2D(15, 7), "green", 0.05)
+        # Calculate radii from center to axis points
+        center = Point2D(15, 5)
+        major_axis_point = Point2D(20, 5)
+        minor_axis_point = Point2D(15, 7)
+        radius1 = center.distance_to(major_axis_point)
+        radius2 = center.distance_to(minor_axis_point)
+        
+        ellipse = EllipseCadObject(document, center, radius1, radius2, 0.0, "green", 0.05)
         ellipse.name = "Test Ellipse"
         document.objects[ellipse.object_id] = ellipse
         
@@ -185,8 +206,8 @@ class TestXMLSerializer(unittest.TestCase):
                 self.assertEqual(loaded_obj.center_point.x, original_obj.center_point.x)
                 self.assertEqual(loaded_obj.center_point.y, original_obj.center_point.y)
                 self.assertAlmostEqual(loaded_obj.radius, original_obj.radius, places=6)
-                self.assertAlmostEqual(loaded_obj.start_angle, original_obj.start_angle, places=6)
-                self.assertAlmostEqual(loaded_obj.span_angle, original_obj.span_angle, places=6)
+                self.assertAlmostEqual(loaded_obj.start_degrees, original_obj.start_degrees, places=6)
+                self.assertAlmostEqual(loaded_obj.span_degrees, original_obj.span_degrees, places=6)
             
             elif isinstance(original_obj, EllipseCadObject):
                 self.assertEqual(loaded_obj.center_point.x, original_obj.center_point.x)

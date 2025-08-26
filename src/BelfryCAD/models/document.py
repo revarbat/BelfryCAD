@@ -354,10 +354,10 @@ class Document:
         line = LineCadObject(self, start_point, end_point)
         return self.add_object(line)
     
-    def create_circle(self, center: Point2D, radius_point: Point2D) -> str:
+    def create_circle(self, center: Point2D, radius: float) -> str:
         """Create a circle object"""
         from .cad_objects.circle_cad_object import CircleCadObject
-        circle = CircleCadObject(self, center, radius_point)
+        circle = CircleCadObject(self, center, radius)
         return self.add_object(circle)
     
     def mark_modified(self):

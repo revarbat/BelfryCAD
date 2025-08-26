@@ -13,16 +13,13 @@ from PySide6.QtGui import QColor
 import math
 
 # Import the viewmodels
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'gui', 'viewmodels'))
-from arc_viewmodel import ArcViewModel
+from BelfryCAD.gui.viewmodels.cad_viewmodels.arc_viewmodel import ArcViewModel
 
 # Import the models
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'models', 'cad_objects'))
-from arc_cad_object import ArcCadObject
+from BelfryCAD.models.cad_objects.arc_cad_object import ArcCadObject
 
 # Import geometry
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'utils'))
-from geometry import Point2D
+from BelfryCAD.cad_geometry.point import Point2D
 
 
 class MockMainWindow:
@@ -70,10 +67,23 @@ class ArcViewModelTest(QMainWindow):
         start_point = Point2D(center_point.x + radius, center_point.y)
         end_point = Point2D(center_point.x, center_point.y + radius)
         
+        # Calculate radius and angles
+        radius = center_point.distance_to(start_point)
+        start_degrees = (start_point - center_point).angle_degrees
+        end_degrees = (end_point - center_point).angle_degrees
+        span_degrees = end_degrees - start_degrees
+        
+        # Normalize span angle to handle wraparound cases
+        if span_degrees > 180.0:
+            span_degrees -= 360.0
+        elif span_degrees < -180.0:
+            span_degrees += 360.0
+        
         self.arc_object = ArcCadObject(
             center_point=center_point,
-            start_point=start_point,
-            end_point=end_point,
+            radius=radius,
+            start_degrees=start_degrees,
+            span_degrees=span_degrees,
             color="blue",
             line_width=2.0
         )

@@ -67,10 +67,15 @@ class EllipseViewModelTest(QMainWindow):
         major_axis_point = Point2D(50, 0)  # Major axis to the right
         minor_axis_point = Point2D(0, 30)  # Minor axis up
         
+        # Calculate radii from center to axis points
+        radius1 = center_point.distance_to(major_axis_point)
+        radius2 = center_point.distance_to(minor_axis_point)
+        
         self.ellipse_object = EllipseCadObject(
             center_point=center_point,
-            major_axis_point=major_axis_point,
-            minor_axis_point=minor_axis_point,
+            radius1=radius1,
+            radius2=radius2,
+            rotation_degrees=0.0,
             color="green",
             line_width=2.0
         )

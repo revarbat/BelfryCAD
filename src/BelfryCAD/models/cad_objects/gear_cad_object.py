@@ -5,14 +5,14 @@ GearCadObject - A gear CAD object defined by center point and parameters.
 import math
 from typing import Optional, Tuple, List, TYPE_CHECKING
 
-from ..cad_object import CadObject
 from ...cad_geometry import (
-    Point2D, SpurGear, Transform2D, ShapeType, Shape2D, Polygon, Circle
+    ShapeType, Shape2D, Transform2D,
+    Point2D, SpurGear, Polygon, Circle,
 )
+from ..cad_object import CadObject
 from ...utils.constraints import (
-    ConstraintSolver,
-    ConstrainablePoint2D,
-    Constrainable,
+    ConstraintSolver, Constrainable,
+    ConstrainablePoint2D, ConstrainableCircle,
 )
 
 if TYPE_CHECKING:

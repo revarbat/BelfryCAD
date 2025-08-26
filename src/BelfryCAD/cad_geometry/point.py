@@ -24,7 +24,8 @@ EPSILON = 1e-10
 class Point2D(Shape2D):
     """
     A 2D point with x and y coordinates.
-    
+    The point can be initialized with x and y coordinates, another point-like
+      object, or a magnitude and angle in degrees.
     This class provides various geometric operations including vector arithmetic,
     distance calculations, and conversions to other formats.
     """
@@ -36,7 +37,15 @@ class Point2D(Shape2D):
         Args:
             x: X coordinate, or another point, or magnitude if angle is provided
             y: Y coordinate (ignored if x is a point or angle is provided)
-            angle: Angle in radians (creates point at distance x from origin)
+            angle: Angle in degrees (creates point at distance x from origin)
+
+        Examples:
+            Point2D(1, 2)
+            Point2D((1, 2))
+            Point2D([1, 2])
+            Point2D(Point2D(1, 2))
+            Point2D(QPointF(1, 2))
+            Point2D(2, angle=45)  # 2 units from origin at 45 degrees
         """
         if y is not None:
             try:
@@ -53,7 +62,7 @@ class Point2D(Shape2D):
 
         if angle is not None:
             try:
-                angle = float(angle)
+                angle = math.radians(float(angle))
             except:
                 raise ValueError(f"Invalid angle value: {angle}")
             try:

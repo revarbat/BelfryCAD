@@ -49,17 +49,38 @@ def create_sample_document():
     document.objects[line1.object_id] = line1
     
     # Create a circle
-    circle1 = CircleCadObject(document, Point2D(5, 5), Point2D(7.5, 5), "blue", 0.05)
+    # Calculate radius from center to perimeter point
+center = Point2D(5, 5)
+perimeter_point = Point2D(7.5, 5)
+radius = center.distance_to(perimeter_point)
+
+circle1 = CircleCadObject(document, center, radius, "blue", 0.05)
     circle1.name = "Main Circle"
     document.objects[circle1.object_id] = circle1
     
     # Create an arc
-    arc1 = ArcCadObject(document, Point2D(5, 5), Point2D(7.5, 5), Point2D(5, 7.5), "red", 0.05)
+    # Calculate radius and angles for a quarter circle
+center = Point2D(5, 5)
+start_point = Point2D(7.5, 5)
+end_point = Point2D(5, 7.5)
+radius = center.distance_to(start_point)
+start_degrees = (start_point - center).angle_degrees
+end_degrees = (end_point - center).angle_degrees
+span_degrees = end_degrees - start_degrees
+
+arc1 = ArcCadObject(document, center, radius, start_degrees, span_degrees, "red", 0.05)
     arc1.name = "Top Arc"
     document.objects[arc1.object_id] = arc1
     
     # Create an ellipse
-    ellipse1 = EllipseCadObject(document, Point2D(15, 5), Point2D(20, 5), Point2D(15, 7), "green", 0.05)
+    # Calculate radii from center to axis points
+center = Point2D(15, 5)
+major_axis_point = Point2D(20, 5)
+minor_axis_point = Point2D(15, 7)
+radius1 = center.distance_to(major_axis_point)
+radius2 = center.distance_to(minor_axis_point)
+
+ellipse1 = EllipseCadObject(document, center, radius1, radius2, 0.0, "green", 0.05)
     ellipse1.name = "Main Ellipse"
     document.objects[ellipse1.object_id] = ellipse1
     
@@ -90,7 +111,12 @@ def create_sample_document():
     document.objects[line2.object_id] = line2
     group1.add_child(line2.object_id)
     
-    circle2 = CircleCadObject(document, Point2D(2.5, 17.5), Point2D(3.5, 17.5), "blue", 0.05)
+    # Calculate radius from center to perimeter point
+center2 = Point2D(2.5, 17.5)
+perimeter_point2 = Point2D(3.5, 17.5)
+radius2 = center2.distance_to(perimeter_point2)
+
+circle2 = CircleCadObject(document, center2, radius2, "blue", 0.05)
     circle2.name = "Circle in Group"
     circle2.parent_id = group1.object_id
     document.objects[circle2.object_id] = circle2

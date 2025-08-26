@@ -4,15 +4,16 @@ CadArcGraphicsItem - A graphics item for drawing arcs with optional arrowheads a
 
 import math
 from enum import Enum
-from typing import Optional, List
+from typing import Optional
 from PySide6.QtCore import (
-    Qt, QPointF, QRectF, QPropertyAnimation, QEasingCurve, QVariantAnimation
+    Qt, QPointF, QRectF
 )
 from PySide6.QtGui import (
-    QPen, QBrush, QColor, QPainter, QPainterPath, QPainterPathStroker, QPolygonF
+    QPen, QBrush, QColor, QPainterPath, QPainterPathStroker, QPolygonF
 )
 from PySide6.QtWidgets import (
-    QAbstractGraphicsShapeItem, QGraphicsItem, QGraphicsLineItem, QGraphicsPathItem, QGraphicsPolygonItem, QApplication
+    QAbstractGraphicsShapeItem, QGraphicsItem, QGraphicsPathItem,
+    QGraphicsPolygonItem
 )
 
 
@@ -23,6 +24,11 @@ class CadArcArrowheadEndcaps(Enum):
     BOTH = 3
 
 
+def _polar(rad, ang):
+    ang_rad = math.radians(ang)
+    return QPointF(math.cos(ang_rad), math.sin(ang_rad)) * rad
+
+
 class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
     """A graphics item for drawing arcs with optional arrowheads."""
 
@@ -30,19 +36,31 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
             self,
             center_point: QPointF,
             radius: float,
-            start_angle: float,
-            span_angle: float,
+            start_degrees: float,
+            span_degrees: float,
             arrowheads: CadArcArrowheadEndcaps = CadArcArrowheadEndcaps.NONE,
             parent: Optional[QGraphicsItem] = None,
             pen: QPen = QPen(QColor(0, 0, 0), 1.0)
     ):
+        """
+        Initialize the CadArcGraphicsItem.
+
+        Args:
+            center_point: The center point of the arc.
+            radius: The radius of the arc.
+            start_degrees: The start angle of the arc in degrees.
+            span_degrees: The span angle of the arc in degrees.
+            arrowheads: The arrowheads of the arc.
+            parent: The parent item of the arc.
+            pen: The pen used to draw the arc.
+        """
         super().__init__(parent)
         
         # Store arc parameters
         self._center_point = center_point
         self._radius = radius
-        self._start_angle = start_angle
-        self._span_angle = span_angle
+        self._start_degrees = start_degrees
+        self._span_degrees = span_degrees
         
         # Styling properties - will be set via setPen()
         self._arrowheads = arrowheads
@@ -64,61 +82,49 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         self._create_arc()
 
     def _create_arc(self):
-        """Create the arc graphics item."""
+        """
+        Creates the arc graphics item.
+        """
         # Calculate end angle
-        start_angle = self._start_angle
-        end_angle = start_angle + self._span_angle
-        
-        # Convert angles to radians
-        start_rad = math.radians(self._start_angle)
-        end_rad = math.radians(end_angle)
+        start_degrees = self._start_degrees
+        end_degrees = start_degrees + self._span_degrees
         
         # Calculate start and end points
-        start_point = QPointF(
-            self._center_point.x() + math.cos(start_rad) * self._radius,
-            self._center_point.y() + math.sin(start_rad) * self._radius
-        )
-        end_point = QPointF(
-            self._center_point.x() + math.cos(end_rad) * self._radius,
-            self._center_point.y() + math.sin(end_rad) * self._radius
-        )
+        start_point = self._center_point + _polar(self._radius, start_degrees)
+        end_point = self._center_point + _polar(self._radius, end_degrees)
         
         # Create arc path
         arc_path = QPainterPath()
         
         # Normalize span angle to -180 to 180 for Qt's arcTo
-        span_angle = self._span_angle
-        while span_angle > 360:
-            span_angle -= 360
-        while span_angle < -360:
-            span_angle += 360
+        span_degrees = self._span_degrees
+        while span_degrees > 360:
+            span_degrees -= 360
+        while span_degrees < -360:
+            span_degrees += 360
         
         scale = self.transform().m11()
         circum = 2 * math.pi * self._radius
         shy_span = 10 * scale / circum * 360
-        trimmed_span_angle = span_angle
-        trimmed_start_angle = start_angle
+        trimmed_span_angle = span_degrees
+        trimmed_start_angle = start_degrees
         trimmed_start_point = start_point
         if self._arrowheads in [CadArcArrowheadEndcaps.START, CadArcArrowheadEndcaps.BOTH]:
-            trimmed_span_angle -= math.copysign(shy_span, span_angle)
-            trimmed_start_angle += math.copysign(shy_span, span_angle)
-            trimmed_start_rad = math.radians(trimmed_start_angle)
-            trimmed_start_point = QPointF(
-                self._center_point.x() + math.cos(trimmed_start_rad) * self._radius,
-                self._center_point.y() + math.sin(trimmed_start_rad) * self._radius
-            )
+            trimmed_span_angle -= math.copysign(shy_span, span_degrees)
+            trimmed_start_angle += math.copysign(shy_span, span_degrees)
+            trimmed_start_point = self._center_point + _polar(self._radius, trimmed_start_angle)
         if self._arrowheads in [CadArcArrowheadEndcaps.END, CadArcArrowheadEndcaps.BOTH]:
-            trimmed_span_angle -= math.copysign(shy_span, span_angle)
+            trimmed_span_angle -= math.copysign(shy_span, span_degrees)
         arc_path.moveTo(trimmed_start_point)
 
-        # Draw the arc
+        # Draw the arc - Qt's arcTo uses degrees
         arc_path.arcTo(
             self._center_point.x() - self._radius,
             self._center_point.y() - self._radius,
             self._radius * 2,
             self._radius * 2,
-            -trimmed_start_angle,
-            -trimmed_span_angle  # Negative for clockwise
+            -trimmed_start_angle,  # Qt uses degrees
+            -trimmed_span_angle    # Qt uses degrees, negative for clockwise
         )
         
         # Create arc graphics item
@@ -128,11 +134,19 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         
         # Create arrowheads if requested
         if self._arrowheads != CadArcArrowheadEndcaps.NONE:
-            self._create_arrowheads(start_point, end_point, start_rad, end_rad, span_angle)
+            self._create_arrowheads(start_point, end_point, start_degrees, end_degrees, span_degrees)
 
     def _create_arrowheads(self, start_point: QPointF, end_point: QPointF, 
-                          start_rad: float, end_rad: float, span_angle: float):
-        """Create arrowheads at the start and end of the arc."""
+                          start_degrees: float, end_degrees: float, span_degrees: float):
+        """Create arrowheads at the start and end of the arc.
+        
+        Args:
+            start_point: Start point of the arc
+            end_point: End point of the arc  
+            start_degrees: Start angle in degrees
+            end_degrees: End angle in degrees
+            span_degrees: Span angle in degrees
+        """
         # Clear existing arrowheads
         for item in self._arrowhead_items:
             if item.scene():
@@ -141,24 +155,21 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         
         scale = self.transform().m11()
         shy_span = 10 * scale / self._radius
-        arrow_spin = math.pi/2 - shy_span / 2
-        if span_angle < 0:
+        # Calculate arrow spin in degrees
+        arrow_spin = 90 - shy_span / 2
+        if span_degrees < 0:
             arrow_spin = -arrow_spin
 
         if self._arrowheads in [CadArcArrowheadEndcaps.START, CadArcArrowheadEndcaps.BOTH]:
             # Create start arrowhead (pointing outward from center)
-            start_arrow_vector = QPointF(
-                math.cos(start_rad-arrow_spin) * 10,
-                math.sin(start_rad-arrow_spin) * 10
-            )
+            start_arrow_angle = start_degrees - arrow_spin
+            start_arrow_vector = _polar(10, start_arrow_angle)
             self._create_arrowhead(start_point, start_arrow_vector)
         
         if self._arrowheads in [CadArcArrowheadEndcaps.END, CadArcArrowheadEndcaps.BOTH]:
             # Create end arrowhead (pointing outward from center)
-            end_arrow_vector = QPointF(
-                math.cos(end_rad+arrow_spin) * 10,
-                math.sin(end_rad+arrow_spin) * 10
-            )
+            end_arrow_angle = end_degrees + arrow_spin
+            end_arrow_vector = _polar(10, end_arrow_angle)
             self._create_arrowhead(end_point, end_arrow_vector)
 
     def _create_arrowhead(self, arrow_tip: QPointF, arrow_vector: QPointF):
@@ -251,14 +262,14 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         self._radius = radius
         self._recreate_arc()
 
-    def setStartAngle(self, start_angle: float):
+    def setStartAngle(self, start_degrees: float):
         """Set the start angle of the arc in degrees."""
-        self._start_angle = start_angle
+        self._start_degrees = start_degrees
         self._recreate_arc()
 
-    def setSpanAngle(self, span_angle: float):
+    def setSpanAngle(self, span_degrees: float):
         """Set the span angle of the arc in degrees."""
-        self._span_angle = span_angle
+        self._span_degrees = span_degrees
         self._recreate_arc()
 
     def setPen(self, pen):
@@ -314,19 +325,19 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         return self._radius
 
     @property
-    def start_angle(self) -> float:
+    def start_degrees(self) -> float:
         """Get the start angle of the arc in degrees."""
-        return self._start_angle
+        return self._start_degrees
 
     @property
-    def span_angle(self) -> float:
+    def span_degrees(self) -> float:
         """Get the span angle of the arc in degrees."""
-        return self._span_angle
+        return self._span_degrees
 
     @property
-    def end_angle(self) -> float:
+    def end_degrees(self) -> float:
         """Get the end angle of the arc in degrees."""
-        return self._start_angle + self._span_angle 
+        return self._start_degrees + self._span_degrees 
 
     @property
     def arrowheads(self) -> CadArcArrowheadEndcaps:

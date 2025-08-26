@@ -446,13 +446,11 @@ class BelfryCADXMLSerializer:
         
         # Start angle in degrees
         start_angle_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}start_angle")
-        start_angle_degrees = math.degrees(arc.start_angle)
-        start_angle_elem.set("value", str(start_angle_degrees))
+        start_angle_elem.set("value", str(arc.start_degrees))
         
         # Span angle in degrees
         span_angle_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}span_angle")
-        span_angle_degrees = math.degrees(arc.span_angle)
-        span_angle_elem.set("value", str(span_angle_degrees))
+        span_angle_elem.set("value", str(arc.span_degrees))
     
     def _add_ellipse_data(self, obj_elem: ET.Element, ellipse: EllipseCadObject):
         """Add ellipse-specific data."""
@@ -472,8 +470,7 @@ class BelfryCADXMLSerializer:
         
         # Rotation angle in degrees (counter-clockwise)
         rotation_elem = ET.SubElement(obj_elem, f"{{{self.NAMESPACE}}}rotation_angle")
-        rotation_degrees = math.degrees(ellipse.rotation)
-        rotation_elem.set("value", str(rotation_degrees))
+        rotation_elem.set("value", str(ellipse.rotation_degrees))
     
     def _add_bezier_data(self, obj_elem: ET.Element, bezier: CubicBezierCadObject):
         """Add bezier-specific data."""
@@ -705,9 +702,8 @@ class BelfryCADXMLSerializer:
         radius = self._read_scalar(radius_elem, 'value', 0)
         
         center_point = Point2D(cx, cy)
-        perimeter_point = center_point + Point2D(radius, 0)  # Point on perimeter
         
-        return CircleCadObject(document, center_point, perimeter_point, color, line_width)
+        return CircleCadObject(document, center_point, radius, color, line_width)
     
     def _create_arc_object(self, document: Document, obj_elem: ET.Element,
                           name: str, color: str, line_width: Optional[float]) -> ArcCadObject:
@@ -730,14 +726,11 @@ class BelfryCADXMLSerializer:
         
         center_point = Point2D(cx, cy)
         
-        # Calculate start and end points from center, radius, and angles
-        start_point = center_point + Point2D(radius * math.cos(start_angle_radians), 
-                                             radius * math.sin(start_angle_radians))
-        end_angle_radians = start_angle_radians + span_angle_radians
-        end_point = center_point + Point2D(radius * math.cos(end_angle_radians), 
-                                           radius * math.sin(end_angle_radians))
+        # Convert angles from radians to degrees
+        start_degrees = math.degrees(start_angle_radians)
+        span_degrees = math.degrees(span_angle_radians)
         
-        return ArcCadObject(document, center_point, start_point, end_point, color, line_width)
+        return ArcCadObject(document, center_point, radius, start_degrees, span_degrees, color, line_width)
     
     def _create_ellipse_object(self, document: Document, obj_elem: ET.Element,
                               name: str, color: str, line_width: Optional[float]) -> EllipseCadObject:
@@ -764,13 +757,7 @@ class BelfryCADXMLSerializer:
             rotation_degrees = float(rotation_elem.get("value", "0"))
         rotation_radians = math.radians(rotation_degrees)
         
-        # Create major and minor axis points based on center, radii, and rotation
-        major_axis_point = center_point + Point2D(radius1 * math.cos(rotation_radians), 
-                                                  radius1 * math.sin(rotation_radians))
-        minor_axis_point = center_point + Point2D(radius2 * math.cos(rotation_radians + math.pi/2), 
-                                                  radius2 * math.sin(rotation_radians + math.pi/2))
-        
-        return EllipseCadObject(document, center_point, major_axis_point, minor_axis_point, color, line_width)
+        return EllipseCadObject(document, center_point, radius1, radius2, rotation_degrees, color, line_width)
     
     def _create_bezier_object(self, document: Document, obj_elem: ET.Element,
                              name: str, color: str, line_width: Optional[float]) -> CubicBezierCadObject:
