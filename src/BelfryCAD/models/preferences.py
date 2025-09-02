@@ -5,7 +5,7 @@ This model contains pure business logic for preference management,
 with no UI dependencies.
 """
 
-import json
+import yaml
 from typing import Any, Dict, List, Optional
 from pathlib import Path
 import logging
@@ -74,78 +74,79 @@ class PreferencesModel:
         
         Args:
             key: Preference key
-            value: Preference value
+            value: New value
             
         Returns:
-            True if value was changed, False if it was the same
+            True if value was set successfully, False if validation failed
         """
-        old_value = self._preferences.get(key)
-        
-        # Validate the value
-        if not self._validate_preference(key, value):
-            self.logger.warning(f"Invalid value for preference '{key}': {value}")
-            return False
-        
-        if old_value != value:
-            self.logger.debug(f"Setting preference '{key}': {old_value} -> {value}")
+        if self._validate_preference(key, value):
+            old_value = self._preferences.get(key)
             self._preferences[key] = value
+            self.logger.debug(f"Setting preference '{key}': {old_value} -> {value}")
             return True
-        
-        return False
+        else:
+            self.logger.warning(f"Invalid preference value for '{key}': {value}")
+            return False
     
     def get_all(self) -> Dict[str, Any]:
-        """Get all preferences as a dictionary copy."""
-        return self._preferences.copy()
-    
-    def set_multiple(self, preferences: Dict[str, Any]) -> List[str]:
-        """Set multiple preferences at once.
+        """Get all current preferences (excluding defaults not explicitly set).
         
-        Args:
-            preferences: Dictionary of preference key-value pairs
-            
         Returns:
-            List of keys that were actually changed
+            Dictionary of all set preferences
         """
-        changed_keys = []
-        for key, value in preferences.items():
-            if self.set(key, value):
-                changed_keys.append(key)
-        return changed_keys
+        return dict(self._preferences)
     
-    def get_default(self, key: str) -> Any:
-        """Get the default value for a preference key.
+    def get_all_with_defaults(self) -> Dict[str, Any]:
+        """Get all preferences including defaults.
         
-        Args:
-            key: Preference key
-            
         Returns:
-            Default value or None if key doesn't exist
+            Dictionary merging defaults with set preferences
         """
-        return self._defaults.get(key)
+        merged = dict(self._defaults)
+        merged.update(self._preferences)
+        return merged
     
-    def get_all_defaults(self) -> Dict[str, Any]:
-        """Get all default preferences."""
-        return self._defaults.copy()
+    def reset_to_defaults(self):
+        """Reset all preferences to their default values."""
+        self._preferences.clear()
+        self._preferences.update(self._defaults)
+        self.logger.info("Reset all preferences to defaults")
     
-    def reset_to_default(self, key: str) -> bool:
+    def reset_preference(self, key: str) -> bool:
         """Reset a single preference to its default value.
         
         Args:
             key: Preference key to reset
             
         Returns:
-            True if value was changed, False otherwise
+            True if preference was reset, False if key not found in defaults
         """
         if key in self._defaults:
-            return self.set(key, self._defaults[key])
+            old_value = self._preferences.get(key)
+            self._preferences[key] = self._defaults[key]
+            self.logger.info(f"Reset preference '{key}': {old_value} -> {self._defaults[key]}")
+            return True
         else:
-            self.logger.warning(f"No default value for preference '{key}'")
+            self.logger.warning(f"Cannot reset unknown preference: {key}")
             return False
     
-    def reset_to_defaults(self) -> None:
-        """Reset all preferences to their default values."""
-        self._preferences = self._defaults.copy()
-        self.logger.info("Reset all preferences to defaults")
+    def delete_preference(self, key: str) -> bool:
+        """Delete a preference (will fall back to default).
+        
+        Args:
+            key: Preference key to delete
+            
+        Returns:
+            True if preference was deleted, False if key not found
+        """
+        if key in self._preferences:
+            del self._preferences[key]
+            self.logger.info(f"Deleted preference: {key}")
+            return True
+        else:
+            self.logger.warning(f"Cannot delete non-existent preference: {key}")
+            return False
+
     
     def load_from_file(self, file_path: Optional[Path] = None) -> bool:
         """Load preferences from file.
@@ -162,7 +163,7 @@ class PreferencesModel:
         try:
             if file_path.exists():
                 with open(file_path, 'r') as f:
-                    loaded_prefs = json.load(f)
+                    loaded_prefs = yaml.safe_load(f) or {}
                 
                 # Validate and update preferences
                 valid_prefs = {}
@@ -177,8 +178,14 @@ class PreferencesModel:
                 self.logger.info(f"Loaded {len(valid_prefs)} preferences from {file_path}")
                 return True
             else:
-                self.logger.info(f"No preferences file found at {file_path}")
-                return False
+                # Check for legacy JSON file and migrate if it exists
+                legacy_file = file_path.parent / "preferences.json"
+                if legacy_file.exists():
+                    self.logger.info(f"Found legacy JSON preferences file, migrating to YAML")
+                    return self._migrate_from_json(legacy_file, file_path)
+                else:
+                    self.logger.info(f"No preferences file found at {file_path}")
+                    return False
                 
         except Exception as e:
             self.logger.error(f"Error loading preferences from {file_path}: {e}")
@@ -201,7 +208,7 @@ class PreferencesModel:
             file_path.parent.mkdir(parents=True, exist_ok=True)
             
             with open(file_path, 'w') as f:
-                json.dump(self._preferences, f, indent=2, sort_keys=True)
+                yaml.safe_dump(self._preferences, f, indent=2, sort_keys=True, default_flow_style=False)
             
             self.logger.info(f"Saved {len(self._preferences)} preferences to {file_path}")
             return True
@@ -232,54 +239,135 @@ class PreferencesModel:
         """
         return self.load_from_file(file_path)
     
+    def _migrate_from_json(self, json_file: Path, yaml_file: Path) -> bool:
+        """Migrate preferences from JSON to YAML format.
+        
+        Args:
+            json_file: Path to the existing JSON preferences file
+            yaml_file: Path to the new YAML preferences file
+            
+        Returns:
+            True if migration was successful, False otherwise
+        """
+        try:
+            import json
+            
+            # Load the JSON file
+            with open(json_file, 'r') as f:
+                json_prefs = json.load(f)
+            
+            # Validate and update preferences
+            valid_prefs = {}
+            for key, value in json_prefs.items():
+                if self._validate_preference(key, value):
+                    valid_prefs[key] = value
+                else:
+                    self.logger.warning(f"Skipping invalid preference during migration '{key}': {value}")
+            
+            self._preferences.update(valid_prefs)
+            
+            # Save to YAML format
+            if self.save_to_file(yaml_file):
+                self.logger.info(f"Successfully migrated {len(valid_prefs)} preferences from JSON to YAML")
+                
+                # Optionally rename the old JSON file as backup
+                backup_file = json_file.parent / "preferences.json.backup"
+                try:
+                    json_file.rename(backup_file)
+                    self.logger.info(f"Created backup of old JSON file: {backup_file}")
+                except Exception as e:
+                    self.logger.warning(f"Could not create backup of JSON file: {e}")
+                
+                return True
+            else:
+                self.logger.error("Failed to save preferences to YAML after migration")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error migrating preferences from JSON to YAML: {e}")
+            return False
+    
     def get_preference_keys(self) -> List[str]:
         """Get all preference keys (both set and default)."""
         all_keys = set(self._preferences.keys()) | set(self._defaults.keys())
         return sorted(list(all_keys))
     
     def has_preference(self, key: str) -> bool:
-        """Check if a preference key exists.
+        """Check if a preference key exists (either set or has default).
         
         Args:
-            key: Preference key
+            key: Preference key to check
             
         Returns:
-            True if preference exists (either set or has default)
+            True if key exists, False otherwise
         """
         return key in self._preferences or key in self._defaults
     
+    def is_default_value(self, key: str) -> bool:
+        """Check if a preference is currently set to its default value.
+        
+        Args:
+            key: Preference key to check
+            
+        Returns:
+            True if current value equals default, False otherwise
+        """
+        if key not in self._defaults:
+            return False
+        
+        current_value = self.get(key)
+        default_value = self._defaults[key]
+        return current_value == default_value
+    
+    def get_modified_preferences(self) -> Dict[str, Any]:
+        """Get only preferences that differ from their defaults.
+        
+        Returns:
+            Dictionary of modified preferences
+        """
+        modified = {}
+        for key, value in self._preferences.items():
+            if key in self._defaults:
+                if value != self._defaults[key]:
+                    modified[key] = value
+            else:
+                # No default exists, so it's a custom preference
+                modified[key] = value
+        
+        return modified
+    
     def _get_default_preferences(self) -> Dict[str, Any]:
-        """Get default preferences from config."""
-        return self.config.default_prefs.copy()
+        """Get the default preferences from config.
+        
+        Returns:
+            Dictionary of default preferences
+        """
+        return dict(self.config.default_prefs)
     
     def _validate_preference(self, key: str, value: Any) -> bool:
-        """Validate a preference value.
+        """Validate a preference key and value.
         
         Args:
             key: Preference key
-            value: Value to validate
+            value: Preference value
             
         Returns:
-            True if value is valid, False otherwise
+            True if valid, False otherwise
         """
-        # Basic validation - can be extended with more sophisticated rules
+        # Basic validation - can be extended for specific preference rules
+        if not isinstance(key, str) or not key.strip():
+            return False
         
-        # Check if key is known (has a default or is already set)
-        if not (key in self._defaults or key in self._preferences):
-            # Allow new preferences for extensibility
-            return True
+        # Type-specific validation for known preferences
+        if key == "precision" and not isinstance(value, int):
+            return False
+        if key == "auto_save_interval" and not isinstance(value, int):
+            return False
+        if key == "recent_files_count" and not isinstance(value, int):
+            return False
+        if key in ["grid_visible", "show_rulers", "auto_save"] and not isinstance(value, bool):
+            return False
+        if key == "recent_files" and not isinstance(value, list):
+            return False
         
-        # Type validation based on default value
-        default_value = self._defaults.get(key)
-        if default_value is not None:
-            expected_type = type(default_value)
-            if not isinstance(value, expected_type):
-                # Special case: allow int/float conversion
-                if expected_type in (int, float) and isinstance(value, (int, float)):
-                    return True
-                else:
-                    return False
-        
-        # Additional validation rules can go here
-        
-        return True 
+        return True

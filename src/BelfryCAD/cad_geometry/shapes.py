@@ -88,7 +88,7 @@ class Shape2D(ABC):
         """Translate the shape by a vector."""
         raise NotImplementedError("Subclasses must implement translate")
 
-    def scale(self, scale: float, center: 'Point2D') -> 'Shape2D':
+    def scale(self, scale: float, center: 'Point2D') -> Optional['Shape2D']:
         """Scale the shape around a center point."""
         raise NotImplementedError("Subclasses must implement scale")
 
@@ -96,7 +96,7 @@ class Shape2D(ABC):
         """Rotate the shape around a center point."""
         raise NotImplementedError("Subclasses must implement rotate")
 
-    def transform(self, transform: 'Transform2D') -> 'Shape2D':
+    def transform(self, transform: 'Transform2D') -> Optional['Shape2D']:
         """Transform the shape using a transformation matrix."""
         raise NotImplementedError("Subclasses must implement transform")
 

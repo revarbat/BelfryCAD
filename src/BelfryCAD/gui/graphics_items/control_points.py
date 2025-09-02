@@ -361,6 +361,10 @@ class ControlDatum(ControlPoint):
 
     def update_datum(self, value, position):
         """Update both the value and position of the datum."""
+        # Defensive check to ensure the datum is properly initialized
+        if not hasattr(self, '_format_string') or not hasattr(self, '_cached_text'):
+            return
+            
         # Check if we need to update geometry
         new_text = self._format_text(value)
         if new_text != self._cached_text:
@@ -375,6 +379,10 @@ class ControlDatum(ControlPoint):
 
     def _format_text(self, value, no_prefix=False, no_suffix=False):
         """Format the text for display."""
+        # Defensive check to ensure the datum is properly initialized
+        if not hasattr(self, '_format_string') or not hasattr(self, '_prefix') or not hasattr(self, '_suffix'):
+            return str(value)
+            
         if self._is_length:
             document_window = self.model_view.document_window
             grid_info = document_window.grid_info
@@ -413,6 +421,10 @@ class ControlDatum(ControlPoint):
             return
             
         if self._is_editing:
+            return
+
+        # Additional defensive check for cached text
+        if not hasattr(self, '_cached_text') or self._cached_text is None:
             return
 
         # Use cached text

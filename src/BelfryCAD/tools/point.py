@@ -10,6 +10,10 @@ from typing import Optional, List
 from ..models.cad_object import CadObject, ObjectType
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
+from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsTextItem
+from PySide6.QtCore import QRectF, Qt, QPointF
+from PySide6.QtGui import QPen
+
 
 class PointTool(Tool):
     """Tool for drawing individual points"""
@@ -41,8 +45,14 @@ class PointTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+
         # Get the snapped point based on current snap settings
-        point = self.get_snap_point(event.x, event.y)
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.ACTIVE:
             # Add the point
@@ -55,7 +65,11 @@ class PointTool(Tool):
         """Handle mouse movement event"""
         if self.state == ToolState.ACTIVE:
             # Draw preview point
-            self.draw_preview(event.x, event.y)
+            if hasattr(event, 'scenePos'):
+                scene_pos = event.scenePos()
+            else:
+                scene_pos = QPointF(event.x, event.y)
+            self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the point being created"""
@@ -68,10 +82,6 @@ class PointTool(Tool):
         # Draw temporary point marker (cross) using Qt graphics items
         x, y = point.x, point.y
         size = 3  # Size of the cross
-
-        from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsTextItem
-        from PySide6.QtCore import QRectF, Qt
-        from PySide6.QtGui import QPen
 
         # Draw horizontal line
         h_line_item = QGraphicsLineItem(x - size, y, x + size, y)

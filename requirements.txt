@@ -1,3 +1,4 @@
 PySide6>=6.9.0
 Pillow>=11.0.0
 numpy>=1.20.0
+PyYAML>=6.0.0

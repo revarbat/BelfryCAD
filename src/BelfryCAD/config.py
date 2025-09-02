@@ -59,7 +59,7 @@ class AppConfig:
 
     def setup_preferences(self):
         """Set up preferences configuration."""
-        self.prefs_file = self.prefs_dir / "preferences.json"
+        self.prefs_file = self.prefs_dir / "preferences.yaml"
 
         # Default preferences
         self.default_prefs = {
@@ -72,10 +72,10 @@ class AppConfig:
             "auto_save_interval": 300,  # seconds
             "recent_files_count": 10,
             "recent_files": [],  # List of recent file paths
-            "window_geometry": "1200x800+100+100",
-            "canvas_bg_color": "#ffffff",
-            "grid_color": "#cccccc",
-            "selection_color": "#0080ff",
+            "window_geometry": "1200x800+0+0",
+            "canvas_bg_color": "#FFFFFF",
+            "grid_color": "#CCCCCC",
+            "selection_color": "#0080FF",
             "tool_table": [],  # Add default empty tool table
         }
 

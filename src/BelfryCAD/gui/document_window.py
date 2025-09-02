@@ -113,6 +113,9 @@ class DocumentWindow(QMainWindow):
                         x = int(parts[2])
                         y = int(parts[3])
                         self.move(x, y)
+                        print(f"Saved geometry: {saved_geometry}")
+                        print(f"Window moved to {x}, {y}")
+                        print(f"Window geometry: {self.geometry()}")
                 else:
                     # Fallback to default size
                     self.resize(1024, 768)
@@ -774,6 +777,9 @@ class DocumentWindow(QMainWindow):
         self.tool_manager = ToolManager(
             self, self.document, self.preferences_viewmodel)
 
+        # Connect tool manager to scene for mouse event handling
+        self.cad_scene.set_tool_manager(self.tool_manager)
+
         # Register all available tools and group by category
         self.tools = {}
         tools_by_category = {}
@@ -782,7 +788,7 @@ class DocumentWindow(QMainWindow):
             tool = self.tool_manager.register_tool(tool_class)
             self.tools[tool.definition.token] = tool
             # Connect tool signals to redraw
-            #tool.object_created.connect(self.on_object_created)
+            tool.object_created.connect(self.on_object_created)
 
             # Group tools by category
             category = tool.definition.category
@@ -1406,7 +1412,7 @@ class DocumentWindow(QMainWindow):
         geometry = self.geometry()
         self.preferences_viewmodel.set("window_geometry",
                                      f"{geometry.width()}x{geometry.height()}+"
-                                     f"{geometry.x()}+{geometry.y()}")
+                                     f"{max(0,geometry.x())}+{max(0,geometry.y()-28)}")
 
         # Save snaps toolbar position
         if hasattr(self, 'snaps_toolbar'):
@@ -1861,7 +1867,7 @@ class DocumentWindow(QMainWindow):
                     'use_fractions': self.preferences_viewmodel.get('use_fractions', False),
                     'grid_visible': self.preferences_viewmodel.get('grid_visible', True),
                     'show_rulers': self.preferences_viewmodel.get('show_rulers', True),
-                    'canvas_bg_color': self.preferences_viewmodel.get('canvas_bg_color', '#f0f0f0'),
+                    'canvas_bg_color': self.preferences_viewmodel.get('canvas_bg_color', '#F0F0F0'),
                     'grid_color': self.preferences_viewmodel.get('grid_color', '#d0d0d0'),
                     'selection_color': self.preferences_viewmodel.get('selection_color', '#ff8000')
                 }
@@ -2033,3 +2039,23 @@ class DocumentWindow(QMainWindow):
             populate_method = getattr(config_pane, 'populate', None)
             if callable(populate_method):
                 populate_method()
+
+    def on_object_created(self, obj):
+        """Handle new objects created by tools"""
+        # Import the factory here to avoid circular imports
+        from .viewmodels.cad_object_factory import CadObjectFactory
+        
+        # Create factory for viewmodels
+        factory = CadObjectFactory(self)
+        
+        # Create viewmodel for the new object
+        if obj.visible:
+            viewmodel = factory.create_viewmodel(obj)
+            if viewmodel:
+                self._object_viewmodels[obj.object_id] = viewmodel
+                # Add the graphics items to the scene
+                viewmodel.update_view(self.cad_scene)
+                
+                # Update the object tree
+                if hasattr(self, 'object_tree_pane'):
+                    self.object_tree_pane.refresh_tree()

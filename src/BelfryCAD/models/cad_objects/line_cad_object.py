@@ -42,7 +42,7 @@ class LineCadObject(CadObject):
         """Set the start point."""
         self.line.start = value
 
-    @property 
+    @property
     def mid_point(self) -> Point2D:
         """Get the midpoint of the line segment."""
         return self.line.midpoint

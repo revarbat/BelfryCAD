@@ -12,6 +12,10 @@ from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
 
+from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
+from PySide6.QtCore import QRectF, Qt, QPointF
+from PySide6.QtGui import QPen
+
 
 class PolygonObject(CadObject):
     """Polygon object - list of vertices"""
@@ -62,23 +66,33 @@ class RectangleTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+
         # Get the snapped point based on current snap settings
-        point = self.get_snap_point(event.x, event.y)
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.ACTIVE:
-            # First point - first corner of rectangle
+            # First point - start drawing rectangle
             self.points.append(point)
             self.state = ToolState.DRAWING
-        elif self.state == ToolState.DRAWING and len(self.points) == 1:
-            # Second point - opposite corner of rectangle
+        elif self.state == ToolState.DRAWING:
+            # Second point - complete the rectangle
             self.points.append(point)
             self.complete()
 
     def handle_mouse_move(self, event):
         """Handle mouse movement event"""
-        if self.state == ToolState.DRAWING:
+        if self.state == ToolState.DRAWING and len(self.points) == 1:
             # Draw preview rectangle
-            self.draw_preview(event.x, event.y)
+            if hasattr(event, 'scenePos'):
+                scene_pos = event.scenePos()
+            else:
+                scene_pos = QPointF(event.x, event.y)
+            self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the rectangle being created"""
@@ -98,10 +112,6 @@ class RectangleTool(Tool):
             x2, y2 = max(p1.x, p2.x), max(p1.y, p2.y)
 
             # Draw temporary rectangle using QGraphicsRectItem
-            from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
-            from PySide6.QtCore import QRectF, Qt
-            from PySide6.QtGui import QPen
-
             rect_item = QGraphicsRectItem(QRectF(x1, y1, x2 - x1, y2 - y1))
             pen = QPen()
             pen.setColor("blue")

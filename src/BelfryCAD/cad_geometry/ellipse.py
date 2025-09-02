@@ -326,7 +326,7 @@ class Ellipse(Shape2D):
         new_rotation = self._rotation_degrees + angle
         return Ellipse(new_center, self.radius1, self.radius2, new_rotation)
 
-    def scale(self, scale, center = None) -> 'Ellipse':
+    def scale(self, scale, center = None) -> Optional['Ellipse']:
         """Make a new ellipse, scaled around a center point."""
         if center is None:
             center = Point2D(0, 0)
@@ -344,25 +344,25 @@ class Ellipse(Shape2D):
             return Ellipse(new_center, new_radius1, new_radius2, self._rotation_degrees)
         else:
             scale_point = Point2D(scale)
-            # Calculate three corners of the bounding rhombus with scaling
+            # Calculate three corners of the bounding parallelogram with scaling
             p1 = Point2D(-self.radius1, -self.radius2)
             p2 = Point2D(self.radius1, -self.radius2)
             p3 = Point2D(self.radius1, self.radius2)
             p1 = p1.scale(scale_point, center)  # type: ignore
             p2 = p2.scale(scale_point, center)  # type: ignore
             p3 = p3.scale(scale_point, center)  # type: ignore
-            return Ellipse.from_rhombus_corners(p1, p3, p2)
+            return Ellipse.from_parallelogram_corners(p1, p3, p2)
 
-    def transform(self, transform: 'Transform2D') -> 'Ellipse':
+    def transform(self, transform: 'Transform2D') -> Optional['Shape2D']:
         """Make a new ellipse, transformed using a transformation matrix."""
-        # Calculate three corners of the bounding rhombus, transormed
+        # Calculate three corners of the bounding parallelogram, transormed
         p1 = Point2D(-self.radius1, -self.radius2)
         p2 = Point2D(self.radius1, -self.radius2)
         p3 = Point2D(self.radius1, self.radius2)
         p1 = p1.transform(transform)
         p2 = p2.transform(transform)
         p3 = p3.transform(transform)
-        return Ellipse.from_rhombus_corners(p1, p3, p2)
+        return Ellipse.from_parallelogram_corners(p1, p3, p2)
 
     def to_polyline(self, segments: int = 32) -> 'PolyLine2D':
         """Convert ellipse to a polyline with specified number of segments."""
@@ -482,7 +482,7 @@ class Ellipse(Shape2D):
         return unique_intersections
 
     @classmethod
-    def from_foci(cls, focus1: Point2D, focus2: Point2D, major_axis_length: float) -> 'Ellipse':
+    def from_foci(cls, focus1: Point2D, focus2: Point2D, major_axis_length: float) -> Optional['Ellipse']:
         """Create an ellipse from two foci and major axis length."""
         center = (focus1 + focus2) / 2
         focus_distance = focus1.distance_to(focus2)
@@ -585,7 +585,7 @@ class Ellipse(Shape2D):
         return ellipse
 
     @classmethod
-    def from_center_perimeter_and_tangent(cls, center: Point2D, perimeter_point: Point2D, tangent_point: Point2D) -> 'Ellipse':
+    def from_center_perimeter_and_tangent(cls, center: Point2D, perimeter_point: Point2D, tangent_point: Point2D) -> Optional['Ellipse']:
         """
         Create an ellipse from center, perimeter point, and tangent point.
         
@@ -629,17 +629,17 @@ class Ellipse(Shape2D):
         if abs(dot_product) > 1e-6:
             raise ValueError("Tangent direction must be perpendicular to radius from center to perimeter point")
         
-        # Calculate the four corners of the tangent rhombus using vector math
-        # The rhombus is defined by the two perimeter points and their tangent directions
+        # Calculate the four corners of the tangent parallelogram using vector math
+        # The parallelogram is defined by the two perimeter points and their tangent directions
         
         # Vector from first perimeter point to second perimeter point
         p1_to_p2 = second_perimeter_point - perimeter_point
         
-        # For a rhombus, all sides must be equal
-        # The rhombus will have sides parallel to the tangent direction and the p1_to_p2 direction
+        # For a parallelogram, all sides must be equal
+        # The parallelogram will have sides parallel to the tangent direction and the p1_to_p2 direction
         # We need to find the correct scale factor for the tangent direction
         
-        # The rhombus corners should be:
+        # The parallelogram corners should be:
         # corner1 = perimeter_point
         # corner2 = perimeter_point + tangent_unit * scale
         # corner3 = second_perimeter_point
@@ -648,13 +648,13 @@ class Ellipse(Shape2D):
         # For all sides to be equal, the scale must be equal to the distance between the two perimeter points
         scale = p1_to_p2.magnitude
         
-        # The rhombus corners are:
+        # The parallelogram corners are:
         corner1 = perimeter_point
         corner2 = perimeter_point + tangent_unit * scale
         corner3 = second_perimeter_point
         corner4 = second_perimeter_point + tangent_unit * scale
         
-        # Verify this forms a rhombus by checking side lengths
+        # Verify this forms a parallelogram by checking side lengths
         sides = [
             corner1.distance_to(corner2),
             corner2.distance_to(corner3),
@@ -664,7 +664,7 @@ class Ellipse(Shape2D):
         
         # All sides should be equal (within tolerance)
         if max(sides) - min(sides) > 1e-6:
-            # The rhombus construction failed, fall back to the previous approach
+            # The parallelogram construction failed, fall back to the previous approach
             # Calculate the distance from center to both points
             radius1 = radius.magnitude
             radius2 = second_perimeter_point.distance_to(center)
@@ -685,8 +685,8 @@ class Ellipse(Shape2D):
             # Create the ellipse
             return cls(center, major_axis, minor_axis, rotation)
         
-        # Now use the rhombus corners to create the inscribed ellipse
-        return cls.from_rhombus_corners(corner1, corner2, corner3)
+        # Now use the parallelogram corners to create the inscribed ellipse
+        return cls.from_parallelogram_corners(corner1, corner2, corner3)
 
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get the bounds of the ellipse as (min_x, min_y, max_x, max_y)."""
@@ -694,37 +694,28 @@ class Ellipse(Shape2D):
         return (min_pt.x, min_pt.y, max_pt.x, max_pt.y)
 
     @classmethod
-    def from_rhombus_corners(cls, corner1: Point2D, corner2: Point2D, corner3: Point2D) -> 'Ellipse':
+    def from_parallelogram_corners(cls, corner1: Point2D, corner2: Point2D, corner3: Point2D) -> Optional['Ellipse']:
         """
-        Create an ellipse inscribed in a rhombus defined by three corners.
+        Create an ellipse inscribed in a parallelogram defined by three corners.
         
         Args:
-            corner1: First corner of the rhombus
-            corner2: Second corner of the rhombus  
-            corner3: Third corner of the rhombus
+            corner1: First corner of the parallelogram
+            corner2: Second corner of the parallelogram  
+            corner3: Third corner of the parallelogram
         
         Returns:
-            Ellipse inscribed in the rhombus
+            Ellipse inscribed in the parallelogram
         """
-        # Calculate the center of the rhombus
-        center = (corner1 + corner2 + corner3) / 3
-        
-        # Calculate the vectors from center to corners
-        v1 = corner1 - center
-        v2 = corner2 - center
-        v3 = corner3 - center
-        
-        # Calculate the major and minor axes
-        # The major axis is the longer diagonal, minor axis is the shorter
-        major_axis = max(v1.magnitude, v2.magnitude, v3.magnitude) * 2
-        minor_axis = min(v1.magnitude, v2.magnitude, v3.magnitude) * 2
-        
-        # Calculate rotation based on the major axis direction
-        if v1.magnitude >= v2.magnitude and v1.magnitude >= v3.magnitude:
-            rotation = np.arctan2(v1.y, v1.x)
-        elif v2.magnitude >= v3.magnitude:
-            rotation = np.arctan2(v2.y, v2.x)
-        else:
-            rotation = np.arctan2(v3.y, v3.x)
-        
-        return cls(center, major_axis, minor_axis, rotation)
+        A, B, C = map(lambda p: np.asarray(p, dtype=float), (corner1.to_tuple(), corner2.to_tuple(), corner3.to_tuple()))
+        u = B - A
+        v = C - B
+        O = 0.5 * (A + C)                       # center
+        M = 0.5 * np.column_stack((u, v))       # 2x2
+
+        U, S, Vt = np.linalg.svd(M)             # S = [a, b]
+        a, b = S[0], S[1]
+        rotation_degrees = np.degrees(np.arctan2(U[1, 0], U[0, 0]))    # rotation of major axis
+        center = Point2D(O[0], O[1])
+        if a > 0 and b > 0:
+            return cls(center, a, b, rotation_degrees)
+        return None

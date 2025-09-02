@@ -146,26 +146,24 @@ class RulersForeground(QGraphicsItem):
                 Qt.AlignmentFlag.AlignVCenter
             )
             box = QRectF(0, -15, 30, 30)
+        
         painter.save()
+        
         scale = painter.transform().m11()
         font = QFont("Arial", 10)
         font.setPointSizeF(12.0)
         painter.setBrush(QBrush(QColor("white")))
         painter.setFont(font)
+
         painter.translate(x, y)
         painter.scale(1.0 / scale, -1.0 / scale)
 
-        # Add subtle border for clickable labels
-        if is_clickable:
-            painter.setPen(QPen(QColor("lightgray"), 1.0))
-            painter.drawRect(box.adjusted(-2, -2, 2, 2))
-
-        painter.setPen(QPen(QColor("white"), 2.0))
-        painter.drawText(box, align, label)
         painter.setPen(QPen(QColor("black"), 1.0))
         painter.drawText(box, align, label)
+        
         painter.scale(scale, -scale)
         painter.translate(-x, -y)
+        
         painter.restore()
 
     def paint(self, painter, option, widget=None):
@@ -240,7 +238,6 @@ class RulersForeground(QGraphicsItem):
         painter.drawLine(QLineF(x0, y1 - backing_width, x1, y1 - backing_width))
         painter.drawLine(QLineF(x0 + backing_width, y0, x0 + backing_width, y1))
         painter.restore()
-
 
         # Draw unit label in corner
         painter.save()

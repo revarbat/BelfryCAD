@@ -11,26 +11,8 @@ from PySide6.QtGui import QPen, QColor
 from PySide6.QtWidgets import QGraphicsLineItem
 
 from ..models.cad_object import CadObject, ObjectType, Point2D
+from ..models.cad_objects.line_cad_object import LineCadObject
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
-
-
-class LineObject(CadObject):
-    """Line object - requires exactly 2 points"""
-
-    def __init__(self, mainwin, object_id: int, start: Point2D, end: Point2D, **kwargs):
-        super().__init__(
-            mainwin, object_id, ObjectType.LINE, coords=[start, end], **kwargs)
-
-    @property
-    def start(self) -> Point2D:
-        return self.coords[0]
-
-    @property
-    def end(self) -> Point2D:
-        return self.coords[1]
-
-    def length(self) -> float:
-        return self.start.distance_to(self.end)
 
 
 class LineTool(Tool):
@@ -101,8 +83,9 @@ class LineTool(Tool):
 
             # Draw temporary line
             start_point = self.points[0]
-            pen = QPen(QColor("blue"))
-            pen.setDashPattern([4, 4])  # Dashed line for preview
+            pen = QPen(QColor("black"), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2, 2])  # Dashed line for preview
 
             preview_line = self.scene.addLine(
                 start_point.x, start_point.y,
@@ -110,6 +93,7 @@ class LineTool(Tool):
                 pen
             )
             self.temp_objects.append(preview_line)
+        self.draw_points()
 
     def create_object(self) -> Optional[CadObject]:
         """Create a line object from the collected points"""
@@ -118,10 +102,10 @@ class LineTool(Tool):
 
         # Create line object
         line = LineCadObject(
-            mainwin=self.document_window,
-            object_id=self.document.get_next_object_id(),
-            start=start_point,
-            end=end_point,
+            document=self.document,
+            start_point=self.points[0],
+            end_point=self.points[1],
             color=self.preferences.get("default_color", "black"),
-            line_width=self.preferences.get("default_line_width", 0.5)
+            line_width=self.preferences.get("default_line_width", 0.05)
         )
+        return line

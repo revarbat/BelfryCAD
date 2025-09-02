@@ -9,79 +9,12 @@ import math
 from typing import Optional, List
 
 from ..models.cad_object import CadObject, ObjectType
+from ..models.cad_objects.circle_cad_object import CircleCadObject
 from ..cad_geometry import Point2D
 from .base import Tool, ToolState, ToolCategory, ToolDefinition
-from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QPen
-from PySide6.QtWidgets import QGraphicsEllipseItem
-
-
-
-class CircleObject(CadObject):
-    """Circle object - center and radius"""
-
-    def __init__(
-            self,
-            mainwin: 'MainWindow',
-            object_id: int,
-            **kwargs
-    ):
-        super().__init__(mainwin, object_id, **kwargs)
-
-
-    def draw_object(self):
-        scene = self.mainwin.get_scene().scene
-        center = self.coords[0]
-        delta = self.coords[1] - center
-        radius = math.sqrt(delta.x**2 + delta.y**2)
-        obj = scene.addEllipse(
-            center.x - radius,
-            center.y - radius,
-            2 * radius,
-            2 * radius
-        )
-        scene.tagAsObject(obj)
-
-    def draw_controls(self):
-        scene = self.mainwin.get_scene().scene
-        center = self.coords[0]
-        radpt = self.coords[1]
-        cp1 = scene.addControlPoint(self.object_id, center.x, center.y, 0)
-        cp2 = scene.addControlPoint(self.object_id, radpt.x, radpt.y, 1)
-        scene.tagAsControlPoint(cp1)
-        scene.tagAsControlPoint(cp2)
-
-    @property
-    def center(self) -> Point2D:
-        return self.coords[0]
-
-    @center.setter
-    def center(self, value: Point2D):
-        self.coords[0] = value
-        self.draw_object()
-        self.draw_controls()
-
-    @property
-    def radius(self) -> float:
-        delta = self.coords[1] - self.coords[0]
-        return math.sqrt(delta.x**2 + delta.y**2)
-
-    @radius.setter
-    def radius(self, value: float):
-        delta = self.coords[1] - self.coords[0]
-        dist = math.sqrt(delta.x**2 + delta.y**2)
-        delta = delta / dist * value
-        self.coords[1] = self.coords[0] + delta
-        self.draw_object()
-        self.draw_controls()
-
-    @property
-    def diameter(self) -> float:
-        return 2 * self.radius
-
-    @diameter.setter
-    def diameter(self, value: float):
-        self.radius = value / 2
+from PySide6.QtCore import Qt, QRectF, QPointF
+from PySide6.QtGui import QPen, QColor, QBrush
+from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 
 
 
@@ -114,8 +47,14 @@ class CircleTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+
         # Get the snapped point based on current snap settings
-        point = self.get_snap_point(event.x, event.y)
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.ACTIVE:
             # First point - center of circle
@@ -130,7 +69,11 @@ class CircleTool(Tool):
         """Handle mouse movement event"""
         if self.state == ToolState.DRAWING and len(self.points) == 1:
             # Draw preview circle
-            self.draw_preview(event.x, event.y)
+            if hasattr(event, 'scenePos'):
+                scene_pos = event.scenePos()
+            else:
+                scene_pos = QPointF(event.x, event.y)
+            self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the circle being created"""
@@ -143,20 +86,20 @@ class CircleTool(Tool):
 
             # Calculate radius
             center_point = self.points[0]
-            radius = math.sqrt((point.x - center_point.x)**2 +
-                               (point.y - center_point.y)**2)
+            delta = point - center_point
+            radius = math.hypot(delta.x, delta.y)
 
             # Create temporary ellipse using CadScene's addEllipse method
-            pen = QPen()
-            pen.setColor("blue")
-            pen.setWidthF(0.1)
-            pen.setStyle(Qt.PenStyle.DashLine)
+            pen = QPen(QColor("black"), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2, 2])  # Dashed line for preview
             ellipse_item = self.scene.addEllipse(
                 center_point.x - radius, center_point.y - radius,
                 2 * radius, 2 * radius,
                 pen=pen
             )
-            self.scene.tagAsConstruction(ellipse_item)
+            self.temp_objects.append(ellipse_item)
+        self.draw_points()
 
     def create_object(self) -> Optional[CadObject]:
         """Create a circle object from the collected points"""
@@ -166,145 +109,18 @@ class CircleTool(Tool):
         # Calculate radius
         center_point = self.points[0]
         radius_point = self.points[1]
-        radius = math.sqrt(
-            (radius_point.x - center_point.x)**2 +
-            (radius_point.y - center_point.y)**2
-        )
+        delta = radius_point - center_point
+        radius = math.hypot(delta.x, delta.y)
 
         # Create circle object
         circle = CircleCadObject(
-            mainwin=self.document_window,
-            object_id=self.document.get_next_object_id(),
-            center=center_point,
+            document=self.document,
+            center_point=center_point,
             radius=radius,
             color=self.preferences.get("default_color", "black"),
-            line_width=self.preferences.get("default_line_width", 0.5)
+            line_width=self.preferences.get("default_line_width", 0.05)
         )
-        return obj
-
-
-class Circle2PTObject(CadObject):
-    """Circle object defined by 2 points (diameter endpoints)"""
-
-    def __init__(self, mainwin: 'MainWindow', object_id: int, point1: Point2D, point2: Point2D, **kwargs):
-        super().__init__(
-            mainwin, object_id, ObjectType.CIRCLE, coords=[point1, point2], **kwargs)
-
-    @property
-    def point1(self) -> Point2D:
-        return self.coords[0]
-
-    @property
-    def point2(self) -> Point2D:
-        return self.coords[1]
-
-    @property
-    def center(self) -> Point2D:
-        """Calculate center point between the two points"""
-        p1, p2 = self.point1, self.point2
-        return Point2D((p1.x + p2.x) / 2.0, (p1.y + p2.y) / 2.0)
-
-    @property
-    def radius(self) -> float:
-        """Calculate radius as half the distance between points"""
-        p1, p2 = self.point1, self.point2
-        return math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2) / 2.0
-
-
-class Circle3PTObject(CadObject):
-    """Circle object defined by 3 points on the circumference"""
-
-    def __init__(
-            self,
-            mainwin: 'MainWindow',
-            object_id: int,
-            point1: Point2D,
-            point2: Point2D,
-            point3: Point2D,
-            **kwargs
-    ):
-        super().__init__(
-            mainwin, object_id, ObjectType.CIRCLE,
-            coords=[point1, point2, point3],
-            **kwargs)
-        self._calculate_circle()
-
-    @property
-    def point1(self) -> Point2D:
-        return self.coords[0]
-
-    @property
-    def point2(self) -> Point2D:
-        return self.coords[1]
-
-    @property
-    def point3(self) -> Point2D:
-        return self.coords[2]
-
-    def _calculate_circle(self):
-        """Calculate center and radius from three points"""
-        p1, p2, p3 = self.point1, self.point2, self.point3
-
-        # Check if points are collinear
-        col = p1.x * (p2.y - p3.y) + p2.x * \
-            (p3.y - p1.y) + p3.x * (p1.y - p2.y)
-
-        if abs(col) < 1e-6:
-            # Points are collinear - this becomes a line
-            self.attributes['is_line'] = True
-            self.attributes['center'] = Point2D(0, 0)
-            self.attributes['radius'] = 0
-            return
-
-        self.attributes['is_line'] = False
-
-        # Calculate center using perpendicular bisector method
-        mx1 = (p1.x + p3.x) / 2.0
-        my1 = (p1.y + p3.y) / 2.0
-        mx2 = (p2.x + p3.x) / 2.0
-        my2 = (p2.y + p3.y) / 2.0
-
-        if abs(p3.y - p1.y) < 1e-6:
-            # Segment1 is horizontal
-            m2 = -(p2.x - p3.x) / (p2.y - p3.y)
-            c2 = my2 - m2 * mx2
-            cx = mx1
-            cy = m2 * cx + c2
-        elif abs(p3.y - p2.y) < 1e-6:
-            # Segment2 is horizontal
-            m1 = -(p3.x - p1.x) / (p3.y - p1.y)
-            c1 = my1 - m1 * mx1
-            cx = mx2
-            cy = m1 * cx + c1
-        else:
-            # General case
-            m1 = -(p3.x - p1.x) / (p3.y - p1.y)
-            m2 = -(p2.x - p3.x) / (p2.y - p3.y)
-            c1 = my1 - m1 * mx1
-            c2 = my2 - m2 * mx2
-            cx = (c2 - c1) / (m1 - m2)
-            cy = m1 * cx + c1
-
-        center = Point2D(cx, cy)
-        radius = math.sqrt((p1.y - cy)**2 + (p1.x - cx)**2)
-
-        self.attributes['center'] = center
-        self.attributes['radius'] = radius
-
-    @property
-    def center(self) -> Point2D:
-        """Get the calculated center point"""
-        return self.attributes.get('center', Point2D(0, 0))
-
-    @property
-    def radius(self) -> float:
-        """Get the calculated radius"""
-        return self.attributes.get('radius', 0.0)
-
-    @property
-    def is_line(self) -> bool:
-        """Check if the three points are collinear (making this a line)"""
-        return self.attributes.get('is_line', False)
+        return circle
 
 
 class Circle2PTTool(Tool):
@@ -330,10 +146,13 @@ class Circle2PTTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse down events"""
+        print(f"Handle mouse down events: {self.state} ({len(self.points)})")
         scene_pos = event.scenePos()
-        point = Point2D(scene_pos.x(), scene_pos.y())
 
-        if self.state == ToolState.INIT:
+        # Get the snapped point based on current snap settings
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
+
+        if self.state == ToolState.ACTIVE:
             self.points = [point]
             self.state = ToolState.DRAWING
         elif self.state == ToolState.DRAWING:
@@ -343,55 +162,52 @@ class Circle2PTTool(Tool):
             if obj:
                 self.document.add_object(obj)
                 self.object_created.emit(obj)
-            self.reset()
+            self.cancel()
 
     def handle_mouse_move(self, event):
         """Handle mouse move events for preview"""
-        if self.state == ToolState.DRAWING and len(self.points) == 1:
+        if self.state == ToolState.DRAWING and len(self.points) >= 1:
             scene_pos = event.scenePos()
-            current_point = Point2D(scene_pos.x(), scene_pos.y())
             self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
         """Draw preview of the circle"""
         self.clear_temp_objects()
 
-        if len(points) == 2:
+        if len(self.points) >= 1:
             # Calculate circle center and radius
             p1 = self.points[0]
-            p2 = [current_x, current_y]
-            center_x = (p1.x + current_x) / 2.0
-            center_y = (p1.y + current_y) / 2.0
-            radius = math.sqrt(
-                (current_x - p1.x)**2 + (current_y - p1.y)**2
-            ) / 2.0
+            p2 = self.get_snap_point(current_x, current_y)
+            center = (p1 + p2) / 2
+            radius = p2.distance_to(center)
 
-            ellipse_item = QGraphicsEllipseItem(
-                QRectF(center_x - radius, center_y - radius,
-                       2 * radius, 2 * radius)
+            pen = QPen(QColor("black"), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2, 2])  # Dashed line for preview
+            ellipse_item = self.scene.addEllipse(
+                center.x - radius, center.y - radius,
+                2 * radius, 2 * radius,
+                pen=pen
             )
-            pen = QPen()
-            pen.setColor("blue")
-            pen.setStyle(Qt.PenStyle.DashLine)
-            ellipse_item.setPen(pen)
-
-            self.scene.addItem(ellipse_item)
-            self.scene.tagAsConstruction(ellipse_item)
+            self.temp_objects.append(ellipse_item)
+        self.draw_points()
 
     def create_object(self) -> Optional[CadObject]:
         """Create a circle object from the collected points"""
         if len(self.points) != 2:
             return None
 
-        obj = Circle2PTObject(
-            mainwin=self.document_window,
-            object_id=self.document.objects.get_next_id(),
-            point1=self.points[0],
-            point2=self.points[1],
-            attributes={
-                'color': 'black',
-                'linewidth': 1
-            }
+        p1 = self.points[0]
+        p2 = self.points[1]
+        center = (p1 + p2) / 2
+        radius = p1.distance_to(center)
+
+        obj = CircleCadObject(
+            document=self.document,
+            center_point=center,
+            radius=radius,
+            color=self.preferences.get("default_color", "black"),
+            line_width=self.preferences.get("default_line_width", 0.05)
         )
         return obj
 
@@ -422,7 +238,10 @@ class Circle3PTTool(Tool):
         scene_pos = event.scenePos()
         point = Point2D(scene_pos.x(), scene_pos.y())
 
-        if self.state == ToolState.INIT:
+        # Get the snapped point based on current snap settings
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
+
+        if self.state == ToolState.ACTIVE:
             self.points = [point]
             self.state = ToolState.DRAWING
         elif self.state == ToolState.DRAWING:
@@ -433,115 +252,113 @@ class Circle3PTTool(Tool):
                 if obj:
                     self.document.add_object(obj)
                     self.object_created.emit(obj)
-                self.reset()
+                self.cancel()
 
     def handle_mouse_move(self, event):
         """Handle mouse move events for preview"""
-        if self.state == ToolState.DRAWING:
+        print(f"Handle mouse move events for preview: {self.state} ({len(self.points)})")
+        if self.state == ToolState.DRAWING and len(self.points) >= 1:
             scene_pos = event.scenePos()
-            current_point = Point2D(scene_pos.x(), scene_pos.y())
+            current_point = self.get_snap_point(scene_pos.x(), scene_pos.y())
+            self.draw_preview(current_point.x, current_point.y)
 
-            if len(self.points) == 1:
-                self.draw_preview([self.points[0], current_point])
-            elif len(self.points) == 2:
-                self.draw_preview(
-                    [self.points[0], self.points[1], current_point])
+    def _calculate_circle_from_3_points(self, p1, p2, p3):
+        """Calculate circle from 3 points"""
+        # Check if collinear
+        col = p1.x * (p2.y - p3.y) + p2.x * \
+            (p3.y - p1.y) + p3.x * (p1.y - p2.y)
+        if abs(col) < 1e-6:
+            return None
 
-    def draw_preview(self, points):
+        mx1 = (p1.x + p3.x) / 2.0
+        my1 = (p1.y + p3.y) / 2.0
+        mx2 = (p2.x + p3.x) / 2.0
+        my2 = (p2.y + p3.y) / 2.0
+
+        if abs(p3.y - p1.y) < 1e-6:
+            m2 = -(p2.x - p3.x) / (p2.y - p3.y)
+            c2 = my2 - m2 * mx2
+            cx = mx1
+            cy = m2 * cx + c2
+
+        elif abs(p3.y - p2.y) < 1e-6:
+            m1 = -(p3.x - p1.x) / (p3.y - p1.y)
+            c1 = my1 - m1 * mx1
+            cx = mx2
+            cy = m1 * cx + c1
+
+        else:
+            m1 = -(p3.x - p1.x) / (p3.y - p1.y)
+            m2 = -(p2.x - p3.x) / (p2.y - p3.y)
+            c1 = my1 - m1 * mx1
+            c2 = my2 - m2 * mx2
+            cx = (c2 - c1) / (m1 - m2)
+            cy = m1 * cx + c1
+
+        radius = math.sqrt((p1.y - cy)**2 + (p1.x - cx)**2)
+        return Point2D(cx, cy), radius
+
+    def draw_preview(self, current_x, current_y):
         """Draw preview of the circle"""
         # Clear previous preview
         self.clear_temp_objects()
 
-        if len(points) == 3:
+        if len(self.points) >= 2:
             # Calculate circle from 3 points
-            p1, p2, p3 = points
-
-            # Check if collinear
-            col = p1.x * (p2.y - p3.y) + p2.x * \
-                (p3.y - p1.y) + p3.x * (p1.y - p2.y)
-            if abs(col) < 1e-6:
-                # Draw line preview for collinear points
-                from PySide6.QtWidgets import QGraphicsLineItem
-                from PySide6.QtGui import QPen, Qt
-
-                line_item = QGraphicsLineItem(p1.x, p1.y, p3.x, p3.y)
-                pen = QPen()
-                pen.setColor("red")
-                pen.setStyle(Qt.PenStyle.DashLine)
-                line_item.setPen(pen)
-
-                self.scene.addItem(line_item)
+            p1, p2 = self.points
+            p3 = self.get_snap_point(current_x, current_y)
+            circ_info = self._calculate_circle_from_3_points(p1, p2, p3)
+            if circ_info is None:
                 return
-
-            # Calculate center and radius
-            mx1 = (p1.x + p3.x) / 2.0
-            my1 = (p1.y + p3.y) / 2.0
-            mx2 = (p2.x + p3.x) / 2.0
-            my2 = (p2.y + p3.y) / 2.0
-
-            if abs(p3.y - p1.y) < 1e-6:
-                m2 = -(p2.x - p3.x) / (p2.y - p3.y)
-                c2 = my2 - m2 * mx2
-                cx = mx1
-                cy = m2 * cx + c2
-            elif abs(p3.y - p2.y) < 1e-6:
-                m1 = -(p3.x - p1.x) / (p3.y - p1.y)
-                c1 = my1 - m1 * mx1
-                cx = mx2
-                cy = m1 * cx + c1
-            else:
-                m1 = -(p3.x - p1.x) / (p3.y - p1.y)
-                m2 = -(p2.x - p3.x) / (p2.y - p3.y)
-                c1 = my1 - m1 * mx1
-                c2 = my2 - m2 * mx2
-                cx = (c2 - c1) / (m1 - m2)
-                cy = m1 * cx + c1
-
-            radius = math.sqrt((p1.y - cy)**2 + (p1.x - cx)**2)
+            center, radius = circ_info
 
             # Draw preview circle
-            from PySide6.QtWidgets import QGraphicsEllipseItem
-            from PySide6.QtCore import QRectF
-            from PySide6.QtGui import QPen, Qt
-
-            ellipse_item = QGraphicsEllipseItem(
-                QRectF(cx - radius, cy - radius, 2 * radius, 2 * radius)
+            pen = QPen(QColor("black"), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2, 2])  # Dashed line for preview
+            ellipse_item = self.scene.addEllipse(
+                center.x - radius, center.y - radius,
+                2 * radius, 2 * radius,
+                pen=pen
             )
-            pen = QPen()
-            pen.setColor("blue")
-            pen.setStyle(Qt.PenStyle.DashLine)
-            ellipse_item.setPen(pen)
+            self.temp_objects.append(ellipse_item)
 
-            self.scene.addItem(ellipse_item)
-
-        elif len(points) == 2:
+        elif len(self.points) == 1:
             # Draw line preview between first two points
-            from PySide6.QtWidgets import QGraphicsLineItem
-            from PySide6.QtGui import QPen, Qt
+            p1 = self.points[0]
+            p2 = self.get_snap_point(current_x, current_y)
+            center = (p1 + p2) / 2
+            radius = p1.distance_to(center)
 
-            p1, p2 = points
-            line_item = QGraphicsLineItem(p1.x, p1.y, p2.x, p2.y)
-            pen = QPen()
-            pen.setColor("gray")
-            pen.setStyle(Qt.PenStyle.DashLine)
-            line_item.setPen(pen)
+            # Draw preview circle
+            pen = QPen(QColor("black"), 3.0)
+            pen.setCosmetic(True)
+            pen.setDashPattern([2, 2])  # Dashed line for preview
+            ellipse_item = self.scene.addEllipse(
+                center.x - radius, center.y - radius,
+                2 * radius, 2 * radius,
+                pen=pen
+            )
+            self.temp_objects.append(ellipse_item)
 
-            self.scene.addItem(line_item)
+        self.draw_points()
 
     def create_object(self) -> Optional[CadObject]:
         """Create a circle object from the collected points"""
         if len(self.points) != 3:
             return None
 
-        obj = Circle3PTObject(
-            mainwin=self.document_window,
-            object_id=self.document.objects.get_next_id(),
-            point1=self.points[0],
-            point2=self.points[1],
-            point3=self.points[2],
-            attributes={
-                'color': 'black',
-                'linewidth': 1
-            }
+        p1, p2, p3 = self.points
+        circ_info = self._calculate_circle_from_3_points(p1, p2, p3)
+        if circ_info is None:
+            return None
+        center, radius = circ_info
+
+        obj = CircleCadObject(
+            document=self.document,
+            center_point=center,
+            radius=radius,
+            color=self.preferences.get("default_color", "black"),
+            line_width=self.preferences.get("default_line_width", 0.05)
         )
         return obj

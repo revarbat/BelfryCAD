@@ -79,18 +79,18 @@ class BelfryCadApplication:
     def cleanup(self):
         """Clean up application resources before exit."""
         try:
-            # Save preferences
-            if self.preferences_viewmodel:
-                self.preferences_viewmodel.save_preferences()
-                self.logger.info("Preferences saved")
-
             # Save window geometry
             if self.document_window:
                 geometry = self.document_window.geometry()
                 geometry_str = (f"{geometry.width()}x{geometry.height()}+"
-                               f"{geometry.x()}+{geometry.y()}")
+                               f"{max(0,geometry.x())}+{max(0,geometry.y()-28)}")
                 self.preferences_viewmodel.set("window_geometry", geometry_str)
                 self.logger.info("Window geometry saved")
+
+            # Save preferences
+            if self.preferences_viewmodel:
+                self.preferences_viewmodel.save_preferences()
+                self.logger.info("Preferences saved")
 
         except Exception as e:
             self.logger.error(f"Error during cleanup: {e}")

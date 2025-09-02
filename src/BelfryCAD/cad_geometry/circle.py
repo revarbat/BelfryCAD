@@ -233,7 +233,7 @@ class Circle(Shape2D):
         """Make a new circle, translated by vector."""
         return Circle(self.center.translate(vector), self.radius)
 
-    def scale(self, scale, center = None) -> 'Shape2D':
+    def scale(self, scale, center = None) -> Optional['Shape2D']:
         """Make a new circle, scaled around a point."""
         new_center = self.center.scale(scale, center)
         if isinstance(scale, (int, float, np.integer, np.floating)):
@@ -250,16 +250,16 @@ class Circle(Shape2D):
         new_center = self.center.rotate(angle, center)
         return Circle(new_center, self.radius)
 
-    def transform(self, transform: Transform2D) -> 'Ellipse':
+    def transform(self, transform: Transform2D) -> Optional['Shape2D']:
         """Make a new circle, transformed using a transformation matrix."""
-        # Lets calculate three of the transformed bounding rhombus corners.
+        # Lets calculate three of the transformed bounding parallelogram corners.
         p1 = self.center + Point2D(-self.radius, -self.radius)
         p2 = self.center + Point2D(self.radius, -self.radius)
         p3 = self.center + Point2D(self.radius, self.radius)
         p1 = p1.transform(transform)
         p2 = p2.transform(transform)
         p3 = p3.transform(transform)
-        return Ellipse.from_rhombus_corners(p1, p3, p2)
+        return Ellipse.from_parallelogram_corners(p1, p3, p2)
 
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get the bounds of the circle as (min_x, min_y, max_x, max_y)."""

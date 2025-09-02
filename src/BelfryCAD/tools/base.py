@@ -12,7 +12,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 
 from PySide6.QtCore import Qt, QObject, Signal, QPointF
-from PySide6.QtGui import QCursor
+from PySide6.QtGui import QCursor, QPen, QColor, QBrush
 
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
@@ -179,9 +179,19 @@ class Tool(QObject):
         # Override in subclasses
         pass
 
+    def handle_escape(self, event):
+        """Handle escape key to cancel the operation"""
+        self.cancel()
+
     def handle_key_press(self, event):
         """Handle keyboard press event"""
-        # Override in subclasses
+        # Check for escape key
+        if event.key() == Qt.Key.Key_Escape:
+            self.handle_escape(event)
+            event.accept()
+            return
+        
+        # Override in subclasses for other key handling
         pass
 
     def handle_key_release(self, event):
@@ -206,6 +216,20 @@ class Tool(QObject):
         
         # Fallback to original position if no snap system or no snap found
         return Point2D(x, y)
+
+    def draw_points(self):
+        """Draw the points on the scene"""
+        scale = self.scene.views()[0].transform().m11()
+        dot_size = 7 / scale
+        for point in self.points:
+            point_item = self.scene.addEllipse(
+                point.x - dot_size / 2,
+                point.y - dot_size / 2,
+                dot_size, dot_size,
+                pen=QPen(QColor("red"), 0.0),
+                brush=QBrush(QColor("red"))
+            )
+            self.temp_objects.append(point_item)
 
     def draw_preview(self, current_x: float, current_y: float):
         """Draw a preview of the object being created"""

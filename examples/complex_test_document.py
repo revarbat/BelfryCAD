@@ -265,9 +265,9 @@ def main():
         'use_fractions': False,
         'grid_visible': True,
         'show_rulers': True,
-        'canvas_bg_color': '#f0f0f0',
-        'grid_color': '#d0d0d0',
-        'selection_color': '#ff8000'
+        'canvas_bg_color': '#FFFFFF',
+        'grid_color': '#CCCCCC',
+        'selection_color': '#0080FF'
     }
     
     # Save document

@@ -37,66 +37,92 @@ class EllipseCadObject(CadObject):
 
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get the bounds of the ellipse."""
+        if not self.ellipse:
+            return (0, 0, 0, 0)
         return self.ellipse.get_bounds()
 
     @property
     def center_point(self) -> Point2D:
         """Get the center point."""
+        if not self.ellipse:
+            return Point2D(0, 0)
         return self.ellipse.center
     
     @center_point.setter
     def center_point(self, value: Point2D):
         """Set the center point."""
+        if not self.ellipse:
+            return
         self.ellipse.center = Point2D(value)
 
     @property
     def radius1(self) -> float:
         """Get the first radius."""
+        if not self.ellipse:
+            return 0
         return self.ellipse.major_axis / 2
     
     @radius1.setter
     def radius1(self, value: float):
         """Set the first radius."""
+        if not self.ellipse:
+            return
         self.ellipse = Ellipse(self.ellipse.center, value, self.ellipse.radius2, self.ellipse.rotation_degrees)
 
     @property
     def radius2(self) -> float:
         """Get the second radius."""
+        if not self.ellipse:
+            return 0
         return self.ellipse.minor_axis / 2
     
     @radius2.setter
     def radius2(self, value: float):
         """Set the second radius."""
+        if not self.ellipse:
+            return
         self.ellipse = Ellipse(self.ellipse.center, self.ellipse.radius1, value, self.ellipse.rotation_degrees)
 
     @property
     def rotation_degrees(self) -> float:
         """Get the rotation angle in degrees."""
+        if not self.ellipse:
+            return 0
         return self.ellipse.rotation_degrees
     
     @rotation_degrees.setter
     def rotation_degrees(self, value: float):
         """Set the rotation angle in degrees."""
+        if not self.ellipse:
+            return
         self.ellipse.rotation_degrees = float(value)
 
     @property
     def rotation_radians(self) -> float:
         """Get the rotation angle in radians."""
+        if not self.ellipse:
+            return 0
         return self.ellipse.rotation_radians
     
     @rotation_radians.setter
     def rotation_radians(self, value: float):
         """Set the rotation angle in radians."""
+        if not self.ellipse:
+            return
         self.ellipse.rotation_radians = value
 
     @property
     def major_axis_point(self) -> Point2D:
         """Get the major axis point."""
+        if not self.ellipse:
+            return Point2D(0, 0)
         return self.ellipse.center + Point2D(self.ellipse.major_axis / 2, angle=self.ellipse.rotation_degrees)
     
     @major_axis_point.setter
     def major_axis_point(self, value: Point2D):
         """Set the major axis point by calculating radius and rotation."""
+        if not self.ellipse:
+            return
         point = Point2D(value)
         radius1 = self.ellipse.center.distance_to(point)
         rotation_degrees = (point - self.ellipse.center).angle_degrees
@@ -105,11 +131,15 @@ class EllipseCadObject(CadObject):
     @property
     def minor_axis_point(self) -> Point2D:
         """Get the minor axis point."""
+        if not self.ellipse:
+            return Point2D(0, 0)
         return self.ellipse.center + Point2D(self.ellipse.minor_axis / 2, angle=self.ellipse.rotation_degrees + 90)
     
     @minor_axis_point.setter
     def minor_axis_point(self, value: Point2D):
         """Set the minor axis point by calculating radius."""
+        if not self.ellipse:
+            return
         point = Point2D(value)
         radius2 = self.ellipse.center.distance_to(point)
         self.ellipse = Ellipse(self.ellipse.center, self.ellipse.radius1, radius2, self.ellipse.rotation_degrees)
@@ -117,31 +147,43 @@ class EllipseCadObject(CadObject):
     @property
     def major_axis(self) -> float:
         """Get the major axis length."""
+        if not self.ellipse:
+            return 0
         return self.ellipse.major_axis
     
     @major_axis.setter
     def major_axis(self, value: float):
         """Set the major axis length."""
+        if not self.ellipse:
+            return
         self.ellipse.major_axis = value
 
     @property
     def minor_axis(self) -> float:
         """Get the minor axis length."""
+        if not self.ellipse:
+            return 0
         return self.ellipse.minor_axis
     
     @minor_axis.setter
     def minor_axis(self, value: float):
         """Set the minor axis length."""
+        if not self.ellipse:
+            return
         self.ellipse.minor_axis = value
 
     @property
     def focus1(self) -> Point2D:
         """Get the first focus point."""
+        if not self.ellipse:
+            return Point2D(0, 0)
         return self.ellipse.get_foci()[0]
     
     @focus1.setter
     def focus1(self, value: Point2D):
         """Set the first focus point by updating the ellipse parameters."""
+        if not self.ellipse:
+            return
         value = Point2D(value)
         focus2 = self.ellipse.get_foci()[1]
                 
@@ -155,11 +197,15 @@ class EllipseCadObject(CadObject):
     @property
     def focus2(self) -> Point2D:
         """Get the second focus point."""
+        if not self.ellipse:
+            return Point2D(0, 0)
         return self.ellipse.get_foci()[1]
     
     @focus2.setter
     def focus2(self, value: Point2D):
         """Set the second focus point by updating the ellipse parameters."""
+        if not self.ellipse:
+            return
         value = Point2D(value)
         focus1 = self.ellipse.get_foci()[0]
         
@@ -172,31 +218,45 @@ class EllipseCadObject(CadObject):
 
     def translate(self, dx: float, dy: float):
         """Move the ellipse by the specified offset."""
+        if not self.ellipse:
+            return
         self.ellipse.translate(Point2D(dx, dy))
 
     def scale(self, scale: float, center: Point2D):
         """Scale the ellipse by the specified factor around the center point."""
+        if not self.ellipse:
+            return
         self.ellipse.scale(scale, center)
 
     def rotate(self, angle: float, center: Point2D):
         """Rotate the ellipse by the specified angle around the center point."""
+        if not self.ellipse:
+            return
         self.ellipse.rotate(angle, center)
 
     def transform(self, transform: Transform2D):
         """Transform the ellipse by the given transform."""
+        if not self.ellipse:
+            return
         self.ellipse.transform(transform)
 
     def contains_point(self, point: Point2D, tolerance: float = 5.0) -> bool:
         """Check if the ellipse contains the given point."""
+        if not self.ellipse:
+            return False
         closest_point = self.ellipse.closest_point_to(point)
         return point.distance_to(closest_point) <= tolerance
 
     def decompose(self, into: List[ShapeType] = []) -> List[Shape2D]:
         """Decompose the ellipse into simpler objects."""
+        if not self.ellipse:
+            return []
         return [self.ellipse]
 
     def make_constrainables(self, solver: ConstraintSolver):
         """Setup constraints for this ellipse."""
+        if not self.ellipse:
+            return
         # Create constraint points for center, major axis, and minor axis
         center_cp = ConstrainablePoint2D(solver, (self.ellipse.center.x, self.ellipse.center.y), fixed=False)
         radius1 = ConstrainableLength(solver, self.radius1, fixed=False)
@@ -213,6 +273,8 @@ class EllipseCadObject(CadObject):
 
     def update_constrainables_before_solving(self, solver: ConstraintSolver):
         """Update constrainables with current object values before solving."""
+        if not self.ellipse:
+            return
         if hasattr(self, 'constraint_center'):
             # Update the constrainable points with current ellipse points
             self.constraint_center.update_values(self.ellipse.center.x, self.ellipse.center.y)
@@ -222,6 +284,8 @@ class EllipseCadObject(CadObject):
 
     def update_from_solved_constraints(self, solver: ConstraintSolver):
         """Update object from constraints."""
+        if not self.ellipse:
+            return
         # Get updated coordinates from constraints
         cx, cy = self.constraint_center.get(solver.variables)
         r1 = self.constraint_radius1.get(solver.variables)
@@ -236,6 +300,8 @@ class EllipseCadObject(CadObject):
 
     def get_constrainables(self) -> List[Tuple[str, Constrainable]]:
         """Get list of constrainables for this object."""
+        if not self.ellipse:
+            return []
         if hasattr(self, 'constraint_center'):
             return [
                 ("center", self.constraint_center),
@@ -248,6 +314,8 @@ class EllipseCadObject(CadObject):
 
     def get_object_data(self) -> dict:
         """Get the data needed to re-create this object."""
+        if not self.ellipse:
+            return {}
         data = {}
         data["center_point"] = self.ellipse.center.to_string()
         data["radius1"] = self.radius1
