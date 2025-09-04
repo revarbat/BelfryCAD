@@ -17,7 +17,7 @@ from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
 
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 from ..cad_geometry.spur_gear import SpurGear
 from ..utils.logger import get_logger
 
@@ -112,8 +112,8 @@ class GearCadObject(CadObject):
         pass
 
 
-class GearTool(Tool):
-    """Tool for creating spur and helical gears"""
+class GearTool(CadTool):
+    """CadTool for creating spur and helical gears"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -222,6 +222,10 @@ class GearTool(Tool):
         # Add to document
         self.document_window.document.add_object(gear)
         return gear
+
+    def handle_escape(self, event):
+        """Handle escape key press."""
+        self.document_window.set_tool(None)
 
 
 # Export list for tool registration

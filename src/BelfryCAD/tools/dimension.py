@@ -14,7 +14,7 @@ from PySide6.QtGui import QPen, QColor, QTransform
 
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 
 class DimensionObject(CadObject):
@@ -45,8 +45,8 @@ class DimensionObject(CadObject):
         return self.start.distance_to(self.end)
 
 
-class HorizontalDimensionTool(Tool):
-    """Tool for creating horizontal dimension lines"""
+class HorizontalDimensionTool(CadTool):
+    """CadTool for creating horizontal dimension lines"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -60,13 +60,6 @@ class HorizontalDimensionTool(Tool):
             secondary_key="H",
             node_info=["Start Point2D", "End Point2D", "Line Offset"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -235,8 +228,8 @@ class HorizontalDimensionTool(Tool):
         return obj
 
 
-class VerticalDimensionTool(Tool):
-    """Tool for creating vertical dimension lines"""
+class VerticalDimensionTool(CadTool):
+    """CadTool for creating vertical dimension lines"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -250,13 +243,6 @@ class VerticalDimensionTool(Tool):
             secondary_key="V",
             node_info=["Start Point2D", "End Point2D", "Line Offset"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -433,8 +419,8 @@ class VerticalDimensionTool(Tool):
         return obj
 
 
-class LinearDimensionTool(Tool):
-    """Tool for creating linear dimension lines at any angle"""
+class LinearDimensionTool(CadTool):
+    """CadTool for creating linear dimension lines at any angle"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -448,13 +434,6 @@ class LinearDimensionTool(Tool):
             secondary_key="L",
             node_info=["Start Point2D", "End Point2D", "Line Offset"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -754,8 +733,8 @@ class ArcDimensionObject(CadObject):
         return abs(diff)
 
 
-class ArcDimensionTool(Tool):
-    """Tool for creating arc dimension lines (angle measurements)"""
+class ArcDimensionTool(CadTool):
+    """CadTool for creating arc dimension lines (angle measurements)"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -770,10 +749,6 @@ class ArcDimensionTool(Tool):
             node_info=["Center Point2D", "Start Point2D", "End Point2D",
                        "Arc Offset"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""

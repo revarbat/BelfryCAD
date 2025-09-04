@@ -25,7 +25,7 @@ from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush, QTransform
 
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 
 def _reflect_point_across_line(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> tuple[float, float]:
@@ -82,8 +82,8 @@ def _transform_coords_skew(coords: List[float], shear_x: float, shear_y: float, 
     return result
 
 
-class NodeAddTool(Tool):
-    """Tool for adding nodes to objects"""
+class NodeAddTool(CadTool):
+    """CadTool for adding nodes to objects"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -98,10 +98,6 @@ class NodeAddTool(Tool):
             show_controls=True,
             node_info=["Node Add Position"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -134,8 +130,8 @@ class NodeAddTool(Tool):
         pass
 
 
-class NodeDeleteTool(Tool):
-    """Tool for deleting nodes from objects"""
+class NodeDeleteTool(CadTool):
+    """CadTool for deleting nodes from objects"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -150,10 +146,6 @@ class NodeDeleteTool(Tool):
             show_controls=True,
             node_info=["Node to Delete"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -196,8 +188,8 @@ class NodeDeleteTool(Tool):
         pass
 
 
-class ReorientTool(Tool):
-    """Tool for changing loop's start node"""
+class ReorientTool(CadTool):
+    """CadTool for changing loop's start node"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -212,10 +204,6 @@ class ReorientTool(Tool):
             show_controls=True,
             node_info=["Node to Reorient Endpoints To"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -243,8 +231,8 @@ class ReorientTool(Tool):
         pass
 
 
-class ConnectTool(Tool):
-    """Tool for connecting two objects"""
+class ConnectTool(CadTool):
+    """CadTool for connecting two objects"""
 
     def __init__(self, scene, document, preferences):
         super().__init__(scene, document, preferences)
@@ -262,10 +250,6 @@ class ConnectTool(Tool):
             secondary_key="C",
             node_info=["Start Point2D", "End Point2D"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -329,8 +313,8 @@ class ConnectTool(Tool):
         pass
 
 
-class TranslateTool(Tool):
-    """Tool for translating (moving) objects"""
+class TranslateTool(CadTool):
+    """CadTool for translating (moving) objects"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -344,10 +328,6 @@ class TranslateTool(Tool):
             secondary_key="T",
             node_info=["Reference Point2D", "Move To"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -477,8 +457,8 @@ class TranslateTool(Tool):
         return False
 
 
-class RotateTool(Tool):
-    """Tool for rotating objects around a center point"""
+class RotateTool(CadTool):
+    """CadTool for rotating objects around a center point"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -492,10 +472,6 @@ class RotateTool(Tool):
             secondary_key="R",
             node_info=["Center of Rotation", "Reference Point2D", "Rotate To"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -632,8 +608,8 @@ class RotateTool(Tool):
         pass
 
 
-class ScaleTool(Tool):
-    """Tool for scaling objects"""
+class ScaleTool(CadTool):
+    """CadTool for scaling objects"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -647,10 +623,6 @@ class ScaleTool(Tool):
             secondary_key="S",
             node_info=["Center of Scaling", "Reference Point2D", "Scale To"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -802,8 +774,8 @@ class ScaleTool(Tool):
         return False
 
 
-class FlipTool(Tool):
-    """Tool for flipping (reflecting) objects across a line"""
+class FlipTool(CadTool):
+    """CadTool for flipping (reflecting) objects across a line"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -818,11 +790,6 @@ class FlipTool(Tool):
             node_info=["Start of Line to Flip Across",
                 "End of Line to Flip Across"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
-
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
         self.cancel()
@@ -949,8 +916,8 @@ class FlipTool(Tool):
         pass
 
 
-class ShearTool(Tool):
-    """Tool for shearing objects"""
+class ShearTool(CadTool):
+    """CadTool for shearing objects"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -964,11 +931,6 @@ class ShearTool(Tool):
             secondary_key="H",
             node_info=["Center of Shear", "Reference Point2D", "Shear To"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
-
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
         self.cancel()
@@ -1118,8 +1080,8 @@ class ShearTool(Tool):
         return False
 
 
-class BendTool(Tool):
-    """Tool for bending objects along a curve"""
+class BendTool(CadTool):
+    """CadTool for bending objects along a curve"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -1133,11 +1095,6 @@ class BendTool(Tool):
             secondary_key="B",
             node_info=["First Endpoint", "Second Endpoint", "Control Point2D"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
-
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
         self.cancel()
@@ -1236,8 +1193,8 @@ class BendTool(Tool):
         pass
 
 
-class WrapTool(Tool):
-    """Tool for wrapping objects around a center point"""
+class WrapTool(CadTool):
+    """CadTool for wrapping objects around a center point"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -1251,11 +1208,6 @@ class WrapTool(Tool):
             secondary_key="W",
             node_info=["Center Point2D", "Reference Point2D", "Tangent Point2D"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
-
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
         self.cancel()
@@ -1344,8 +1296,8 @@ class WrapTool(Tool):
         pass
 
 
-class UnwrapTool(Tool):
-    """Tool for unwrapping objects from a curved arrangement"""
+class UnwrapTool(CadTool):
+    """CadTool for unwrapping objects from a curved arrangement"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -1359,11 +1311,6 @@ class UnwrapTool(Tool):
             is_creator=False,
             node_info=["Center Point2D", "Reference Point2D", "Tangent Point2D"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
-
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
         self.cancel()

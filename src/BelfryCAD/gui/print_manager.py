@@ -271,13 +271,21 @@ class CadPrintManager:
             self._render_circle_for_print(painter, obj)
         elif obj_type == 'POINT':
             self._render_point_for_print(painter, obj)
-        elif obj_type == 'POLYLINE':
-            self._render_polyline_for_print(painter, obj)
+        elif obj_type == 'ELLIPSE':
+            self._render_ellipse_for_print(painter, obj)
+        elif obj_type == 'BEZIER':
+            self._render_bezier_for_print(painter, obj)
         elif obj_type == 'POLYGON':
             self._render_polygon_for_print(painter, obj)
+        elif obj_type == 'TEXT':
+            self._render_text_for_print(painter, obj)
+        elif obj_type == 'GEAR':
+            self._render_gear_for_print(painter, obj)
+        elif obj_type == 'GROUP':
+            self._render_group_for_print(painter, obj)
         else:
-            # Default rendering for unknown types
-            self._render_generic_for_print(painter, obj)
+            # Unknown object type - skip
+            pass
 
     def _get_print_style(self, obj) -> tuple[QPen, QBrush]:
         """Get optimized pen and brush for printing."""
@@ -339,13 +347,6 @@ class CadPrintManager:
                 QPointF(point.x, point.y - size/2),
                 QPointF(point.x, point.y + size/2)
             )
-
-    def _render_polyline_for_print(self, painter: QPainter, obj):
-        """Render a polyline object for printing."""
-        if len(obj.coords) >= 2:
-            points = [QPointF(coord.x, coord.y) for coord in obj.coords]
-            for i in range(len(points) - 1):
-                painter.drawLine(points[i], points[i + 1])
 
     def _render_polygon_for_print(self, painter: QPainter, obj):
         """Render a polygon object for printing."""

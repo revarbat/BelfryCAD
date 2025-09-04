@@ -786,15 +786,17 @@ class DocumentWindow(QMainWindow):
 
         for tool_class in available_tools:
             tool = self.tool_manager.register_tool(tool_class)
-            self.tools[tool.definition.token] = tool
-            # Connect tool signals to redraw
-            tool.object_created.connect(self.on_object_created)
+            if tool and tool.definition:
+                self.tools[tool.definition.token] = tool
+            
+                # Connect tool signals to redraw
+                tool.object_created.connect(self.on_object_created)
 
-            # Group tools by category
-            category = tool.definition.category
-            if category not in tools_by_category:
-                tools_by_category[category] = []
-            tools_by_category[category].append(tool)
+                # Group tools by category
+                category = tool.definition.category
+                if category not in tools_by_category:
+                    tools_by_category[category] = []
+                tools_by_category[category].append(tool)
 
             # Add tool to tools menu
             # Create tool menu action

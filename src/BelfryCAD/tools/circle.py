@@ -1,5 +1,5 @@
 """
-Circle Drawing Tool Implementation
+Circle Drawing CadTool Implementation
 
 This module implements a circle drawing tool based on the TCL tool
 implementation.
@@ -10,16 +10,16 @@ from typing import Optional, List
 
 from ..models.cad_object import CadObject, ObjectType
 from ..models.cad_objects.circle_cad_object import CircleCadObject
-from ..cad_geometry import Point2D
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from ..cad_geometry import Point2D, Circle
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 from PySide6.QtCore import Qt, QRectF, QPointF
 from PySide6.QtGui import QPen, QColor, QBrush
 from PySide6.QtWidgets import QGraphicsEllipseItem, QGraphicsLineItem
 
 
 
-class CircleTool(Tool):
-    """Tool for drawing circles"""
+class CircleTool(CadTool):
+    """CadTool for drawing circles"""
 
     # Class-level tool definition
     tool_definitions = [
@@ -34,12 +34,6 @@ class CircleTool(Tool):
             node_info=["Center Point2D", "Radius Point2D"]
         )
     ]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -123,8 +117,8 @@ class CircleTool(Tool):
         return circle
 
 
-class Circle2PTTool(Tool):
-    """Tool for drawing circles by 2 points (diameter endpoints)"""
+class Circle2PTTool(CadTool):
+    """CadTool for drawing circles by 2 points (diameter endpoints)"""
 
     # Class-level tool definition
     tool_definitions = [
@@ -140,9 +134,9 @@ class Circle2PTTool(Tool):
         )
     ]
 
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
+    def handle_escape(self, event):
+        """Handle escape key to cancel the operation"""
+        self.cancel()
 
     def handle_mouse_down(self, event):
         """Handle mouse down events"""
@@ -212,8 +206,8 @@ class Circle2PTTool(Tool):
         return obj
 
 
-class Circle3PTTool(Tool):
-    """Tool for drawing circles by 3 points on circumference"""
+class Circle3PTTool(CadTool):
+    """CadTool for drawing circles by 3 points on circumference"""
 
     # Class-level tool definition
     tool_definitions = [
@@ -228,10 +222,6 @@ class Circle3PTTool(Tool):
             node_info=["First Point2D", "Second Point2D", "Third Point2D"]
         )
     ]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_mouse_down(self, event):
         """Handle mouse down events"""
@@ -303,19 +293,30 @@ class Circle3PTTool(Tool):
         # Clear previous preview
         self.clear_temp_objects()
 
+        pen = QPen(QColor("black"), 3.0)
+        pen.setCosmetic(True)
+        pen.setDashPattern([2, 2])  # Dashed line for preview
+
         if len(self.points) >= 2:
             # Calculate circle from 3 points
             p1, p2 = self.points
             p3 = self.get_snap_point(current_x, current_y)
-            circ_info = self._calculate_circle_from_3_points(p1, p2, p3)
-            if circ_info is None:
+
+            try:
+                circle = Circle.from_3_points([p1, p2, p3])
+            except ValueError:
+                if p1 != p2:
+                    line_item = self.scene.addLine(p1.x, p1.y, p2.x, p2.y, pen=pen)
+                    self.temp_objects.append(line_item)
+                if p2 != p3:
+                    line_item = self.scene.addLine(p2.x, p2.y, p3.x, p3.y, pen=pen)
+                    self.temp_objects.append(line_item)
                 return
-            center, radius = circ_info
+
+            center = circle.center
+            radius = circle.radius
 
             # Draw preview circle
-            pen = QPen(QColor("black"), 3.0)
-            pen.setCosmetic(True)
-            pen.setDashPattern([2, 2])  # Dashed line for preview
             ellipse_item = self.scene.addEllipse(
                 center.x - radius, center.y - radius,
                 2 * radius, 2 * radius,
@@ -331,9 +332,6 @@ class Circle3PTTool(Tool):
             radius = p1.distance_to(center)
 
             # Draw preview circle
-            pen = QPen(QColor("black"), 3.0)
-            pen.setCosmetic(True)
-            pen.setDashPattern([2, 2])  # Dashed line for preview
             ellipse_item = self.scene.addEllipse(
                 center.x - radius, center.y - radius,
                 2 * radius, 2 * radius,
@@ -348,11 +346,11 @@ class Circle3PTTool(Tool):
         if len(self.points) != 3:
             return None
 
-        p1, p2, p3 = self.points
-        circ_info = self._calculate_circle_from_3_points(p1, p2, p3)
-        if circ_info is None:
+        circle = Circle.from_3_points(self.points)
+        if circle is None:
             return None
-        center, radius = circ_info
+        center = circle.center
+        radius = circle.radius
 
         obj = CircleCadObject(
             document=self.document,

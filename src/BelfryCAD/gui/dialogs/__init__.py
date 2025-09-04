@@ -2,7 +2,7 @@
 Dialogs package for BelfryCAD.
 
 This package contains all dialog windows and wizards including:
-- Tool table and specification dialogs
+- CNC Tool table and specification dialogs
 - Preferences dialog
 - G-code backtracer dialog
 - Gear wizard dialog

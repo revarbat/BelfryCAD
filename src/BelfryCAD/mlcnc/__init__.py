@@ -7,7 +7,7 @@ translated from the original TCL implementation in tksrc/lib/mlcnc.
 This package includes:
 - Feed rate optimization
 - Cutting parameter prediction
-- Tool path optimization
+- CNCTool path optimization
 - Material property analysis
 """
 

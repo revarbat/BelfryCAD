@@ -1,6 +1,6 @@
 # filepath: /Users/gminette/dev/git-repos/pyBelfryCad/src/tools/ellipse.py
 """
-Ellipse Drawing Tool Implementation
+Ellipse Drawing CadTool Implementation
 
 This module implements various ellipse drawing tools.
 """
@@ -11,7 +11,7 @@ from typing import Optional, List
 from ..models.cad_object import CadObject
 from ..models.cad_objects.ellipse_cad_object import EllipseCadObject
 from ..cad_geometry import Point2D, Ellipse
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 from PySide6.QtWidgets import (
     QGraphicsEllipseItem,
     QGraphicsLineItem,
@@ -21,12 +21,12 @@ from PySide6.QtCore import QRectF, Qt, QPointF
 from PySide6.QtGui import QPen, QBrush, QColor, QPolygonF
 
 
-class EllipseCenterTool(Tool):
-    """Tool for drawing ellipses by center point and corner point"""
+class EllipseCenterTool(CadTool):
+    """CadTool for drawing ellipses by center point and corner point"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="ELLIPSECTR",
             name="Ellipse by Center",
             category=ToolCategory.ELLIPSES,
@@ -35,14 +35,8 @@ class EllipseCenterTool(Tool):
             is_creator=True,
             secondary_key="E",
             node_info=["Center Point2D", "Corner Point2D"]
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -142,12 +136,12 @@ class EllipseCenterTool(Tool):
         return obj
 
 
-class EllipseDiagonalTool(Tool):
-    "Tool for drawing ellipses by diagonal opposite corners of bounding box"
+class EllipseDiagonalTool(CadTool):
+    "CadTool for drawing ellipses by diagonal opposite corners of bounding box"
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="ELLIPSEDIAG",
             name="Ellipse by Diagonal",
             category=ToolCategory.ELLIPSES,
@@ -156,14 +150,8 @@ class EllipseDiagonalTool(Tool):
             secondary_key="D",
             is_creator=True,
             node_info=["First Corner", "Opposite Corner"]
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -288,13 +276,14 @@ class EllipseDiagonalTool(Tool):
         return obj
 
 
-class Ellipse3CornerTool(Tool):
-    """Tool for drawing ellipses by three corner points of bounding rectangle
+class Ellipse3CornerTool(CadTool):
+    """
+    CadTool for drawing ellipses by three corner points of bounding rectangle
     """
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="ELLIPSE3CRN",
             name="Ellipse by 3 Corners",
             category=ToolCategory.ELLIPSES,
@@ -303,11 +292,8 @@ class Ellipse3CornerTool(Tool):
             is_creator=True,
             secondary_key="R",
             node_info=["First Corner", "Second Corner", "Third Corner"]
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -427,12 +413,12 @@ class Ellipse3CornerTool(Tool):
         return obj
 
 
-class EllipseCenterTangentTool(Tool):
-    """Tool for drawing ellipses by center point and tangent constraints"""
+class EllipseCenterTangentTool(CadTool):
+    """CadTool for drawing ellipses by center point and tangent constraints"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="ELLIPSECTRTAN",
             name="Ellipse Center-Tangent",
             category=ToolCategory.ELLIPSES,
@@ -441,11 +427,8 @@ class EllipseCenterTangentTool(Tool):
             is_creator=True,
             secondary_key="T",
             node_info=["Center Point2D", "Tangent Point2D 1", "Tangent Point2D 2"]
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -610,12 +593,12 @@ class EllipseCenterTangentTool(Tool):
         return obj
 
 
-class EllipseOppositeTangentTool(Tool):
-    """Tool for drawing ellipses using opposite tangent constraints"""
+class EllipseOppositeTangentTool(CadTool):
+    """CadTool for drawing ellipses using opposite tangent constraints"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="ELLIPSEOPPTAN",
             name="Ellipse Opposite Tangents",
             category=ToolCategory.ELLIPSES,
@@ -624,11 +607,8 @@ class EllipseOppositeTangentTool(Tool):
             is_creator=True,
             secondary_key="O",
             node_info=["First Tangent", "Opposite Tangent", "Size Point2D"]
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""

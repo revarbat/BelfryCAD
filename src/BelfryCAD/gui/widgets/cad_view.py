@@ -3,13 +3,8 @@ CADGraphicsView - Custom graphics view for CAD operations
 """
 
 from PySide6.QtWidgets import QGraphicsView
-from PySide6.QtGui import QPainter, QPen, QColor, QBrush
-from PySide6.QtCore import Qt, QTimer, QPointF, QRectF
-from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QCursor
-
-from ..graphics_items.grid_graphics_items import GridBackground, RulersForeground
-
+from PySide6.QtGui import QPainter
+from PySide6.QtCore import Qt
 
 
 class CadView(QGraphicsView):
@@ -33,5 +28,5 @@ class CadView(QGraphicsView):
         self.setInteractive(True)
         self.setCursor(Qt.CursorShape.ArrowCursor)
         self.resetTransform()
-        dpmm = self.physicalDpiX() / 2.54
-        self.scale(dpmm, -dpmm)
+        dpcm = self.physicalDpiX() / 2.54
+        self.scale(dpcm, -dpcm)

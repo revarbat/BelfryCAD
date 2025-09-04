@@ -106,15 +106,18 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
         scale = self.transform().m11()
         circum = 2 * math.pi * self._radius
         shy_span = 10 * scale / circum * 360
-        trimmed_span_angle = span_degrees
-        trimmed_start_angle = start_degrees
+
+        trimmed_start_degrees = start_degrees
+        trimmed_span_degrees = span_degrees
         trimmed_start_point = start_point
+
         if self._arrowheads in [CadArcArrowheadEndcaps.START, CadArcArrowheadEndcaps.BOTH]:
-            trimmed_span_angle -= math.copysign(shy_span, span_degrees)
-            trimmed_start_angle += math.copysign(shy_span, span_degrees)
-            trimmed_start_point = self._center_point + _polar(self._radius, trimmed_start_angle)
+            trimmed_span_degrees -= shy_span * math.copysign(1.0, span_degrees)
+            trimmed_start_degrees += shy_span * math.copysign(1.0, span_degrees)
+            trimmed_start_point = self._center_point + _polar(self._radius, trimmed_start_degrees)
         if self._arrowheads in [CadArcArrowheadEndcaps.END, CadArcArrowheadEndcaps.BOTH]:
-            trimmed_span_angle -= math.copysign(shy_span, span_degrees)
+            trimmed_span_degrees -= shy_span * math.copysign(1.0, span_degrees)
+
         arc_path.moveTo(trimmed_start_point)
 
         # Draw the arc - Qt's arcTo uses degrees
@@ -123,8 +126,8 @@ class CadArcGraphicsItem(QAbstractGraphicsShapeItem):
             self._center_point.y() - self._radius,
             self._radius * 2,
             self._radius * 2,
-            -trimmed_start_angle,  # Qt uses degrees
-            -trimmed_span_angle    # Qt uses degrees, negative for clockwise
+            -trimmed_start_degrees,  # Qt uses degrees
+            -trimmed_span_degrees    # Qt uses degrees, negative for clockwise
         )
         
         # Create arc graphics item

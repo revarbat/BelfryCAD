@@ -1,5 +1,5 @@
 """
-Point Tool Implementation
+Point CadTool Implementation
 
 This module implements the point drawing tool based on the original TCL
 tools_points.tcl implementation.
@@ -8,15 +8,15 @@ tools_points.tcl implementation.
 from typing import Optional, List
 
 from ..models.cad_object import CadObject, ObjectType
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsEllipseItem, QGraphicsTextItem
 from PySide6.QtCore import QRectF, Qt, QPointF
 from PySide6.QtGui import QPen
 
 
-class PointTool(Tool):
-    """Tool for drawing individual points"""
+class PointTool(CadTool):
+    """CadTool for drawing individual points"""
 
     # Class-level tool definition
     tool_definitions = [
@@ -31,13 +31,6 @@ class PointTool(Tool):
             node_info=["Point Location"]
         )
     ]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""

@@ -25,10 +25,10 @@
      inkscape:pagecheckerboard="1"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="9.7770759"
-     inkscape:cx="13.296409"
-     inkscape:cy="16.569371"
-     inkscape:window-width="1088"
-     inkscape:window-height="633"
+     inkscape:cx="20.711714"
+     inkscape:cy="26.746238"
+     inkscape:window-width="1296"
+     inkscape:window-height="824"
      inkscape:window-x="0"
      inkscape:window-y="25"
      inkscape:window-maximized="0"
@@ -70,47 +70,5 @@
        cy="22.034525"
        rx="1.8410412"
        ry="1.7387612" />
-    <text
-       xml:space="preserve"
-       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round;stroke-dashoffset:0.2"
-       x="6.5459242"
-       y="29.047541"
-       id="text1"><tspan
-         sodipodi:role="line"
-         id="tspan1"
-         x="6.5459242"
-         y="29.047541"
-         style="font-size:8px">1</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round;stroke-dashoffset:0.2"
-       x="2.966121"
-       y="8.898366"
-       id="text2"><tspan
-         sodipodi:role="line"
-         id="tspan2"
-         x="2.966121"
-         y="8.898366"
-         style="font-size:8px">2</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round;stroke-dashoffset:0.2"
-       x="20.046894"
-       y="29.7635"
-       id="text3"><tspan
-         sodipodi:role="line"
-         id="tspan3"
-         x="20.046894"
-         y="29.7635">3</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:8px;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.5;stroke-linecap:round;stroke-dashoffset:0.2"
-       x="19.740053"
-       y="10.330287"
-       id="text4"><tspan
-         sodipodi:role="line"
-         id="tspan4"
-         x="19.740053"
-         y="10.330287">N</tspan></text>
   </g>
 </svg>

@@ -1,18 +1,15 @@
 """
 Tools Package
 
-Provides drawing and editing tools for the pyBelfryCad application.
+Provides drawing and editing tools for the BelfryCAD application.
 """
 
-from .line import LineTool
-from .linemp import LineMPTool
-from .polyline import PolylineTool
+from .line import LineTool, LineMPTool
 from .circle import CircleTool, Circle2PTTool, Circle3PTTool
 from .selector import SelectorTool
 from .nodeselect import NodeSelectTool
-from .bezier import BezierTool, BezierQuadTool
+from .bezier import BezierTool
 from .arcs import ArcCenterTool, Arc3PointTool, ArcTangentTool
-from .conic import Conic2PointTool, Conic3PointTool
 from .ellipse import (
     EllipseCenterTool,
     EllipseDiagonalTool,
@@ -80,16 +77,11 @@ available_tools = [
     # Line & Bezier tools
     LineTool,
     LineMPTool,
-    PolylineTool,
     BezierTool,
-    BezierQuadTool,
     # Arc tools
     ArcCenterTool,
     Arc3PointTool,
     ArcTangentTool,
-    # Conic tools
-    Conic2PointTool,
-    Conic3PointTool,
     # Circle tools
     CircleTool,
     Circle2PTTool,

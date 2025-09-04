@@ -286,23 +286,23 @@ class GridInfo(object):
             return valstr
 
     @staticmethod
-    def get_dpmm(view: QGraphicsView) -> float:
+    def get_dpcm(view: QGraphicsView) -> float:
         """Get the dots per millimeter from the view."""
-        dpmm = view.physicalDpiX() / 2.54
-        return dpmm
+        dpcm = view.physicalDpiX() / 2.54
+        return dpcm
     
     @staticmethod
     def get_zoom(view: QGraphicsView) -> float:
         """Get the zoom level, in percentage."""
-        dpmm = GridInfo.get_dpmm(view)
-        return view.transform().m11() / dpmm * 100
+        dpcm = GridInfo.get_dpcm(view)
+        return view.transform().m11() / dpcm * 100
 
     @staticmethod
     def set_zoom(view: QGraphicsView, zoom: float) -> float:
         """Set the zoom level, in percentage."""
-        dpmm = GridInfo.get_dpmm(view)
+        dpcm = GridInfo.get_dpcm(view)
         view.resetTransform()
-        view.scale(dpmm, -dpmm)
+        view.scale(dpcm, -dpcm)
         view.scale(zoom / 100.0, zoom / 100.0)
         view.update()
         return zoom

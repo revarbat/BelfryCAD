@@ -582,8 +582,8 @@ class MainMenuBar(QObject):
         """Create the CAM menu."""
         cam_menu = self.menubar.addMenu("&CAM")
 
-        # Tool Table
-        tool_table_action = QAction("&Tool Table...", self.parent_window)
+        # CNC Tool Table
+        tool_table_action = QAction("CNC &Tool Table...", self.parent_window)
         tool_table_action.triggered.connect(self.tool_table_triggered.emit)
         cam_menu.addAction(tool_table_action)
 

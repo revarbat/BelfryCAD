@@ -18,7 +18,7 @@ class CadPolylineGraphicsItem(CadGraphicsItemBase):
         super().__init__(parent=parent)
         
         # Store polyline geometry
-        self._points = points if points else []
+        self._points = points.copy() if points else []
         if pen is not None:
             self.setPen(pen)
         self.setBrush(QBrush(Qt.BrushStyle.NoBrush))

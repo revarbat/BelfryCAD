@@ -1,5 +1,5 @@
 """
-Tool Table Dialog
+CNC Tool Table Dialog
 
 This module provides a dialog for managing a list of tool specifications.
 """
@@ -38,11 +38,11 @@ class ToolTableDialog(QDialog):
 
     def _setup_ui(self):
         """Set up the dialog UI."""
-        self.setWindowTitle("Tool Table")
+        self.setWindowTitle("CNC Tool Table")
         self.setMinimumWidth(600)
         layout = QVBoxLayout()
 
-        # Tool list
+        # CNC Tool list
         list_group = QGroupBox("Tools")
         list_layout = QVBoxLayout()
 

@@ -26,7 +26,7 @@ class OperationType(Enum):
 
 
 class ToolGeometry(Enum):
-    """Tool geometry types."""
+    """CNCTool geometry types."""
     EMPTY_SLOT = "Empty Slot"
     SQUARE_END_MILL = "Square End Mill"
     BALL_END_MILL = "Ball End Mill"
@@ -38,7 +38,7 @@ class ToolGeometry(Enum):
     FLY_CUTTER = "Fly Cutter"
 
 class ToolMaterial(Enum):
-    """Tool material types."""
+    """CNCTool material types."""
     HSS = "HSS"
     CARBIDE = "Carbide"
     COBALT = "Cobalt"
@@ -46,7 +46,7 @@ class ToolMaterial(Enum):
     CBN = "CBN"
 
 class ToolCoating(Enum):
-    """Tool coating types."""
+    """CNCTool coating types."""
     NONE = "None"
     WC = "Tungsten Carbide (WC)"
     Al2O3 = "Aluminum Oxide (Al2O3)"
@@ -61,7 +61,7 @@ class ToolCoating(Enum):
 
 @dataclass
 class ToolSpecification:
-    """Tool specification parameters."""
+    """CNCTool specification parameters."""
     diameter: float
     length: float
     flute_count: int = 2
@@ -77,7 +77,7 @@ class ToolSpecification:
 
 @dataclass
 class MachineCapabilities:
-    """Machine tool capabilities."""
+    """CNC Machine tool capabilities."""
     max_spindle_speed: float
     max_feed_rate: float
     max_power: float  # HP or kW
@@ -390,10 +390,10 @@ class CuttingParameterCalculator:
         """
         forces = self.calculate_cutting_forces(condition)
 
-        # Tool material properties (assume steel for simplicity)
+        # CNCTool material properties (assume steel for simplicity)
         E = 30.0e6  # psi (modulus of elasticity)
 
-        # Tool geometry
+        # CNCTool geometry
         L = condition.tool.length  # length
         D = condition.tool.diameter  # diameter
         I = math.pi * D**4 / 64  # moment of inertia
@@ -424,7 +424,7 @@ class CuttingParameterCalculator:
         chip_load = (condition.feed_rate /
                     (condition.spindle_speed * condition.tool.flute_count))
 
-        # Tool geometry factor
+        # CNCTool geometry factor
         if condition.tool.geometry == ToolGeometry.BALL_END_MILL:
             geometry_factor = 0.5
         elif condition.tool.corner_radius:

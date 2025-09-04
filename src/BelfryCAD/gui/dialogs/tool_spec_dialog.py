@@ -1,5 +1,5 @@
 """
-Tool Specification Dialog
+CNC Tool Specification Dialog
 
 This module provides a dialog for creating and editing ToolSpecification objects.
 """

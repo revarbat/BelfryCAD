@@ -1,10 +1,11 @@
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsSceneMouseEvent
+import math
+from typing import Optional
+
 from PySide6.QtCore import Qt, QPointF, QTimer, Signal
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QKeyEvent, QPen
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsScene, QGraphicsSceneMouseEvent
 
-
-
-from ..graphics_items.control_points import ControlPoint, ControlDatum
+from ..graphics_items.cad_arc_graphics_item import CadArcGraphicsItem
 
 
 class CadScene(QGraphicsScene):
@@ -32,7 +33,7 @@ class CadScene(QGraphicsScene):
         # Snaps system reference (will be set by main window)
         self._snaps_system = None
         
-        # Tool manager reference (will be set by document window)
+        # CadTool manager reference (will be set by document window)
         self._tool_manager = None
         
         # Connect to Qt's built-in selection changed signal
@@ -56,6 +57,26 @@ class CadScene(QGraphicsScene):
         # This is now handled by Qt's built-in selection system
         
         super().removeItem(item)
+
+    def addArc(
+            self,
+            center: QPointF,
+            radius: float,
+            start_degrees: float,
+            end_degrees: float,
+            pen: Optional[QPen] = None,
+    ) -> CadArcGraphicsItem:
+        """Add an arc to the scene."""
+        arc_item = CadArcGraphicsItem(
+            center, radius, start_degrees, end_degrees
+        )
+        if pen is not None:
+            arc_item.setPen(pen)
+        arc_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+        arc_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+        arc_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)
+        self.addItem(arc_item)
+        return arc_item
 
     def set_snaps_system(self, snaps_system):
         """Set the snaps system reference."""

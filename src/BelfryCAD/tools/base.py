@@ -1,5 +1,5 @@
 """
-Base Tool System
+Base CadTool System
 
 This module implements the base tool system based on the original TCL
 tools.tcl. It provides a foundation for all drawing and editing tools
@@ -53,7 +53,7 @@ class ToolDefinition:
     """Definition of a tool's properties"""
     token: str                     # Unique identifier for the tool
     name: str                      # Human-readable name
-    category: ToolCategory         # Tool category
+    category: ToolCategory         # CadTool category
     icon: str = ""                 # Icon for the tool in the toolbox
     cursor: str = "crosshair"      # Cursor shape when tool is active
     is_creator: bool = True        # Whether the tool creates objects
@@ -63,7 +63,7 @@ class ToolDefinition:
     node_info: List[str] = field(default_factory=list)  # Info about nodes
 
 
-class Tool(QObject):
+class CadTool(QObject):
     """Base class for all drawing and editing tools"""
 
     # Signal emitted when an object is created
@@ -87,18 +87,15 @@ class Tool(QObject):
         # For compatibility, keep the first definition as primary
         self.definition = self.definitions[0] if self.definitions else None
 
-        # Set up mouse event bindings
-        self._setup_bindings()
-
     @property
     def scene(self):
         """Get the CAD graphics scene from the document window"""
         return self.document_window.get_scene()
 
     @property
-    def dpmm(self):
+    def dpcm(self):
         """Get the dots per millimeter from the document window"""
-        return self.document_window.get_dpmm()
+        return self.document_window.get_dpcm()
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definitions - uses class-level definitions by default"""
@@ -106,18 +103,7 @@ class Tool(QObject):
             return self.tool_definitions
         
         # Fallback for backward compatibility
-        return [ToolDefinition(
-            token="TOOL",
-            name="Base Tool",
-            category=ToolCategory.SELECTOR,
-            icon="default",
-            cursor="crosshair",
-            is_creator=True
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass  # Override in subclasses
+        return []
 
     def activate(self):
         """Called when the tool is activated"""
@@ -266,12 +252,12 @@ class ToolManager:
         self.document_window = document_window
         self.document = document
         self.preferences = preferences
-        self.tools: Dict[str, Tool] = {}
+        self.tools: Dict[str, CadTool] = {}
         self.active_tool = None
         self.tool_change_callbacks: List[Callable] = []
 
     def register_tool(self, tool_class):
-        """Register a tool with the manager"""
+        """Register a tool class with the tool manager."""
         tool = tool_class(self.document_window, self.document, self.preferences)
         # Register all definitions from this tool
         for definition in tool.definitions:
@@ -279,7 +265,7 @@ class ToolManager:
         return tool
 
     def activate_tool(self, token: str):
-        """Activate a tool by its token"""
+        """Activate a tool by its token."""
         if self.active_tool:
             self.active_tool.deactivate()
 
@@ -293,8 +279,8 @@ class ToolManager:
         else:
             self.active_tool = None
 
-    def get_active_tool(self) -> Optional[Tool]:
-        """Get the currently active tool"""
+    def get_active_tool(self) -> Optional['CadTool']:
+        """Get the currently active tool."""
         return self.active_tool
 
     def add_tool_change_listener(self, callback: Callable):

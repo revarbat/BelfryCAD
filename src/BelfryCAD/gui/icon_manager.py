@@ -200,7 +200,7 @@ def preload_common_icons():
         "snap-quadrant",
         "snap-tangent",
 
-        # Tool icons (common ones)
+        # CadTool icons (common ones)
         "tool-line",
         "tool-circle",
         "tool-rectangle",

@@ -1,5 +1,5 @@
 """
-Node Selection Tool Implementation
+Node Selection CadTool Implementation
 
 This module implements a node selection tool that allows users to select
 individual control points (nodes) of CAD objects, based on the original
@@ -13,11 +13,11 @@ from PySide6.QtWidgets import QGraphicsEllipseItem
 
 from ..models.cad_object import CadObject
 from ..cad_geometry import Point2D
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 
-class NodeSelectTool(Tool):
-    """Tool for selecting individual nodes/control points of CAD objects"""
+class NodeSelectTool(CadTool):
+    """CadTool for selecting individual nodes/control points of CAD objects"""
 
     def __init__(self, scene, document, preferences):
         super().__init__(scene, document, preferences)
@@ -40,10 +40,6 @@ class NodeSelectTool(Tool):
             secondary_key="N",
             show_controls=True
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def activate(self):
         """Activate the tool"""

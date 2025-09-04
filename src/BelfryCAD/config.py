@@ -80,7 +80,7 @@ class AppConfig:
         }
 
 
-# Tool definitions (matching the original TCL tools)
+# CNC Tool definitions (matching the original TCL tools)
 TOOL_DEFINITIONS = {
     # CNC Tools from main.tcl
     1: {"size": "1/32", "flutes": 2, "material": "Carbide"},

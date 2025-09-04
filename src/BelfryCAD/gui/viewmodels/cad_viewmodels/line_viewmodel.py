@@ -73,27 +73,6 @@ class LineViewModel(CadViewModel):
         This is called when this object is selected.
         """
         self._clear_decorations(scene)
-        line_width = self._line_object.line_width or 1.0
-        pen = QPen(QColor(191,191,191), line_width)
-        #pen.setStyle(Qt.PenStyle.DashLine)
-        #pen.setCosmetic(True)
-        view_item = DimensionLineComposite(
-            self._line_object.line.start.to_qpointf(),
-            self._line_object.line.end.to_qpointf(),
-            extension=line_width*20,
-            excess=line_width*5,
-            gap=line_width*5,
-            show_text=True,
-            text_format_callback=self._format_length_text,
-            pen=pen
-        )
-        view_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
-        view_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
-        view_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)
-
-        self._decorations.append(view_item)
-
-        self._add_decorations_to_scene(scene)
     
     def hide_decorations(self, scene: QGraphicsScene):
         """
@@ -122,21 +101,21 @@ class LineViewModel(CadViewModel):
         start_cp = SquareControlPoint(
             model_view=self,
             setter=self._set_start_point,
-            tool_tip="Line Start"
+            tool_tip=f"Line Start"
         )
         self._controls.append(start_cp)
 
         end_cp = ControlPoint(
             model_view=self,
             setter=self._set_end_point,
-            tool_tip="Line End"
+            tool_tip=f"Line End"
         )
         self._controls.append(end_cp)
 
         mid_cp = ControlPoint(
             model_view=self,
             setter=self._set_mid_point,
-            tool_tip="Line Midpoint"
+            tool_tip=f"Line Midpoint"
         )
         self._controls.append(mid_cp)
 

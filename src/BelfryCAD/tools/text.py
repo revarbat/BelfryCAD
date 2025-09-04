@@ -1,5 +1,5 @@
 """
-Text Tool Implementation
+Text CadTool Implementation
 
 This module implements text drawing tools based on the original TCL
 tools_text.tcl implementation.
@@ -9,7 +9,7 @@ import math
 from typing import Optional, List
 
 from ..models.cad_object import CadObject, ObjectType
-from ..tools.base import Tool, ToolState, ToolCategory, ToolDefinition
+from ..tools.base import CadTool, ToolState, ToolCategory, ToolDefinition
 from ..cad_geometry import Point2D, Region
 from PySide6.QtWidgets import QGraphicsTextItem, QGraphicsRectItem, QGraphicsLineItem
 from PySide6.QtCore import QRectF, Qt
@@ -38,8 +38,8 @@ class TextObject(CadObject):
         return self.attributes['text']
 
 
-class TextTool(Tool):
-    """Tool for creating text elements"""
+class TextTool(CadTool):
+    """CadTool for creating text elements"""
 
     def __init__(self, scene, document, preferences):
         """Initialize the tool with the scene, document and preferences"""
@@ -63,13 +63,6 @@ class TextTool(Tool):
             is_creator=True,
             node_info=["Position"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""

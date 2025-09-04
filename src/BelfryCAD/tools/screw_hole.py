@@ -14,7 +14,7 @@ from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
 
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 if TYPE_CHECKING:
     from ..gui.document_window import DocumentWindow
@@ -59,8 +59,8 @@ class ScrewHoleCadObject(CadObject):
         pass
 
 
-class ScrewHoleTool(Tool):
-    """Tool for creating screw holes in the CAD document."""
+class ScrewHoleTool(CadTool):
+    """CadTool for creating screw holes in the CAD document."""
     
     def __init__(self, document_window, document, preferences):
         super().__init__(document_window, document, preferences)
@@ -78,12 +78,6 @@ class ScrewHoleTool(Tool):
             secondary_key="H",
             node_info=["Center Point2D", "Diameter Point2D"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""

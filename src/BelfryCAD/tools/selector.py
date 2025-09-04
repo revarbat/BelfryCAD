@@ -1,5 +1,5 @@
 """
-Object Selection Tool Implementation
+Object Selection CadTool Implementation
 
 This module implements an object selection tool based on the TCL selector tool.
 """
@@ -9,11 +9,11 @@ from PySide6.QtCore import QRectF, QPointF
 from PySide6.QtGui import QPen, QColor
 
 from ..models.cad_object import CadObject
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 
-class SelectorTool(Tool):
-    """Tool for selecting CAD objects"""
+class SelectorTool(CadTool):
+    """CadTool for selecting CAD objects"""
 
     def __init__(self, scene, document, preferences):
         super().__init__(scene, document, preferences)
@@ -33,12 +33,6 @@ class SelectorTool(Tool):
             is_creator=False,
             show_controls=True
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""

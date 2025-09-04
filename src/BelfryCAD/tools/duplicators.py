@@ -8,7 +8,7 @@ import math
 from typing import List
 from PySide6.QtCore import Qt
 
-from .base import Tool, ToolCategory, ToolDefinition
+from .base import CadTool, ToolCategory, ToolDefinition
 from ..models.cad_object import CadObject
 from ..cad_geometry import Point2D
 
@@ -23,7 +23,7 @@ def angle_between_points(p1: Point2D, p2: Point2D) -> float:
     return math.atan2(p2.y - p1.y, p2.x - p1.x)
 
 
-class GridCopyTool(Tool):
+class GridCopyTool(CadTool):
     """Grid copy tool - duplicates selected objects in a 2D grid pattern"""
 
     def __init__(self, scene, document, preferences):
@@ -116,7 +116,7 @@ class GridCopyTool(Tool):
             self.deactivate()
 
 
-class LinearCopyTool(Tool):
+class LinearCopyTool(CadTool):
     """Linear copy tool - duplicates objects along a line"""
 
     def __init__(self, scene, document, preferences):
@@ -224,7 +224,7 @@ class LinearCopyTool(Tool):
                 self.deactivate()
 
 
-class RadialCopyTool(Tool):
+class RadialCopyTool(CadTool):
     """Radial copy tool - duplicates objects in a circular pattern"""
 
     def __init__(self, scene, document, preferences):
@@ -331,7 +331,7 @@ class RadialCopyTool(Tool):
                 self.deactivate()
 
 
-class OffsetCopyTool(Tool):
+class OffsetCopyTool(CadTool):
     """Offset copy tool - creates offset copies of selected objects"""
 
     def __init__(self, scene, document, preferences):

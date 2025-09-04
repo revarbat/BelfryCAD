@@ -43,7 +43,7 @@ class ToolPathView(QGraphicsView):
 class GCodeBacktracerDialog(QDialog):
     """Dialog for analyzing and visualizing G-code files."""
 
-    # Tool colors for different tools
+    # CNC Tool colors for different tools
     TOOL_COLORS = [
         QColor(0, 0, 255),    # Blue
         QColor(0, 128, 0),    # Green

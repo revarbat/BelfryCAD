@@ -12,7 +12,7 @@ from PySide6.QtGui import QPixmap
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
 from ..utils.logger import get_logger
-from .base import Tool
+from .base import CadTool
 
 if TYPE_CHECKING:
     from ..gui.document_window import DocumentWindow
@@ -80,8 +80,8 @@ class ImageCadObject(CadObject):
         pass
 
 
-class ImageTool(Tool):
-    """Tool for inserting images into the CAD document."""
+class ImageTool(CadTool):
+    """CadTool for inserting images into the CAD document."""
     
     def __init__(self, document_window, document, preferences):
         super().__init__(document_window, document, preferences)

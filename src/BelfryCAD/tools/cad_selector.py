@@ -1,5 +1,5 @@
 """
-Enhanced CAD Object Selector Tool
+Enhanced CADObject Selector CadTool
 
 This module provides an enhanced object selector tool with multi-selection,
 rectangle selection, and clipboard operations based on cadselect.tcl patterns.
@@ -10,11 +10,11 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QPen, QColor, QBrush
 from PySide6.QtWidgets import QGraphicsRectItem
 
-from .base import Tool, ToolDefinition, ToolCategory
+from .base import CadTool, ToolDefinition, ToolCategory
 from ..models.cad_object import CadObject, ObjectType
 
 
-class CadSelectorTool(Tool):
+class CadSelectorTool(CadTool):
     """
     Enhanced CAD object selector tool with multi-selection capabilities.
     Based on design patterns from cadselect.tcl.
@@ -99,7 +99,7 @@ class CadSelectorTool(Tool):
 
     def _point_in_object(self, x: float, y: float, obj: CadObject) -> bool:
         """Check if point is within object bounds."""
-        if not obj.coords:
+        if not obj.p:
             return False
 
         # Simple distance-based selection for now

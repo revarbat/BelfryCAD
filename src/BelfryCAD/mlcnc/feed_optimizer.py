@@ -291,7 +291,7 @@ class FeedOptimizer:
         # Material factor
         material_factor = material_props["machinability_rating"]
 
-        # Tool type factor
+        # CNCTool type factor
         tool_factor = tool_coeffs["chip_load_factor"]
 
         # Flute count factor (more flutes = smaller chip load)

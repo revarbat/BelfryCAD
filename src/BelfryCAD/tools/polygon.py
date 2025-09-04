@@ -1,5 +1,5 @@
 """
-Polygon Drawing Tool Implementation
+Polygon Drawing CadTool Implementation
 
 This module implements various polygon drawing tools based on the original TCL
 tools_polygons.tcl implementation, including rectangles and regular polygons.
@@ -10,7 +10,7 @@ from typing import Optional, List
 
 from ..models.cad_object import CadObject, ObjectType
 from ..cad_geometry import Point2D
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
 from PySide6.QtCore import QRectF, Qt, QPointF
@@ -37,8 +37,8 @@ class PolygonObject(CadObject):
             self.coords.append(Point2D(self.coords[0].x, self.coords[0].y))
 
 
-class RectangleTool(Tool):
-    """Tool for drawing rectangles by two diagonal corners"""
+class RectangleTool(CadTool):
+    """CadTool for drawing rectangles by two diagonal corners"""
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -52,13 +52,6 @@ class RectangleTool(Tool):
             secondary_key="R",
             node_info=["First Corner", "Opposite Corner"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -175,8 +168,8 @@ class RectangleTool(Tool):
         return obj
 
 
-class RoundedRectangleTool(Tool):
-    """Tool for drawing rounded rectangles with adjustable corner radius"""
+class RoundedRectangleTool(CadTool):
+    """CadTool for drawing rounded rectangles with adjustable corner radius"""
 
     def __init__(self, canvas, document, preferences):
         """Initialize the tool with the canvas, document and preferences"""
@@ -196,12 +189,6 @@ class RoundedRectangleTool(Tool):
             is_creator=True,
             node_info=["First Corner", "Opposite Corner", "Corner Radius"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -486,8 +473,8 @@ class RoundedRectangleTool(Tool):
         return obj
 
 
-class RegularPolygonTool(Tool):
-    """Tool for drawing regular polygons by center and radius"""
+class RegularPolygonTool(CadTool):
+    """CadTool for drawing regular polygons by center and radius"""
 
     def __init__(self, canvas, document, preferences):
         """Initialize the tool with the canvas, document and preferences"""
@@ -535,13 +522,6 @@ class RegularPolygonTool(Tool):
             secondary_key="G",
             node_info=["Center Point2D", "Radius Point2D"]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings"""
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""

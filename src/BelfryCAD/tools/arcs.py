@@ -1,5 +1,5 @@
 """
-Arc Drawing Tool Implementation
+Arc Drawing CadTool Implementation
 
 This module implements various arc drawing tools based on the original TCL
 tools_arcs.tcl implementation.
@@ -10,22 +10,22 @@ from typing import Optional, Tuple, List
 
 from PySide6.QtWidgets import (QGraphicsLineItem, QGraphicsTextItem,
                                QGraphicsPathItem, QGraphicsEllipseItem)
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QPen, QColor, QPainterPath, QBrush
 
 from ..models.cad_objects.arc_cad_object import ArcCadObject
-from ..cad_geometry import Point2D
+from ..cad_geometry import Point2D, Circle
 
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 from ..models.cad_object import CadObject, ObjectType
 
 
-class ArcCenterTool(Tool):
-    """Tool for drawing arcs by center point, start point, and end point."""
+class ArcCenterTool(CadTool):
+    """CadTool for drawing arcs by center point, start point, and end point."""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition."""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="ARCCTR",
             name="Arc by Center",
             category=ToolCategory.ARCS,
@@ -34,14 +34,8 @@ class ArcCenterTool(Tool):
             is_creator=True,
             secondary_key="C",
             node_info=["Center Point", "Start Point", "End Point"]
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings."""
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation."""
@@ -49,8 +43,16 @@ class ArcCenterTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event."""
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+
         # Get the snapped point based on current snap settings
-        point = self.get_snap_point(event.x, event.y)
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
+        print(f"mouse down Arc by Center: {self.state} {point}")
+
         if self.state == ToolState.ACTIVE:
             # First point - center of arc
             self.points.append(point)
@@ -62,12 +64,17 @@ class ArcCenterTool(Tool):
             # Third point - end point of arc
             self.points.append(point)
             self.complete()
+            print(f"completed Arc by Center: {self.points}")
 
     def handle_mouse_move(self, event):
         """Handle mouse movement event."""
         if self.state == ToolState.DRAWING:
             # Draw preview arc
-            self.draw_preview(event.x, event.y)
+            if hasattr(event, 'scenePos'):
+                scene_pos = event.scenePos()
+            else:
+                scene_pos = QPointF(event.x, event.y)
+            self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the arc being created."""
@@ -77,28 +84,24 @@ class ArcCenterTool(Tool):
         # Get the snapped point based on current snap settings
         point = self.get_snap_point(current_x, current_y)
 
+        pen = QPen(QColor("black"), 3.0)
+        pen.setCosmetic(True)
+        pen.setStyle(Qt.PenStyle.DashLine)
+
+        pen_gray = QPen(QColor("gray"), 3.0)
+        pen_gray.setCosmetic(True)
+        pen_gray.setStyle(Qt.PenStyle.DashLine)
+
         if len(self.points) == 1:
             # Drawing from center to start point
             center = self.points[0]
 
             # Draw temporary line from center to current point
-            line_item = QGraphicsLineItem(center.x, center.y, point.x, point.y)
-            pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.PenStyle.DashLine)
-            line_item.setPen(pen)
-            self.scene.addItem(line_item)
-            self.temp_objects.append(line_item)
-
-            # Draw radius indicator
-            radius = math.sqrt(
-                (point.x - center.x)**2 + (point.y - center.y)**2
+            line_item = self.scene.addLine(
+                center.x, center.y, point.x, point.y,
+                pen
             )
-            text_item = QGraphicsTextItem(f"R={radius:.1f}")
-            text_item.setDefaultTextColor(QColor("blue"))
-            text_item.setPos((center.x + point.x) / 2,
-                             (center.y + point.y) / 2)
-            self.scene.addItem(text_item)
-            self.temp_objects.append(text_item)
+            self.temp_objects.append(line_item)
 
         elif len(self.points) == 2:
             # Drawing from center to end point
@@ -109,62 +112,33 @@ class ArcCenterTool(Tool):
             radius = math.sqrt(
                 (start.x - center.x)**2 + (start.y - center.y)**2
             )
-            start_angle = math.atan2(start.y - center.y, start.x - center.x)
-            end_angle = math.atan2(point.y - center.y, point.x - center.x)
+            start_degrees = math.degrees(math.atan2(start.y - center.y, start.x - center.x))
+            end_degrees = math.degrees(math.atan2(point.y - center.y, point.x - center.x))
+            span_degrees = end_degrees - start_degrees
+            if span_degrees < 0:
+                span_degrees += 360.0
 
             # Draw temporary arc
-            self._draw_arc_preview(center, radius, start_angle, end_angle)
+            arc_item = self.scene.addArc(
+                center.to_qpointf(), radius,
+                start_degrees, span_degrees, pen=pen)
+            self.temp_objects.append(arc_item)
 
             # Draw control lines
-            line1_item = QGraphicsLineItem(
-                center.x, center.y, start.x, start.y
+            line1_item = self.scene.addLine(
+                center.x, center.y, start.x, start.y,
+                pen_gray
             )
-            pen1 = QPen(QColor("blue"))
-            pen1.setStyle(Qt.PenStyle.DashLine)
-            line1_item.setPen(pen1)
-            self.scene.addItem(line1_item)
-
-            line2_item = QGraphicsLineItem(
-                center.x, center.y, point.x, point.y
+            end_angle = math.degrees(math.atan2(point.y - center.y, point.x - center.x))
+            end_point = center +Point2D(radius, angle=end_angle)
+            line2_item = self.scene.addLine(
+                center.x, center.y, end_point.x, end_point.y,
+                pen_gray
             )
-            pen2 = QPen(QColor("blue"))
-            pen2.setStyle(Qt.PenStyle.DashLine)
-            line2_item.setPen(pen2)
-            self.scene.addItem(line2_item)
 
             self.temp_objects.extend([line1_item, line2_item])
 
-    def _draw_arc_preview(self, center: Point2D, radius: float,
-                          start_angle: float, end_angle: float):
-        """Draw an arc preview with the given parameters."""
-        # Ensure proper arc direction
-        if end_angle < start_angle:
-            end_angle += 2 * math.pi
-
-        # Create points along the arc
-        arc_points = []
-        steps = 36  # Number of segments for the arc
-        angle_step = (end_angle - start_angle) / steps
-
-        for i in range(steps + 1):
-            angle = start_angle + i * angle_step
-            x = center.x + radius * math.cos(angle)
-            y = center.y + radius * math.sin(angle)
-            arc_points.extend([x, y])
-
-        if len(arc_points) >= 4:  # Need at least 2 points (4 coordinates)
-            # Create a path for the arc
-            path = QPainterPath()
-            path.moveTo(arc_points[0], arc_points[1])
-            for i in range(2, len(arc_points), 2):
-                path.lineTo(arc_points[i], arc_points[i + 1])
-
-            path_item = QGraphicsPathItem(path)
-            pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.PenStyle.DashLine)
-            path_item.setPen(pen)
-            self.scene.addItem(path_item)
-            self.temp_objects.append(path_item)
+        self.draw_points()
 
     def create_object(self) -> Optional[CadObject]:
         """Create an arc object from the collected points."""
@@ -174,9 +148,8 @@ class ArcCenterTool(Tool):
         center = self.points[0]
         start = self.points[1]
         end = self.points[2]
-        if start == end:
-            return None
-        if center == start or center == end:
+
+        if start == end or center == start or center == end:
             return None
 
         # Calculate radius and angles
@@ -186,9 +159,7 @@ class ArcCenterTool(Tool):
         span_degrees = end_degrees - start_degrees
         
         # Normalize span angle to handle wraparound cases
-        if span_degrees > 180.0:
-            span_degrees -= 360.0
-        elif span_degrees < -180.0:
+        if span_degrees < 0.0:
             span_degrees += 360.0
 
         # Create an arc object
@@ -202,40 +173,32 @@ class ArcCenterTool(Tool):
         return obj
 
 
-class Arc3PointTool(Tool):
-    """Tool for drawing arcs through 3 points (start, end, middle)."""
+class Arc3PointTool(CadTool):
+    """CadTool for drawing arcs through 3 points (start, end, middle)."""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition."""
-        return [
-            ToolDefinition(
-                token="ARC3PT",
-                name="Arc by 3 Points",
-                category=ToolCategory.ARCS,
-                icon="tool-arc3pt-123",
-                cursor="crosshair",
-                is_creator=True,
-                secondary_key="3",
-                node_info=["Start Point", "Middle Point", "End Point"]
-            ),
-            ToolDefinition(
-                token="ARC3PTLAST",
-                name="Arc by 3 Points, Middle Last",
-                category=ToolCategory.ARCS,
-                icon="tool-arc3pt-132",
-                cursor="crosshair",
-                is_creator=True,
-                secondary_key="M",
-                node_info=["Start Point", "End Point", "Middle Point"]
-            )
-        ]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        # In Qt, event handling is done differently - these will be connected
-        # in the main window or graphics view
-        pass
-        """Set up mouse and keyboard event bindings."""
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
+            token="ARC3PT",
+            name="Arc by 3 Points",
+            category=ToolCategory.ARCS,
+            icon="tool-arc3pt-123",
+            cursor="crosshair",
+            is_creator=True,
+            secondary_key="3",
+            node_info=["Start Point", "Middle Point", "End Point"]
+        ),
+        ToolDefinition(
+            token="ARC3PTLAST",
+            name="Arc by 3 Points, Middle Last",
+            category=ToolCategory.ARCS,
+            icon="tool-arc3pt-132",
+            cursor="crosshair",
+            is_creator=True,
+            secondary_key="M",
+            node_info=["Start Point", "End Point", "Middle Point"]
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation."""
@@ -243,8 +206,14 @@ class Arc3PointTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event."""
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+
         # Get the snapped point based on current snap settings
-        point = self.get_snap_point(event.x, event.y)
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.ACTIVE:
             # First point - start of arc
@@ -262,7 +231,11 @@ class Arc3PointTool(Tool):
         """Handle mouse movement event."""
         if self.state == ToolState.DRAWING:
             # Draw preview arc
-            self.draw_preview(event.x, event.y)
+            if hasattr(event, 'scenePos'):
+                scene_pos = event.scenePos()
+            else:
+                scene_pos = QPointF(event.x, event.y)
+            self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the arc being created."""
@@ -272,19 +245,20 @@ class Arc3PointTool(Tool):
         # Get the snapped point based on current snap settings
         point = self.get_snap_point(current_x, current_y)
 
+        pen = QPen(QColor("black"), 3.0)
+        pen.setCosmetic(True)
+        pen.setStyle(Qt.PenStyle.DashLine)
+
+        pen_gray = QPen(QColor("#cccccc"), 3.0)
+        pen_gray.setCosmetic(True)
+        pen_gray.setStyle(Qt.PenStyle.DashLine)
+
         if len(self.points) == 1:
             # Only have start point, draw line to current point
             start = self.points[0]
-
-            from PySide6.QtWidgets import QGraphicsLineItem
-            from PySide6.QtCore import Qt
-            from PySide6.QtGui import QPen, QColor
-
-            pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.PenStyle.DashLine)
             line_item = self.scene.addLine(
                 start.x, start.y, point.x, point.y,
-                pen=pen, tags=["ConstPreview"]
+                pen
             )
             self.temp_objects.append(line_item)
 
@@ -295,143 +269,49 @@ class Arc3PointTool(Tool):
             p3 = point          # End (current mouse position)
 
             # Calculate center and radius from 3 points
-            center, radius = self._calculate_arc_center_radius(p1, p2, p3)
+            circle = Circle.from_3_points([p1, p2, p3])
+            if circle is not None:
+                center = circle.center
+                radius = circle.radius
 
-            if center is not None:
                 # Calculate start and end angles
-                start_angle = math.atan2(p1.y - center.y, p1.x - center.x)
-                end_angle = math.atan2(p3.y - center.y, p3.x - center.x)
+                start_degrees = (p1 - center).angle_degrees
+                p2_degrees = (p2 - center).angle_degrees
+                p3_degrees = (p3 - center).angle_degrees
+                if p2_degrees < start_degrees:
+                    p2_degrees += 360.0
+                if p3_degrees < start_degrees:
+                    p3_degrees += 360.0
+                if p3_degrees > p2_degrees:
+                    end_degrees = p3_degrees
+                    end_point = p3
+                else:
+                    end_degrees = p2_degrees
+                    end_point = p2
 
-                # Determine arc direction using middle point
-                if not self._is_point_on_arc(p1, p3, p2, center,
-                                             start_angle, end_angle):
-                    if end_angle < start_angle:
-                        end_angle += 2 * math.pi
-                    else:
-                        end_angle -= 2 * math.pi
+                span_degrees = end_degrees - start_degrees
 
                 # Draw the preview arc
-                self._draw_arc_preview(center, radius, start_angle, end_angle)
-
-                # Draw center point and radius lines for reference
-                center_item = QGraphicsEllipseItem(
-                    center.x - 3, center.y - 3, 6, 6
+                arc_item = self.scene.addArc(
+                    center.to_qpointf(), radius,
+                    start_degrees, span_degrees,
+                    pen=pen
                 )
-                center_item.setPen(QPen(QColor("gray")))
-                center_item.setBrush(QBrush(QColor("gray")))
-                self.scene.addItem(center_item)
+                self.temp_objects.append(arc_item)
 
-                line1_item = QGraphicsLineItem(center.x, center.y, p1.x, p1.y)
-                pen1 = QPen(QColor("gray"))
-                pen1.setStyle(Qt.PenStyle.DashLine)
-                line1_item.setPen(pen1)
-                self.scene.addItem(line1_item)
+                line1_item = self.scene.addLine(
+                    center.x, center.y, p1.x, p1.y,
+                    pen=pen_gray
+                )
+                self.temp_objects.append(line1_item)
 
-                line2_item = QGraphicsLineItem(center.x, center.y, p3.x, p3.y)
-                pen2 = QPen(QColor("gray"))
-                pen2.setStyle(Qt.PenStyle.DashLine)
-                line2_item.setPen(pen2)
-                self.scene.addItem(line2_item)
+                line2_item = self.scene.addLine(
+                    center.x, center.y, end_point.x, end_point.y,
+                    pen=pen_gray
+                )
+                self.temp_objects.append(line2_item)
 
-                self.temp_objects.extend([center_item, line1_item, line2_item])
-
-    def _calculate_arc_center_radius(
-            self, p1: Point2D, p2: Point2D, p3: Point2D
-    ) -> Tuple[Optional[Point2D], float]:
-        "Calculate center point and radius of arc passing through 3 points."
-        # Check if points are in a straight line (or nearly so)
-        epsilon = 1e-10
-
-        # Create line segments
-        ax, ay = p2.x - p1.x, p2.y - p1.y
-        bx, by = p3.x - p2.x, p3.y - p2.y
-
-        # Check if the points are collinear using cross product
-        cross_product = ax * by - ay * bx
-        if abs(cross_product) < epsilon:
-            # Points are collinear, can't form an arc
-            return None, 0.0
-
-        # Use perpendicular bisector method to find center
-        # First bisector
-        mid1x, mid1y = (p1.x + p2.x) / 2, (p1.y + p2.y) / 2
-        slope1 = (-1 / ((p2.y - p1.y) / (p2.x - p1.x))
-                  if p2.x != p1.x else 0)
-
-        # Second bisector
-        mid2x, mid2y = (p2.x + p3.x) / 2, (p2.y + p3.y) / 2
-        slope2 = (-1 / ((p3.y - p2.y) / (p3.x - p2.x))
-                  if p3.x != p2.x else 0)
-
-        # Find intersection of bisectors
-        if abs(slope1 - slope2) < epsilon:
-            return None, 0.0
-
-        # Calculate intersection (center of the circle)
-        cx = ((mid2y - mid1y + slope1 * mid1x - slope2 * mid2x) /
-              (slope1 - slope2))
-        cy = mid1y + slope1 * (cx - mid1x)
-
-        # Calculate radius
-        radius = math.sqrt((cx - p1.x)**2 + (cy - p1.y)**2)
-
-        return Point2D(cx, cy), radius
-
-    def _is_point_on_arc(self, p1: Point2D, p2: Point2D, p3: Point2D,
-                         center: Point2D, start_angle: float,
-                         end_angle: float) -> bool:
-        """Check if p3 is on the arc defined by p1, p2, and center."""
-        angle = math.atan2(p3.y - center.y, p3.x - center.x)
-
-        # Normalize angles
-        while start_angle < 0:
-            start_angle += 2 * math.pi
-        while end_angle < 0:
-            end_angle += 2 * math.pi
-        while angle < 0:
-            angle += 2 * math.pi
-
-        # Check if angle is between start and end
-        if start_angle <= end_angle:
-            return start_angle <= angle <= end_angle
-        else:
-            return angle >= start_angle or angle <= end_angle
-
-    def _draw_arc_preview(self, center: Point2D, radius: float,
-                          start_angle: float, end_angle: float):
-        """Draw an arc preview with the given parameters."""
-        # Create points along the arc
-        arc_points = []
-
-        # Determine arc direction and step
-        if end_angle < start_angle:
-            start_angle, end_angle = end_angle, start_angle
-
-        steps = 36  # Number of segments for the arc
-        angle_diff = end_angle - start_angle
-        if angle_diff < 0:
-            angle_diff += 2 * math.pi
-        angle_step = angle_diff / steps
-
-        for i in range(steps + 1):
-            angle = start_angle + i * angle_step
-            x = center.x + radius * math.cos(angle)
-            y = center.y + radius * math.sin(angle)
-            arc_points.extend([x, y])
-
-        if len(arc_points) >= 4:  # Need at least 2 points (4 coordinates)
-            # Create a path for the arc
-            path = QPainterPath()
-            path.moveTo(arc_points[0], arc_points[1])
-            for i in range(2, len(arc_points), 2):
-                path.lineTo(arc_points[i], arc_points[i + 1])
-
-            path_item = QGraphicsPathItem(path)
-            pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.PenStyle.DashLine)
-            path_item.setPen(pen)
-            self.scene.addItem(path_item)
-            self.temp_objects.append(path_item)
+        self.draw_points()
 
     def create_object(self) -> Optional[CadObject]:
         """Create an arc object from the collected points."""
@@ -443,22 +323,23 @@ class Arc3PointTool(Tool):
         p3 = self.points[2]  # End
 
         # Calculate center and radius
-        center, _ = self._calculate_arc_center_radius(p1, p2, p3)
-
-        if center is None:
+        circle = Circle.from_3_points([p1, p2, p3])
+        if circle is None:
             return None
 
-        # Calculate radius and angles
-        radius = center.distance_to(p1)
+        center = circle.center
+        radius = circle.radius
         start_degrees = (p1 - center).angle_degrees
-        end_degrees = (p3 - center).angle_degrees
+        p2_degrees = (p2 - center).angle_degrees
+        p3_degrees = (p3 - center).angle_degrees
+
+        # Normalize angles
+        while p2_degrees < start_degrees:
+            p2_degrees += 360.0
+        while p3_degrees < start_degrees:
+            p3_degrees += 360.0
+        end_degrees = p2_degrees if p2_degrees > p3_degrees else p3_degrees
         span_degrees = end_degrees - start_degrees
-        
-        # Normalize span angle to handle wraparound cases
-        if span_degrees > 180.0:
-            span_degrees -= 360.0
-        elif span_degrees < -180.0:
-            span_degrees += 360.0
 
         # Create an arc object
         obj = ArcCadObject(
@@ -471,12 +352,12 @@ class Arc3PointTool(Tool):
         return obj
 
 
-class ArcTangentTool(Tool):
-    """Tool for drawing arcs by tangent to a line."""
+class ArcTangentTool(CadTool):
+    """CadTool for drawing arcs by tangent to a line."""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition."""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="ARCTAN",
             name="Arc by Tangent",
             category=ToolCategory.ARCS,
@@ -485,11 +366,8 @@ class ArcTangentTool(Tool):
             is_creator=True,
             secondary_key="T",
             node_info=["Starting Point", "Tangent Line Point", "Ending Point"]
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation."""
@@ -497,8 +375,14 @@ class ArcTangentTool(Tool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event."""
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+
         # Get the snapped point based on current snap settings
-        point = self.get_snap_point(event.x, event.y)
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.ACTIVE:
             # First point - start of arc
@@ -516,7 +400,11 @@ class ArcTangentTool(Tool):
         """Handle mouse movement event."""
         if self.state == ToolState.DRAWING:
             # Draw preview arc
-            self.draw_preview(event.x, event.y)
+            if hasattr(event, 'scenePos'):
+                scene_pos = event.scenePos()
+            else:
+                scene_pos = QPointF(event.x, event.y)
+            self.draw_preview(scene_pos.x(), scene_pos.y())
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the arc being created."""
@@ -526,15 +414,22 @@ class ArcTangentTool(Tool):
         # Get the snapped point based on current snap settings
         point = self.get_snap_point(current_x, current_y)
 
+        pen = QPen(QColor("black"), 3.0)
+        pen.setCosmetic(True)
+        pen.setStyle(Qt.PenStyle.DashLine)
+
+        pen_gray = QPen(QColor("gray"), 3.0)
+        pen_gray.setCosmetic(True)
+        pen_gray.setStyle(Qt.PenStyle.DashLine)
+
         if len(self.points) == 1:
             # Only have start point, draw line to current point
             start = self.points[0]
 
-            line_item = QGraphicsLineItem(start.x, start.y, point.x, point.y)
-            pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.PenStyle.DashLine)
-            line_item.setPen(pen)
-            self.scene.addItem(line_item)
+            line_item = self.scene.addLine(
+                start.x, start.y, point.x, point.y,
+                pen
+            )
             self.temp_objects.append(line_item)
 
         elif len(self.points) == 2:
@@ -544,14 +439,11 @@ class ArcTangentTool(Tool):
             end_point = point
 
             # Draw tangent line through tangent point
-            tangent_line_item = QGraphicsLineItem(
+            tangent_line_item = self.scene.addLine(
                 tangent_point.x - 50, tangent_point.y - 50,
-                tangent_point.x + 50, tangent_point.y + 50
+                tangent_point.x + 50, tangent_point.y + 50,
+                pen_gray
             )
-            pen_tangent = QPen(QColor("gray"))
-            pen_tangent.setStyle(Qt.PenStyle.DashLine)
-            tangent_line_item.setPen(pen_tangent)
-            self.scene.addItem(tangent_line_item)
             self.temp_objects.append(tangent_line_item)
 
             # Calculate and draw arc that's tangent to the line
@@ -559,31 +451,26 @@ class ArcTangentTool(Tool):
                 start_point, tangent_point, end_point
             )
             if arc_params is not None:
-                center, radius, start_angle, end_angle = arc_params
-                self._draw_arc_preview(center, radius, start_angle, end_angle)
+                center, radius, start_degrees, end_degrees = arc_params
 
-                # Draw center and radius lines for reference
-                center_item = QGraphicsEllipseItem(
-                    center.x - 3, center.y - 3, 6, 6
-                )
-                center_item.setPen(QPen(QColor("gray")))
-                center_item.setBrush(QBrush(QColor("gray")))
-                self.scene.addItem(center_item)
+                arc_item = self.scene.addArc(
+                    center.to_qpointf(), radius,
+                    start_degrees, end_degrees, pen=pen)
+                self.temp_objects.append(arc_item)
 
-                line1_item = QGraphicsLineItem(
-                    center.x, center.y, start_point.x, start_point.y
+                line1_item = self.scene.addLine(
+                    center.x, center.y, start_point.x, start_point.y,
+                    pen_gray
                 )
-                line2_item = QGraphicsLineItem(
-                    center.x, center.y, end_point.x, end_point.y
-                )
-                pen_gray = QPen(QColor("gray"))
-                pen_gray.setStyle(Qt.PenStyle.DashLine)
-                line1_item.setPen(pen_gray)
-                line2_item.setPen(pen_gray)
-                self.scene.addItem(line1_item)
-                self.scene.addItem(line2_item)
+                self.temp_objects.append(line1_item)
 
-                self.temp_objects.extend([center_item, line1_item, line2_item])
+                line2_item = self.scene.addLine(
+                    center.x, center.y, end_point.x, end_point.y,
+                    pen_gray
+                )
+                self.temp_objects.append(line2_item)
+
+        self.draw_points()
 
     def _calculate_tangent_arc(self, start_point: Point2D, tangent_point: Point2D,
                                end_point: Point2D) -> Optional[
@@ -649,47 +536,10 @@ class ArcTangentTool(Tool):
         center = Point2D(center_x, center_y)
 
         # Calculate start and end angles
-        start_angle = math.atan2(
-            start_point.y - center_y, start_point.x - center_x
-        )
-        end_angle = math.atan2(end_point.y - center_y, end_point.x - center_x)
+        start_degrees = (start_point - center).angle_degrees
+        end_degrees = (end_point - center).angle_degrees
 
-        return center, radius, start_angle, end_angle
-
-    def _draw_arc_preview(self, center: Point2D, radius: float,
-                          start_angle: float, end_angle: float):
-        """Draw an arc preview with the given parameters."""
-        # Ensure proper arc direction
-        angle_diff = end_angle - start_angle
-        if angle_diff > math.pi:
-            angle_diff -= 2 * math.pi
-        elif angle_diff < -math.pi:
-            angle_diff += 2 * math.pi
-
-        # Create points along the arc
-        arc_points = []
-        steps = 36  # Number of segments for the arc
-        angle_step = angle_diff / steps
-
-        for i in range(steps + 1):
-            angle = start_angle + i * angle_step
-            x = center.x + radius * math.cos(angle)
-            y = center.y + radius * math.sin(angle)
-            arc_points.extend([x, y])
-
-        if len(arc_points) >= 4:  # Need at least 2 points (4 coordinates)
-            # Create a path for the arc
-            path = QPainterPath()
-            path.moveTo(arc_points[0], arc_points[1])
-            for i in range(2, len(arc_points), 2):
-                path.lineTo(arc_points[i], arc_points[i + 1])
-
-            path_item = QGraphicsPathItem(path)
-            pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
-            path_item.setPen(pen)
-            self.scene.addItem(path_item)
-            self.temp_objects.append(path_item)
+        return center, radius, start_degrees, end_degrees
 
     def create_object(self) -> Optional[CadObject]:
         """Create an arc object from the collected points."""

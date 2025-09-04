@@ -1,5 +1,5 @@
 """
-Bezier Curve Drawing Tool Implementation
+Bezier Curve Drawing CadTool Implementation
 
 This module implements bezier curve drawing tools based on the TCL
 tools_beziers.tcl implementation.
@@ -9,12 +9,13 @@ import math
 from typing import Optional, List
 
 from ..models.cad_object import CadObject, ObjectType
+from ..models.cad_objects.cubic_bezier_cad_object import CubicBezierCadObject
 from ..cad_geometry import Point2D
-from .base import Tool, ToolState, ToolCategory, ToolDefinition
+from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 
-class BezierTool(Tool):
-    """Tool for drawing cubic bezier curves"""
+class BezierTool(CadTool):
+    """CadTool for drawing cubic bezier curves"""
 
     def __init__(self, scene, document, preferences):
         super().__init__(scene, document, preferences)
@@ -32,12 +33,8 @@ class BezierTool(Tool):
             cursor="crosshair",
             is_creator=True,
             secondary_key="B",
-            node_info=["First Point2D", "Next Point2D", "..."]
+            node_info=["First point", "Next point", "..."]
         )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -90,7 +87,7 @@ class BezierTool(Tool):
                 )
                 pen = QPen()
                 pen.setColor("gray")
-                pen.setStyle(Qt.DashLine)
+                pen.setStyle(Qt.PenStyle.DashLine)
                 line_item.setPen(pen)
                 self.scene.addItem(line_item)
                 self.temp_objects.append(line_item)
@@ -142,155 +139,11 @@ class BezierTool(Tool):
         if len(self.points) < 4:
             return None
 
-        obj = CadObject(
-            mainwin=self.document_window,
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.BEZIER,
-            coords=self.points.copy(),
-            attributes={
-                'color': 'black',
-                'linewidth': 1,
-                'is_quadratic': False
-            }
+        obj = CubicBezierCadObject(
+            document=self.document,
+            points=self.points.copy(),
+            color="black",
+            line_width=1,
         )
         return obj
 
-
-class BezierQuadTool(Tool):
-    """Tool for drawing quadratic bezier curves"""
-
-    def __init__(self, scene, document, preferences):
-        super().__init__(scene, document, preferences)
-        self.is_quadratic = True  # Quadratic beziers
-        self.segment_points = []  # List of points for current segment
-        self.preview_curve = None
-
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
-            token="BEZIERQUAD",
-            name="Quadratic Bezier Curve",
-            category=ToolCategory.LINES,
-            icon="tool-bezierquad",
-            cursor="crosshair",
-            is_creator=True,
-            secondary_key="Q",
-            node_info=["First Point2D", "Control Point2D", "Next Point2D", "..."]
-        )]
-
-    def _setup_bindings(self):
-        """Set up mouse and keyboard event bindings"""
-        pass
-
-    def handle_escape(self, event):
-        """Handle escape key to cancel the operation"""
-        self.cancel()
-
-    def handle_double_click(self, event):
-        """Handle double-click to complete the bezier curve"""
-        if self.state == ToolState.DRAWING and len(self.points) >= 3:
-            self.complete()
-
-    def handle_mouse_down(self, event):
-        """Handle mouse button press event"""
-        point = self.get_snap_point(event.x, event.y)
-
-        if self.state == ToolState.ACTIVE:
-            self.points.append(point)
-            self.segment_points = [point]
-            self.state = ToolState.DRAWING
-        elif self.state == ToolState.DRAWING:
-            self.segment_points.append(point)
-
-            # For quadratic bezier, we need 3 points per segment
-            if len(self.segment_points) == 3:
-                self.points.extend(self.segment_points[1:])
-                self.segment_points = [self.segment_points[-1]]
-
-    def handle_mouse_move(self, event):
-        """Handle mouse movement event"""
-        if self.state == ToolState.DRAWING:
-            self.draw_preview(event.x, event.y)
-
-    def draw_preview(self, current_x, current_y):
-        """Draw a preview of the quadratic bezier curve being created"""
-        self.clear_temp_objects()
-
-        if len(self.segment_points) > 0:
-            point = self.get_snap_point(current_x, current_y)
-            preview_points = self.segment_points.copy()
-            preview_points.append(point)
-
-            # Draw control lines
-            from PySide6.QtWidgets import QGraphicsLineItem
-            from PySide6.QtCore import Qt
-            from PySide6.QtGui import QPen
-
-            for i in range(len(preview_points) - 1):
-                line_item = QGraphicsLineItem(
-                    preview_points[i].x, preview_points[i].y,
-                    preview_points[i+1].x, preview_points[i+1].y
-                )
-                pen = QPen()
-                pen.setColor("gray")
-                pen.setStyle(Qt.DashLine)
-                line_item.setPen(pen)
-                self.scene.addItem(line_item)
-                self.temp_objects.append(line_item)
-
-            # Draw temporary quadratic bezier curve
-            if len(preview_points) >= 3:
-                curve_points = self._get_quadratic_bezier_points(
-                    preview_points[0], preview_points[1], preview_points[2])
-
-                if curve_points:
-                    from PySide6.QtWidgets import QGraphicsPathItem
-                    from PySide6.QtGui import QPainterPath
-
-                    path = QPainterPath()
-                    if curve_points:
-                        path.moveTo(curve_points[0].x, curve_points[0].y)
-                        for p in curve_points[1:]:
-                            path.lineTo(p.x, p.y)
-
-                    path_item = QGraphicsPathItem(path)
-                    pen = QPen()
-                    pen.setColor("blue")
-                    pen.setWidth(2)
-                    path_item.setPen(pen)
-                    self.scene.addItem(path_item)
-                    self.temp_objects.append(path_item)
-
-    def _get_quadratic_bezier_points(
-            self, p0: Point2D, p1: Point2D, p2: Point2D) -> List[Point2D]:
-        """Get points along a quadratic bezier curve"""
-        points = []
-        steps = 20
-
-        for i in range(steps + 1):
-            t = i / steps
-            # Quadratic bezier formula:
-            # B(t) = (1-t)^2*P0 + 2(1-t)t*P1 + t^2*P2
-            x = ((1-t)**2 * p0.x + 2*(1-t)*t * p1.x + t**2 * p2.x)
-            y = ((1-t)**2 * p0.y + 2*(1-t)*t * p1.y + t**2 * p2.y)
-            points.append(Point2D(x, y))
-
-        return points
-
-    def create_object(self) -> Optional[CadObject]:
-        """Create a quadratic bezier curve object from the collected points"""
-        if len(self.points) < 3:
-            return None
-
-        obj = CadObject(
-            mainwin=self.document_window,
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.BEZIERQUAD,
-            coords=self.points.copy(),
-            attributes={
-                'color': 'black',
-                'linewidth': 1,
-                'is_quadratic': True
-            }
-        )
-        return obj

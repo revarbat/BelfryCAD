@@ -187,7 +187,7 @@ class FeedWizardDialog(QDialog):
         material_layout.addWidget(self.material_combo)
         layout.addLayout(material_layout)
 
-        # Tool selection
+        # CNC Tool selection
         tool_layout = QHBoxLayout()
         tool_layout.addWidget(QLabel("Tool:"))
         self.tool_combo = QComboBox()
@@ -280,7 +280,8 @@ class FeedWizardDialog(QDialog):
         # Get tools from preferences
         tool_dicts = []
         if self.parent() and isinstance(self.parent(), DocumentWindow):
-            tool_dicts = self.parent().preferences_viewmodel.get('tool_table', [])
+            document_window = cast(DocumentWindow, self.parent())
+            tool_dicts = document_window.preferences_viewmodel.get('tool_table', [])
 
             # Convert tool dicts to ToolSpecification objects
             for tool_dict in tool_dicts:
