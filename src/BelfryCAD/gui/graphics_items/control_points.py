@@ -44,7 +44,7 @@ class ControlPoint(QGraphicsItem):
             self.setToolTip(self.tool_tip)
         
         # Set high Z value to appear above other items
-        self.setZValue(10000)
+        self.setZValue(10001)
         
         # Dragging state
         self._is_dragging = False
@@ -182,6 +182,9 @@ class ControlPoint(QGraphicsItem):
 
 class SquareControlPoint(ControlPoint):
     """Control point graphics item that draws as a square."""
+    def __init__(self, model_view, setter, tool_tip=None):
+        super().__init__(model_view, setter, tool_tip)
+        self.setZValue(10000)
 
     def paint(self, painter, option, widget=None):
         """Draw the control point as a square."""
@@ -207,8 +210,22 @@ class SquareControlPoint(ControlPoint):
         return path
 
 
+class BigControlPoint(ControlPoint):
+    """Control point graphics item that draws as a big square."""
+
+    def __init__(self, model_view, setter, tool_tip=None):
+        super().__init__(model_view, setter, tool_tip)
+        self.control_size = 12
+        self.setZValue(10000)
+
+
+
 class DiamondControlPoint(ControlPoint):
     """Control point graphics item that draws as a diamond."""
+
+    def __init__(self, model_view, setter, tool_tip=None):
+        super().__init__(model_view, setter, tool_tip)
+        self.setZValue(10000)
 
     def paint(self, painter, option, widget=None):
         """Draw the control point as a diamond."""

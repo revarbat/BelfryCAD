@@ -255,7 +255,7 @@ class SnapCursorItem(QGraphicsItem):
     def __init__(self):
         super().__init__()
         self.control_size = 7
-        self.setZValue(10001)  # Draw above other items
+        self.setZValue(10002)  # Draw above other items
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)

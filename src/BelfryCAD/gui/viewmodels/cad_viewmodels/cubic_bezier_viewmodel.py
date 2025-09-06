@@ -8,17 +8,18 @@ for UI updates when Bezier properties change.
 import math
 from typing import List, Tuple, Optional, TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QPointF, Signal
+from PySide6.QtCore import Qt, QPointF, QLineF, Signal
 from PySide6.QtGui import QColor, QPen, QPainterPath
 from PySide6.QtWidgets import QGraphicsScene
 
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
     ControlPoint,
-    SquareControlPoint,
+    BigControlPoint,
     ControlDatum
 )
 from ...graphics_items.cad_bezier_graphics_item import CadBezierGraphicsItem
+from ...graphics_items.construction_line_item import ConstructionLineItem
 from ....models.cad_objects.cubic_bezier_cad_object import CubicBezierCadObject
 from ....cad_geometry import Point2D
 
@@ -47,7 +48,7 @@ class CubicBezierViewModel(CadViewModel):
         self._clear_view_items(scene)
 
         color = QColor(self._bezier_object.color)
-        line_width = self._bezier_object.line_width
+        line_width = self._bezier_object.line_width or 0.05
         points = self.points
         
         if len(points) >= 4:  # Need at least 4 points for a cubic Bezier
@@ -87,7 +88,27 @@ class CubicBezierViewModel(CadViewModel):
         This is called when this object is selected.
         """
         self._clear_decorations(scene)
-        # Bezier curve doesn't need special decorations for now
+        
+        if len(self.document_window.cad_scene.selectedItems()) != 1:
+            return
+        
+        for i in range(0, len(self.points), 3):
+            if i > 0 and self.points[i-1] != self.points[i]:
+                item = ConstructionLineItem(
+                    line=QLineF(
+                        self.points[i-1],
+                        self.points[i]
+                    ),
+                )
+                self._decorations.append(item)
+            if i < len(self.points) - 1 and self.points[i] != self.points[i+1]:
+                item = ConstructionLineItem(
+                    line=QLineF(
+                        self.points[i],
+                        self.points[i+1]
+                    ),
+                )
+                self._decorations.append(item)
         self._add_decorations_to_scene(scene)
     
     def hide_decorations(self, scene: QGraphicsScene):
@@ -117,11 +138,18 @@ class CubicBezierViewModel(CadViewModel):
         
         # Create control points for each point
         for i, point in enumerate(points):
-            cp = SquareControlPoint(
-                model_view=self,
-                setter=lambda new_pos, idx=i: self._set_point(idx, new_pos),
-                tool_tip=f"Bezier Control Point {i}"
-            )
+            if i % 3 == 0:
+                cp = BigControlPoint(
+                    model_view=self,
+                    setter=lambda new_pos, idx=i: self._set_point(idx, new_pos),
+                    tool_tip=f"Bezier Control Point {i}"
+                )
+            else:
+                cp = ControlPoint(
+                    model_view=self,
+                    setter=lambda new_pos, idx=i: self._set_point(idx, new_pos),
+                    tool_tip=f"Bezier Control Point {i}"
+                )
             self._controls.append(cp)
 
         # Get precision from main window or use default

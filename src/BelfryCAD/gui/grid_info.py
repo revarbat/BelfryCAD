@@ -287,7 +287,7 @@ class GridInfo(object):
 
     @staticmethod
     def get_dpcm(view: QGraphicsView) -> float:
-        """Get the dots per millimeter from the view."""
+        """Get the dots per centimeter from the view."""
         dpcm = view.physicalDpiX() / 2.54
         return dpcm
     

@@ -13,6 +13,10 @@ from ..models.cad_objects.cubic_bezier_cad_object import CubicBezierCadObject
 from ..cad_geometry import Point2D
 from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
+from PySide6.QtCore import QPointF, QLineF
+from PySide6.QtGui import QPen, QPainterPath, QColor, Qt
+from PySide6.QtWidgets import QGraphicsLineItem, QGraphicsPathItem
+
 
 class BezierTool(CadTool):
     """CadTool for drawing cubic bezier curves"""
@@ -47,92 +51,97 @@ class BezierTool(CadTool):
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
-        point = self.get_snap_point(event.x, event.y)
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+
+        # Get the snap point
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
 
         if self.state == ToolState.ACTIVE:
             self.points.append(point)
-            self.segment_points = [point]
             self.state = ToolState.DRAWING
         elif self.state == ToolState.DRAWING:
-            self.segment_points.append(point)
-
-            # For cubic bezier, we need 4 points per segment
-            if len(self.segment_points) == 4:
-                self.points.extend(self.segment_points[1:])
-                self.segment_points = [self.segment_points[-1]]
+            self.draw_preview(point.x, point.y)
+            self.points.append(point)
 
     def handle_mouse_move(self, event):
         """Handle mouse movement event"""
+        # Convert Qt event coordinates to scene coordinates
+        if hasattr(event, 'scenePos'):
+            scene_pos = event.scenePos()
+        else:
+            scene_pos = QPointF(event.x, event.y)
+        point = self.get_snap_point(scene_pos.x(), scene_pos.y())
+
         if self.state == ToolState.DRAWING:
-            self.draw_preview(event.x, event.y)
+            self.draw_preview(point.x, point.y)
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the cubic bezier curve being created"""
         self.clear_temp_objects()
 
-        if len(self.segment_points) > 0:
-            point = self.get_snap_point(current_x, current_y)
-            preview_points = self.segment_points.copy()
-            preview_points.append(point)
+        pen = QPen(QColor("black"), 3.0)
+        pen.setCosmetic(True)
+        pen.setStyle(Qt.PenStyle.DashLine)
 
-            # Draw control lines
-            from PySide6.QtWidgets import QGraphicsLineItem
-            from PySide6.QtCore import Qt
-            from PySide6.QtGui import QPen
+        pen_gray = QPen(QColor("gray"), 3.0)
+        pen_gray.setCosmetic(True)
+        pen_gray.setStyle(Qt.PenStyle.DashLine)
 
-            for i in range(len(preview_points) - 1):
-                line_item = QGraphicsLineItem(
-                    preview_points[i].x, preview_points[i].y,
-                    preview_points[i+1].x, preview_points[i+1].y
+        pointpath = self.points.copy()
+        pointpath.append(Point2D(current_x, current_y))
+        remainder = (len(pointpath) - 1) % 3
+        ll = len(pointpath)
+
+        # Draw temporary cubic bezier curve
+        path = QPainterPath()
+        path.moveTo(pointpath[0].to_qpointf())
+        for i in range(1, len(pointpath)-remainder-1, 3):
+            path.cubicTo(
+                pointpath[i].to_qpointf(),
+                pointpath[i+1].to_qpointf(),
+                pointpath[i+2].to_qpointf()
+            )
+        if remainder == 1:
+            i = ll - remainder
+            path.lineTo(pointpath[i].to_qpointf())
+        elif remainder == 2:
+            i = ll - remainder
+            path.cubicTo(
+                pointpath[i].to_qpointf(),
+                pointpath[i+1].to_qpointf(),
+                pointpath[i+1].to_qpointf()
+            )
+        path_item = self.scene.addPath(path, pen=pen)
+        self.temp_objects.append(path_item)
+
+        for i in range(0, len(pointpath), 3):
+            if i > 0:
+                # Draw control line (before the curve)
+                line_item = self.scene.addLine(
+                    QLineF(
+                        pointpath[i-1].to_qpointf(),
+                        pointpath[i].to_qpointf()
+                    ),
+                    pen=pen_gray
                 )
-                pen = QPen()
-                pen.setColor("gray")
-                pen.setStyle(Qt.PenStyle.DashLine)
-                line_item.setPen(pen)
-                self.scene.addItem(line_item)
                 self.temp_objects.append(line_item)
 
-            # Draw temporary cubic bezier curve
-            if len(preview_points) >= 4:
-                curve_points = self._get_cubic_bezier_points(
-                    preview_points[0], preview_points[1],
-                    preview_points[2], preview_points[3])
+            if i < len(pointpath) - 1:
+                # Draw control line (after the curve)
+                line_item = self.scene.addLine(
+                    QLineF(
+                        pointpath[i].to_qpointf(),
+                        pointpath[i+1].to_qpointf()
+                    ),
+                    pen=pen_gray
+                )
+                self.temp_objects.append(line_item)
 
-                if curve_points:
-                    from PySide6.QtWidgets import QGraphicsPathItem
-                    from PySide6.QtGui import QPainterPath
-
-                    path = QPainterPath()
-                    if curve_points:
-                        path.moveTo(curve_points[0].x, curve_points[0].y)
-                        for p in curve_points[1:]:
-                            path.lineTo(p.x, p.y)
-
-                    path_item = QGraphicsPathItem(path)
-                    pen = QPen()
-                    pen.setColor("blue")
-                    pen.setWidth(2)
-                    path_item.setPen(pen)
-                    self.scene.addItem(path_item)
-                    self.temp_objects.append(path_item)
-
-    def _get_cubic_bezier_points(
-            self, p0: Point2D, p1: Point2D, p2: Point2D, p3: Point2D) -> List[Point2D]:
-        """Get points along a cubic bezier curve"""
-        points = []
-        steps = 20
-
-        for i in range(steps + 1):
-            t = i / steps
-            # Cubic bezier formula:
-            # B(t) = (1-t)^3*P0 + 3(1-t)^2*t*P1 + 3(1-t)*t^2*P2 + t^3*P3
-            x = ((1-t)**3 * p0.x + 3*(1-t)**2*t * p1.x +
-                 3*(1-t)*t**2 * p2.x + t**3 * p3.x)
-            y = ((1-t)**3 * p0.y + 3*(1-t)**2*t * p1.y +
-                 3*(1-t)*t**2 * p2.y + t**3 * p3.y)
-            points.append(Point2D(x, y))
-
-        return points
+        self.draw_points()
 
     def create_object(self) -> Optional[CadObject]:
         """Create a cubic bezier curve object from the collected points"""

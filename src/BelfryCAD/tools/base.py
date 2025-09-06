@@ -94,7 +94,7 @@ class CadTool(QObject):
 
     @property
     def dpcm(self):
-        """Get the dots per millimeter from the document window"""
+        """Get the dots per centimeter from the document window"""
         return self.document_window.get_dpcm()
 
     def _get_definition(self) -> List[ToolDefinition]:
@@ -182,6 +182,11 @@ class CadTool(QObject):
 
     def handle_key_release(self, event):
         """Handle keyboard release event"""
+        # Override in subclasses
+        pass
+
+    def handle_double_click(self, event):
+        """Handle double-click events"""
         # Override in subclasses
         pass
 

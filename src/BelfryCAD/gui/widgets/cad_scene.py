@@ -169,6 +169,21 @@ class CadScene(QGraphicsScene):
         # Let Qt handle the event normally
         super().keyReleaseEvent(event)
 
+    def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent):
+        """Handle mouse double-click events and delegate to active tool."""
+        # First, let Qt handle the event normally
+        super().mouseDoubleClickEvent(event)
+        
+        # If event was accepted by an item, don't process for tools
+        if event.isAccepted():
+            return
+        
+        # Delegate to active tool if available
+        if self._tool_manager and self._tool_manager.get_active_tool():
+            active_tool = self._tool_manager.get_active_tool()
+            active_tool.handle_double_click(event)
+            event.accept()
+
     def _on_selection_changed(self):
         """Handle selection changes and emit signals with object IDs."""
         # Don't emit signals if we're updating selection from tree to prevent circular updates
