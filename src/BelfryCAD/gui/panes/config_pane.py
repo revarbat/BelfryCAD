@@ -613,6 +613,7 @@ class ConfigPane(QWidget):
         painter.fillRect(0, 0, 16, 16, QColor("white"))
         painter.setPen(QPen(QColor("black"), 1.0))
         painter.drawRect(0, 0, 15, 15)  # Border
+        painter.setPen(QPen(QColor("black"), 1.0))
         painter.drawLine(0, 0, 15, 15)  # X
         painter.drawLine(0, 15, 15, 0)
         

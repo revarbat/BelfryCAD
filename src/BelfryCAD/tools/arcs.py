@@ -51,7 +51,6 @@ class ArcCenterTool(CadTool):
 
         # Get the snapped point based on current snap settings
         point = self.get_snap_point(scene_pos.x(), scene_pos.y())
-        print(f"mouse down Arc by Center: {self.state} {point}")
 
         if self.state == ToolState.ACTIVE:
             # First point - center of arc
@@ -64,7 +63,6 @@ class ArcCenterTool(CadTool):
             # Third point - end point of arc
             self.points.append(point)
             self.complete()
-            print(f"completed Arc by Center: {self.points}")
 
     def handle_mouse_move(self, event):
         """Handle mouse movement event."""

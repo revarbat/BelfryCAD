@@ -140,7 +140,6 @@ class Circle2PTTool(CadTool):
 
     def handle_mouse_down(self, event):
         """Handle mouse down events"""
-        print(f"Handle mouse down events: {self.state} ({len(self.points)})")
         scene_pos = event.scenePos()
 
         # Get the snapped point based on current snap settings
@@ -246,7 +245,6 @@ class Circle3PTTool(CadTool):
 
     def handle_mouse_move(self, event):
         """Handle mouse move events for preview"""
-        print(f"Handle mouse move events for preview: {self.state} ({len(self.points)})")
         if self.state == ToolState.DRAWING and len(self.points) >= 1:
             scene_pos = event.scenePos()
             current_point = self.get_snap_point(scene_pos.x(), scene_pos.y())

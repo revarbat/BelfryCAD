@@ -208,11 +208,12 @@ class CadTool(QObject):
         # Fallback to original position if no snap system or no snap found
         return Point2D(x, y)
 
-    def draw_points(self):
+    def draw_points(self, points=None):
         """Draw the points on the scene"""
         scale = self.scene.views()[0].transform().m11()
         dot_size = 7 / scale
-        for point in self.points:
+        points = self.points if points is None else points
+        for point in points:
             point_item = self.scene.addEllipse(
                 point.x - dot_size / 2,
                 point.y - dot_size / 2,

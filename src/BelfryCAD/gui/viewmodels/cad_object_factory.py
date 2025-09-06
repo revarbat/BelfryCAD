@@ -11,6 +11,7 @@ from ...models.cad_objects.arc_cad_object import ArcCadObject
 from ...models.cad_objects.ellipse_cad_object import EllipseCadObject
 from ...models.cad_objects.cubic_bezier_cad_object import CubicBezierCadObject
 from ...models.cad_objects.gear_cad_object import GearCadObject
+from ...models.cad_objects.rectangle_cad_object import RectangleCadObject
 
 from .cad_viewmodels.cad_viewmodel import CadViewModel
 from .cad_viewmodels.line_viewmodel import LineViewModel
@@ -19,6 +20,7 @@ from .cad_viewmodels.arc_viewmodel import ArcViewModel
 from .cad_viewmodels.ellipse_viewmodel import EllipseViewModel
 from .cad_viewmodels.cubic_bezier_viewmodel import CubicBezierViewModel
 from .cad_viewmodels.gear_viewmodel import GearViewModel
+from .cad_viewmodels.rectangle_viewmodel import RectangleViewModel
 
 if TYPE_CHECKING:
     from ..document_window import DocumentWindow
@@ -35,6 +37,7 @@ class CadObjectFactory:
         EllipseCadObject: EllipseViewModel,
         CubicBezierCadObject: CubicBezierViewModel,
         GearCadObject: GearViewModel,
+        RectangleCadObject: RectangleViewModel,
     }
 
     def __init__(self, document_window: Optional['DocumentWindow'] = None):
@@ -144,4 +147,18 @@ class CadObjectFactory:
         if not self._document_window:
             raise ValueError("Document window is required to create viewmodels")
         viewmodel = CubicBezierViewModel(self._document_window, model)
+        return viewmodel
+
+    def create_rectangle_viewmodel(self, model: RectangleCadObject) -> RectangleViewModel:
+        """Create a rectangle viewmodel.
+        
+        Args:
+            model: The rectangle CAD object
+            
+        Returns:
+            The created rectangle viewmodel
+        """
+        if not self._document_window:
+            raise ValueError("Document window is required to create viewmodels")
+        viewmodel = RectangleViewModel(self._document_window, model)
         return viewmodel 

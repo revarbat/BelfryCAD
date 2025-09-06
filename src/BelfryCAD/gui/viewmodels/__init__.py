@@ -14,7 +14,8 @@ from .cad_viewmodels import (
     LineViewModel,
     ArcViewModel,
     EllipseViewModel,
-    CubicBezierViewModel
+    CubicBezierViewModel,
+    RectangleViewModel
 )
 from .cad_object_factory import CadObjectFactory
 
@@ -28,5 +29,6 @@ __all__ = [
     'ArcViewModel',
     'EllipseViewModel',
     'CubicBezierViewModel',
+    'RectangleViewModel',
     'CadObjectFactory'
 ]

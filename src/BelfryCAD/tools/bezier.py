@@ -23,9 +23,7 @@ class BezierTool(CadTool):
 
     def __init__(self, scene, document, preferences):
         super().__init__(scene, document, preferences)
-        self.is_quadratic = False  # Cubic beziers
-        self.segment_points = []  # List of points for current segment
-        self.preview_curve = None
+        self.points = []
 
     def _get_definition(self) -> List[ToolDefinition]:
         """Return the tool definition"""
@@ -79,6 +77,60 @@ class BezierTool(CadTool):
         if self.state == ToolState.DRAWING:
             self.draw_preview(point.x, point.y)
 
+    def _get_tangent_points(self, p1, p2, p3, ratio):
+        dist1 = p2.distance_to(p1)
+        dist2 = p2.distance_to(p3)
+        vector = (p3 - p1).unit_vector
+        p1 = p2 - vector * dist1 * ratio
+        p3 = p2 + vector * dist2 * ratio
+        return p1, p3
+
+    def _calculate_control_points(self, points):
+        ratio = 0.4
+        
+        points = [
+            points[i] for i in range(len(points)) if i == 0 or points[i-1] != points[i]
+        ]
+
+        if len(points) <= 1:
+            return []
+
+        if len(points) == 2:
+            vector = (points[1] - points[0]).unit_vector
+            dist = points[0].distance_to(points[1])
+            return [
+                points[0],
+                points[0] + vector * dist * 0.4,
+                points[1] - vector * dist * 0.4,
+                points[1],
+            ]
+
+        control_points = [points[0]]
+
+        if points[0] != points[-1]:  # open path
+            p1, p2 = self._get_tangent_points(points[0], points[1], points[2], 0.5)
+            control_points.append((points[0] + p1) / 2)
+        else:  # closed loop
+            p1, p2 = self._get_tangent_points(points[-2], points[0], points[1], ratio)
+            control_points.append(p2)
+        
+        for i in range(1, len(points)-1):
+            p1, p2 = self._get_tangent_points(points[i-1], points[i], points[i+1], ratio)
+            control_points.append(p1)
+            control_points.append(points[i])
+            control_points.append(p2)
+        
+        if points[0] != points[-1]:  # open path
+            p1, p2 = self._get_tangent_points(points[-3], points[-2], points[-1], 0.5)
+            control_points.append((points[-1] + p2) / 2)
+        else:  # closed loop
+            p1, p2 = self._get_tangent_points(points[-2], points[0], points[1], ratio)
+            control_points.append(p1)
+
+        control_points.append(points[-1])
+
+        return control_points
+
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the cubic bezier curve being created"""
         self.clear_temp_objects()
@@ -89,70 +141,63 @@ class BezierTool(CadTool):
 
         pen_gray = QPen(QColor("gray"), 3.0)
         pen_gray.setCosmetic(True)
-        pen_gray.setStyle(Qt.PenStyle.DashLine)
-
-        pointpath = self.points.copy()
-        pointpath.append(Point2D(current_x, current_y))
-        remainder = (len(pointpath) - 1) % 3
-        ll = len(pointpath)
+        pen_gray.setStyle(Qt.PenStyle.SolidLine)
 
         # Draw temporary cubic bezier curve
+        points = self.points.copy()
+        points.append(Point2D(current_x, current_y))
+
+        control_points = self._calculate_control_points(points)
+        if len(control_points) <= 1:
+            return
+        if len(control_points) == 2 and control_points[0] == control_points[1]:
+            return
+
         path = QPainterPath()
-        path.moveTo(pointpath[0].to_qpointf())
-        for i in range(1, len(pointpath)-remainder-1, 3):
+        path.moveTo(control_points[0].to_qpointf())
+        for i in range(1, len(control_points)-1, 3):
             path.cubicTo(
-                pointpath[i].to_qpointf(),
-                pointpath[i+1].to_qpointf(),
-                pointpath[i+2].to_qpointf()
-            )
-        if remainder == 1:
-            i = ll - remainder
-            path.lineTo(pointpath[i].to_qpointf())
-        elif remainder == 2:
-            i = ll - remainder
-            path.cubicTo(
-                pointpath[i].to_qpointf(),
-                pointpath[i+1].to_qpointf(),
-                pointpath[i+1].to_qpointf()
+                control_points[i].to_qpointf(),
+                control_points[i+1].to_qpointf(),
+                control_points[i+2].to_qpointf()
             )
         path_item = self.scene.addPath(path, pen=pen)
         self.temp_objects.append(path_item)
 
-        for i in range(0, len(pointpath), 3):
-            if i > 0:
-                # Draw control line (before the curve)
-                line_item = self.scene.addLine(
-                    QLineF(
-                        pointpath[i-1].to_qpointf(),
-                        pointpath[i].to_qpointf()
-                    ),
-                    pen=pen_gray
-                )
-                self.temp_objects.append(line_item)
+        for i in range(0, len(control_points)-2, 3):
+            # Draw first control handle line
+            line_item = self.scene.addLine(
+                QLineF(
+                    control_points[i].to_qpointf(),
+                    control_points[i+1].to_qpointf()
+                ),
+                pen=pen_gray
+            )
+            self.temp_objects.append(line_item)
 
-            if i < len(pointpath) - 1:
-                # Draw control line (after the curve)
-                line_item = self.scene.addLine(
-                    QLineF(
-                        pointpath[i].to_qpointf(),
-                        pointpath[i+1].to_qpointf()
-                    ),
-                    pen=pen_gray
-                )
-                self.temp_objects.append(line_item)
+            # Draw second control handle line
+            line_item = self.scene.addLine(
+                QLineF(
+                    control_points[i+2].to_qpointf(),
+                    control_points[i+3].to_qpointf()
+                ),
+                pen=pen_gray
+            )
+            self.temp_objects.append(line_item)
 
-        self.draw_points()
+        self.draw_points(control_points.copy())
 
     def create_object(self) -> Optional[CadObject]:
         """Create a cubic bezier curve object from the collected points"""
         if len(self.points) < 4:
             return None
 
+        points = self._calculate_control_points(self.points.copy())
         obj = CubicBezierCadObject(
             document=self.document,
-            points=self.points.copy(),
+            points=points,
             color="black",
-            line_width=1,
+            line_width=0.05,
         )
         return obj
 

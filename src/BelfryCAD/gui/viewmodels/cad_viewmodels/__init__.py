@@ -11,6 +11,7 @@ from .line_viewmodel import LineViewModel
 from .arc_viewmodel import ArcViewModel
 from .ellipse_viewmodel import EllipseViewModel
 from .cubic_bezier_viewmodel import CubicBezierViewModel
+from .rectangle_viewmodel import RectangleViewModel
 
 __all__ = [
     'CadViewModel',
@@ -20,4 +21,5 @@ __all__ = [
     'ArcViewModel',
     'EllipseViewModel',
     'CubicBezierViewModel',
+    'RectangleViewModel',
 ] 

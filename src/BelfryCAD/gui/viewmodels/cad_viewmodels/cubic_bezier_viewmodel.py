@@ -329,4 +329,55 @@ class CubicBezierViewModel(CadViewModel):
     
     def _set_point(self, index: int, new_position: QPointF):
         """Set a control point from control point movement"""
-        self.set_point(index, new_position) 
+        if index < 0 or index >= len(self.points):
+            return
+
+        if index % 3 == 2:
+            self.set_point(index, new_position)
+            if index < len(self.points) - 2:
+                mid_point = self.get_point(index + 1)
+                next_point = self.get_point(index + 2)
+                if mid_point and next_point:
+                    prev_delta = new_position - mid_point
+                    next_delta = next_point - mid_point
+                    prev_angle = math.atan2(prev_delta.y(), prev_delta.x())
+                    next_angle = math.atan2(next_delta.y(), next_delta.x())
+                    old_rad = math.hypot(next_delta.x(), next_delta.y())
+                    new_point = mid_point + QPointF(
+                        old_rad * math.cos(prev_angle + math.pi),
+                        old_rad * math.sin(prev_angle + math.pi)
+                    )
+                    self.set_point(index + 2, new_point)
+
+        if index % 3 == 0:
+            old_point = self.get_point(index)
+            if old_point:
+                delta = new_position - old_point
+                self.set_point(index, new_position)
+                if index > 0:
+                    prev_point = self.get_point(index - 1)
+                    if prev_point:
+                        self.set_point(index - 1, prev_point + delta)
+                if index < len(self.points) - 1:
+                    next_point = self.get_point(index + 1)
+                    if next_point:
+                        self.set_point(index + 1, next_point + delta)
+
+        if index % 3 == 1:
+            self.set_point(index, new_position)
+            if index > 1:
+                prev_point = self.get_point(index - 2)
+                mid_point = self.get_point(index - 1)
+                if mid_point and prev_point:
+                    prev_delta = prev_point - mid_point
+                    next_delta = new_position - mid_point
+                    prev_angle = math.atan2(prev_delta.y(), prev_delta.x())
+                    next_angle = math.atan2(next_delta.y(), next_delta.x())
+                    old_rad = math.hypot(prev_delta.x(), prev_delta.y())
+                    new_point = mid_point + QPointF(
+                        old_rad * math.cos(next_angle + math.pi),
+                        old_rad * math.sin(next_angle + math.pi)
+                    )
+                    self.set_point(index - 2, new_point)
+
+        self.update_all()

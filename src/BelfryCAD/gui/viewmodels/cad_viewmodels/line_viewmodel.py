@@ -349,54 +349,29 @@ class LineViewModel(CadViewModel):
         """Get the perpendicular vector to the line segment"""
         pvec = self._line_object.line.unit_vector.perpendicular_vector
         return pvec.to_qpointf()
-        
+    
     def _set_start_point(self, new_position):
         """Set the start point from control point movement"""
         self.start_point = new_position
-        # Update view and control points to reflect the change
-        if hasattr(self, '_controls') and self._controls:
-            scene = self._document_window.cad_scene
-            if scene:
-                self.update_view(scene)
-                self.update_controls(scene)
+        self.update_all()
     
     def _set_end_point(self, new_position):
         """Set the end point from control point movement"""
         self.end_point = new_position
-        # Update view and control points to reflect the change
-        if hasattr(self, '_controls') and self._controls:
-            scene = self._document_window.cad_scene
-            if scene:
-                self.update_view(scene)
-                self.update_controls(scene)
+        self.update_all()
     
     def _set_mid_point(self, new_position):
         """Set the mid point from control point movement"""
         self.mid_point = new_position
-        # Update view and control points to reflect the change
-        if hasattr(self, '_controls') and self._controls:
-            scene = self._document_window.cad_scene
-            if scene:
-                self.update_view(scene)
-                self.update_controls(scene)
+        self.update_all()
     
     def _set_length(self, value):
         """Set length from control datum"""
         self.length = value
-        # Update view and control points to reflect the change
-        if hasattr(self, '_controls') and self._controls:
-            scene = self._document_window.cad_scene
-            if scene:
-                self.update_view(scene)
-                self.update_controls(scene)
+        self.update_all()
     
     def _set_angle(self, value):
         """Set angle from control datum (value in degrees)"""
         self.angle_degrees = value
-        # Update view and control points to reflect the change
-        if hasattr(self, '_controls') and self._controls:
-            scene = self._document_window.cad_scene
-            if scene:
-                self.update_view(scene)
-                self.update_controls(scene)
+        self.update_all()
     

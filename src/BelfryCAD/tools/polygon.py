@@ -9,12 +9,12 @@ import math
 from typing import Optional, List
 
 from ..models.cad_object import CadObject, ObjectType
+from ..models.cad_objects.rectangle_cad_object import RectangleCadObject
 from ..cad_geometry import Point2D
 from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
-from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
-from PySide6.QtCore import QRectF, Qt, QPointF
-from PySide6.QtGui import QPen
+from PySide6.QtCore import QRectF, QPointF
+from PySide6.QtGui import QPen, QColor
 
 
 class PolygonObject(CadObject):
@@ -40,9 +40,9 @@ class PolygonObject(CadObject):
 class RectangleTool(CadTool):
     """CadTool for drawing rectangles by two diagonal corners"""
 
-    def _get_definition(self) -> List[ToolDefinition]:
-        """Return the tool definition"""
-        return [ToolDefinition(
+    # Class-level tool definition
+    tool_definitions = [
+        ToolDefinition(
             token="RECTANGLE",
             name="Rectangle",
             category=ToolCategory.POLYGONS,
@@ -51,7 +51,8 @@ class RectangleTool(CadTool):
             is_creator=True,
             secondary_key="R",
             node_info=["First Corner", "Opposite Corner"]
-        )]
+        )
+    ]
 
     def handle_escape(self, event):
         """Handle escape key to cancel the operation"""
@@ -85,7 +86,11 @@ class RectangleTool(CadTool):
                 scene_pos = event.scenePos()
             else:
                 scene_pos = QPointF(event.x, event.y)
-            self.draw_preview(scene_pos.x(), scene_pos.y())
+
+            # Get the snapped point based on current snap settings
+            point = self.get_snap_point(scene_pos.x(), scene_pos.y())
+
+            self.draw_preview(point.x, point.y)
 
     def draw_preview(self, current_x, current_y):
         """Draw a preview of the rectangle being created"""
@@ -94,6 +99,10 @@ class RectangleTool(CadTool):
 
         # Get the snapped point based on current snap settings
         point = self.get_snap_point(current_x, current_y)
+
+        pen = QPen(QColor("black"), 3.0)
+        pen.setCosmetic(True)
+        pen.setDashPattern([2, 2])
 
         if len(self.points) == 1:
             # Drawing from first corner to opposite corner
@@ -105,67 +114,31 @@ class RectangleTool(CadTool):
             x2, y2 = max(p1.x, p2.x), max(p1.y, p2.y)
 
             # Draw temporary rectangle using QGraphicsRectItem
-            rect_item = QGraphicsRectItem(QRectF(x1, y1, x2 - x1, y2 - y1))
-            pen = QPen()
-            pen.setColor("blue")
-            pen.setStyle(Qt.DashLine)
-            rect_item.setPen(pen)
-            self.scene.addItem(rect_item)
+            rect_item = self.scene.addRect(
+                QRectF(x1, y1, x2 - x1, y2 - y1),
+                pen=pen
+            )
             self.temp_objects.append(rect_item)
+        self.draw_points()
 
-            # Add dimensions text
-            width = x2 - x1
-            height = y2 - y1
-
-            if width > 10 and height > 10:  # Only show if large enough
-                dim_x_item = QGraphicsTextItem(f"Width: {width:.1f}")
-                dim_x_item.setPos((x1 + x2) / 2, y2 + 15)
-                dim_x_item.setDefaultTextColor("blue")
-                self.scene.addItem(dim_x_item)
-                self.temp_objects.append(dim_x_item)
-
-                dim_y_item = QGraphicsTextItem(f"Height: {height:.1f}")
-                dim_y_item.setPos(x2 + 15, (y1 + y2) / 2)
-                dim_y_item.setDefaultTextColor("blue")
-                self.scene.addItem(dim_y_item)
-                self.temp_objects.append(dim_y_item)
 
     def create_object(self) -> Optional[CadObject]:
         """Create a rectangle object from the collected points"""
         if len(self.points) != 2:
             return None
 
-        p1 = self.points[0]
-        p2 = self.points[1]
+        corner1 = self.points[0]
+        corner2 = self.points[1]
 
-        # Calculate the four corners in counterclockwise order
-        x1, y1 = min(p1.x, p2.x), min(p1.y, p2.y)
-        x2, y2 = max(p1.x, p2.x), max(p1.y, p2.y)
-
-        # Create points for all four corners
-        corners = [
-            Point2D(x1, y1),  # Bottom-left
-            Point2D(x2, y1),  # Bottom-right
-            Point2D(x2, y2),  # Top-right
-            Point2D(x1, y2)   # Top-left
-        ]
-
-        # Create a rectangle object (as a polygon)
-        obj = CadObject(
-            mainwin=self.document_window,
-            object_id=self.document.objects.get_next_id(),
-            object_type=ObjectType.POLYGON,
-            coords=corners,
-            attributes={
-                'color': 'black',      # Default color
-                'linewidth': 1,        # Default line width
-                'closed': True,        # Closed polygon
-                'is_rectangle': True,  # Mark as rectangle for special handling
-                'width': x2 - x1,      # Store width
-                'height': y2 - y1      # Store height
-            }
+        # Create rectangle object using the two diagonal corners
+        rectangle = RectangleCadObject(
+            document=self.document,
+            corner1=corner1,
+            corner2=corner2,
+            color=self.preferences.get("default_color", "black"),
+            line_width=self.preferences.get("default_line_width", 0.05)
         )
-        return obj
+        return rectangle
 
 
 class RoundedRectangleTool(CadTool):

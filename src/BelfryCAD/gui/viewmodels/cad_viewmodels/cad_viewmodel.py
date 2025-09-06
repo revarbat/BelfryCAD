@@ -43,6 +43,7 @@ class CadViewModel(QObject):
         self._view_items = []
         self._decorations = []
         self._controls = []
+        self._controls = []
     
     # Abstract methods that subclasses must implement
     
@@ -115,6 +116,13 @@ class CadViewModel(QObject):
             scene: The graphics scene containing the control items
         """
         raise NotImplementedError("Subclasses must implement update_controls")
+    
+    def update_all(self):
+        """Update the view and controls"""
+        scene = self._document_window.cad_scene
+        if scene:
+            self.update_view(scene)
+            self.update_controls(scene)
     
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """

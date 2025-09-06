@@ -9,6 +9,7 @@ from .ellipse_cad_object import EllipseCadObject
 from .cubic_bezier_cad_object import CubicBezierCadObject
 from .gear_cad_object import GearCadObject
 from .group_cad_object import GroupCadObject
+from .rectangle_cad_object import RectangleCadObject
 
 __all__ = [
     'ArcCadObject',
@@ -18,4 +19,5 @@ __all__ = [
     'GearCadObject',
     'GroupCadObject',
     'LineCadObject',
+    'RectangleCadObject',
 ]
