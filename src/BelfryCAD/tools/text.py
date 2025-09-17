@@ -121,7 +121,7 @@ class TextTool(CadTool):
         line_item = QGraphicsLineItem(position.x, position.y, x2, y2)
         pen = QPen()
         pen.setColor("gray")
-        pen.setStyle(Qt.DashLine)
+        pen.setStyle(Qt.PenStyle.DashLine)
         line_item.setPen(pen)
         self.scene.addItem(line_item)
         self.temp_objects.append(line_item)

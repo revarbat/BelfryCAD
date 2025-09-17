@@ -17,7 +17,7 @@ from .ellipse import (
     EllipseCenterTangentTool,
     EllipseOppositeTangentTool
 )
-from .polygon import RectangleTool, RegularPolygonTool
+from .polygon import RectangleTool
 from .text import TextTool
 from .point import PointTool
 from .dimension import (
@@ -94,7 +94,6 @@ available_tools = [
     EllipseOppositeTangentTool,
     # Polygon tools
     RectangleTool,
-    RegularPolygonTool,
 
     # Miscellaneous tools
     PointTool,

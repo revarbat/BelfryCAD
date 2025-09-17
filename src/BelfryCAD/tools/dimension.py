@@ -111,7 +111,7 @@ class HorizontalDimensionTool(CadTool):
             # Draw temporary line
             line_item = QGraphicsLineItem(start.x, start.y, end.x, end.y)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             line_item.setPen(pen)
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
@@ -135,20 +135,20 @@ class HorizontalDimensionTool(CadTool):
             # Extension lines
             ext1_item = QGraphicsLineItem(start.x, start.y, start.x, offset_y)
             pen1 = QPen(QColor("blue"))
-            pen1.setStyle(Qt.DashLine)
+            pen1.setStyle(Qt.PenStyle.DashLine)
             ext1_item.setPen(pen1)
             self.scene.addItem(ext1_item)
 
             ext2_item = QGraphicsLineItem(end.x, end.y, end.x, offset_y)
             pen2 = QPen(QColor("blue"))
-            pen2.setStyle(Qt.DashLine)
+            pen2.setStyle(Qt.PenStyle.DashLine)
             ext2_item.setPen(pen2)
             self.scene.addItem(ext2_item)
 
             # Dimension line
             dim_item = QGraphicsLineItem(start.x, offset_y, end.x, offset_y)
             pen3 = QPen(QColor("blue"))
-            pen3.setStyle(Qt.DashLine)
+            pen3.setStyle(Qt.PenStyle.DashLine)
             dim_item.setPen(pen3)
             self.scene.addItem(dim_item)
 
@@ -294,7 +294,7 @@ class VerticalDimensionTool(CadTool):
             # Draw temporary line
             line_item = QGraphicsLineItem(start.x, start.y, end.x, end.y)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             line_item.setPen(pen)
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
@@ -322,20 +322,20 @@ class VerticalDimensionTool(CadTool):
             # Extension lines
             ext1_item = QGraphicsLineItem(start.x, start.y, offset_x, start.y)
             pen1 = QPen(QColor("blue"))
-            pen1.setStyle(Qt.DashLine)
+            pen1.setStyle(Qt.PenStyle.DashLine)
             ext1_item.setPen(pen1)
             self.scene.addItem(ext1_item)
 
             ext2_item = QGraphicsLineItem(end.x, end.y, offset_x, end.y)
             pen2 = QPen(QColor("blue"))
-            pen2.setStyle(Qt.DashLine)
+            pen2.setStyle(Qt.PenStyle.DashLine)
             ext2_item.setPen(pen2)
             self.scene.addItem(ext2_item)
 
             # Dimension line
             dim_item = QGraphicsLineItem(offset_x, start.y, offset_x, end.y)
             pen3 = QPen(QColor("blue"))
-            pen3.setStyle(Qt.DashLine)
+            pen3.setStyle(Qt.PenStyle.DashLine)
             dim_item.setPen(pen3)
             self.scene.addItem(dim_item)
 
@@ -478,7 +478,7 @@ class LinearDimensionTool(CadTool):
             # Draw temporary line
             line_item = QGraphicsLineItem(start.x, start.y, end.x, end.y)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             line_item.setPen(pen)
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
@@ -539,7 +539,7 @@ class LinearDimensionTool(CadTool):
                 start.x, start.y, dim_start_x, dim_start_y
             )
             pen1 = QPen(QColor("blue"))
-            pen1.setStyle(Qt.DashLine)
+            pen1.setStyle(Qt.PenStyle.DashLine)
             ext1_item.setPen(pen1)
             self.scene.addItem(ext1_item)
 
@@ -547,7 +547,7 @@ class LinearDimensionTool(CadTool):
                 end.x, end.y, dim_end_x, dim_end_y
             )
             pen2 = QPen(QColor("blue"))
-            pen2.setStyle(Qt.DashLine)
+            pen2.setStyle(Qt.PenStyle.DashLine)
             ext2_item.setPen(pen2)
             self.scene.addItem(ext2_item)
 
@@ -556,7 +556,7 @@ class LinearDimensionTool(CadTool):
                 dim_start_x, dim_start_y, dim_end_x, dim_end_y
             )
             pen3 = QPen(QColor("blue"))
-            pen3.setStyle(Qt.DashLine)
+            pen3.setStyle(Qt.PenStyle.DashLine)
             dim_item.setPen(pen3)
             self.scene.addItem(dim_item)
 
@@ -790,7 +790,7 @@ class ArcDimensionTool(CadTool):
             line_item = QGraphicsLineItem(center.x, center.y,
                                           point.x, point.y)
             pen = QPen(QColor("blue"))
-            pen.setStyle(Qt.DashLine)
+            pen.setStyle(Qt.PenStyle.DashLine)
             line_item.setPen(pen)
             self.scene.addItem(line_item)
             self.temp_objects.append(line_item)
@@ -804,7 +804,7 @@ class ArcDimensionTool(CadTool):
             line1_item = QGraphicsLineItem(center.x, center.y,
                                            start_point.x, start_point.y)
             pen1 = QPen(QColor("blue"))
-            pen1.setStyle(Qt.DashLine)
+            pen1.setStyle(Qt.PenStyle.DashLine)
             line1_item.setPen(pen1)
             self.scene.addItem(line1_item)
 
@@ -812,7 +812,7 @@ class ArcDimensionTool(CadTool):
             line2_item = QGraphicsLineItem(center.x, center.y,
                                            point.x, point.y)
             pen2 = QPen(QColor("blue"))
-            pen2.setStyle(Qt.DashLine)
+            pen2.setStyle(Qt.PenStyle.DashLine)
             line2_item.setPen(pen2)
             self.scene.addItem(line2_item)
 
@@ -873,7 +873,7 @@ class ArcDimensionTool(CadTool):
             ext1_item = QGraphicsLineItem(start_point.x, start_point.y,
                                           ext_start_x, ext_start_y)
             pen1 = QPen(QColor("blue"))
-            pen1.setStyle(Qt.DashLine)
+            pen1.setStyle(Qt.PenStyle.DashLine)
             ext1_item.setPen(pen1)
             self.scene.addItem(ext1_item)
             self.temp_objects.append(ext1_item)
@@ -885,7 +885,7 @@ class ArcDimensionTool(CadTool):
             ext2_item = QGraphicsLineItem(end_point.x, end_point.y,
                                           ext_end_x, ext_end_y)
             pen2 = QPen(QColor("blue"))
-            pen2.setStyle(Qt.DashLine)
+            pen2.setStyle(Qt.PenStyle.DashLine)
             ext2_item.setPen(pen2)
             self.scene.addItem(ext2_item)
             self.temp_objects.append(ext2_item)
