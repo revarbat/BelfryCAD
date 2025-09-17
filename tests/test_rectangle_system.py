@@ -122,7 +122,8 @@ class TestWindow(QMainWindow):
         restored_rect = RectangleCadObject.create_object_from_data(
             document, "rectangle", obj_data
         )
-        assert restored_rect.corner_point == rect_obj.corner_point
+        assert restored_rect.corner1 == rect_obj.corner1
+        assert restored_rect.corner3 == rect_obj.corner3
         assert restored_rect.width == rect_obj.width
         assert restored_rect.height == rect_obj.height
         print("   ✓ Deserialization working correctly")
@@ -151,11 +152,13 @@ def test_basic_functionality():
     )
     
     # Test properties
-    assert rect_obj.corner_point == Point2D(10, 10)  # Bottom-left
+    assert rect_obj.corner1 == Point2D(10, 10)  # Bottom-left
+    assert rect_obj.corner2 == Point2D(10, 70)  # Top-left
+    assert rect_obj.corner3 == Point2D(110, 70)  # Top-right
+    assert rect_obj.corner4 == Point2D(110, 10)  # Bottom-right
     assert rect_obj.width == 100
     assert rect_obj.height == 60
     assert rect_obj.center_point == Point2D(60, 40)
-    assert rect_obj.opposite_corner == Point2D(110, 70)  # Top-right
     print("   ✓ RectangleCadObject properties working correctly")
     
     # Test bounds
@@ -196,7 +199,8 @@ def test_basic_functionality():
     restored_rect = RectangleCadObject.create_object_from_data(
         document, "rectangle", obj_data
     )
-    assert restored_rect.corner_point == rect_obj.corner_point
+    assert restored_rect.corner1 == rect_obj.corner1
+    assert restored_rect.corner3 == rect_obj.corner3
     assert restored_rect.width == rect_obj.width
     assert restored_rect.height == rect_obj.height
     print("   ✓ Deserialization working correctly")

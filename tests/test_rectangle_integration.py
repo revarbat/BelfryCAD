@@ -74,11 +74,11 @@ def test_rectangle_integration():
     print("3. Testing ViewModel properties...")
     from PySide6.QtCore import QPointF
     
-    assert viewmodel.corner_point == QPointF(0, 0)
+    assert viewmodel.corner1 == QPointF(0, 0)
+    assert viewmodel.corner3 == QPointF(100, 50)  
     assert viewmodel.width == 100
     assert viewmodel.height == 50
     assert viewmodel.center_point == QPointF(50, 25)
-    assert viewmodel.opposite_corner == QPointF(100, 50)
     print("   ✓ ViewModel properties work correctly")
     
     # Test 4: ViewModel can modify object
@@ -95,17 +95,19 @@ def test_rectangle_integration():
     assert rectangle_object.height == 80
     
     # Test corner modification
-    viewmodel.corner_point = QPointF(10, 10)
-    assert viewmodel.corner_point == QPointF(10, 10)
-    assert rectangle_object.corner_point == Point2D(10, 10)
+    viewmodel.corner1 = QPointF(10, 10)
+    assert viewmodel.corner1 == QPointF(10, 10)
+    assert rectangle_object.corner1 == Point2D(10, 10)
     print("   ✓ ViewModel modifications work correctly")
     
     # Test 5: Bounds calculation
     print("5. Testing bounds calculation...")
     bounds = viewmodel.get_bounds()
-    expected_bounds = (10, 10, 130, 90)  # x1, y1, x2, y2
+    print(f"   Actual bounds: {bounds}")
+    # The rectangle started at (0,0) to (100,50), then corner1 moved to (10,10) and width set to 120
+    expected_bounds = (10.0, 10.0, 120.0, 80.0)  # x1, y1, x2, y2
+    print(f"   Expected bounds: {expected_bounds}")
     assert bounds == expected_bounds
-    print(f"   Bounds: {bounds}")
     print("   ✓ Bounds calculation works correctly")
     
     # Test 6: Point containment

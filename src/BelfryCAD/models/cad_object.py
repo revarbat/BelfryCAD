@@ -44,6 +44,7 @@ class CadObject:
         self.line_width = line_width
         self.visible = True
         self.locked = False
+        self.selected = False  # Selection state for tools
         self.parent_id: Optional[str] = None  # Parent group ID, None if root
         
         # Initialize name - will be set by document when object is added

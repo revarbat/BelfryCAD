@@ -71,25 +71,29 @@ class CadPolygonGraphicsItem(CadGraphicsItemBase):
         if len(self._points) < 3:
             return path
         
-        # Create polygon path
-        polygon = QPolygonF(self._points)
-        path.addPolygon(polygon)
-        
         if self.brush().style() != Qt.BrushStyle.NoBrush:
             # If polygon is filled, the entire polygon area is clickable
-            return path
+            polygon = QPolygonF(self._points)
+            path.addPolygon(polygon)
+        
         else:
             # If polygon is just an outline, create a thick outline for clicking
             scale = self.scene().views()[0].transform().m11()
             hit_width = max(self.pen().widthF(), 3.0 / scale)  # At least 3 units for easy clicking
             
+            path.moveTo(self._points[0])
+            for point in self._points[1:]:
+                path.lineTo(point)
+            path.closeSubpath()
+            
             # Create a stroked version of the polygon outline for hit testing
             stroker = QPainterPathStroker()
             stroker.setWidth(hit_width)
-            stroker.setCapStyle(self.pen().capStyle())
-            stroker.setJoinStyle(self.pen().joinStyle())
-            
-            return stroker.createStroke(path)
+            stroker.setCapStyle(Qt.PenCapStyle.SquareCap)
+            stroker.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+            path = stroker.createStroke(path)
+        
+        return path
     
     # Property getters and setters
     @property

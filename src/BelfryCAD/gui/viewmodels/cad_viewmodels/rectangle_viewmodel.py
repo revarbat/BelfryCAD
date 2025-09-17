@@ -5,7 +5,7 @@ This ViewModel handles presentation logic for rectangle CAD objects and emits si
 for UI updates when rectangle properties change.
 """
 
-from typing import Tuple, Optional, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING, List
 
 from PySide6.QtCore import QPointF, Signal
 from PySide6.QtGui import QColor, QPen
@@ -14,10 +14,10 @@ from PySide6.QtWidgets import QGraphicsScene
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
     ControlPoint,
-    SquareControlPoint,
+    ControlPointShape,
     ControlDatum
 )
-from ...graphics_items.cad_rectangle_graphics_item import CadRectangleGraphicsItem
+from ...graphics_items.cad_polygon_graphics_item import CadPolygonGraphicsItem
 from ...graphics_items.construction_cross_item import ConstructionCrossItem, DashPattern
 from ....models.cad_objects.rectangle_cad_object import RectangleCadObject
 from ....cad_geometry import Point2D
@@ -34,7 +34,6 @@ class RectangleViewModel(CadViewModel):
     width_changed = Signal(float)  # new width
     height_changed = Signal(float)  # new height
     center_changed = Signal(QPointF)  # new center position
-    opposite_corner_changed = Signal(QPointF)  # new opposite corner position
     
     def __init__(self, document_window: 'DocumentWindow', rectangle_object: RectangleCadObject):
         super().__init__(document_window, rectangle_object)
@@ -51,16 +50,19 @@ class RectangleViewModel(CadViewModel):
         line_width = self._rectangle_object.line_width
         if line_width is None:
             line_width = 1.0  # Default line width
-        corner = self.corner1
-        width = self.width
-        height = self.height
         pen = QPen(color, line_width)
         
-        # Create rectangle graphics item
-        view_item = CadRectangleGraphicsItem(
-            corner_point=corner,
-            width=width,
-            height=height,
+        # Get all four corner points in order (counter-clockwise)
+        corner_points = [
+            self.corner1,    # Bottom-left
+            self.corner2,    # Top-left
+            self.corner3,    # Top-right
+            self.corner4     # Bottom-right  
+        ]
+        
+        # Create polygon graphics item from rectangle corners
+        view_item = CadPolygonGraphicsItem(
+            points=corner_points,
             pen=pen
         )
 
@@ -119,35 +121,32 @@ class RectangleViewModel(CadViewModel):
         """
         self._clear_controls(scene)
         
-        # Corner control point
+        # Corner control points for all four corners
         corner1_cp = ControlPoint(
             model_view=self,
             setter=self._set_corner1_point,
-            tool_tip=f"Rectangle Corner1"
+            tool_tip="Rectangle Corner 1"
         )
         self._controls.append(corner1_cp)
         
-        # Opposite corner control point
         corner2_cp = ControlPoint(
             model_view=self,
             setter=self._set_corner2_point,
-            tool_tip=f"Rectangle Corner2"
+            tool_tip="Rectangle Corner 2"
         )
         self._controls.append(corner2_cp)
         
-        # Opposite corner control point
         corner3_cp = ControlPoint(
             model_view=self,
             setter=self._set_corner3_point,
-            tool_tip=f"Rectangle Corner3"
+            tool_tip="Rectangle Corner 3"
         )
         self._controls.append(corner3_cp)
         
-        # Opposite corner control point
         corner4_cp = ControlPoint(
             model_view=self,
             setter=self._set_corner4_point,
-            tool_tip=f"Rectangle Corner4"
+            tool_tip="Rectangle Corner 4"
         )
         self._controls.append(corner4_cp)
         
@@ -155,7 +154,8 @@ class RectangleViewModel(CadViewModel):
         center_cp = ControlPoint(
             model_view=self,
             setter=self._set_center_point,
-            tool_tip=f"Rectangle Center"
+            tool_tip="Rectangle Center",
+            cp_shape=ControlPointShape.SQUARE
         )
         self._controls.append(center_cp)
         
@@ -220,6 +220,28 @@ class RectangleViewModel(CadViewModel):
         )
         
         self.control_points_updated.emit()
+
+    def get_properties(self) -> List[str]:
+        """Get properties of the rectangle"""
+        return [ "Width", "Height" ]
+    
+    def get_property_value(self, name: str) -> float:
+        """Get a rectangle property"""
+        if name == "Width":
+            return self.width
+        elif name == "Height":
+            return self.height
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+        
+    def set_property_value(self, name: str, value: float):
+        """Set a rectangle property"""
+        if name == "Width":
+            self.width = value
+        elif name == "Height":
+            self.height = value
+        else:
+            raise ValueError(f"Invalid property name: {name}")
     
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """
@@ -253,48 +275,48 @@ class RectangleViewModel(CadViewModel):
     
     @property
     def corner1(self) -> QPointF:
-        """Get the corner point as QPointF."""
+        """Get the bottom-left corner point as QPointF."""
         return self._rectangle_object.corner1.to_qpointf()
     
     @corner1.setter
     def corner1(self, value: QPointF):
-        """Set the corner point from QPointF."""
+        """Set the bottom-left corner point from QPointF."""
         self._rectangle_object.corner1 = Point2D(value)
         self.corner_changed.emit(value)
         self.object_modified.emit()
     
     @property
     def corner2(self) -> QPointF:
-        """Get the corner point as QPointF."""
+        """Get the top-left corner point as QPointF."""
         return self._rectangle_object.corner2.to_qpointf()
     
     @corner2.setter
     def corner2(self, value: QPointF):
-        """Set the corner point from QPointF."""
+        """Set the top-left corner point from QPointF."""
         self._rectangle_object.corner2 = Point2D(value)
         self.corner_changed.emit(value)
         self.object_modified.emit()
     
     @property
     def corner3(self) -> QPointF:
-        """Get the opposite corner point as QPointF."""
+        """Get the top-right corner point as QPointF."""
         return self._rectangle_object.corner3.to_qpointf()
     
     @corner3.setter
     def corner3(self, value: QPointF):
-        """Set the opposite corner point from QPointF."""
+        """Set the top-right corner point from QPointF."""
         self._rectangle_object.corner3 = Point2D(value)
-        self.opposite_corner_changed.emit(value)
+        self.corner_changed.emit(value)
         self.object_modified.emit()
     
     @property
     def corner4(self) -> QPointF:
-        """Get the corner point as QPointF."""
+        """Get the bottom-right corner point as QPointF."""
         return self._rectangle_object.corner4.to_qpointf()
     
     @corner4.setter
     def corner4(self, value: QPointF):
-        """Set the corner point from QPointF."""
+        """Set the bottom-right corner point from QPointF."""
         self._rectangle_object.corner4 = Point2D(value)
         self.corner_changed.emit(value)
         self.object_modified.emit()
@@ -336,30 +358,30 @@ class RectangleViewModel(CadViewModel):
         self.center_changed.emit(value)
         self.object_modified.emit()
     
-    # Control point setters
+    # Control point setter methods (required by control point system)
     
     def _set_corner1_point(self, new_position: QPointF):
-        """Set the corner point from QPointF."""
+        """Set corner1 from control point."""
         self.corner1 = new_position
         self.update_all()
     
     def _set_corner2_point(self, new_position: QPointF):
-        """Set the corner point from QPointF."""
+        """Set corner2 from control point."""
         self.corner2 = new_position
         self.update_all()
     
     def _set_corner3_point(self, new_position: QPointF):
-        """Set the opposite corner point from QPointF."""
+        """Set corner3 from control point."""
         self.corner3 = new_position
         self.update_all()
     
     def _set_corner4_point(self, new_position: QPointF):
-        """Set the corner point from QPointF."""
+        """Set corner4 from control point."""
         self.corner4 = new_position
         self.update_all()
     
     def _set_center_point(self, new_position: QPointF):
-        """Set the center point from QPointF."""
+        """Set center from control point."""
         self.center_point = new_position
         self.update_all()
     

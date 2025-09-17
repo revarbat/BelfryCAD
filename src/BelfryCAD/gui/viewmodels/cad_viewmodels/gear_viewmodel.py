@@ -15,7 +15,7 @@ from PySide6.QtWidgets import QGraphicsScene
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
     ControlPoint,
-    SquareControlPoint,
+    ControlPointShape,
     ControlDatum
 )
 from ...graphics_items.cad_polygon_graphics_item import CadPolygonGraphicsItem
@@ -58,7 +58,11 @@ class GearViewModel(CadViewModel):
             qpoints = [QPointF(point.x, point.y) for point in gear_points]
             
             # Create polygon item with no fill (gears are typically outlines)
-            pen = QPen(color, line_width)
+            if line_width is not None:
+                pen = QPen(color, line_width)
+            else:
+                pen = QPen(color, 1.0)
+                pen.setCosmetic(True)
             brush = QBrush()  # No fill
             view_item = CadPolygonGraphicsItem(qpoints, pen=pen, brush=brush)
             self._view_items.append(view_item)
@@ -111,80 +115,22 @@ class GearViewModel(CadViewModel):
         self._clear_controls(scene)
 
         # Center control point
-        center_cp = SquareControlPoint(
+        center_cp = ControlPoint(
             model_view=self,
             setter=self._set_center,
-            tool_tip="Gear Center"
+            tool_tip="Gear Center",
+            cp_shape=ControlPointShape.SQUARE
         )
         self._controls.append(center_cp)
         
         # Pitch radius control point
-        radius_cp = SquareControlPoint(
+        radius_cp = ControlPoint(
             model_view=self,
             setter=self._set_pitch_radius_point,
-            tool_tip="Pitch Radius"
+            tool_tip="Pitch Radius",
+            cp_shape=ControlPointShape.ROUND
         )
         self._controls.append(radius_cp)
-
-        # Get precision from main window or use default
-        precision = self._document_window.preferences_viewmodel.get_precision()
-        
-        # Tooth count datum
-        tooth_count_datum = ControlDatum(
-            model_view=self,
-            label="Tooth Count",
-            setter=self._set_tooth_count,
-            format_string="{:.0f}",
-            precision_override=0,
-            min_value=5,
-            is_length=False
-        )
-        self._controls.append(tooth_count_datum)
-        
-        # Pitch diameter datum
-        pitch_diameter_datum = ControlDatum(
-            model_view=self,
-            label="Pitch Circle Diameter",
-            setter=self._set_pitch_diameter,
-            format_string="{:.3f}",
-            min_value=0.1,
-            is_length=True
-        )
-        self._controls.append(pitch_diameter_datum)
-        
-        # Pressure angle datum
-        pressure_angle_datum = ControlDatum(
-            model_view=self,
-            label="Pressure Angle",
-            setter=self._set_pressure_angle,
-            format_string="{:.1f}°",
-            precision_override=1,
-            min_value=10,
-            max_value=30,
-            is_length=False
-        )
-        self._controls.append(pressure_angle_datum)
-        
-        # Module/Diametral pitch datum
-        if self._is_metric():
-            pitch_datum = ControlDatum(
-                model_view=self,
-                label="Gear Module",
-                setter=self._set_module,
-                format_string="{:.3f}",
-                min_value=0.1,
-                is_length=False
-            )
-        else:
-            pitch_datum = ControlDatum(
-                model_view=self,
-                label="Diametral Gear Pitch",
-                setter=self._set_diametral_pitch,
-                format_string="{:.3f}",
-                min_value=1,
-                is_length=False
-            )
-        self._controls.append(pitch_datum)
 
         self._add_controls_to_scene(scene)
 
@@ -207,52 +153,51 @@ class GearViewModel(CadViewModel):
         pitch_radius = self.pitch_radius
         
         # Update control points
-        if len(self._controls) >= 2:
-            self._controls[0].setPos(center)  # Center point
-            radius_pos = QPointF(center.x() + pitch_radius, center.y())
-            self._controls[1].setPos(radius_pos)  # Radius point
+        self._controls[0].setPos(center)  # Center point
+        radius_pos = QPointF(center.x() + pitch_radius, center.y())
+        self._controls[1].setPos(radius_pos)  # Radius point
         
-        # Update datums
-        if len(self._controls) >= 6:
-            # Tooth count datum
-            self._controls[2].update_datum(
-                self.num_teeth,
-                center + QPointF(-20, -20)
-            )
-            
-            # Pitch diameter datum
-            pos = center + QPointF(
-                pitch_radius * 0.707,  # cos(45°)
-                pitch_radius * 0.707   # sin(45°)
-            )
-            self._controls[3].update_datum(
-                self.pitch_diameter,
-                pos
-            )
-            
-            # Pressure angle datum
-            self._controls[4].update_datum(
-                self.pressure_angle,
-                center + QPointF(20, -20)
-            )
-            
-            # Module/Diametral pitch datum
-            if self._is_metric():
-                self._controls[5].label = "Gear Module"
-                self._controls[5].setter = self._set_module
-                self._controls[5].update_datum(
-                    self.module,
-                    center + QPointF(20, 20)
-                )
-            else:
-                self._controls[5].label = "Diametral Gear Pitch"
-                self._controls[5].setter = self._set_diametral_pitch
-                self._controls[5].update_datum(
-                    self.diametral_pitch,
-                    center + QPointF(20, 20)
-                )
-    
         self.control_points_updated.emit()
+
+    def get_properties(self) -> List[str]:
+        """Get properties of the gear"""
+        return [
+            "Pitch Diameter",
+            "Tooth Count",
+            "Pressure Angle",
+            "Module",
+            "Diametral Pitch"
+        ]
+    
+    def get_property_value(self, name: str) -> float:
+        """Get a gear property"""
+        if name == "Pitch Diameter":
+            return self.pitch_diameter
+        elif name == "Tooth Count":
+            return self.num_teeth
+        elif name == "Pressure Angle":
+            return self.pressure_angle
+        elif name == "Module":
+            return self.module
+        elif name == "Diametral Pitch":
+            return self.diametral_pitch
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+        
+    def set_property_value(self, name: str, value: float):
+        """Set a gear property"""
+        if name == "Pitch Diameter":
+            self.pitch_diameter = value
+        elif name == "Tooth Count":
+            self.num_teeth = int(value)
+        elif name == "Pressure Angle":
+            self.pressure_angle = value
+        elif name == "Module":
+            self.module = value
+        elif name == "Diametral Pitch":
+            self.diametral_pitch = value
+        else:
+            raise ValueError(f"Invalid property name: {name}")
     
     @property
     def object_type(self) -> str:

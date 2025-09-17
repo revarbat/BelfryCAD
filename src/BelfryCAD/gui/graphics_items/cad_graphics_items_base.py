@@ -9,7 +9,7 @@ from typing import Optional
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPen, QBrush, QColor
 from PySide6.QtWidgets import QAbstractGraphicsShapeItem, QGraphicsItem, QApplication
-
+import time
 
 class CadGraphicsItemBase(QAbstractGraphicsShapeItem):
     """Base class for custom CAD graphics items with selection indication."""
@@ -29,12 +29,17 @@ class CadGraphicsItemBase(QAbstractGraphicsShapeItem):
     def paint(self, painter, option, widget=None):
         """Paint the graphics item with selection indication if selected."""
         if self.isSelected():
-            # Step 1: Draw selection outline (thicker, selection color)
+            # Step 1: Draw selection outline (thicker, selection color) with animated dash offset
             painter.save()
             # selection_color = QApplication.palette().highlight().color()
-            selection_pen = QPen(QColor("#00ffff"), 2.0)
-            #selection_pen.setDashPattern([3, 3])
+            selection_pen = QPen(QColor("#00bfff"), 3.0)
             selection_pen.setCosmetic(True)
+            selection_pen.setDashPattern([3, 3])
+            selection_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            selection_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            # Animate dash offset based on time for pulsing effect
+            dash_offset = (time.monotonic() * 100) % 6  # 6 = sum of dash pattern [3,3]
+            selection_pen.setDashOffset(dash_offset)
             painter.setPen(selection_pen)
             painter.setBrush(Qt.BrushStyle.NoBrush)  # No fill for selection outline
             shape = self.shape()

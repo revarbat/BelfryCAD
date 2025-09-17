@@ -17,26 +17,6 @@ from PySide6.QtCore import QRectF, QPointF
 from PySide6.QtGui import QPen, QColor
 
 
-class PolygonObject(CadObject):
-    """Polygon object - list of vertices"""
-
-    def __init__(self, object_id: int, vertices: List[Point2D], **kwargs):
-        super().__init__(
-            object_id, ObjectType.POLYGON, coords=vertices, **kwargs)
-
-    def is_closed(self) -> bool:
-        """Check if polygon is closed (first and last points are same)"""
-        if len(self.coords) < 3:
-            return False
-        return (abs(self.coords[0].x - self.coords[-1].x) < 1e-6 and
-                abs(self.coords[0].y - self.coords[-1].y) < 1e-6)
-
-    def close(self):
-        """Close the polygon by adding first point at end if not closed"""
-        if not self.is_closed() and len(self.coords) >= 3:
-            self.coords.append(Point2D(self.coords[0].x, self.coords[0].y))
-
-
 class RectangleTool(CadTool):
     """CadTool for drawing rectangles by two diagonal corners"""
 

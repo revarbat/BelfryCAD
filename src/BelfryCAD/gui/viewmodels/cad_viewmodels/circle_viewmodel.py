@@ -5,7 +5,7 @@ This ViewModel handles presentation logic for circle CAD objects and emits signa
 for UI updates when circle properties change.
 """
 
-from typing import Tuple, Optional, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING, List
 import math
 
 from PySide6.QtCore import QPointF, Signal
@@ -15,7 +15,7 @@ from PySide6.QtWidgets import QGraphicsScene
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
     ControlPoint,
-    SquareControlPoint,
+    ControlPointShape,
     ControlDatum
 )
 from ...graphics_items.cad_circle_graphics_item import CadCircleGraphicsItem
@@ -117,37 +117,21 @@ class CircleViewModel(CadViewModel):
         self._clear_controls(scene)
 
         # Create control points with direct setters
-        center_cp = SquareControlPoint(
+        center_cp = ControlPoint(
             model_view=self,
             setter=self._set_center_point,
-            tool_tip="Circle Center"
+            tool_tip="Circle Center",
+            cp_shape=ControlPointShape.SQUARE
         )
         self._controls.append(center_cp)
 
         perimeter_cp = ControlPoint(
             model_view=self,
             setter=self._set_perimeter_point,
-            tool_tip="Circle Radius"
+            tool_tip="Circle Radius",
+            cp_shape=ControlPointShape.ROUND
         )
         self._controls.append(perimeter_cp)
-
-        # Get precision from document window or use default
-        precision = self._document_window.preferences_viewmodel.get_precision()
-        
-        # Radius datum
-        radius_datum = ControlDatum(
-            model_view=self,
-            label="Circle Radius",
-            setter=self._set_radius,
-            prefix="R ",
-            format_string=f"{{:.{precision}f}}",
-            precision_override=precision,
-            min_value=0,
-            is_length=True,
-            pixel_offset=10,
-            angle=45
-        )
-        self._controls.append(radius_datum)
         
         self._add_controls_to_scene(scene)
 
@@ -173,14 +157,33 @@ class CircleViewModel(CadViewModel):
         self._controls[0].setPos(center)  # Center point
         self._controls[1].setPos(perimeter)  # Perimeter point
         
-        # Update Radius datum
-        self._controls[2].update_datum(
-            self.radius,
-            center + QPointF(1,1) * (math.sqrt(2)/2 * self.radius)
-        )
-        
         self.control_points_updated.emit()
-    
+
+    def get_properties(self) -> List[str]:
+        """Get properties of the circle"""
+        return [
+            "Radius",
+            "Diameter",
+        ]
+
+    def get_property_value(self, name: str) -> float:
+        """Get a circle property"""
+        if name == "Radius":
+            return self.radius
+        elif name == "Diameter":
+            return self.diameter
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+        
+    def set_property_value(self, name: str, value: float):
+        """Set a circle property"""
+        if name == "Radius":
+            self.radius = value
+        elif name == "Diameter":
+            self.diameter = value
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+
     @property
     def object_type(self) -> str:
         """Get object type"""

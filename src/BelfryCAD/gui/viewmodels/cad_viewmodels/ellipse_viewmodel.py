@@ -6,7 +6,7 @@ for UI updates when ellipse properties change.
 """
 
 import math
-from typing import Tuple, Optional, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING, List
 
 from PySide6.QtCore import Qt, QPointF, QRectF, Signal, QLineF
 from PySide6.QtGui import QColor, QTransform, QPen
@@ -15,8 +15,7 @@ from PySide6.QtWidgets import QGraphicsScene
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
     ControlPoint,
-    SquareControlPoint,
-    ControlDatum
+    ControlPointShape
 )
 from ...graphics_items.cad_ellipse_graphics_item import CadEllipseGraphicsItem
 from ...graphics_items.construction_line_item import ConstructionLineItem, DashPattern
@@ -149,75 +148,29 @@ class EllipseViewModel(CadViewModel):
         self._clear_controls(scene)
 
         # Create control points with direct setters
-        center_cp = SquareControlPoint(
+        center_cp = ControlPoint(
             model_view=self,
             setter=self._set_center_point,
-            tool_tip="Ellipse Center"
+            tool_tip="Ellipse Center",
+            cp_shape=ControlPointShape.SQUARE
         )
         self._controls.append(center_cp)
 
         major_cp = ControlPoint(
             model_view=self,
             setter=self._set_major_axis_point,
-            tool_tip="Ellipse Major Axis"
+            tool_tip="Ellipse Radius1",
+            cp_shape=ControlPointShape.DIAMOND
         )
         self._controls.append(major_cp)
 
         minor_cp = ControlPoint(
             model_view=self,
             setter=self._set_minor_axis_point,
-            tool_tip="Ellipse Minor Axis"
+            tool_tip="Ellipse Radius2",
+            cp_shape=ControlPointShape.ROUND
         )
         self._controls.append(minor_cp)
-
-        # Get precision from document window or use default
-        precision = self._document_window.preferences_viewmodel.get_precision()
-        
-        # Major axis datum
-        major_datum = ControlDatum(
-            model_view=self,
-            label="Ellipse Major Axis",
-            setter=self._set_major_axis,
-            prefix="R₁: ",
-            format_string=f"{{:.{precision}f}}",
-            precision_override=precision,
-            min_value=0,
-            is_length=True,
-            pixel_offset=10,
-            angle=0
-        )
-        self._controls.append(major_datum)
-        
-        # Minor axis datum
-        minor_datum = ControlDatum(
-            model_view=self,
-            label="Ellipse Minor Axis",
-            setter=self._set_minor_axis,
-            prefix="R₂: ",
-            format_string=f"{{:.{precision}f}}",
-            precision_override=precision,
-            min_value=0,
-            is_length=True,
-            pixel_offset=10,
-            angle=90
-        )
-        self._controls.append(minor_datum)
-        
-        # Rotation datum
-        rotation_datum = ControlDatum(
-            model_view=self,
-            label="Ellipse Rotation",
-            setter=self._set_rotation,
-            format_string="{:.1f}",
-            suffix="°",
-            precision_override=1,
-            min_value=-360,
-            max_value=360,
-            is_length=False,
-            pixel_offset=10,
-            angle=self.rotation_degrees+180
-        )
-        self._controls.append(rotation_datum)
 
         self._add_controls_to_scene(scene)
 
@@ -245,29 +198,34 @@ class EllipseViewModel(CadViewModel):
         self._controls[1].setPos(major)   # Major axis point
         self._controls[2].setPos(minor)   # Minor axis point
         
-        # Update Major axis datum
-        self._controls[3].update_datum(
-            self.major_axis/2,
-            major
-        )
-        self._controls[3].angle = self.rotation_degrees
-        
-        # Update Minor axis datum
-        self._controls[4].update_datum(
-            self.minor_axis/2,
-            minor
-        )
-        self._controls[4].angle = self.rotation_degrees+90
-
-        # Update Rotation datum
-        self._controls[5].update_datum(
-            self.rotation_degrees,
-            center-(major-center)
-        )
-        self._controls[5].angle = self.rotation_degrees+180
-    
         self.control_points_updated.emit()
     
+    def get_properties(self) -> List[str]:
+        """Get properties of the ellipse"""
+        return [ "Radius1", "Radius2", "Rotation Angle" ]
+    
+    def get_property_value(self, name: str) -> float:
+        """Get an ellipse property"""
+        if name == "Radius1":
+            return self.major_axis
+        elif name == "Radius2":
+            return self.minor_axis
+        elif name == "Rotation Angle":
+            return self.rotation_degrees
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+        
+    def set_property_value(self, name: str, value: float):
+        """Set an ellipse property"""
+        if name == "Radius1":
+            self.major_axis = value
+        elif name == "Radius2":
+            self.minor_axis = value
+        elif name == "Rotation Angle":
+            self.rotation_degrees = value
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+
     @property
     def object_type(self) -> str:
         """Get object type"""

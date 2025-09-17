@@ -73,18 +73,17 @@ class CadPolylineGraphicsItem(CadGraphicsItemBase):
         hit_width = max(self.pen().widthF(), 3.0 / scale)  # At least 3 units for easy clicking
         
         # Build the stroke path for the polyline
-        polyline_path = QPainterPath()
-        polyline_path.moveTo(self._points[0])
+        path.moveTo(self._points[0])
         for point in self._points[1:]:
-            polyline_path.lineTo(point)
+            path.lineTo(point)
         
         # Create a stroked version of the path for hit testing
         stroker = QPainterPathStroker()
         stroker.setWidth(hit_width)
-        stroker.setCapStyle(self.pen().capStyle())
-        stroker.setJoinStyle(self.pen().joinStyle())
-        
-        return stroker.createStroke(polyline_path)
+        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        path = stroker.createStroke(path)
+        return path
     
     # Property getters and setters
     @property
@@ -126,4 +125,4 @@ class CadPolylineGraphicsItem(CadGraphicsItemBase):
     
     def getPointCount(self) -> int:
         """Get the number of points in the polyline."""
-        return len(self._points) 
+        return len(self._points)

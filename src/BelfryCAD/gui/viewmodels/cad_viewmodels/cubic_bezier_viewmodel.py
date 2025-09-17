@@ -6,7 +6,7 @@ for UI updates when Bezier properties change.
 """
 
 import math
-from typing import List, Tuple, Optional, TYPE_CHECKING
+from typing import List, Tuple, Optional, TYPE_CHECKING, Any
 
 from PySide6.QtCore import Qt, QPointF, QLineF, Signal
 from PySide6.QtGui import QColor, QPen, QPainterPath
@@ -15,8 +15,7 @@ from PySide6.QtWidgets import QGraphicsScene
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
     ControlPoint,
-    BigControlPoint,
-    ControlDatum
+    ControlPointShape
 )
 from ...graphics_items.cad_bezier_graphics_item import CadBezierGraphicsItem
 from ...graphics_items.construction_line_item import ConstructionLineItem
@@ -135,50 +134,30 @@ class CubicBezierViewModel(CadViewModel):
         self._clear_controls(scene)
 
         points = self.points
-        
+        shapes = [
+            ControlPointShape.TRIANGLE,
+            ControlPointShape.SQUARE,
+            ControlPointShape.DIAMOND,
+            ControlPointShape.PENTAGON,
+            ControlPointShape.HEXAGON,
+            ControlPointShape.ROUND,
+        ]
         # Create control points for each point
         for i, point in enumerate(points):
             if i % 3 == 0:
-                cp = BigControlPoint(
-                    model_view=self,
-                    setter=lambda new_pos, idx=i: self._set_point(idx, new_pos),
-                    tool_tip=f"Bezier Control Point {i}"
-                )
+                shape = ControlPointShape.SQUARE
+                big = True
             else:
-                cp = ControlPoint(
-                    model_view=self,
-                    setter=lambda new_pos, idx=i: self._set_point(idx, new_pos),
-                    tool_tip=f"Bezier Control Point {i}"
-                )
+                shape = ControlPointShape.ROUND
+                big = False
+            cp = ControlPoint(
+                model_view=self,
+                setter=lambda new_pos, idx=i: self._set_point(idx, new_pos),
+                tool_tip=f"Bezier Control Point {i}",
+                cp_shape=shape,
+                big=big
+            )
             self._controls.append(cp)
-
-        # Get precision from main window or use default
-        precision = self._document_window.preferences_viewmodel.get_precision()
-        
-        # Point count datum (read-only)
-        point_count_datum = ControlDatum(
-            model_view=self,
-            label="Number of Control Points",
-            setter=lambda value: None,  # Read-only
-            format_string="{:.0f}",
-            precision_override=0,
-            min_value=0,
-            is_length=False
-        )
-        self._controls.append(point_count_datum)
-        
-        # Closed state datum (read-only)
-        closed_datum = ControlDatum(
-            model_view=self,
-            label="Path Closed",
-            setter=lambda value: None,  # Read-only
-            format_string="{:.0f}",
-            precision_override=0,
-            min_value=0,
-            max_value=1,
-            is_length=False
-        )
-        self._controls.append(closed_datum)
 
         self._add_controls_to_scene(scene)
 
@@ -200,26 +179,22 @@ class CubicBezierViewModel(CadViewModel):
         points = self.points
         
         # Update control points
-        for i, (cp, point) in enumerate(zip(self._controls[:-2], points)):
+        for cp, point in zip(self._controls, points):
             cp.setPos(point)
         
-        # Update datums
-        if len(self._controls) >= 2 and points:
-            center = points[len(points) // 2] if points else QPointF(0, 0)
-            
-            # Point count datum
-            self._controls[-2].update_datum(
-                len(points),
-                center + QPointF(20, -20)
-            )
-            
-            # Closed state datum
-            self._controls[-1].update_datum(
-                1 if self.is_closed else 0,
-                center + QPointF(20, 20)
-            )
-    
         self.control_points_updated.emit()
+
+    def get_properties(self) -> List[str]:
+        """Get properties of the cubic bezier"""
+        return [ ]
+    
+    def get_property_value(self, name: str) -> Any:
+        """Get a cubic bezier property"""
+        raise ValueError(f"Invalid property name: {name}")
+
+    def set_property_value(self, name: str, value: Any):
+        """Set a cubic bezier property"""
+        raise ValueError(f"Invalid property name: {name}")
     
     @property
     def object_type(self) -> str:

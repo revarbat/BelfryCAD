@@ -17,7 +17,6 @@ from .cad_ellipse_graphics_item import CadEllipseGraphicsItem
 from .cad_polyline_graphics_item import CadPolylineGraphicsItem
 from .cad_bezier_graphics_item import CadBezierGraphicsItem
 from .cad_polygon_graphics_item import CadPolygonGraphicsItem
-from .cad_rectangle_graphics_item import CadRectangleGraphicsItem
 from .control_points import ControlPoint, ControlDatum
 from .construction_circle_item import ConstructionCircleItem
 from .construction_cross_item import ConstructionCrossItem
@@ -36,7 +35,6 @@ __all__ = [
     'CadPolylineGraphicsItem',
     'CadBezierGraphicsItem',
     'CadPolygonGraphicsItem',
-    'CadRectangleGraphicsItem',
     'ControlPoint',
     'ControlDatum',
     'ConstructionCircleItem',

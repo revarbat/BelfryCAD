@@ -26,36 +26,24 @@ class CadScene(QGraphicsScene):
         # Flag to prevent control point updates during dragging
         self._control_point_dragging = False
         
-        # Control point management
-        self._control_points = {}
-        self._control_datums = {}
-        
         # Snaps system reference (will be set by main window)
         self._snaps_system = None
         
         # CadTool manager reference (will be set by document window)
         self._tool_manager = None
         
+        # Timer for animating selection outlines
+        self._selection_animation_timer = QTimer()
+        self._selection_animation_timer.timeout.connect(self._animate_selection_outlines)
+        # Start with 50ms interval for smooth animation (20 FPS)
+        self._selection_animation_timer.start(50)
+        
         # Connect to Qt's built-in selection changed signal
         self.selectionChanged.connect(self._on_selection_changed)
 
     def removeItem(self, item):
-        """Override removeItem to clean up control points when items are removed."""
-        # Clean up control points
-        if item in self._control_points:
-            for cp in self._control_points[item]:
-                if cp:
-                    self.removeItem(cp)
-            del self._control_points[item]
-        
-        if item in self._control_datums:
-            for cd in self._control_datums[item]:
-                if cd:
-                    self.removeItem(cd)
-            del self._control_datums[item]
-        
-        # This is now handled by Qt's built-in selection system
-        
+        """Override removeItem to clean up when items are removed."""
+        # Remove the item from the scene
         super().removeItem(item)
 
     def addArc(
@@ -78,17 +66,25 @@ class CadScene(QGraphicsScene):
         self.addItem(arc_item)
         return arc_item
 
-    def set_snaps_system(self, snaps_system):
-        """Set the snaps system reference."""
-        self._snaps_system = snaps_system
-
     def get_precision(self):
         """Get the current precision setting."""
         return self._precision
 
-    def set_precision(self, precision):
+    def set_precision(self, precision: int):
         """Set the precision setting."""
         self._precision = precision
+
+    def add_snaps_system(self, snaps_system):
+        """Add snaps system reference."""
+        self._snaps_system = snaps_system
+
+    def remove_snaps_system(self):
+        """Remove snaps system reference."""
+        self._snaps_system = None
+
+    def get_snaps_system(self):
+        """Get the snaps system reference."""
+        return self._snaps_system
 
     def update_all_control_datums_precision(self, new_precision: int):
         """Update precision for all control datums."""
@@ -107,6 +103,20 @@ class CadScene(QGraphicsScene):
     def set_tool_manager(self, tool_manager):
         """Set the tool manager reference."""
         self._tool_manager = tool_manager
+
+    def _animate_selection_outlines(self):
+        """Update all selected items to animate their selection outlines."""
+        # Get all selected items and trigger their update to animate the dashed outline
+        selected_items = self.selectedItems()
+        
+        # If no items are selected, we can stop the timer to save resources
+        if not selected_items:
+            return
+            
+        for item in selected_items:
+            # Only update items that have our custom selection animation
+            if hasattr(item, 'update'):
+                item.update()
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         """Handle mouse press events and delegate to active tool."""
@@ -139,34 +149,46 @@ class CadScene(QGraphicsScene):
         # First, let Qt handle the event normally
         super().mouseReleaseEvent(event)
         
+        # If event was accepted by an item, don't process for tools
+        if event.isAccepted():
+            return
+        
         # Delegate to active tool if available
         if self._tool_manager and self._tool_manager.get_active_tool():
             active_tool = self._tool_manager.get_active_tool()
             active_tool.handle_mouse_up(event)
             event.accept()
 
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QKeyEvent):
         """Handle key press events and delegate to active tool."""
+        # First, let Qt handle the event normally
+        super().keyPressEvent(event)
+        
+        # If event was accepted by an item, don't process for tools
+        if event.isAccepted():
+            return
+        
         # Delegate to active tool if available
         if self._tool_manager and self._tool_manager.get_active_tool():
             active_tool = self._tool_manager.get_active_tool()
             active_tool.handle_key_press(event)
-            if event.isAccepted():
-                return
-        
-        # Let Qt handle the event normally
-        super().keyPressEvent(event)
+            event.accept()
 
     def keyReleaseEvent(self, event):
         """Handle key release events and delegate to active tool."""
+        # First, let Qt handle the event normally
+        super().keyReleaseEvent(event)
+        
+        # If event was accepted by an item, don't process for tools
+        if event.isAccepted():
+            return
+        
         # Delegate to active tool if available
         if self._tool_manager and self._tool_manager.get_active_tool():
             active_tool = self._tool_manager.get_active_tool()
             active_tool.handle_key_release(event)
-            if event.isAccepted():
-                return
-        
-        # Let Qt handle the event normally
+            event.accept()
+
         super().keyReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent):
@@ -198,20 +220,13 @@ class CadScene(QGraphicsScene):
         selected_items = self.selectedItems()
         selected_object_ids = set()
         
-        # Update control points for selected items
-        self._hide_all_control_points()
-        
+        # Update viewmodel selection state and collect object IDs
         for item in selected_items:
             # Get the viewmodel from the item data
             viewmodel = item.data(0)
             if viewmodel and hasattr(viewmodel, 'is_selected'):
                 # Update the viewmodel's selection state
                 viewmodel.is_selected = True
-                try:
-                    self._show_control_points_for_viewmodel(viewmodel)
-                except Exception as e:
-                    # Log the error but don't crash
-                    print(f"Error showing control points for viewmodel: {e}")
                 # Collect object ID for the signal
                 if hasattr(viewmodel, '_cad_object') and viewmodel._cad_object:
                     object_id = viewmodel._cad_object.object_id
@@ -234,63 +249,3 @@ class CadScene(QGraphicsScene):
     def is_updating_from_tree(self) -> bool:
         """Get flag indicating if we're updating selection from tree."""
         return getattr(self, '_updating_selection_from_tree', False)
-
-    def _show_control_points_for_viewmodel(self, viewmodel):
-        """Show control points for a specific viewmodel."""
-        # Defensive check to ensure viewmodel has controls
-        if not hasattr(viewmodel, 'controls'):
-            return
-            
-        # Get control points and datums from viewmodel
-        control_points = viewmodel.controls
-        
-        # Update control point positions to scene coordinates
-        try:
-            self._update_control_point_positions_for_viewmodel(viewmodel)
-        except Exception as e:
-            # Log the error but don't crash
-            print(f"Error updating control point positions: {e}")
-        
-        # Show control points
-        for cp in control_points:
-            if cp and hasattr(cp, 'setVisible'):
-                try:
-                    cp.setVisible(True)
-                except Exception as e:
-                    # Log the error but don't crash
-                    print(f"Error setting control point visibility: {e}")
-        
-        # Show control datums
-        for cd in control_points:  # Control datums are also in controls list
-            if hasattr(cd, 'setVisible') and cd:
-                try:
-                    cd.setVisible(True)
-                except Exception as e:
-                    # Log the error but don't crash
-                    print(f"Error setting control datum visibility: {e}")
-
-    def _hide_all_control_points(self):
-        """Hide all control points and control datums."""
-        for control_points in self._control_points.values():
-            for cp in control_points:
-                if cp and hasattr(cp, 'setVisible'):
-                    try:
-                        cp.setVisible(False)
-                    except Exception as e:
-                        # Log the error but don't crash
-                        print(f"Error hiding control point: {e}")
-        
-        for control_datums in self._control_datums.values():
-            for cd in control_datums:
-                if cd and hasattr(cd, 'setVisible'):
-                    try:
-                        cd.setVisible(False)
-                    except Exception as e:
-                        # Log the error but don't crash
-                        print(f"Error hiding control datum: {e}")
-
-    def _update_control_point_positions_for_viewmodel(self, viewmodel):
-        """Update control point positions for a viewmodel."""
-        # This will be handled by the viewmodel's update_controls method
-        # The viewmodel manages its own control point positions
-        pass

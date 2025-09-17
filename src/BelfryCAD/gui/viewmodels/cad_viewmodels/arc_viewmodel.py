@@ -15,8 +15,7 @@ from PySide6.QtGui import QBrush
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
     ControlPoint,
-    SquareControlPoint,
-    ControlDatum
+    ControlPointShape,
 )
 from ...graphics_items.cad_arc_graphics_item import (
     CadArcGraphicsItem,
@@ -151,78 +150,29 @@ class ArcViewModel(CadViewModel):
         self._clear_controls(scene)
 
         # Create control points with direct setters
-        center_cp = SquareControlPoint(
+        center_cp = ControlPoint(
             model_view=self,
             setter=self._set_center_point,
-            tool_tip="Arc Center"
+            tool_tip="Arc Center",
+            cp_shape=ControlPointShape.SQUARE
         )
         self._controls.append(center_cp)
 
-        start_cp = SquareControlPoint(
+        start_cp = ControlPoint(
             model_view=self,
             setter=self._set_start_point,
-            tool_tip="Arc Start"
+            tool_tip="Arc Start",
+            cp_shape=ControlPointShape.DIAMOND
         )
         self._controls.append(start_cp)
 
-        end_cp = SquareControlPoint(
+        end_cp = ControlPoint(
             model_view=self,
             setter=self._set_end_point,
-            tool_tip="Arc End"
+            tool_tip="Arc End",
+            cp_shape=ControlPointShape.ROUND
         )
         self._controls.append(end_cp)
-
-        # Get precision from main window or use default
-        precision = self._document_window.preferences_viewmodel.get_precision()
-        
-        # Radius datum
-        radius_datum = ControlDatum(
-            model_view=self,
-            label="Arc Radius",
-            setter=self._set_radius,
-            prefix="R",
-            format_string=f"{{:.{precision}f}}",
-            precision_override=precision,
-            min_value=0,
-            is_length=True,
-            pixel_offset=10,
-            angle=45
-        )
-        self._controls.append(radius_datum)
-        
-        # Span angle datum
-        start_datum = ControlDatum(
-            model_view=self,
-            label="Arc Start Angle",
-            setter=self._set_start_degrees,
-            format_string="{:.1f}",
-            prefix="Start: ",
-            suffix="°",
-            precision_override=1,
-            min_value=-360,
-            max_value=360,
-            is_length=False,
-            pixel_offset=10,
-            angle=self.start_degrees
-        )
-        self._controls.append(start_datum)
-
-        # Span angle datum
-        span_datum = ControlDatum(
-            model_view=self,
-            label="Arc Span Angle",
-            setter=self._set_span_degrees,
-            format_string="{:.1f}",
-            prefix="Span: ",
-            suffix="°",
-            precision_override=1,
-            min_value=-360,
-            max_value=360,
-            is_length=False,
-            pixel_offset=10,
-            angle=self.start_degrees + self.span_degrees
-        )
-        self._controls.append(span_datum)
 
         self._add_controls_to_scene(scene)
 
@@ -249,32 +199,36 @@ class ArcViewModel(CadViewModel):
         self._controls[0].setPos(center)  # Center point
         self._controls[1].setPos(start)   # Start point
         self._controls[2].setPos(end)     # End point
-        
-        # Update Radius datum
-        radius_datum_degrees = self.start_degrees + self.span_degrees/2
-        if abs(self.span_degrees) < 45:
-            radius_datum_degrees += 180
-        self._controls[3].update_datum(
-            self.radius,
-            center + Point2D(self.radius, angle=radius_datum_degrees).to_qpointf()
-        )
-        self._controls[3].angle = radius_datum_degrees
-        
-        # Update Start Angle datum
-        self._controls[4].update_datum(
-            self.start_degrees,
-            start
-        )
-        self._controls[4].angle = self.start_degrees
-    
-        # Update Span Angle datum
-        self._controls[5].update_datum(
-            self.span_degrees,
-            end
-        )
-        self._controls[5].angle = self.end_degrees
-    
+            
         self.control_points_updated.emit()
+    
+    def get_properties(self) -> List[str]:
+        """Get properties of the arc"""
+        return [ "Start Angle", "End Angle", "Span Angle", "Radius" ]
+
+    def get_property_value(self, name: str) -> float:
+        """Get an arc property"""
+        if name == "Start Angle":
+            return self.start_degrees
+        elif name == "End Angle":
+            return self.end_degrees
+        elif name == "Span Angle":
+            return self.span_degrees
+        elif name == "Radius":
+            return self.radius
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+        
+    def set_property_value(self, name: str, value: float):
+        """Set an arc property"""
+        if name == "Start Angle":
+            self.start_degrees = value
+        elif name == "End Angle":
+            self.end_degrees = value
+        elif name == "Span Angle":
+            self.span_degrees = value
+        elif name == "Radius":
+            self.radius = value
     
     @property
     def object_type(self) -> str:

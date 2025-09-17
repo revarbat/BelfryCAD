@@ -67,13 +67,13 @@ def test_rectangle_tool():
     # Verify the object
     assert cad_object is not None
     assert isinstance(cad_object, RectangleCadObject)
-    assert cad_object.corner_point == Point2D(10, 10)  # Bottom-left corner
+    assert cad_object.corner1 == Point2D(10, 10)  # Bottom-left corner
+    assert cad_object.corner3 == Point2D(50, 40)  # Top-right corner  
     assert cad_object.width == 40
     assert cad_object.height == 30
     assert cad_object.center_point == Point2D(30, 25)
-    assert cad_object.opposite_corner == Point2D(50, 40)  # Top-right corner
     print("   ✓ Object creation works correctly")
-    print(f"   Rectangle: {cad_object.corner_point} to {cad_object.opposite_corner}")
+    print(f"   Rectangle: {cad_object.corner1} to {cad_object.corner3}")
     print(f"   Dimensions: {cad_object.width} x {cad_object.height}")
     
     # Test 3: Test with reversed points (ensuring proper corner calculation)
@@ -83,7 +83,7 @@ def test_rectangle_tool():
     cad_object2 = tool.create_object()
     
     # Should still produce the same rectangle
-    assert cad_object2.corner_point == Point2D(10, 10)  # Bottom-left corner
+    assert cad_object2.corner1 == Point2D(10, 10)  # Bottom-left corner
     assert cad_object2.width == 40
     assert cad_object2.height == 30
     print("   ✓ Reversed points handled correctly")
@@ -94,7 +94,7 @@ def test_rectangle_tool():
     
     cad_object3 = tool.create_object()
     
-    assert cad_object3.corner_point == Point2D(-20, -10)  # Bottom-left corner
+    assert cad_object3.corner1 == Point2D(-20, -10)  # Bottom-left corner
     assert cad_object3.width == 30
     assert cad_object3.height == 30
     print("   ✓ Negative coordinates handled correctly")

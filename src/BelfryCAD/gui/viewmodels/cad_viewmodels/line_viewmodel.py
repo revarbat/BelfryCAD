@@ -7,7 +7,7 @@ for UI updates when line properties change.
 
 import math
 
-from typing import Tuple, Optional, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING, List
 
 from PySide6.QtCore import Qt, QPointF, Signal
 from PySide6.QtGui import QColor, QTransform, QPen
@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QGraphicsScene, QGraphicsItem
 from .cad_viewmodel import CadViewModel
 from ...graphics_items.control_points import (
     ControlPoint,
-    SquareControlPoint,
+    ControlPointShape,
     ControlDatum
 )
 from ...graphics_items.dimension_line_composite import (
@@ -98,56 +98,29 @@ class LineViewModel(CadViewModel):
         self._clear_controls(scene)
 
         # Create control points with direct setters
-        start_cp = SquareControlPoint(
+        start_cp = ControlPoint(
             model_view=self,
             setter=self._set_start_point,
-            tool_tip=f"Line Start"
+            tool_tip=f"Line Start",
+            cp_shape=ControlPointShape.SQUARE
         )
         self._controls.append(start_cp)
 
         end_cp = ControlPoint(
             model_view=self,
             setter=self._set_end_point,
-            tool_tip=f"Line End"
+            tool_tip=f"Line End",
+            cp_shape=ControlPointShape.ROUND
         )
         self._controls.append(end_cp)
 
         mid_cp = ControlPoint(
             model_view=self,
             setter=self._set_mid_point,
-            tool_tip=f"Line Midpoint"
+            tool_tip=f"Line Midpoint",
+            cp_shape=ControlPointShape.DIAMOND
         )
         self._controls.append(mid_cp)
-
-        # Get precision from document window or use default
-        precision = self._document_window.preferences_viewmodel.get_precision()
-        
-        # Length datum
-        length_datum = ControlDatum(
-            model_view=self,
-            label="Line Length",
-            setter=self._set_length,
-            format_string=f"{{:.{precision}f}}",
-            precision_override=precision,
-            min_value=0,
-            is_length=True
-        )
-        self._controls.append(length_datum)
-        
-        # Angle datum
-        angle_datum = ControlDatum(
-            model_view=self,
-            label="Line Angle",
-            prefix="∠",
-            suffix="°",
-            setter=self._set_angle,
-            format_string="{:.1f}",
-            precision_override=1,
-            min_value=-360,
-            max_value=360,
-            is_length=False
-        )
-        self._controls.append(angle_datum)
 
         self._add_controls_to_scene(scene)
 
@@ -175,20 +148,30 @@ class LineViewModel(CadViewModel):
         self._controls[1].setPos(end)    # End point
         self._controls[2].setPos(mid)    # Mid point
         
-        # Update Length datum
-        self._controls[3].update_datum(
-            self.length,
-            mid + self._get_perpendicular_vector() * 0.5
-        )
-        
-        # Update Angle datum
-        self._controls[4].update_datum(
-            self.angle_degrees,
-            start - self._get_perpendicular_vector() * 0.5
-        )
-    
         self.control_points_updated.emit()
+
+    def get_properties(self) -> List[str]:
+        """Get properties of the line"""
+        return [ "Length", "Angle" ]
     
+    def get_property_value(self, name: str) -> float:
+        """Get a line property"""
+        if name == "Length":
+            return self.length
+        elif name == "Angle":
+            return self.angle_degrees
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+        
+    def set_property_value(self, name: str, value: float):
+        """Set a line property"""
+        if name == "Length":
+            self.length = value
+        elif name == "Angle":
+            self.angle_degrees = value
+        else:
+            raise ValueError(f"Invalid property name: {name}")
+        
     def _format_length_text(self, length: float) -> str:
         """Format the length text"""
         return self._document_window.grid_info.format_label(length, no_subs=True)

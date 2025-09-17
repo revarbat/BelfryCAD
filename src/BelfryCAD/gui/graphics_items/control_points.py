@@ -2,7 +2,9 @@
 ControlPoint - A class representing a control point for CAD items.
 """
 import math
-from typing import Callable, TYPE_CHECKING, cast
+from enum import Enum
+from typing import Callable, TYPE_CHECKING, cast, Optional
+
 from PySide6.QtCore import (
     Qt, QPointF, QRectF
 )
@@ -18,20 +20,34 @@ if TYPE_CHECKING:
     from BelfryCAD.gui.widgets.cad_scene import CadScene
 
 
+class ControlPointShape(Enum):
+    """Enum for control point types."""
+    ROUND = "round"
+    SQUARE = "square"
+    TRIANGLE = "triangle"
+    DIAMOND = "diamond"
+    PENTAGON = "pentagon"
+    HEXAGON = "hexagon"
+
+
 class ControlPoint(QGraphicsItem):
     """Base class for control point graphics items."""
 
     def __init__(
             self,
             model_view,
-            setter,
-            tool_tip=None
+            setter: Callable[[QPointF], None],
+            cp_shape: ControlPointShape = ControlPointShape.ROUND,
+            big: bool = False,
+            tool_tip: Optional[str] = None
     ):
         super().__init__()  # Use parent-child relationship
         self.model_view = model_view
         self.setter = setter
         self.control_size = 9
+        self.cp_shape = cp_shape
         self.tool_tip = tool_tip
+        self.big = big
         
         # Use Qt's built-in flags - make selectable to be part of selection system
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
@@ -74,12 +90,6 @@ class ControlPoint(QGraphicsItem):
             except (RuntimeError, AttributeError, TypeError) as e:
                 print(f"Error in control point setter: {e}")
 
-    def _get_control_size_in_scene_coords(self, painter):
-        """Get control point size in scene coordinates based on current zoom level."""
-        pixel_size = self.control_size
-        scale = painter.transform().m11()
-        return pixel_size / scale
-
     def boundingRect(self):
         """Return bounding rectangle for hit testing."""
         # Get the current scale from the scene to make bounding rect scale independent
@@ -88,8 +98,20 @@ class ControlPoint(QGraphicsItem):
             # Get the first view's transform to determine current scale
             view = scene.views()[0]
             scale = view.transform().m11()
+            if self.big:
+                control_size = 12.0
+            else:
+                control_size = 9.0
+            if self.cp_shape == ControlPointShape.TRIANGLE:
+                control_size *= 1.5
+            elif self.cp_shape == ControlPointShape.DIAMOND:
+                control_size *= math.sqrt(2)
+            elif self.cp_shape == ControlPointShape.PENTAGON:
+                control_size *= 4/3
+            elif self.cp_shape == ControlPointShape.HEXAGON:
+                control_size *= 5/4
             # Convert pixel size to scene coordinates
-            control_size = float(self.control_size) / scale
+            control_size = float(control_size) / scale
         else:
             # Fallback to a reasonable size if no scene/view available
             control_size = 0.3
@@ -100,7 +122,35 @@ class ControlPoint(QGraphicsItem):
     def shape(self):
         """Return shape for hit testing."""
         path = QPainterPath()
-        path.addEllipse(self.boundingRect())
+        rect = self.boundingRect()
+        control_padding = rect.width() / 2
+        if self.cp_shape == ControlPointShape.ROUND:
+            path.addEllipse(rect)
+            return path
+        elif self.cp_shape == ControlPointShape.SQUARE:
+            path.addRect(rect)
+            return path
+        elif self.cp_shape == ControlPointShape.TRIANGLE:
+            ngon = 3
+        elif self.cp_shape == ControlPointShape.DIAMOND:
+            ngon = 4
+        elif self.cp_shape == ControlPointShape.PENTAGON:
+            ngon = 5
+        elif self.cp_shape == ControlPointShape.HEXAGON:
+            ngon = 6
+        else:
+            ngon = 36
+
+        for i in range(ngon):
+            angle = math.radians(i * 360 / ngon + 90)
+            x = control_padding * math.cos(angle)
+            y = control_padding * math.sin(angle)
+            if i == 0:
+                path.moveTo(x, y)
+            else:
+                path.lineTo(x, y)
+        path.closeSubpath()
+
         return path
 
     def paint(self, painter, option, widget=None):
@@ -110,15 +160,41 @@ class ControlPoint(QGraphicsItem):
         # Standardized control point styling
         control_pen = QPen(QColor(255, 0, 0), 2.0)
         control_pen.setCosmetic(True)
-        control_brush = QBrush(QColor(255, 255, 255))
         painter.setPen(control_pen)
+
+        if self.isSelected():
+            control_brush = QBrush(QColor(255, 0, 0))
+        else:
+            control_brush = QBrush(QColor(255, 255, 255))
         painter.setBrush(control_brush)
 
-        # Draw the control point ellipse
-        control_rect = self.boundingRect()
-        painter.drawEllipse(control_rect)
+        if self.cp_shape == ControlPointShape.ROUND:
+            painter.drawEllipse(self.boundingRect())
+        elif self.cp_shape == ControlPointShape.SQUARE:
+            painter.drawRect(self.boundingRect())
+        else:
+            painter.drawPath(self.shape())
 
         painter.restore()
+
+    def setShape(self, shape: ControlPointShape):
+        """Set the shape of the control point."""
+        self.cp_shape = shape
+        self.update()
+
+    def setBig(self, big: bool):
+        """Set the size of the control point."""
+        self.big = big
+        self.update()
+
+    def setToolTip(self, tool_tip: str):
+        """Set the tooltip of the control point."""
+        self.tool_tip = tool_tip
+        super().setToolTip(tool_tip)
+
+    def setSetter(self, setter: Callable[[QPointF], None]):
+        """Set the setter of the control point."""
+        self.setter = setter
 
     def itemChange(self, change, value):
         """Handle item state changes using Qt's built-in system."""
@@ -178,111 +254,6 @@ class ControlPoint(QGraphicsItem):
         # Accept the event to prevent it from propagating to the scene
         # This prevents deselection of the main CAD object
         event.accept()
-
-
-class SquareControlPoint(ControlPoint):
-    """Control point graphics item that draws as a square."""
-    def __init__(self, model_view, setter, tool_tip=None):
-        super().__init__(model_view, setter, tool_tip)
-        self.setZValue(10000)
-
-    def paint(self, painter, option, widget=None):
-        """Draw the control point as a square."""
-        painter.save()
-
-        # Standardized control point styling
-        control_pen = QPen(QColor(255, 0, 0), 2.0)
-        control_pen.setCosmetic(True)
-        control_brush = QBrush(QColor(255, 255, 255))
-        painter.setPen(control_pen)
-        painter.setBrush(control_brush)
-
-        # Draw the control point as a square
-        control_rect = self.boundingRect()
-        painter.drawRect(control_rect)
-
-        painter.restore()
-
-    def shape(self):
-        """Return square shape for hit testing."""
-        path = QPainterPath()
-        path.addRect(self.boundingRect())
-        return path
-
-
-class BigControlPoint(ControlPoint):
-    """Control point graphics item that draws as a big square."""
-
-    def __init__(self, model_view, setter, tool_tip=None):
-        super().__init__(model_view, setter, tool_tip)
-        self.control_size = 12
-        self.setZValue(10000)
-
-
-
-class DiamondControlPoint(ControlPoint):
-    """Control point graphics item that draws as a diamond."""
-
-    def __init__(self, model_view, setter, tool_tip=None):
-        super().__init__(model_view, setter, tool_tip)
-        self.setZValue(10000)
-
-    def paint(self, painter, option, widget=None):
-        """Draw the control point as a diamond."""
-        painter.save()
-
-        # Standardized control point styling
-        control_pen = QPen(QColor(255, 0, 0), 2.0)
-        control_pen.setCosmetic(True)
-        control_brush = QBrush(QColor(255, 255, 255))
-        painter.setPen(control_pen)
-        painter.setBrush(control_brush)
-
-        # Get control point size in scene coordinates based on current zoom
-        base_size = self._get_control_size_in_scene_coords(painter)
-        control_size = base_size * 1.414  # 41.4% larger
-        control_padding = control_size / 2
-
-        # Create diamond shape using QPainterPath
-        diamond_path = QPainterPath()
-        diamond_path.moveTo(0, -control_padding)  # Top
-        diamond_path.lineTo(control_padding, 0)  # Right
-        diamond_path.lineTo(0, control_padding)  # Bottom
-        diamond_path.lineTo(-control_padding, 0)  # Left
-        diamond_path.closeSubpath()
-
-        painter.drawPath(diamond_path)
-        painter.restore()
-
-    def shape(self):
-        """Return diamond shape for hit testing."""
-        path = QPainterPath()
-        
-        # Get the current scale from the scene to make shape scale independent
-        scene = self.scene()
-        if scene and scene.views():
-            # Get the first view's transform to determine current scale
-            view = scene.views()[0]
-            scale = view.transform().m11()
-            # Convert pixels to scene coordinates
-            control_size = float(self.control_size) / scale
-        else:
-            # Fallback to a reasonable size if no scene/view available
-            control_size = 0.3
-        
-        # Create diamond shape using the same logic as paint method
-        base_size = control_size
-        control_size = base_size * 1.44  # 44% larger (same as paint method)
-        control_padding = control_size / 2
-        
-        # Create diamond shape using QPainterPath
-        path.moveTo(0, -control_padding)  # Top
-        path.lineTo(control_padding, 0)  # Right
-        path.lineTo(0, control_padding)  # Bottom
-        path.lineTo(-control_padding, 0)  # Left
-        path.closeSubpath()
-        
-        return path
 
 
 class ControlDatum(ControlPoint):

@@ -574,7 +574,7 @@ class DocumentWindow(QMainWindow):
         self.snaps_system = SnapsSystem(self.cad_scene, self.grid_info)
         
         # Set the snaps system reference in the scene for control point dragging
-        self.cad_scene.set_snaps_system(self.snaps_system)
+        self.cad_scene.add_snaps_system(self.snaps_system)
 
     def _rebuild_scene_overlays(self):
         """Re-add grid, rulers, and snap cursor after a scene clear."""

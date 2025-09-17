@@ -145,7 +145,7 @@ class SelectorTool(CadTool):
 
     def hit_test(self, x, y) -> Optional[CadObject]:
         """Test if a point hits any object"""
-        for obj in self.document.objects.get_all_objects():
+        for obj in self.document.get_all_objects():
             if self._point_in_object(x, y, obj):
                 return obj
         return None

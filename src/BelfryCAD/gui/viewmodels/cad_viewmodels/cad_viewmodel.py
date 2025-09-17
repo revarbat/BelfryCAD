@@ -5,7 +5,7 @@ This base class provides the common interface that all CAD object viewmodels sho
 It defines the standard signals, properties, and methods for managing CAD objects in the UI.
 """
 
-from typing import List, Tuple, TYPE_CHECKING
+from typing import List, Tuple, TYPE_CHECKING, Any
 from PySide6.QtCore import QObject, Signal, QPointF
 from PySide6.QtWidgets import QGraphicsScene
 
@@ -116,6 +116,18 @@ class CadViewModel(QObject):
             scene: The graphics scene containing the control items
         """
         raise NotImplementedError("Subclasses must implement update_controls")
+    
+    def get_properties(self) -> List[str]:
+        """Get properties of the object"""
+        raise NotImplementedError("Subclasses must implement get_properties")
+    
+    def get_property_value(self, name: str) -> Any:
+        """Get a property value"""
+        raise NotImplementedError("Subclasses must implement get_property_value")
+    
+    def set_property_value(self, name: str, value: Any):
+        """Set a property value"""
+        raise NotImplementedError("Subclasses must implement set_property_value")
     
     def update_all(self):
         """Update the view and controls"""
