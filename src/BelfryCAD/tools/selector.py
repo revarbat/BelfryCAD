@@ -6,17 +6,18 @@ This module implements an object selection tool based on the TCL selector tool.
 
 from typing import Optional, List
 from PySide6.QtCore import QRectF, QPointF
-from PySide6.QtGui import QPen, QColor
+from PySide6.QtGui import QPen, QColor, Qt
 
 from ..models.cad_object import CadObject
+from ..models.undo_redo import DeleteObjectCommand, CompoundCommand
 from .base import CadTool, ToolState, ToolCategory, ToolDefinition
 
 
 class SelectorTool(CadTool):
     """CadTool for selecting CAD objects"""
 
-    def __init__(self, scene, document, preferences):
-        super().__init__(scene, document, preferences)
+    def __init__(self, document_window, document, preferences):
+        super().__init__(document_window, document, preferences)
         self.start_x = 0
         self.start_y = 0
         self.selection_rect = None
@@ -38,6 +39,49 @@ class SelectorTool(CadTool):
         """Handle escape key to cancel the operation"""
         self.clear_selection()
         self.cancel()
+
+    def handle_key_press(self, event):
+        """Handle keyboard press event"""
+        # Delete selected objects on Delete/Backspace
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            self._delete_selected_objects()
+            event.accept()
+            return
+        
+        # Fallback to base handling (Escape, etc.)
+        return super().handle_key_press(event)
+
+    def _delete_selected_objects(self):
+        """Delete all currently selected CAD objects through the undo manager."""
+        # Gather current selection from the DocumentWindow tracking
+        if not hasattr(self.document_window, "_current_selection"):
+            return
+        selected_ids = list(self.document_window._current_selection)
+        if not selected_ids:
+            return
+
+        # Build delete commands
+        commands = []
+        for obj_id in selected_ids:
+            obj = self.document.get_object(obj_id)
+            if obj is not None:
+                commands.append(DeleteObjectCommand(self.document, obj, description="Delete Object"))
+
+        if not commands:
+            return
+
+        # Execute via Undo/Redo manager
+        command = commands[0] if len(commands) == 1 else CompoundCommand(commands, description="Delete Multiple Objects")
+        result = self.document_window.execute_command(command)
+        if not result:
+            return
+
+        # Clear selection and refresh UI
+        self.document_window._update_selection_state(set(), source="tool")
+        self.document_window.refresh_object_tree()
+        # Redraw shapes to reflect model state
+        self.document_window._draw_shapes()
+        self.scene.update()
 
     def handle_mouse_down(self, event):
         """Handle mouse button press event"""
@@ -155,8 +199,7 @@ class SelectorTool(CadTool):
         # Get object bounds with some padding for easier selection
         padding = 5
         try:
-            bounds = obj.get_bounds()
-            x1, y1, x2, y2 = bounds
+            x1, y1, x2, y2 = obj.get_bounds()
             x1 -= padding
             y1 -= padding
             x2 += padding
@@ -172,7 +215,7 @@ class SelectorTool(CadTool):
 
     def select_objects_in_rect(self, x1, y1, x2, y2):
         """Select all objects that intersect with the given rectangle"""
-        for obj in self.document.objects.get_all_objects():
+        for obj in self.document.get_all_objects():
             try:
                 ox1, oy1, ox2, oy2 = obj.get_bounds()
                 if not (ox2 < x1 or ox1 > x2 or oy2 < y1 or oy1 > y2):

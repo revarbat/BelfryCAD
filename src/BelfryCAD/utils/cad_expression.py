@@ -26,7 +26,7 @@ Supports:
 
 import re
 import math
-from typing import Dict, Union, List, Tuple, Callable
+from typing import Dict, Union, List, Tuple, Callable, Optional
 
 
 class CadExpression:
@@ -88,7 +88,7 @@ class CadExpression:
         'rad': math.radians,
     }
 
-    def __init__(self, expressions: Dict[str, str] | None = None):
+    def __init__(self, expressions: Optional[Dict[str, str]] = None):
         self.expressions = expressions or {}  # param name -> expression string
         self._tokens = []
         self._current_token_index = 0

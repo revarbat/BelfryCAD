@@ -14,8 +14,9 @@ from dataclasses import dataclass, field
 from PySide6.QtCore import Qt, QObject, Signal, QPointF
 from PySide6.QtGui import QCursor, QPen, QColor, QBrush
 
-from ..models.cad_object import CadObject, ObjectType
+from ..models.cad_object import CadObject
 from ..cad_geometry import Point2D
+from ..models.undo_redo import CreateObjectCommand
 
 
 class ToolState(Enum):
@@ -233,10 +234,16 @@ class CadTool(QObject):
         if self.state == ToolState.DRAWING:
             obj = self.create_object()
             if obj:
-                self.document.add_object(obj)
-                self.document.mark_modified()
-                # Emit signal to notify the main window to redraw
-                self.object_created.emit(obj)
+                # Use Undo/Redo manager for creation
+                cmd = CreateObjectCommand(self.document, obj, description="Create Object")
+                executed = False
+                if hasattr(self.document_window, 'execute_command'):
+                    executed = self.document_window.execute_command(cmd)
+                else:
+                    executed = cmd.execute()
+                if executed:
+                    # Emit signal to notify the main window to redraw
+                    self.object_created.emit(obj)
 
             # Reset for next operation
             self.points = []

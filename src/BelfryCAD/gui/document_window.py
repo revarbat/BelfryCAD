@@ -2,14 +2,13 @@
 """Document window for the BelfryCad application."""
 
 import logging
-from tracemalloc import start
 from typing import Set
 
 from PySide6.QtCore import (
     Qt, QSize, QTimer
 )
 from PySide6.QtGui import (
-    QShortcut, QKeySequence, QPen, QColor
+    QShortcut, QKeySequence, QColor
 )
 from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QMessageBox, QDialog, QLabel, QGraphicsView,
@@ -1381,21 +1380,17 @@ class DocumentWindow(QMainWindow):
             return False
 
     def _on_undo_state_changed(self):
-        """Called when undo/redo state changes to update menu items."""
-        if hasattr(self, 'main_menu'):
-            # Update undo menu item
-            can_undo = self.undo_manager.can_undo()
-            undo_desc = self.undo_manager.get_undo_description()
-            undo_text = f"Undo {undo_desc}" if undo_desc else "Undo"
-
-            # Update redo menu item
-            can_redo = self.undo_manager.can_redo()
-            redo_desc = self.undo_manager.get_redo_description()
-            redo_text = f"Redo {redo_desc}" if redo_desc else "Redo"
-
-            # Update menu items (if the menu supports it)
-            # TODO: Implement update_undo_redo_state method in MainMenuBar
-            pass
+        """Called when undo/redo state changes to update UI."""
+        # Ensure the scene and object tree reflect the current model state
+        try:
+            self._draw_shapes()
+            self.refresh_object_tree()
+            # Re-apply current selection to update controls/decorations
+            if hasattr(self, '_current_selection'):
+                self._update_selection_state(self._current_selection, source="undo")
+        except Exception as e:
+            # Non-fatal; keep UI responsive
+            print(f"Warning: failed to refresh UI after undo/redo: {e}")
 
     def execute_command(self, command):
         """Execute a command through the undo system."""
