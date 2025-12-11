@@ -223,21 +223,32 @@ class CadScene(QGraphicsScene):
         # Update viewmodel selection state and collect object IDs
         for item in selected_items:
             # Get the viewmodel from the item data
-            viewmodel = item.data(0)
-            if viewmodel and hasattr(viewmodel, 'is_selected'):
-                # Update the viewmodel's selection state
-                viewmodel.is_selected = True
-                # Collect object ID for the signal
-                if hasattr(viewmodel, '_cad_object') and viewmodel._cad_object:
-                    object_id = viewmodel._cad_object.object_id
-                    selected_object_ids.add(object_id)
+            # Safely access item.data(0) - it may be None or invalid if viewmodel was destroyed
+            try:
+                viewmodel = item.data(0)
+                if viewmodel and hasattr(viewmodel, 'is_selected'):
+                    # Update the viewmodel's selection state
+                    viewmodel.is_selected = True
+                    # Collect object ID for the signal
+                    if hasattr(viewmodel, '_cad_object') and viewmodel._cad_object:
+                        object_id = viewmodel._cad_object.object_id
+                        selected_object_ids.add(object_id)
+            except (RuntimeError, AttributeError, TypeError):
+                # Item data may be invalid if viewmodel was destroyed
+                # Skip this item and continue with others
+                continue
         
         # Update non-selected viewmodels
         for item in self.items():
             if item not in selected_items:
-                viewmodel = item.data(0)
-                if viewmodel and hasattr(viewmodel, 'is_selected'):
-                    viewmodel.is_selected = False
+                try:
+                    viewmodel = item.data(0)
+                    if viewmodel and hasattr(viewmodel, 'is_selected'):
+                        viewmodel.is_selected = False
+                except (RuntimeError, AttributeError, TypeError):
+                    # Item data may be invalid if viewmodel was destroyed
+                    # Skip this item and continue with others
+                    continue
         
         # Emit the signal with selected object IDs
         self.scene_selection_changed.emit(selected_object_ids)

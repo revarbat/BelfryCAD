@@ -26,6 +26,56 @@ class CadGraphicsItemBase(QAbstractGraphicsShapeItem):
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
     
+    def itemChange(self, change, value):
+        """
+        Override itemChange to validate viewmodel before selection changes.
+        
+        This prevents segfaults when Qt's C++ code tries to access item.data(0)
+        during setSelected() if the viewmodel has been destroyed.
+        """
+        # Intercept selection changes to validate viewmodel before Qt accesses it
+        if change == QGraphicsItem.GraphicsItemChange.ItemSelectedChange:
+            # Check if viewmodel is valid before allowing selection change
+            # Qt's C++ code will access item.data(0) and try to convert QVariant to Python
+            # If the QObject is destroyed, this causes a segfault. We must clear it first.
+            viewmodel_valid = False
+            try:
+                viewmodel = self.data(0)
+                if viewmodel is not None:
+                    # Try multiple property accesses to ensure QObject is fully valid
+                    # Just checking objectName() isn't enough - Qt accesses other properties
+                    try:
+                        _ = viewmodel.objectName()
+                        # Also check if it has the expected attributes
+                        if hasattr(viewmodel, '_cad_object'):
+                            # Try accessing a property that Qt might access
+                            _ = viewmodel.is_selected
+                            viewmodel_valid = True
+                    except (RuntimeError, AttributeError, TypeError):
+                        # QObject is destroyed or invalid - clear the reference immediately
+                        try:
+                            self.setData(0, None)
+                        except:
+                            pass
+                        viewmodel_valid = False
+                else:
+                    viewmodel_valid = False
+            except (RuntimeError, AttributeError, TypeError):
+                # If accessing data(0) itself fails, clear it to prevent future crashes
+                try:
+                    self.setData(0, None)
+                except:
+                    pass
+                viewmodel_valid = False
+            
+            # If viewmodel is invalid, prevent selection change to avoid segfault
+            # Return current selection state instead of new value
+            if not viewmodel_valid and value is True:
+                # Return current selection state to prevent the change
+                return self.isSelected()
+        
+        return super().itemChange(change, value)
+    
     def paint(self, painter, option, widget=None):
         """Paint the graphics item with selection indication if selected."""
         if self.isSelected():

@@ -49,8 +49,29 @@ class CadCircleGraphicsItem(CadGraphicsItemBase):
         pen_width = self.pen().widthF()
         if self.isSelected():
             # Account for selection outline width
-            scale = self.scene().views()[0].transform().m11()
-            selection_extra = 3.0 / scale
+            # Safely get scale from view, with fallback if view is not available
+            # Use a fixed reasonable scale to avoid segfaults from accessing destroyed views
+            scale = 1.0  # Default scale - use fixed value to avoid view access issues
+            scene = self.scene()
+            if scene:
+                views = scene.views()
+                if views and len(views) > 0:
+                    view = views[0]
+                    if view:
+                        # Try to get scale, but use default if view is invalid
+                        # Accessing transform on a destroyed view causes segfault
+                        try:
+                            # Check if view is still valid by checking if it has a scene
+                            if view.scene() is not None:
+                                transform = view.transform()
+                                if transform:
+                                    scale_val = transform.m11()
+                                    if scale_val > 0:
+                                        scale = scale_val
+                        except (RuntimeError, AttributeError, TypeError):
+                            # View might be invalid or being destroyed, use default
+                            pass
+            selection_extra = 3.0 / scale if scale > 0 else 3.0
             pen_width += selection_extra
         
         # Add half pen width as margin on all sides
@@ -71,9 +92,29 @@ class CadCircleGraphicsItem(CadGraphicsItemBase):
     
     def shape(self) -> QPainterPath:
         """Return the shape for hit testing."""
-        
         # Use the circle outline for hit testing, with some thickness for easier clicking
-        scale = self.scene().views()[0].transform().m11()
+        # Safely get scale from view, with fallback if view is not available
+        # Use a fixed reasonable scale to avoid segfaults from accessing destroyed views
+        scale = 1.0  # Default scale - use fixed value to avoid view access issues
+        scene = self.scene()
+        if scene:
+            views = scene.views()
+            if views and len(views) > 0:
+                view = views[0]
+                if view:
+                    # Try to get scale, but use default if view is invalid
+                    # Accessing transform on a destroyed view causes segfault
+                    try:
+                        # Check if view is still valid by checking if it has a scene
+                        if view.scene() is not None:
+                            transform = view.transform()
+                            if transform:
+                                scale_val = transform.m11()
+                                if scale_val > 0:
+                                    scale = scale_val
+                    except (RuntimeError, AttributeError, TypeError):
+                        # View might be invalid or being destroyed, use default
+                        pass
         width = self.pen().widthF()
         hit_width = max(width, 3.0/scale)  # At least 3 pixels for easy clicking
         

@@ -45,6 +45,31 @@ class CadViewModel(QObject):
         self._controls = []
         self._controls = []
     
+    def __del__(self):
+        """Cleanup: Clear all item data references when viewmodel is destroyed."""
+        # Clear data from all items to prevent segfaults when Qt tries to access destroyed viewmodel
+        try:
+            for item in self._view_items:
+                if item:
+                    try:
+                        item.setData(0, None)
+                    except:
+                        pass
+            for item in self._decorations:
+                if item:
+                    try:
+                        item.setData(0, None)
+                    except:
+                        pass
+            for item in self._controls:
+                if item:
+                    try:
+                        item.setData(0, None)
+                    except:
+                        pass
+        except:
+            pass
+    
     # Abstract methods that subclasses must implement
     
     def update_view(self, scene: QGraphicsScene):
@@ -261,6 +286,19 @@ class CadViewModel(QObject):
         """Remove all view items from the scene."""
         for item in self._view_items:
             if item and item.scene() == scene:
+                # Deselect the item first to prevent Qt from accessing invalid data
+                # during selection cleanup
+                try:
+                    if item.isSelected():
+                        item.setSelected(False)
+                except (RuntimeError, AttributeError):
+                    pass
+                # Clear the data before removing to prevent segfaults
+                # when Qt tries to access item.data(0) during cleanup
+                try:
+                    item.setData(0, None)
+                except (RuntimeError, AttributeError):
+                    pass
                 scene.removeItem(item)
         self._view_items.clear()
     
@@ -277,6 +315,16 @@ class CadViewModel(QObject):
         """Remove all decoration items from the scene."""
         for item in self._decorations:
             if item and item.scene() == scene:
+                # Deselect and clear data before removing to prevent segfaults
+                try:
+                    if item.isSelected():
+                        item.setSelected(False)
+                except (RuntimeError, AttributeError):
+                    pass
+                try:
+                    item.setData(0, None)
+                except (RuntimeError, AttributeError):
+                    pass
                 scene.removeItem(item)
         self._decorations.clear()
     
@@ -293,6 +341,16 @@ class CadViewModel(QObject):
         """Remove all control items from the scene."""
         for item in self._controls:
             if item and item.scene() == scene:
+                # Deselect and clear data before removing to prevent segfaults
+                try:
+                    if item.isSelected():
+                        item.setSelected(False)
+                except (RuntimeError, AttributeError):
+                    pass
+                try:
+                    item.setData(0, None)
+                except (RuntimeError, AttributeError):
+                    pass
                 scene.removeItem(item)
         self._controls.clear()
     
