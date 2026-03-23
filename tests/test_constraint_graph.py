@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from BelfryCAD.models.document import Document
 from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
 from BelfryCAD.models.cad_objects.circle_cad_object import CircleCadObject
-from BelfryCAD.utils.geometry import Point2D
+from BelfryCAD.cad_geometry import Point2D
 from BelfryCAD.utils.constraints import CoincidentConstraint, HorizontalConstraint, VerticalConstraint
 
 
@@ -25,7 +25,7 @@ def test_constraint_graph():
     
     # Group 2: Two circles
     circle1 = CircleCadObject(document=doc, center_point=Point2D(20, 0), radius=3.0)
-circle2 = CircleCadObject(document=doc, center_point=Point2D(30, 0), radius=3.0)
+    circle2 = CircleCadObject(document=doc, center_point=Point2D(30, 0), radius=3.0)
     circle1_id = doc.add_object(circle1)
     circle2_id = doc.add_object(circle2)
     

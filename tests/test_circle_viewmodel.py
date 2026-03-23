@@ -11,17 +11,9 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, Q
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
 
-# Import the viewmodels
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'gui', 'viewmodels'))
-from circle_viewmodel import CircleViewModel
-
-# Import the models
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'models', 'cad_objects'))
-from circle_cad_object import CircleCadObject
-
-# Import geometry
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'utils'))
-from geometry import Point2D
+from BelfryCAD.gui.viewmodels.cad_viewmodels.circle_viewmodel import CircleViewModel
+from BelfryCAD.models.cad_objects.circle_cad_object import CircleCadObject
+from BelfryCAD.cad_geometry import Point2D
 
 
 class MockMainWindow:

@@ -30,6 +30,16 @@ class Document:
         self.preferences: Dict[str, Any] = {}
         self.cad_expression = CadExpression()
         self._name_counter: Dict[str, int] = {}  # Track name counters for each type
+
+    @property
+    def parameters(self) -> Dict[str, str]:
+        """Get document parameters (expressions stored in cad_expression)."""
+        return self.cad_expression.expressions
+
+    @parameters.setter
+    def parameters(self, value: Dict[str, str]):
+        """Set document parameters."""
+        self.cad_expression = CadExpression(value)
     
     def add_object(self, cad_object: CadObject) -> str:
         """Add an object to the document"""
@@ -71,36 +81,42 @@ class Document:
     
     def get_unique_name(self, base_name: str, object_id: str) -> str:
         """
-        Generate a unique name for an object.
-        
+        Generate a unique auto-name for an object with a numeric suffix.
+
         Args:
             base_name: The base name (e.g., 'line', 'circle')
             object_id: The object's ID to exclude from uniqueness check
-            
+
         Returns:
-            A unique name for the object
+            A unique name for the object (always has a numeric suffix)
         """
         # Initialize counter for this base name if not exists
         if base_name not in self._name_counter:
             self._name_counter[base_name] = 0
-        
+
         # Find the next available number starting from 1
         counter = 1
         while True:
             candidate_name = f"{base_name}{counter}"
-            
+
             # Check if this name is already used by another object
-            name_exists = False
-            for obj_id, obj in self.objects.items():
-                if obj_id != object_id and hasattr(obj, '_name') and obj._name == candidate_name:
-                    name_exists = True
-                    break
-            
+            name_exists = any(
+                obj_id != object_id and hasattr(obj, '_name') and obj._name == candidate_name
+                for obj_id, obj in self.objects.items()
+            )
+
             if not name_exists:
                 self._name_counter[base_name] = counter
                 return candidate_name
-            
+
             counter += 1
+
+    def is_name_unique(self, name: str, object_id: str) -> bool:
+        """Check whether a name is unused by any other object."""
+        return not any(
+            obj_id != object_id and hasattr(obj, '_name') and obj._name == name
+            for obj_id, obj in self.objects.items()
+        )
     
     def rename_object(self, object_id: str, new_name: str) -> bool:
         """

@@ -11,18 +11,14 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, Q
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
 
-# Import directly to avoid package imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'gui', 'viewmodels'))
-from line_viewmodel import LineViewModel
+from BelfryCAD.gui.viewmodels.cad_viewmodels.line_viewmodel import LineViewModel
+from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
+from BelfryCAD.cad_geometry import Point2D
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'gui', 'views', 'graphics_items', 'caditems'))
-from line_cad_item import LineCadItem
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'models', 'cad_objects'))
-from line_cad_object import LineCadObject
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'utils'))
-from geometry import Point2D
+try:
+    from BelfryCAD.gui.graphics_items.caditems.line_cad_item import LineCadItem
+except ImportError:
+    LineCadItem = None
 
 
 class SimpleLineViewModelTest(QMainWindow):

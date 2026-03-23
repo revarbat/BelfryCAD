@@ -13,13 +13,13 @@ from PySide6.QtGui import QColor
 import math
 
 # Import the viewmodels using absolute imports
-from BelfryCAD.gui.viewmodels.gear_viewmodel import GearViewModel
+from BelfryCAD.gui.viewmodels.cad_viewmodels.gear_viewmodel import GearViewModel
 
 # Import the models using absolute imports
 from BelfryCAD.models.cad_objects.gear_cad_object import GearCadObject
 
 # Import geometry using absolute imports
-from BelfryCAD.utils.geometry import Point2D
+from BelfryCAD.cad_geometry import Point2D
 
 
 class MockMainWindow:

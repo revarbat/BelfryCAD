@@ -2,12 +2,16 @@
 Test parameters pane tooltip functionality.
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 import unittest
 from PySide6.QtWidgets import QApplication, QTableWidgetItem
 from PySide6.QtCore import Qt
 
-from src.BelfryCAD.utils.cad_expression import CadExpression
-from src.BelfryCAD.gui.panes.parameters_pane import ParametersPane
+from BelfryCAD.utils.cad_expression import CadExpression
+from BelfryCAD.gui.panes.parameters_pane import ParametersPane
 
 
 class TestParametersPaneTooltip(unittest.TestCase):

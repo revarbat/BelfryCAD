@@ -3448,15 +3448,17 @@ def get_possible_constraints(obj1, obj2) -> dict[str, Constraint]:
         constrainables2 = [None]
     else:
         constrainables2 = obj2.get_constrainables()
-    for constrainable1 in constrainables1:
-        for constrainable2 in constrainables2:
-            order1 = get_constraint_type_order(constrainable1)
-            order2 = get_constraint_type_order(constrainable2)
+    for c1 in constrainables1:
+        for c2 in constrainables2:
+            order1 = get_constraint_type_order(get_objtype(c1))
+            order2 = get_constraint_type_order(get_objtype(c2))
             if order1 > order2:
-                constrainable1, constrainable2 = constrainable2, constrainable1
+                constrainable1, constrainable2 = c2, c1
+            else:
+                constrainable1, constrainable2 = c1, c2
             ctype1 = get_objtype(constrainable1)
             ctype2 = get_objtype(constrainable2)
-            avail = constraints_matrix[ctype1][ctype2]
+            avail = constraints_matrix.get(ctype1, {}).get(ctype2, {})
             for preposition, constraint in avail.items():
                 if constrainable1 is None:
                     continue

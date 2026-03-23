@@ -12,9 +12,7 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor, QPen
 from PySide6.QtCore import Qt
 
-# Import the dimension line composite
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'gui', 'views', 'graphics_items'))
-from dimension_line_composite import DimensionLineComposite, DimensionLineOrientation
+from BelfryCAD.gui.graphics_items.dimension_line_composite import DimensionLineComposite, DimensionLineOrientation
 
 
 class DimensionLineDefaultPenTest(QMainWindow):

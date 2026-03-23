@@ -52,12 +52,12 @@ class RectangleViewModel(CadViewModel):
             line_width = 1.0  # Default line width
         pen = QPen(color, line_width)
         
-        # Get all four corner points in order (counter-clockwise)
+        # Get all four corner points in counter-clockwise order
         corner_points = [
             self.corner1,    # Bottom-left
-            self.corner2,    # Top-left
+            self.corner4,    # Bottom-right
             self.corner3,    # Top-right
-            self.corner4     # Bottom-right  
+            self.corner2,    # Top-left
         ]
         
         # Create polygon graphics item from rectangle corners

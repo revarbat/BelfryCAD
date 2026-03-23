@@ -12,18 +12,10 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor, QPen
 from PySide6.QtCore import Qt
 
-# Import the viewmodels
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'gui', 'viewmodels'))
-from cad_viewmodel import CadViewModel
-from line_viewmodel import LineViewModel
-
-# Import the models
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'models', 'cad_objects'))
-from line_cad_object import LineCadObject
-
-# Import geometry
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'utils'))
-from geometry import Point2D
+from BelfryCAD.gui.viewmodels.cad_viewmodels.cad_viewmodel import CadViewModel
+from BelfryCAD.gui.viewmodels.cad_viewmodels.line_viewmodel import LineViewModel
+from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
+from BelfryCAD.cad_geometry import Point2D
 
 
 class MockMainWindow:

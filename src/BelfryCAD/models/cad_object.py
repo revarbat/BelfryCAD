@@ -65,10 +65,9 @@ class CadObject:
     @name.setter
     def name(self, value: str):
         """Set the object's name."""
-        if self.document:
-            # Ensure the name is unique
-            unique_name = self.document.get_unique_name(value, self.object_id)
-            self._name = unique_name
+        if self.document and not self.document.is_name_unique(value, self.object_id):
+            # Name conflicts — generate a unique variant
+            self._name = self.document.get_unique_name(value, self.object_id)
         else:
             self._name = value
     

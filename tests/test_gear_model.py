@@ -16,7 +16,7 @@ import math
 from BelfryCAD.models.cad_objects.gear_cad_object import GearCadObject
 
 # Import geometry using absolute imports
-from BelfryCAD.utils.geometry import Point2D
+from BelfryCAD.cad_geometry import Point2D
 
 
 class GearModelTest(QMainWindow):

@@ -7,9 +7,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-# Import the CadViewModel first
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'BelfryCAD', 'gui', 'viewmodels'))
-from cad_viewmodel import CadViewModel
+from BelfryCAD.gui.viewmodels.cad_viewmodels.cad_viewmodel import CadViewModel
 
 from PySide6.QtCore import QObject, Signal, QPointF
 from PySide6.QtWidgets import QGraphicsScene

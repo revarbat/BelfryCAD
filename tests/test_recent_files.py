@@ -2,14 +2,18 @@
 Test recent files functionality.
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 import unittest
 from pathlib import Path
 import tempfile
 import shutil
 
-from src.BelfryCAD.config import AppConfig
-from src.BelfryCAD.models.preferences import PreferencesModel
-from src.BelfryCAD.gui.viewmodels.preferences_viewmodel import PreferencesViewModel
+from BelfryCAD.config import AppConfig
+from BelfryCAD.models.preferences import PreferencesModel
+from BelfryCAD.gui.viewmodels.preferences_viewmodel import PreferencesViewModel
 
 
 class TestRecentFiles(unittest.TestCase):

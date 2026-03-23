@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from BelfryCAD.models.document import Document
 from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
 from BelfryCAD.models.cad_objects.circle_cad_object import CircleCadObject
-from BelfryCAD.utils.geometry import Point2D
+from BelfryCAD.cad_geometry import Point2D
 from BelfryCAD.utils.constraints import CoincidentConstraint, HorizontalConstraint
 
 
@@ -39,7 +39,7 @@ def test_constraints_manager():
     circle1 = CircleCadObject(
         document=doc,
         center_point=Point2D(5, 10),
-        perimeter_point=Point2D(8, 10)
+        radius=3.0
     )
     circle1_id = doc.add_object(circle1)
     

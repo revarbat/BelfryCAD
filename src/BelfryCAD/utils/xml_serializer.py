@@ -301,8 +301,8 @@ class BelfryCADXMLSerializer:
         prefs = ET.SubElement(header, f"{{{self.NAMESPACE}}}preferences")
         
         # Units
-        units = preferences.get('units', 'inches')
-        if units in self.SUPPORTED_UNITS:
+        units = preferences.get('units')
+        if units and units in self.SUPPORTED_UNITS:
             prefs.set('units', units)
         
         # Precision

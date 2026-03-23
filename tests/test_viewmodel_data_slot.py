@@ -12,9 +12,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsView, QVBoxLayout, QWidget, QPushButton
 from PySide6.QtCore import QPointF
 
-from BelfryCAD.gui.viewmodels.cad_object_factory import CADObjectFactory
+from BelfryCAD.gui.viewmodels.cad_object_factory import CadObjectFactory
 from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
-from BelfryCAD.utils.geometry import Point2D
+from BelfryCAD.cad_geometry import Point2D
 
 class TestViewmodelDataSlot(QWidget):
     def __init__(self):
@@ -51,7 +51,7 @@ class TestViewmodelDataSlot(QWidget):
                 self.preferences_viewmodel = None
         
         mock_main_window = MockMainWindow()
-        factory = CADObjectFactory(mock_main_window)
+        factory = CadObjectFactory(mock_main_window)
         
         # Create a line object
         start_point = Point2D(0, 0)

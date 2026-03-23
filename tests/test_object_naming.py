@@ -2,11 +2,15 @@
 Test object naming patterns in the Document class.
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 import unittest
-from src.BelfryCAD.models.document import Document
-from src.BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
-from src.BelfryCAD.models.cad_objects.circle_cad_object import CircleCadObject
-from src.BelfryCAD.cad_geometry import Point2D
+from BelfryCAD.models.document import Document
+from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
+from BelfryCAD.models.cad_objects.circle_cad_object import CircleCadObject
+from BelfryCAD.cad_geometry import Point2D
 
 
 class TestObjectNaming(unittest.TestCase):

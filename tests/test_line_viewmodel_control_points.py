@@ -12,8 +12,8 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
 
 # Import the factory and viewmodel
-from BelfryCAD.gui.viewmodels.cad_object_factory import CADObjectFactory
-from BelfryCAD.utils.geometry import Point2D
+from BelfryCAD.gui.viewmodels.cad_object_factory import CadObjectFactory
+from BelfryCAD.cad_geometry import Point2D
 
 
 class LineViewModelControlPointsTest(QMainWindow):
@@ -37,7 +37,7 @@ class LineViewModelControlPointsTest(QMainWindow):
         layout.addWidget(self.view)
         
         # Create factory
-        self.factory = CADObjectFactory()
+        self.factory = CadObjectFactory()
         
         # Create line object with MVVM structure
         start_point = Point2D(0, 0)
