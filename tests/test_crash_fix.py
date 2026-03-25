@@ -49,46 +49,28 @@ class MockCadScene:
 
 def test_control_datum_initialization():
     """Test that ControlDatum can be initialized without crashing."""
-    print("Testing ControlDatum initialization...")
-    
-    # Create mock objects
     mock_window = MockDocumentWindow()
     mock_document = Document()
-    
-    # Create a mock viewmodel
     ellipse_obj = EllipseCadObject(mock_document, Point2D(0, 0), 10.0, 5.0, 0.0)
     ellipse_vm = EllipseViewModel(mock_window, ellipse_obj)
-    
-    # Create a control datum
-    try:
-        datum = ControlDatum(
-            model_view=ellipse_vm,
-            setter=lambda x: None,
-            label="Test Datum",
-            format_string="{:.2f}",
-            prefix="Test: ",
-            suffix=" units"
-        )
-        print("✓ ControlDatum initialization successful")
-        return True
-    except Exception as e:
-        print(f"✗ ControlDatum initialization failed: {e}")
-        return False
+    datum = ControlDatum(
+        model_view=ellipse_vm,
+        setter=lambda x: None,
+        label="Test Datum",
+        format_string="{:.2f}",
+        prefix="Test: ",
+        suffix=" units"
+    )
+    assert datum is not None
 
 
 def test_control_datum_paint():
     """Test that ControlDatum paint method doesn't crash."""
-    print("Testing ControlDatum paint method...")
-    
-    # Create mock objects
+    from PySide6.QtGui import QPainter, QPixmap
     mock_window = MockDocumentWindow()
     mock_document = Document()
-    
-    # Create a mock viewmodel
     ellipse_obj = EllipseCadObject(mock_document, Point2D(0, 0), 10.0, 5.0, 0.0)
     ellipse_vm = EllipseViewModel(mock_window, ellipse_obj)
-    
-    # Create a control datum
     datum = ControlDatum(
         model_view=ellipse_vm,
         setter=lambda x: None,
@@ -97,34 +79,18 @@ def test_control_datum_paint():
         prefix="Test: ",
         suffix=" units"
     )
-    
-    # Test paint method
-    try:
-        from PySide6.QtGui import QPainter, QPixmap
-        pixmap = QPixmap(100, 100)
-        painter = QPainter(pixmap)
-        datum.paint(painter, None, None)
-        painter.end()
-        print("✓ ControlDatum paint method successful")
-        return True
-    except Exception as e:
-        print(f"✗ ControlDatum paint method failed: {e}")
-        return False
+    pixmap = QPixmap(100, 100)
+    painter = QPainter(pixmap)
+    datum.paint(painter, None, None)
+    painter.end()
 
 
 def test_control_datum_update():
     """Test that ControlDatum update_datum method doesn't crash."""
-    print("Testing ControlDatum update_datum method...")
-    
-    # Create mock objects
     mock_window = MockDocumentWindow()
     mock_document = Document()
-    
-    # Create a mock viewmodel
     ellipse_obj = EllipseCadObject(mock_document, Point2D(0, 0), 10.0, 5.0, 0.0)
     ellipse_vm = EllipseViewModel(mock_window, ellipse_obj)
-    
-    # Create a control datum
     datum = ControlDatum(
         model_view=ellipse_vm,
         setter=lambda x: None,
@@ -133,49 +99,19 @@ def test_control_datum_update():
         prefix="Test: ",
         suffix=" units"
     )
-    
-    # Test update_datum method
-    try:
-        datum.update_datum(42.5, QPointF(10, 10))
-        print("✓ ControlDatum update_datum method successful")
-        return True
-    except Exception as e:
-        print(f"✗ ControlDatum update_datum method failed: {e}")
-        return False
+    datum.update_datum(42.5, QPointF(10, 10))
 
 
 def test_viewmodel_controls():
     """Test that viewmodel controls can be created without crashing."""
-    print("Testing viewmodel controls creation...")
-    
-    # Create mock objects
     mock_window = MockDocumentWindow()
     mock_document = Document()
-    
-    # Test ellipse viewmodel controls
-    try:
-        ellipse_obj = EllipseCadObject(mock_document, Point2D(0, 0), 10.0, 5.0, 0.0)
-        ellipse_vm = EllipseViewModel(mock_window, ellipse_obj)
-        
-        # Create a mock scene
-        scene = QGraphicsScene()
-        
-        # Test show_controls
-        ellipse_vm.show_controls(scene)
-        print("✓ Ellipse viewmodel show_controls successful")
-        
-        # Test update_controls
-        ellipse_vm.update_controls(scene)
-        print("✓ Ellipse viewmodel update_controls successful")
-        
-        # Test hide_controls
-        ellipse_vm.hide_controls(scene)
-        print("✓ Ellipse viewmodel hide_controls successful")
-        
-        return True
-    except Exception as e:
-        print(f"✗ Ellipse viewmodel controls failed: {e}")
-        return False
+    ellipse_obj = EllipseCadObject(mock_document, Point2D(0, 0), 10.0, 5.0, 0.0)
+    ellipse_vm = EllipseViewModel(mock_window, ellipse_obj)
+    scene = QGraphicsScene()
+    ellipse_vm.show_controls(scene)
+    ellipse_vm.update_controls(scene)
+    ellipse_vm.hide_controls(scene)
 
 
 def main():

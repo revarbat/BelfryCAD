@@ -37,7 +37,7 @@ class MockPreferencesViewModel:
         return 3
 
 
-class TestCadViewModel(CadViewModel):
+class MockCadViewModel(CadViewModel):
     """Test implementation of CadViewModel."""
     
     def update_view(self, scene):
@@ -81,7 +81,7 @@ def test_cad_viewmodel():
     cad_object = MockCADObject()
     
     # Create test viewmodel
-    viewmodel = TestCadViewModel(main_window, cad_object)
+    viewmodel = MockCadViewModel(main_window, cad_object)
     
     # Test base properties
     print(f"Object ID: {viewmodel.object_id}")

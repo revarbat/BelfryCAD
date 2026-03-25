@@ -81,8 +81,6 @@ def test_rectangle_viewmodel_uses_polygon_graphics():
     assert pen.color().name() == "#0000ff"  # Blue color
     assert pen.widthF() == 2.0
     print("   ✓ Polygon has correct styling (color and line width)")
-    
-    return True
 
 def main():
     """Main function to run the test."""

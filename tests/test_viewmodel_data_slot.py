@@ -16,7 +16,7 @@ from BelfryCAD.gui.viewmodels.cad_object_factory import CadObjectFactory
 from BelfryCAD.models.cad_objects.line_cad_object import LineCadObject
 from BelfryCAD.cad_geometry import Point2D
 
-class TestViewmodelDataSlot(QWidget):
+class ViewmodelDataSlotWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Test Viewmodel Data Slot")
@@ -101,7 +101,7 @@ class TestViewmodelDataSlot(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     
-    test_widget = TestViewmodelDataSlot()
+    test_widget = ViewmodelDataSlotWidget()
     test_widget.show()
     
     print("Test Viewmodel Data Slot")

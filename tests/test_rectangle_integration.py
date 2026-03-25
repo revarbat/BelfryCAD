@@ -124,7 +124,6 @@ def test_rectangle_integration():
     print("   ✓ Point containment works correctly")
     
     print("\n✅ All integration tests passed!")
-    return True
 
 def main():
     """Main function to run the integration test."""

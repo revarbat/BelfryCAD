@@ -124,7 +124,6 @@ def test_rectangle_tool():
     print("   ✓ Preferences applied correctly")
     
     print("\n✅ All Rectangle Tool tests passed!")
-    return True
 
 def main():
     """Main function to run the test."""

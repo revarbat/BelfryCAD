@@ -23,9 +23,9 @@ from BelfryCAD.gui.widgets.cad_scene import CadScene
 from BelfryCAD.gui.widgets.cad_view import CadView
 from BelfryCAD.cad_geometry import Point2D
 
-class TestWindow(QMainWindow):
+class RectangleTestWindow(QMainWindow):
     """Test window for displaying the rectangle."""
-    
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Rectangle CAD Object Test")
@@ -208,7 +208,6 @@ def test_basic_functionality():
     print("\n✅ All Rectangle CAD Object System tests passed!")
     print(f"Rectangle bounds: {bounds}")
     print(f"Rectangle center: {rect_obj.center_point}")
-    return True
 
 def main():
     """Main function to run the test."""
