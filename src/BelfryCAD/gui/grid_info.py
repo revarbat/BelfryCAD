@@ -174,12 +174,10 @@ class GridInfo(object):
             spacings = spacings[-4:]
         while len(spacings) < 4:
             spacings.insert(0, spacings[0] * 10.0)
-        label_spacing = spacings[-2]
-        while label_spacing * scaling > 100.0:
-            label_spacing /= 2.0
-        while label_spacing * scaling < 50.0:
-            label_spacing *= 2.0
-        return (spacings, label_spacing)
+        label_idx = -1
+        while spacings[label_idx] * scaling < 50.0:
+            label_idx -= 1
+        return (spacings, spacings[label_idx])
 
     def grid_line_color(self, level: int) -> QColor:
         """Get the color for the grid line at the given level."""
