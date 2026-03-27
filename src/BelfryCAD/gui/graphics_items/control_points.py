@@ -51,8 +51,8 @@ class ControlPoint(QGraphicsItem):
         self.big = big
         self._double_click_handler = double_click_handler
         
-        # Use Qt's built-in flags - make selectable to be part of selection system
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+        # Not selectable — clicking a control point must not affect scene selection
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, False)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setAcceptHoverEvents(True)

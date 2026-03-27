@@ -279,17 +279,23 @@ class CadViewModel(QObject):
     def _add_view_items_to_scene(self, scene: QGraphicsScene):
         """Add all view items to the scene and set viewmodel reference."""
         from PySide6.QtWidgets import QGraphicsItem
-        
+
         for item in self._view_items:
             if item and item.scene() != scene:
                 scene.addItem(item)
             if item:
                 # Store reference to this viewmodel in data slot 0
                 item.setData(0, self)
-                
+
                 # Ensure all graphics items have proper selection flags
                 item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
                 item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
+
+                # Restore Qt selection state if viewmodel is selected.
+                # _clear_view_items deselects the old item before removing it,
+                # so new items must be re-selected to keep the selection outline.
+                if self._is_selected:
+                    item.setSelected(True)
     
     def _clear_view_items(self, scene: QGraphicsScene):
         """Remove all view items from the scene."""

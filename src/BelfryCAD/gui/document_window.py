@@ -12,7 +12,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QMessageBox, QDialog, QLabel, QGraphicsView,
-    QDockWidget
+    QDockWidget, QGraphicsItem
 )
 from PySide6.QtCore import QPointF
 
@@ -2029,6 +2029,8 @@ class DocumentWindow(QMainWindow):
                     if obj and obj_id in self._object_viewmodels:
                         viewmodel = self._object_viewmodels[obj_id]
                         for item in self.cad_scene.items():
+                            if not item.flags() & QGraphicsItem.GraphicsItemFlag.ItemIsSelectable:
+                                continue
                             item_viewmodel = item.data(0)
                             if item_viewmodel == viewmodel:
                                 item.setSelected(True)
@@ -2085,7 +2087,10 @@ class DocumentWindow(QMainWindow):
                 self._object_viewmodels[obj.object_id] = viewmodel
                 # Add the graphics items to the scene
                 viewmodel.update_view(self.cad_scene)
-                
+
+                # Select the newly created object
+                self._update_selection_state({obj.object_id}, source="tree")
+
                 # Update the object tree
                 if hasattr(self, 'object_tree_pane'):
                     self.object_tree_pane.refresh_tree()

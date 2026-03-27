@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QGraphicsItem, QGraphicsScene, QGraphicsSceneMouse
 
 from ..graphics_items.cad_arc_graphics_item import CadArcGraphicsItem
 from ..graphics_items.cad_graphics_items_base import CadGraphicsItemBase
+from ..graphics_items.control_points import ControlPoint
 
 
 class CadScene(QGraphicsScene):
@@ -126,6 +127,14 @@ class CadScene(QGraphicsScene):
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent):
         """Handle mouse press events and delegate to active tool."""
+        # Preemptively set the control-point-dragging flag BEFORE super() so that
+        # the selectionChanged signal (which fires inside super()) sees the flag and
+        # does not deselect the parent CAD object.
+        if event.button() == Qt.MouseButton.LeftButton:
+            items_at_pos = self.items(event.scenePos())
+            if any(isinstance(item, ControlPoint) for item in items_at_pos):
+                self._control_point_dragging = True
+
         # First, let Qt handle the event normally (for selection, etc.)
         super().mousePressEvent(event)
 
