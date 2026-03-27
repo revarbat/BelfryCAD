@@ -70,7 +70,7 @@ class CadGraphicsItemBase(QAbstractGraphicsShapeItem):
         """Paint the graphics item with selection indication if selected."""
         if self.isSelected():
             painter.save()
-            selection_pen = QPen(QColor("#00bfff"), 3.0)
+            selection_pen = QPen(QColor("#00bfff"), 2.0)
             selection_pen.setCosmetic(True)
             selection_pen.setDashPattern([2, 2])
             selection_pen.setCapStyle(Qt.PenCapStyle.RoundCap)

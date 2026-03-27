@@ -183,7 +183,7 @@ class GridInfo(object):
         """Get the color for the grid line at the given level."""
         color = self.base_color
         hue = color.hueF()
-        saturation = min(1.0, color.saturationF() * 0.5 * math.pow(0.65, level))
+        saturation = min(1.0, color.saturationF() * 0.33 * math.pow(0.65, level))
         value = color.valueF()
         result = QColor()
         result.setHsvF(hue, saturation, value)

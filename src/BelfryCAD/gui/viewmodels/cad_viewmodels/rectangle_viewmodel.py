@@ -76,21 +76,11 @@ class RectangleViewModel(CadViewModel):
         """
         Show the decorations for this rectangle.
         This is called when this object is being drawn or when it becomes visible.
-        
+
         Args:
             scene: The graphics scene to add decoration items to
         """
         self._clear_decorations(scene)
-        
-        # Add center cross decoration
-        center = self.center_point
-        cross_item = ConstructionCrossItem(
-            center=center,
-            size=10.0
-        )
-        self._decorations.append(cross_item)
-        
-        self._add_decorations_to_scene(scene)
     
     def hide_decorations(self, scene: QGraphicsScene):
         """
@@ -163,7 +153,7 @@ class RectangleViewModel(CadViewModel):
         width_datum = ControlDatum(
             model_view=self,
             setter=self._set_width,
-            prefix="W: ",
+            prefix="",
             is_length=True,
             min_value=0.0,
         )
@@ -172,7 +162,7 @@ class RectangleViewModel(CadViewModel):
         height_datum = ControlDatum(
             model_view=self,
             setter=self._set_height,
-            prefix="H: ",
+            prefix="",
             is_length=True,
             min_value=0.0,
         )
