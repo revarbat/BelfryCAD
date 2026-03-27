@@ -311,13 +311,6 @@ class GearViewModel(CadViewModel):
         """Set circular pitch"""
         self.pitch_diameter = value * self.num_teeth / (2 * 3.14159)
 
-    def translate(self, dx: float, dy: float):
-        """Move gear by the given offset"""
-        if dx != 0 or dy != 0:
-            self._gear_object.translate(dx, dy)
-            new_pos = self.center_point
-            self.object_moved.emit(new_pos)
-    
     def scale(self, scale_factor: float, center: QPointF):
         """Scale the gear around the given center"""
         center_point = Point2D(center.x(), center.y())

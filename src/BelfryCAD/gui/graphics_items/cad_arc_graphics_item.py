@@ -73,7 +73,6 @@ class CadArcGraphicsItem(CadGraphicsItemBase):
         
         # Set up the graphics item
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
         
         # Ensure the item is visible

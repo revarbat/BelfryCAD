@@ -6,6 +6,7 @@ from PySide6.QtGui import QKeyEvent, QPen
 from PySide6.QtWidgets import QGraphicsItem, QGraphicsScene, QGraphicsSceneMouseEvent
 
 from ..graphics_items.cad_arc_graphics_item import CadArcGraphicsItem
+from ..graphics_items.cad_graphics_items_base import CadGraphicsItemBase
 
 
 class CadScene(QGraphicsScene):
@@ -35,9 +36,14 @@ class CadScene(QGraphicsScene):
         # Timer for animating selection outlines
         self._selection_animation_timer = QTimer()
         self._selection_animation_timer.timeout.connect(self._animate_selection_outlines)
-        # Start with 50ms interval for smooth animation (20 FPS)
+        # 50ms interval = 20 FPS; dash offset advances at a fixed step per tick
+        self._selection_dash_offset = 0.0
         self._selection_animation_timer.start(50)
         
+        # State for dragging CAD object bodies (may be multiple when multi-selected)
+        self._body_drag_viewmodels = []
+        self._body_drag_last_pos = None
+
         # Connect to Qt's built-in selection changed signal
         self.selectionChanged.connect(self._on_selection_changed)
 
@@ -105,16 +111,16 @@ class CadScene(QGraphicsScene):
         self._tool_manager = tool_manager
 
     def _animate_selection_outlines(self):
-        """Update all selected items to animate their selection outlines."""
-        # Get all selected items and trigger their update to animate the dashed outline
+        """Advance the selection dash offset and repaint selected items."""
         selected_items = self.selectedItems()
-        
-        # If no items are selected, we can stop the timer to save resources
         if not selected_items:
             return
-            
+
+        # Advance offset by a fixed amount per tick so speed is independent of repaint rate.
+        # Dash pattern [2,2] sums to 4; step of 0.2 gives one full cycle per second (20 ticks).
+        self._selection_dash_offset = (self._selection_dash_offset + 0.2) % 4.0
+
         for item in selected_items:
-            # Only update items that have our custom selection animation
             if hasattr(item, 'update'):
                 item.update()
 
@@ -122,11 +128,28 @@ class CadScene(QGraphicsScene):
         """Handle mouse press events and delegate to active tool."""
         # First, let Qt handle the event normally (for selection, etc.)
         super().mousePressEvent(event)
-        
+
+        # Start body drag if a CAD body item (not a control point) grabbed the press.
+        # Collect all selected body viewmodels so multi-selected objects move together.
+        if event.button() == Qt.MouseButton.LeftButton:
+            grabber = self.mouseGrabberItem()
+            if isinstance(grabber, CadGraphicsItemBase):
+                seen_ids = set()
+                viewmodels = []
+                for item in self.selectedItems():
+                    if isinstance(item, CadGraphicsItemBase):
+                        vm = item.data(0)
+                        if vm and hasattr(vm, 'translate') and id(vm) not in seen_ids:
+                            seen_ids.add(id(vm))
+                            viewmodels.append(vm)
+                if viewmodels:
+                    self._body_drag_viewmodels = viewmodels
+                    self._body_drag_last_pos = event.scenePos()
+
         # If event was accepted by an item, don't process for tools
         if event.isAccepted():
             return
-        
+
         # Delegate to active tool if available
         if self._tool_manager and self._tool_manager.get_active_tool():
             active_tool = self._tool_manager.get_active_tool()
@@ -135,9 +158,19 @@ class CadScene(QGraphicsScene):
 
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent):
         """Handle mouse move events and delegate to active tool."""
-        # First, let Qt handle the event normally
+        # Handle body drag at the scene level for reliable delta tracking
+        if self._body_drag_viewmodels and (event.buttons() & Qt.MouseButton.LeftButton):
+            delta = event.scenePos() - self._body_drag_last_pos
+            self._body_drag_last_pos = event.scenePos()
+            if delta.x() != 0.0 or delta.y() != 0.0:
+                for vm in self._body_drag_viewmodels:
+                    vm.translate(delta.x(), delta.y())
+            event.accept()
+            return
+
+        # Normal event handling
         super().mouseMoveEvent(event)
-        
+
         # Delegate to active tool if available
         if self._tool_manager and self._tool_manager.get_active_tool():
             active_tool = self._tool_manager.get_active_tool()
@@ -146,13 +179,17 @@ class CadScene(QGraphicsScene):
 
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent):
         """Handle mouse release events and delegate to active tool."""
+        # Clear body drag state
+        self._body_drag_viewmodels = []
+        self._body_drag_last_pos = None
+
         # First, let Qt handle the event normally
         super().mouseReleaseEvent(event)
-        
+
         # If event was accepted by an item, don't process for tools
         if event.isAccepted():
             return
-        
+
         # Delegate to active tool if available
         if self._tool_manager and self._tool_manager.get_active_tool():
             active_tool = self._tool_manager.get_active_tool()
@@ -161,13 +198,22 @@ class CadScene(QGraphicsScene):
 
     def keyPressEvent(self, event: QKeyEvent):
         """Handle key press events and delegate to active tool."""
+        # Handle Delete/Backspace: delete selected objects from the document
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            if self.selectedItems() and self._tool_manager:
+                doc_window = self._tool_manager.document_window
+                if hasattr(doc_window, '_delete_selected_items'):
+                    doc_window._delete_selected_items()
+                    event.accept()
+                    return
+
         # First, let Qt handle the event normally
         super().keyPressEvent(event)
-        
+
         # If event was accepted by an item, don't process for tools
         if event.isAccepted():
             return
-        
+
         # Delegate to active tool if available
         if self._tool_manager and self._tool_manager.get_active_tool():
             active_tool = self._tool_manager.get_active_tool()

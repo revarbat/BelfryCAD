@@ -18,6 +18,7 @@ class DashPattern(Enum):
     """Enumeration for different dash patterns."""
     SOLID = "solid"
     DASHED = "dashed"
+    SHORT_DASHED = "short_dashed"
     CENTERLINE = "centerline"
 
 
@@ -194,6 +195,9 @@ class ConstructionLineItem(QGraphicsLineItem):
         elif self._dash_pattern == DashPattern.DASHED:
             pen.setStyle(Qt.PenStyle.DashLine)
             pen.setDashPattern([5.0, 5.0])
+        elif self._dash_pattern == DashPattern.SHORT_DASHED:
+            pen.setStyle(Qt.PenStyle.DashLine)
+            pen.setDashPattern([2.0, 2.0])
         elif self._dash_pattern == DashPattern.CENTERLINE:
             pen.setStyle(Qt.PenStyle.DashLine)
             pen.setDashPattern([8.0, 5.0, 5.0, 5.0, 7.0])

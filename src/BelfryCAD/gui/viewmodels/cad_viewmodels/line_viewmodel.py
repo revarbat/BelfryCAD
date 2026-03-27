@@ -131,6 +131,14 @@ class LineViewModel(CadViewModel):
         """
         self._clear_controls(scene)
 
+    def _update_view_geometry_in_place(self):
+        """Update the line graphics item in-place after a translation."""
+        if self._view_items:
+            self._view_items[0].setLine(
+                self._line_object.start_point.to_qpointf(),
+                self._line_object.end_point.to_qpointf()
+            )
+
     def update_controls(self, scene: QGraphicsScene):
         """
         Update the controls.
@@ -142,12 +150,12 @@ class LineViewModel(CadViewModel):
         start = self.start_point
         end = self.end_point
         mid = self.mid_point
-        
+
         # Update control points
         self._controls[0].setPos(start)  # Start point
         self._controls[1].setPos(end)    # End point
         self._controls[2].setPos(mid)    # Mid point
-        
+
         self.control_points_updated.emit()
 
     def get_properties(self) -> List[str]:
@@ -281,15 +289,6 @@ class LineViewModel(CadViewModel):
         """Set angle in degrees"""
         self.angle_radians = math.radians(value)
 
-    def translate(self, dx: float, dy: float):
-        """Move the line by the given offset"""
-        start = self.start_point
-        end = self.end_point
-        delta = QPointF(dx, dy)
-        self.start_point = start + delta
-        self.end_point = end + delta
-        self.object_moved.emit(delta)
-    
     def scale(self, scale_factor: float, center: QPointF):
         """Scale the line around the given center"""
         start = self.start_point

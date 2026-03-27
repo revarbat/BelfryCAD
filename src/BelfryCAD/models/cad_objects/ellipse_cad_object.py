@@ -181,7 +181,7 @@ class EllipseCadObject(CadObject):
 
     def translate(self, dx: float, dy: float):
         """Move the ellipse by the specified offset."""
-        self.ellipse.translate(Point2D(dx, dy))
+        self.ellipse = self.ellipse.translate(Point2D(dx, dy))
 
     def scale(self, scale: float, center: Point2D):
         """Scale the ellipse by the specified factor around the center point."""

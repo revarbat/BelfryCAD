@@ -159,9 +159,9 @@ class GearCadObject(CadObject):
 
     def translate(self, dx: float, dy: float):
         """Move the gear by the specified offset."""
-        self.circle.translate(Point2D(dx, dy))
-        self.gear_polygon.translate(Point2D(dx, dy))
-        self._center_point.translate(Point2D(dx, dy))
+        self.circle = self.circle.translate(Point2D(dx, dy))
+        self.gear_polygon = self.gear_polygon.translate(Point2D(dx, dy))
+        self._center_point = self._center_point.translate(Point2D(dx, dy))
 
     def scale(self, scale: float, center: Point2D):
         """Scale the gear by the specified factor around the center point."""

@@ -142,6 +142,14 @@ class CircleViewModel(CadViewModel):
         """
         self._clear_controls(scene)
 
+    def _update_view_geometry_in_place(self):
+        """Update the circle graphics item in-place after a translation."""
+        if self._view_items:
+            self._view_items[0].setCircle(
+                self._circle_object.center_point.to_qpointf(),
+                self._circle_object.radius
+            )
+
     def update_controls(self, scene: QGraphicsScene):
         """
         Update the controls.
@@ -152,11 +160,11 @@ class CircleViewModel(CadViewModel):
 
         center = self.center_point
         perimeter = self.perimeter_point
-        
+
         # Update control points
         self._controls[0].setPos(center)  # Center point
         self._controls[1].setPos(perimeter)  # Perimeter point
-        
+
         self.control_points_updated.emit()
 
     def get_properties(self) -> List[str]:
@@ -255,13 +263,6 @@ class CircleViewModel(CadViewModel):
             self.perimeter_point_changed.emit(value)
             self.object_modified.emit()
 
-    def translate(self, dx: float, dy: float):
-        """Move circle by the given offset"""
-        center = self.center_point
-        delta = QPointF(dx, dy)
-        self.center_point = center + delta
-        self.object_moved.emit(delta)
-    
     def scale(self, scale_factor: float, center: QPointF):
         """Scale the circle around the given center"""
         current_center = self.center_point

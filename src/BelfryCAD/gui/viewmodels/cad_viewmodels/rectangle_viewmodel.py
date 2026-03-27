@@ -190,11 +190,21 @@ class RectangleViewModel(CadViewModel):
         """
         self._clear_controls(scene)
     
+    def _update_view_geometry_in_place(self):
+        """Update the rectangle graphics item in-place after a translation."""
+        if self._view_items:
+            self._view_items[0].setPoints([
+                self.corner1,
+                self.corner4,
+                self.corner3,
+                self.corner2,
+            ])
+
     def update_controls(self, scene: QGraphicsScene):
         """
         Update the controls for this rectangle.
         This is called when this object is modified.
-        
+
         Args:
             scene: The graphics scene containing the control items
         """

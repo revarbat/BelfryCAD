@@ -1061,12 +1061,26 @@ class DocumentWindow(QMainWindow):
     def undo(self):
         """Handle Undo menu action."""
         if hasattr(self, 'undo_manager') and self.undo_manager.undo():
-            self.update_title()  # Update window title
+            self.update_title()
+            try:
+                self._draw_shapes()
+                self.refresh_object_tree()
+                if hasattr(self, '_current_selection'):
+                    self._update_selection_state(self._current_selection, source="undo")
+            except Exception as e:
+                print(f"Warning: failed to refresh UI after undo: {e}")
 
     def redo(self):
         """Handle Redo menu action."""
         if hasattr(self, 'undo_manager') and self.undo_manager.redo():
-            self.update_title()  # Update window title
+            self.update_title()
+            try:
+                self._draw_shapes()
+                self.refresh_object_tree()
+                if hasattr(self, '_current_selection'):
+                    self._update_selection_state(self._current_selection, source="undo")
+            except Exception as e:
+                print(f"Warning: failed to refresh UI after redo: {e}")
 
     def cut(self):
         """Handle Cut menu action."""
@@ -1380,17 +1394,12 @@ class DocumentWindow(QMainWindow):
             return False
 
     def _on_undo_state_changed(self):
-        """Called when undo/redo state changes to update UI."""
-        # Ensure the scene and object tree reflect the current model state
-        try:
-            self._draw_shapes()
-            self.refresh_object_tree()
-            # Re-apply current selection to update controls/decorations
-            if hasattr(self, '_current_selection'):
-                self._update_selection_state(self._current_selection, source="undo")
-        except Exception as e:
-            # Non-fatal; keep UI responsive
-            print(f"Warning: failed to refresh UI after undo/redo: {e}")
+        """Called when undo/redo state changes to update undo/redo UI state."""
+        # Intentionally left empty: scene refresh is handled by on_object_created
+        # for new object creation, and by undo()/redo() for undo/redo operations.
+        # Calling _draw_shapes() here would create duplicate graphics items because
+        # complete() also emits object_created after execute_command returns.
+        pass
 
     def execute_command(self, command):
         """Execute a command through the undo system."""
@@ -1751,11 +1760,35 @@ class DocumentWindow(QMainWindow):
         return selected_items
 
     def _delete_selected_items(self):
-        """Delete currently selected items from the scene."""
+        """Delete currently selected items from the document and scene."""
         selected_items = self._get_selected_items()
+        if not selected_items:
+            return False
+
+        # Deduplicate: multiple graphics items may belong to the same CadObject
+        seen_ids = set()
         for item in selected_items:
-            self.cad_scene.removeItem(item)
-        return len(selected_items) > 0
+            viewmodel = item.data(0)
+            if viewmodel and hasattr(viewmodel, '_cad_object'):
+                obj = viewmodel._cad_object
+                object_id = obj.object_id
+                if object_id in seen_ids:
+                    continue
+                seen_ids.add(object_id)
+                # Remove from document model
+                self.document.remove_object(object_id)
+                # Remove graphics items from scene via viewmodel
+                if object_id in self._object_viewmodels:
+                    vm = self._object_viewmodels.pop(object_id)
+                    if hasattr(vm, '_clear_view_items'):
+                        vm._clear_view_items(self.cad_scene)
+
+        # Clear selection state
+        self._current_selection = set()
+        self._update_selection_state(set())
+        if hasattr(self, 'object_tree_pane'):
+            self.object_tree_pane.refresh_tree()
+        return True
 
     def _select_items(self, items):
         """Select the specified items in the scene."""

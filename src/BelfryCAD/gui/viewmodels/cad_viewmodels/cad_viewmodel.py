@@ -234,12 +234,22 @@ class CadViewModel(QObject):
     def translate(self, dx: float, dy: float):
         """
         Move the object by the given offset.
-        
-        Args:
-            dx: X offset to move by
-            dy: Y offset to move by
+        Updates the model, redraws the shape geometry in-place, and repositions controls.
         """
-        # Subclasses should override this to implement specific translation logic
+        self._cad_object.translate(dx, dy)
+        self._update_view_geometry_in_place()
+        # Update decorations and controls using the scene from the first view item
+        if self._view_items:
+            scene = self._view_items[0].scene()
+            if scene:
+                self.update_decorations(scene)
+                self.update_controls(scene)
+
+    def _update_view_geometry_in_place(self):
+        """
+        Redraw the shape graphics item(s) at updated model coordinates without
+        removing/re-adding them.  Subclasses must override this.
+        """
         pass
     
     def scale(self, scale_factor: float, center: QPointF):
@@ -279,7 +289,6 @@ class CadViewModel(QObject):
                 
                 # Ensure all graphics items have proper selection flags
                 item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
-                item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
                 item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsFocusable, True)
     
     def _clear_view_items(self, scene: QGraphicsScene):

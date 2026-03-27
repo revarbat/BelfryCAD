@@ -2,7 +2,15 @@
 CubicBezierCadObject - A cubic Bezier curve CAD object defined by four control points.
 """
 
+from enum import Enum
 from typing import Optional, Tuple, List, TYPE_CHECKING
+
+
+class TangentPointMode(Enum):
+    """Mode controlling how the two control handles around a tangent (on-curve) point behave."""
+    DISJOINT = "disjoint"   # handles are fully independent
+    TANGENT = "tangent"     # opposite directions, independent lengths
+    EQUAL = "equal"         # opposite directions, equal lengths
 
 from ...cad_geometry import (
     ShapeType, Shape2D, Transform2D,
@@ -30,6 +38,28 @@ class CubicBezierCadObject(CadObject):
     ):
         super().__init__(document, color, line_width)
         self.bezier_path = BezierPath(points)
+        self._tangent_modes: List[TangentPointMode] = []
+        self._ensure_tangent_modes()
+
+    def _num_tangent_points(self) -> int:
+        n = len(self.bezier_path.points)
+        return n // 3 + 1 if n >= 1 else 0
+
+    def _ensure_tangent_modes(self):
+        needed = self._num_tangent_points()
+        while len(self._tangent_modes) < needed:
+            self._tangent_modes.append(TangentPointMode.TANGENT)
+
+    def get_tangent_mode(self, tangent_idx: int) -> TangentPointMode:
+        self._ensure_tangent_modes()
+        if 0 <= tangent_idx < len(self._tangent_modes):
+            return self._tangent_modes[tangent_idx]
+        return TangentPointMode.TANGENT
+
+    def set_tangent_mode(self, tangent_idx: int, mode: TangentPointMode):
+        self._ensure_tangent_modes()
+        if 0 <= tangent_idx < len(self._tangent_modes):
+            self._tangent_modes[tangent_idx] = mode
 
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get the bounds of the Bezier curve."""
@@ -108,7 +138,7 @@ class CubicBezierCadObject(CadObject):
 
     def translate(self, dx: float, dy: float):
         """Move the Bezier curve by the specified offset."""
-        self.bezier_path.translate(Point2D(dx, dy))
+        self.bezier_path = self.bezier_path.translate(Point2D(dx, dy))
 
     def scale(self, scale: float, center: Point2D):
         """Scale the Bezier curve by the specified factor around the center point."""
@@ -173,6 +203,8 @@ class CubicBezierCadObject(CadObject):
         """Get the data needed to re-create this object."""
         data = {}
         data["points"] = [point.to_string() for point in self.bezier_path.points]
+        self._ensure_tangent_modes()
+        data["tangent_modes"] = [mode.value for mode in self._tangent_modes]
         return data
 
     @classmethod
@@ -181,5 +213,11 @@ class CubicBezierCadObject(CadObject):
         points = [Point2D(*point_data) for point_data in data["points"]]
         color = data.get("color", "black")
         line_width = data.get("line_width", 0.05)
-        
-        return cls(document, points, color, line_width)
+        obj = cls(document, points, color, line_width)
+        if "tangent_modes" in data:
+            for i, mode_str in enumerate(data["tangent_modes"]):
+                try:
+                    obj.set_tangent_mode(i, TangentPointMode(mode_str))
+                except ValueError:
+                    pass
+        return obj

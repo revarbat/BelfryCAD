@@ -39,7 +39,8 @@ class ControlPoint(QGraphicsItem):
             setter: Callable[[QPointF], None],
             cp_shape: ControlPointShape = ControlPointShape.ROUND,
             big: bool = False,
-            tool_tip: Optional[str] = None
+            tool_tip: Optional[str] = None,
+            double_click_handler: Optional[Callable[[], None]] = None
     ):
         super().__init__()  # Use parent-child relationship
         self.model_view = model_view
@@ -48,6 +49,7 @@ class ControlPoint(QGraphicsItem):
         self.cp_shape = cp_shape
         self.tool_tip = tool_tip
         self.big = big
+        self._double_click_handler = double_click_handler
         
         # Use Qt's built-in flags - make selectable to be part of selection system
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
@@ -245,15 +247,23 @@ class ControlPoint(QGraphicsItem):
         """Handle mouse release events for control point dragging."""
         # Clear dragging state
         self._is_dragging = False
-        
+
         # Notify scene that control point dragging has ended
         scene = self.scene()
         if scene and hasattr(scene, 'set_control_point_dragging'):
             scene.set_control_point_dragging(False)
-        
+
         # Accept the event to prevent it from propagating to the scene
         # This prevents deselection of the main CAD object
         event.accept()
+
+    def mouseDoubleClickEvent(self, event):
+        """Handle double-click events, invoking the double_click_handler if set."""
+        if event.button() == Qt.MouseButton.LeftButton and self._double_click_handler:
+            self._double_click_handler()
+            event.accept()
+        else:
+            super().mouseDoubleClickEvent(event)
 
 
 class ControlDatum(ControlPoint):

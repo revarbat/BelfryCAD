@@ -80,7 +80,7 @@ class CircleCadObject(CadObject):
 
     def translate(self, dx: float, dy: float):
         """Move the circle by the specified offset."""
-        self.circle.translate(Point2D(dx, dy))
+        self.circle = self.circle.translate(Point2D(dx, dy))
 
     def scale(self, scale: float, center: Point2D):
         """Scale the circle by the specified factor around the center point."""
